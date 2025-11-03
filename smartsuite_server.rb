@@ -26,9 +26,9 @@ class SmartSuiteServer
         STDOUT.puts JSON.generate(response)
         STDOUT.flush
       rescue JSON::ParserError => e
-        send_error("Invalid JSON: #{e.message}")
+        send_error("Invalid JSON: #{e.message}", nil)
       rescue => e
-        send_error("Error: #{e.message}")
+        send_error("Error: #{e.message}", nil)
       end
     end
   end
@@ -47,11 +47,11 @@ class SmartSuiteServer
       handle_tool_call(request)
     else
       {
-        jsonrpc: '2.0',
-        id: request['id'],
-        error: {
-          code: -32601,
-          message: "Method not found: #{method}"
+        'jsonrpc' => '2.0',
+        'id' => request['id'],
+        'error' => {
+          'code' => -32601,
+          'message' => "Method not found: #{method}"
         }
       }
     end
@@ -59,16 +59,16 @@ class SmartSuiteServer
 
   def handle_initialize(request)
     {
-      jsonrpc: '2.0',
-      id: request['id'],
-      result: {
-        protocolVersion: '2024-11-05',
-        serverInfo: {
-          name: 'smartsuite-server',
-          version: '1.0.0'
+      'jsonrpc' => '2.0',
+      'id' => request['id'],
+      'result' => {
+        'protocolVersion' => '2024-11-05',
+        'serverInfo' => {
+          'name' => 'smartsuite-server',
+          'version' => '1.0.0'
         },
-        capabilities: {
-          tools: {}
+        'capabilities' => {
+          'tools' => {}
         }
       }
     }
@@ -76,97 +76,97 @@ class SmartSuiteServer
 
   def handle_tools_list(request)
     {
-      jsonrpc: '2.0',
-      id: request['id'],
-      result: {
-        tools: [
+      'jsonrpc' => '2.0',
+      'id' => request['id'],
+      'result' => {
+        'tools' => [
           {
-            name: 'list_tables',
-            description: 'List all tables (apps) in your SmartSuite workspace',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-              required: []
+            'name' => 'list_tables',
+            'description' => 'List all tables (apps) in your SmartSuite workspace',
+            'inputSchema' => {
+              'type' => 'object',
+              'properties' => {},
+              'required' => []
             }
           },
           {
-            name: 'list_records',
-            description: 'List records from a SmartSuite table with optional filtering',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                table_id: {
-                  type: 'string',
-                  description: 'The ID of the table to query'
+            'name' => 'list_records',
+            'description' => 'List records from a SmartSuite table with optional filtering',
+            'inputSchema' => {
+              'type' => 'object',
+              'properties' => {
+                'table_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the table to query'
                 },
-                limit: {
-                  type: 'number',
-                  description: 'Maximum number of records to return (default: 50)'
+                'limit' => {
+                  'type' => 'number',
+                  'description' => 'Maximum number of records to return (default: 50)'
                 },
-                offset: {
-                  type: 'number',
-                  description: 'Number of records to skip (for pagination)'
+                'offset' => {
+                  'type' => 'number',
+                  'description' => 'Number of records to skip (for pagination)'
                 }
               },
-              required: ['table_id']
+              'required' => ['table_id']
             }
           },
           {
-            name: 'get_record',
-            description: 'Get a specific record by ID from a SmartSuite table',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                table_id: {
-                  type: 'string',
-                  description: 'The ID of the table'
+            'name' => 'get_record',
+            'description' => 'Get a specific record by ID from a SmartSuite table',
+            'inputSchema' => {
+              'type' => 'object',
+              'properties' => {
+                'table_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the table'
                 },
-                record_id: {
-                  type: 'string',
-                  description: 'The ID of the record to retrieve'
+                'record_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the record to retrieve'
                 }
               },
-              required: ['table_id', 'record_id']
+              'required' => ['table_id', 'record_id']
             }
           },
           {
-            name: 'create_record',
-            description: 'Create a new record in a SmartSuite table',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                table_id: {
-                  type: 'string',
-                  description: 'The ID of the table'
+            'name' => 'create_record',
+            'description' => 'Create a new record in a SmartSuite table',
+            'inputSchema' => {
+              'type' => 'object',
+              'properties' => {
+                'table_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the table'
                 },
-                data: {
-                  type: 'object',
-                  description: 'The record data as key-value pairs (field_slug: value)'
+                'data' => {
+                  'type' => 'object',
+                  'description' => 'The record data as key-value pairs (field_slug: value)'
                 }
               },
-              required: ['table_id', 'data']
+              'required' => ['table_id', 'data']
             }
           },
           {
-            name: 'update_record',
-            description: 'Update an existing record in a SmartSuite table',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                table_id: {
-                  type: 'string',
-                  description: 'The ID of the table'
+            'name' => 'update_record',
+            'description' => 'Update an existing record in a SmartSuite table',
+            'inputSchema' => {
+              'type' => 'object',
+              'properties' => {
+                'table_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the table'
                 },
-                record_id: {
-                  type: 'string',
-                  description: 'The ID of the record to update'
+                'record_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the record to update'
                 },
-                data: {
-                  type: 'object',
-                  description: 'The record data to update as key-value pairs (field_slug: value)'
+                'data' => {
+                  'type' => 'object',
+                  'description' => 'The record data to update as key-value pairs (field_slug: value)'
                 }
               },
-              required: ['table_id', 'record_id', 'data']
+              'required' => ['table_id', 'record_id', 'data']
             }
           }
         ]
@@ -191,34 +191,34 @@ class SmartSuiteServer
       update_record(arguments['table_id'], arguments['record_id'], arguments['data'])
     else
       return {
-        jsonrpc: '2.0',
-        id: request['id'],
-        error: {
-          code: -32602,
-          message: "Unknown tool: #{tool_name}"
+        'jsonrpc' => '2.0',
+        'id' => request['id'],
+        'error' => {
+          'code' => -32602,
+          'message' => "Unknown tool: #{tool_name}"
         }
       }
     end
 
     {
-      jsonrpc: '2.0',
-      id: request['id'],
-      result: {
-        content: [
+      'jsonrpc' => '2.0',
+      'id' => request['id'],
+      'result' => {
+        'content' => [
           {
-            type: 'text',
-            text: JSON.pretty_generate(result)
+            'type' => 'text',
+            'text' => JSON.pretty_generate(result)
           }
         ]
       }
     }
   rescue => e
     {
-      jsonrpc: '2.0',
-      id: request['id'],
-      error: {
-        code: -32603,
-        message: "Tool execution failed: #{e.message}"
+      'jsonrpc' => '2.0',
+      'id' => request['id'],
+      'error' => {
+        'code' => -32603,
+        'message' => "Tool execution failed: #{e.message}"
       }
     }
   end
@@ -284,12 +284,13 @@ class SmartSuiteServer
     JSON.parse(response.body)
   end
 
-  def send_error(message)
+  def send_error(message, id = nil)
     response = {
-      jsonrpc: '2.0',
-      error: {
-        code: -32603,
-        message: message
+      'jsonrpc' => '2.0',
+      'id' => id,
+      'error' => {
+        'code' => -32603,
+        'message' => message
       }
     }
     STDOUT.puts JSON.generate(response)
