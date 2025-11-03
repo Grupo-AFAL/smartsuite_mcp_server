@@ -6,11 +6,18 @@ A Model Context Protocol (MCP) server for SmartSuite, enabling AI assistants to 
 
 This MCP server provides the following tools:
 
+### Data Operations
 - **list_tables** - List all tables in your SmartSuite workspace
 - **list_records** - Query records from a table with pagination support
 - **get_record** - Retrieve a specific record by ID
 - **create_record** - Create new records in tables
 - **update_record** - Update existing records
+
+### API Usage Tracking
+- **get_api_stats** - View detailed API usage statistics by user, solution, table, method, and endpoint
+- **reset_api_stats** - Reset API usage statistics
+
+All API calls are automatically tracked and persisted across sessions, helping you monitor usage and stay within SmartSuite's rate limits.
 
 ## Prerequisites
 
@@ -173,6 +180,81 @@ Updates an existing record.
   }
 }
 ```
+
+### get_api_stats
+
+Retrieves comprehensive API call statistics.
+
+Tracks API usage across multiple dimensions:
+- Total calls and timestamps
+- Calls by user (API key hashed for privacy)
+- Calls by HTTP method (GET, POST, PATCH)
+- Calls by SmartSuite solution
+- Calls by table (application)
+- Calls by endpoint
+
+**Example response:**
+```json
+{
+  "summary": {
+    "total_calls": 150,
+    "first_call": "2025-01-15T10:30:00Z",
+    "last_call": "2025-01-15T14:45:00Z",
+    "unique_users": 1,
+    "unique_solutions": 2,
+    "unique_tables": 5
+  },
+  "by_user": {
+    "a1b2c3d4": 150
+  },
+  "by_method": {
+    "GET": 50,
+    "POST": 75,
+    "PATCH": 25
+  },
+  "by_solution": {
+    "sol_abc123": 100,
+    "sol_def456": 50
+  },
+  "by_table": {
+    "tbl_customers": 80,
+    "tbl_orders": 70
+  },
+  "by_endpoint": {
+    "/applications/": 10,
+    "/applications/tbl_customers/records/list/": 40
+  }
+}
+```
+
+**Note:** Statistics are persisted to `~/.smartsuite_mcp_stats.json` and survive server restarts.
+
+### reset_api_stats
+
+Resets all API call statistics back to zero.
+
+**Example response:**
+```json
+{
+  "status": "success",
+  "message": "API statistics have been reset"
+}
+```
+
+## API Call Tracking
+
+This server automatically tracks all API calls made to SmartSuite. The tracking includes:
+
+- **By User**: API key is hashed (SHA256, first 8 chars) for privacy
+- **By Solution**: Extracted from endpoints like `/solutions/{id}/`
+- **By Table**: Extracted from endpoints like `/applications/{id}/`
+- **By HTTP Method**: GET, POST, PATCH
+- **By Endpoint**: Full endpoint path
+- **Timestamps**: First and last API call times
+
+Statistics are automatically saved to `~/.smartsuite_mcp_stats.json` after each API call and persist across server restarts.
+
+Use the `get_api_stats` tool to view current statistics or `reset_api_stats` to clear them.
 
 ## API Rate Limits
 
