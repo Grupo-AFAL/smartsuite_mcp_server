@@ -71,11 +71,22 @@ class SmartSuiteClient
     end
   end
 
-  def list_records(table_id, limit = 50, offset = 0)
+  def list_records(table_id, limit = 50, offset = 0, filter: nil, sort: nil)
     body = {
       limit: limit,
       offset: offset
     }
+
+    # Add filter if provided
+    # Filter format: {"operator": "and|or", "fields": [{"field": "field_slug", "comparison": "operator", "value": "value"}]}
+    # Example: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}]}
+    body[:filter] = filter if filter
+
+    # Add sort if provided
+    # Sort format: [{"field": "field_slug", "direction": "asc|desc"}]
+    # Example: [{"field": "created_on", "direction": "desc"}]
+    body[:sort] = sort if sort
+
     api_request(:post, "/applications/#{table_id}/records/list/", body)
   end
 

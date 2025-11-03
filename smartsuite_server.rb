@@ -162,7 +162,7 @@ class SmartSuiteServer
           },
           {
             'name' => 'list_records',
-            'description' => 'List records from a SmartSuite table with optional filtering',
+            'description' => 'List records from a SmartSuite table with optional filtering and sorting',
             'inputSchema' => {
               'type' => 'object',
               'properties' => {
@@ -177,6 +177,28 @@ class SmartSuiteServer
                 'offset' => {
                   'type' => 'number',
                   'description' => 'Number of records to skip (for pagination)'
+                },
+                'filter' => {
+                  'type' => 'object',
+                  'description' => 'Filter criteria with operator and fields array. Example: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}]}'
+                },
+                'sort' => {
+                  'type' => 'array',
+                  'description' => 'Sort criteria as array of field-direction pairs. Example: [{"field": "created_on", "direction": "desc"}]',
+                  'items' => {
+                    'type' => 'object',
+                    'properties' => {
+                      'field' => {
+                        'type' => 'string',
+                        'description' => 'Field slug to sort by'
+                      },
+                      'direction' => {
+                        'type' => 'string',
+                        'description' => 'Sort direction: "asc" or "desc"',
+                        'enum' => ['asc', 'desc']
+                      }
+                    }
+                  }
                 }
               },
               'required' => ['table_id']
@@ -273,7 +295,13 @@ class SmartSuiteServer
     when 'list_tables'
       @client.list_tables
     when 'list_records'
-      @client.list_records(arguments['table_id'], arguments['limit'], arguments['offset'])
+      @client.list_records(
+        arguments['table_id'],
+        arguments['limit'],
+        arguments['offset'],
+        filter: arguments['filter'],
+        sort: arguments['sort']
+      )
     when 'get_record'
       @client.get_record(arguments['table_id'], arguments['record_id'])
     when 'create_record'

@@ -142,19 +142,103 @@ Lists all tables (applications) in your workspace. This can return a large resul
 
 ### list_records
 
-Lists records from a specific table.
+Lists records from a specific table with optional filtering and sorting.
 
 **Parameters:**
 - `table_id` (required): The ID of the table
 - `limit` (optional): Number of records to return (default: 50)
-- `offset` (optional): Number of records to skip
+- `offset` (optional): Number of records to skip (for pagination)
+- `filter` (optional): Filter criteria with operator and fields array
+- `sort` (optional): Sort criteria as array of field-direction pairs
 
-**Example:**
+**Filter Structure:**
+
+The filter parameter uses the following structure:
+```json
+{
+  "operator": "and",  // or "or" - combines multiple conditions
+  "fields": [
+    {
+      "field": "field_slug",      // Field identifier
+      "comparison": "is",          // Comparison operator
+      "value": "value"             // Value to compare against
+    }
+  ]
+}
+```
+
+**Available Comparison Operators:**
+- `is` / `is_not` - Exact match / not equal
+- `contains` / `does_not_contain` - Text contains / doesn't contain
+- `is_equal_to` / `is_greater_than` / `is_less_than` - Numeric comparisons
+- `is_any_of` / `is_none_of` - Multiple value matching
+- `is_empty` / `is_not_empty` - Empty/non-empty check
+- `is_before` / `is_after` / `is_on` - Date comparisons
+
+**Basic Example:**
 ```json
 {
   "table_id": "abc123",
   "limit": 10,
   "offset": 0
+}
+```
+
+**Example with Filter:**
+```json
+{
+  "table_id": "abc123",
+  "limit": 20,
+  "filter": {
+    "operator": "and",
+    "fields": [
+      {
+        "field": "status",
+        "comparison": "is",
+        "value": "active"
+      }
+    ]
+  }
+}
+```
+
+**Example with Sort:**
+```json
+{
+  "table_id": "abc123",
+  "limit": 50,
+  "sort": [
+    {"field": "created_on", "direction": "desc"},
+    {"field": "title", "direction": "asc"}
+  ]
+}
+```
+
+**Example with Filter and Sort:**
+```json
+{
+  "table_id": "abc123",
+  "limit": 100,
+  "offset": 0,
+  "filter": {
+    "operator": "and",
+    "fields": [
+      {
+        "field": "status",
+        "comparison": "is",
+        "value": "active"
+      },
+      {
+        "field": "priority",
+        "comparison": "is_greater_than",
+        "value": 3
+      }
+    ]
+  },
+  "sort": [
+    {"field": "priority", "direction": "desc"},
+    {"field": "due_date", "direction": "asc"}
+  ]
 }
 ```
 

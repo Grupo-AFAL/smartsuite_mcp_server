@@ -269,6 +269,91 @@ class SmartSuiteServerTest < Minitest::Test
     refute result['tables'][0].key?('structure'), 'Should filter out structure field'
   end
 
+  # Test filtering and sorting
+  def test_client_list_records_with_filter
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    # Track what body was sent
+    sent_body = nil
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      sent_body = body
+      {'items' => []}
+    end
+
+    filter = {
+      'operator' => 'and',
+      'fields' => [
+        {'field' => 'status', 'comparison' => 'is', 'value' => 'active'}
+      ]
+    }
+    client.list_records('tbl_123', 10, 0, filter: filter)
+
+    assert_equal filter, sent_body[:filter]
+    assert_equal 10, sent_body[:limit]
+    assert_equal 0, sent_body[:offset]
+  end
+
+  def test_client_list_records_with_sort
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    # Track what body was sent
+    sent_body = nil
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      sent_body = body
+      {'items' => []}
+    end
+
+    sort = [{'field' => 'created_on', 'direction' => 'desc'}]
+    client.list_records('tbl_123', 10, 0, sort: sort)
+
+    assert_equal sort, sent_body[:sort]
+    assert_equal 10, sent_body[:limit]
+  end
+
+  def test_client_list_records_with_filter_and_sort
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    # Track what body was sent
+    sent_body = nil
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      sent_body = body
+      {'items' => []}
+    end
+
+    filter = {
+      'operator' => 'and',
+      'fields' => [
+        {'field' => 'status', 'comparison' => 'is', 'value' => 'active'},
+        {'field' => 'priority', 'comparison' => 'is_greater_than', 'value' => 3}
+      ]
+    }
+    sort = [{'field' => 'created_on', 'direction' => 'desc'}, {'field' => 'title', 'direction' => 'asc'}]
+    client.list_records('tbl_123', 20, 10, filter: filter, sort: sort)
+
+    assert_equal filter, sent_body[:filter]
+    assert_equal sort, sent_body[:sort]
+    assert_equal 20, sent_body[:limit]
+    assert_equal 10, sent_body[:offset]
+  end
+
+  def test_client_list_records_without_filter_or_sort
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    # Track what body was sent
+    sent_body = nil
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      sent_body = body
+      {'items' => []}
+    end
+
+    client.list_records('tbl_123', 50, 0)
+
+    refute sent_body.key?(:filter), 'Should not include filter when nil'
+    refute sent_body.key?(:sort), 'Should not include sort when nil'
+    assert_equal 50, sent_body[:limit]
+    assert_equal 0, sent_body[:offset]
+  end
+
   # Test tool call handling
   def test_handle_tool_call_get_api_stats
     # First track a call so stats aren't empty
