@@ -288,6 +288,54 @@ SmartSuite enforces these rate limits:
 - Overage: 2 requests per second when exceeding monthly allowance
 - Hard limit: Requests exceeding 125% of monthly limits are denied
 
+## Development & Testing
+
+### Running Tests
+
+This project includes a comprehensive test suite using Minitest (part of Ruby's standard library).
+
+**Install dependencies:**
+```bash
+bundle install
+```
+
+**Run all tests:**
+```bash
+bundle exec rake test
+# or
+ruby test/test_smartsuite_server.rb
+```
+
+**Run with verbose output:**
+```bash
+bundle exec rake test TESTOPTS="-v"
+```
+
+### Test Coverage
+
+The test suite includes:
+- **MCP Protocol Tests** - Initialize, tools/list, prompts/list, resources/list
+- **Tool Handler Tests** - All SmartSuite tools (list_solutions, list_tables, etc.)
+- **API Tracking Tests** - Statistics tracking, reset functionality
+- **Data Formatting Tests** - Response filtering and size optimization
+- **Error Handling Tests** - Unknown methods, missing parameters
+
+### Adding New Tests
+
+Tests are located in `test/test_smartsuite_server.rb`. To add a new test:
+
+1. Create a new test method starting with `test_`
+2. Use Minitest assertions: `assert_equal`, `assert_includes`, `assert_raises`, etc.
+3. Run the tests to ensure they pass
+
+**Example:**
+```ruby
+def test_my_new_feature
+  result = call_private_method(:my_method)
+  assert_equal 'expected', result
+end
+```
+
 ## Troubleshooting
 
 ### Environment Variables Not Set

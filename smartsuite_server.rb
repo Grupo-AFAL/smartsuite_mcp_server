@@ -448,7 +448,7 @@ class SmartSuiteServer
     else
       initialize_stats
     end
-  rescue => e
+  rescue
     # If there's any error loading stats, start fresh
     initialize_stats
   end
@@ -468,7 +468,7 @@ class SmartSuiteServer
 
   def save_stats
     File.write(STATS_FILE, JSON.pretty_generate(@stats))
-  rescue => e
+  rescue
     # Silently fail if we can't save stats - don't interrupt the user's work
   end
 
