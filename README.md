@@ -144,15 +144,20 @@ Lists all tables (applications) in your workspace. This can return a large resul
 
 Lists records from a specific table with optional filtering and sorting.
 
-**⚡ Response Optimization:** This tool automatically filters verbose fields (description, comments_count, ranking, etc.) and truncates long text to reduce context usage. Use the `fields` parameter to specify exactly which fields you need.
+**⚡ ULTRA-MINIMAL CONTEXT USAGE:**
+- **Default limit**: 5 records (not 50!)
+- **Default fields**: Only `id` + `title` returned
+- **Summary mode**: Get statistics without record data
+- Use `fields` parameter only when you need specific data
 
 **Parameters:**
 - `table_id` (required): The ID of the table
-- `limit` (optional): Number of records to return (default: 50)
+- `limit` (optional): Number of records to return (default: **5**)
 - `offset` (optional): Number of records to skip (for pagination)
 - `filter` (optional): Filter criteria with operator and fields array
 - `sort` (optional): Sort criteria as array of field-direction pairs
-- `fields` (optional): Array of specific field slugs to return. If not provided, returns essential fields (id, title, first_created, last_updated) plus custom fields, with verbose metadata stripped
+- `fields` (optional): Array of specific field slugs to return. **Default: only id + title**
+- `summary_only` (optional): Boolean. If true, returns statistics instead of records (minimal context)
 
 **Filter Structure:**
 
@@ -178,14 +183,13 @@ The filter parameter uses the following structure:
 - `is_empty` / `is_not_empty` - Empty/non-empty check
 - `is_before` / `is_after` / `is_on` - Date comparisons
 
-**Basic Example:**
+**Basic Example (Default - Minimal Context):**
 ```json
 {
-  "table_id": "abc123",
-  "limit": 10,
-  "offset": 0
+  "table_id": "abc123"
 }
 ```
+Returns: 5 records with only `id` and `title` fields
 
 **Example with Filter:**
 ```json
@@ -245,25 +249,38 @@ The filter parameter uses the following structure:
 }
 ```
 
-**Example with Specific Fields (Reduces Response Size):**
+**Example with Specific Fields:**
 ```json
 {
   "table_id": "abc123",
-  "limit": 50,
-  "fields": ["status", "priority", "assigned_to", "due_date"]
+  "limit": 10,
+  "fields": ["status", "priority", "assigned_to"]
+}
+```
+Returns: 10 records with `id`, `title`, `status`, `priority`, and `assigned_to`
+
+**Example with Summary Only (Ultra-Minimal Context):**
+```json
+{
+  "table_id": "abc123",
+  "summary_only": true
+}
+```
+Returns:
+```json
+{
+  "summary": "Found 5 records (total: 50)\n  status: active (3), pending (2)\n  priority: high (2), low (3)",
+  "count": 5,
+  "total_count": 50
 }
 ```
 
-**Response Filtering Behavior:**
+**Response Optimization:**
 
-By default (without `fields` parameter):
-- ✅ Keeps: `id`, `title`, `first_created`, `last_updated`, all custom fields
-- ❌ Removes: `description`, `comments_count`, `ranking`, `application_slug`, `deleted_date`
-- ✂️ Truncates: Strings > 500 chars, Arrays > 10 items, Rich text fields
-
-With `fields` parameter:
-- ✅ Returns only specified fields plus essential metadata (`id`, `title`, etc.)
-- ✂️ Still applies truncation to prevent context overflow
+- **Default**: Returns only `id` and `title` (2 fields per record)
+- **With fields**: Returns specified fields + id/title
+- **Summary mode**: No records returned, only statistics
+- **Truncation**: Strings > 500 chars automatically truncated
 
 ### get_record
 

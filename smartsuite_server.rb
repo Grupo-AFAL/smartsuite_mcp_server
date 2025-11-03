@@ -17,10 +17,16 @@ class SmartSuiteServer
 
     # Initialize SmartSuite API client with stats tracker
     @client = SmartSuiteClient.new(@api_key, @account_id, stats_tracker: @stats_tracker)
+
+    # Open metrics log file
+    @metrics_log = File.open(File.join(Dir.home, '.smartsuite_mcp_metrics.log'), 'a')
+    @metrics_log.sync = true
   end
 
   def run
+    $stderr.puts "=" * 60
     $stderr.puts "SmartSuite MCP Server starting..."
+    $stderr.puts "=" * 60
     loop do
       begin
         input = STDIN.gets
@@ -34,8 +40,15 @@ class SmartSuiteServer
         # Check if this is a notification (no id field)
         # Notifications should not receive responses
         if request['id'].nil?
-          $stderr.puts "Received notification: #{request['method']}"
+          $stderr.puts "\n📩 Notification: #{request['method']}"
           next
+        end
+
+        # Log the tool call
+        if request['method'] == 'tools/call'
+          tool_name = request.dig('params', 'name')
+          log_metric("=" * 50)
+          log_metric("🔧 #{tool_name}")
         end
 
         response = handle_request(request)
@@ -162,7 +175,7 @@ class SmartSuiteServer
           },
           {
             'name' => 'list_records',
-            'description' => 'List records from a SmartSuite table with optional filtering and sorting',
+            'description' => 'List records from a SmartSuite table. DEFAULT: Returns only id + title for minimal context usage. Use fields parameter for specific data or summary_only for statistics.',
             'inputSchema' => {
               'type' => 'object',
               'properties' => {
@@ -172,7 +185,7 @@ class SmartSuiteServer
                 },
                 'limit' => {
                   'type' => 'number',
-                  'description' => 'Maximum number of records to return (default: 50)'
+                  'description' => 'Maximum number of records to return (default: 5 for minimal context usage)'
                 },
                 'offset' => {
                   'type' => 'number',
@@ -202,10 +215,14 @@ class SmartSuiteServer
                 },
                 'fields' => {
                   'type' => 'array',
-                  'description' => 'Optional: Specific field slugs to return. If not provided, returns essential fields only (id, title, first_created, last_updated) plus custom fields. Reduces response size significantly.',
+                  'description' => 'Optional: Specific field slugs to return. Default returns only id + title. Specify fields to get additional data.',
                   'items' => {
                     'type' => 'string'
                   }
+                },
+                'summary_only' => {
+                  'type' => 'boolean',
+                  'description' => 'If true, returns statistics/summary instead of actual records. Minimal context usage for overview purposes.'
                 }
               },
               'required' => ['table_id']
@@ -308,7 +325,8 @@ class SmartSuiteServer
         arguments['offset'],
         filter: arguments['filter'],
         sort: arguments['sort'],
-        fields: arguments['fields']
+        fields: arguments['fields'],
+        summary_only: arguments['summary_only']
       )
     when 'get_record'
       @client.get_record(arguments['table_id'], arguments['record_id'])
@@ -365,6 +383,11 @@ class SmartSuiteServer
     }
     STDOUT.puts JSON.generate(response)
     STDOUT.flush
+  end
+
+  def log_metric(message)
+    timestamp = Time.now.strftime('%H:%M:%S')
+    @metrics_log.puts "[#{timestamp}] #{message}"
   end
 end
 

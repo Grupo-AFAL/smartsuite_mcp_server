@@ -9,6 +9,10 @@ class SmartSuiteClient
     @api_key = api_key
     @account_id = account_id
     @stats_tracker = stats_tracker
+
+    # Create a separate, clean log file for metrics
+    @metrics_log = File.open(File.join(Dir.home, '.smartsuite_mcp_metrics.log'), 'a')
+    @metrics_log.sync = true  # Auto-flush
   end
 
   def list_solutions
@@ -24,6 +28,7 @@ class SmartSuiteClient
           'logo_color' => solution['logo_color']
         }
       end
+      log_metric("✓ Found #{solutions.size} solutions")
       { 'solutions' => solutions, 'count' => solutions.size }
     elsif response.is_a?(Array)
       # If response is directly an array
@@ -35,6 +40,7 @@ class SmartSuiteClient
           'logo_color' => solution['logo_color']
         }
       end
+      log_metric("✓ Found #{solutions.size} solutions")
       { 'solutions' => solutions, 'count' => solutions.size }
     else
       # Return raw response if structure is unexpected
@@ -54,6 +60,7 @@ class SmartSuiteClient
           'solution_id' => table['solution_id']
         }
       end
+      log_metric("✓ Found #{tables.size} tables")
       { 'tables' => tables, 'count' => tables.size }
     elsif response.is_a?(Array)
       # If response is directly an array
@@ -64,6 +71,7 @@ class SmartSuiteClient
           'solution_id' => table['solution_id']
         }
       end
+      log_metric("✓ Found #{tables.size} tables")
       { 'tables' => tables, 'count' => tables.size }
     else
       # Return raw response if structure is unexpected
@@ -71,7 +79,7 @@ class SmartSuiteClient
     end
   end
 
-  def list_records(table_id, limit = 50, offset = 0, filter: nil, sort: nil, fields: nil)
+  def list_records(table_id, limit = 5, offset = 0, filter: nil, sort: nil, fields: nil, summary_only: false)
     body = {
       limit: limit,
       offset: offset
@@ -88,6 +96,11 @@ class SmartSuiteClient
     body[:sort] = sort if sort
 
     response = api_request(:post, "/applications/#{table_id}/records/list/", body)
+
+    # If summary_only, return just statistics
+    if summary_only
+      return generate_summary(response)
+    end
 
     # Apply aggressive filtering to reduce response size
     filter_records_response(response, fields)
@@ -110,6 +123,8 @@ class SmartSuiteClient
   def api_request(method, endpoint, body = nil)
     # Track the API call if stats tracker is available
     @stats_tracker&.track_api_call(method, endpoint)
+
+    log_metric("→ #{method.upcase} #{endpoint}")
 
     uri = URI.parse("#{API_BASE_URL}#{endpoint}")
 
@@ -149,20 +164,14 @@ class SmartSuiteClient
     original_json = JSON.generate(response)
     original_tokens = estimate_tokens(original_json)
 
-    # Fields to always strip out (very verbose)
-    verbose_fields = ['description', 'comments_count', 'ranking', 'application_slug', 'deleted_date']
-
-    # Essential metadata fields to keep
-    essential_fields = ['id', 'application_id', 'autonumber', 'title', 'first_created', 'last_updated']
-
     filtered_items = response['items'].map do |record|
       if fields && !fields.empty?
-        # If specific fields requested, only return those + essential fields
-        requested_fields = (fields + essential_fields).uniq
+        # If specific fields requested, only return those + id/title
+        requested_fields = (fields + ['id', 'title']).uniq
         filter_record_fields(record, requested_fields)
       else
-        # Apply aggressive default filtering
-        filter_record_fields(record, essential_fields, exclude: verbose_fields)
+        # Default: only id and title (minimal context usage)
+        filter_record_fields(record, ['id', 'title'])
       end
     end
 
@@ -177,7 +186,8 @@ class SmartSuiteClient
     filtered_tokens = estimate_tokens(filtered_json)
     reduction_percent = ((original_tokens - filtered_tokens).to_f / original_tokens * 100).round(1)
 
-    $stderr.puts "📊 Response: #{original_tokens} tokens → #{filtered_tokens} tokens (#{reduction_percent}% reduction)"
+    log_metric("✓ Found #{result['count']} records")
+    log_metric("📊 #{original_tokens} → #{filtered_tokens} tokens (saved #{reduction_percent}%)")
 
     result
   end
@@ -189,33 +199,60 @@ class SmartSuiteClient
     (text.length / 3.5).round
   end
 
-  def filter_record_fields(record, include_fields = nil, exclude: [])
+  def generate_summary(response)
+    return response unless response.is_a?(Hash) && response['items'].is_a?(Array)
+
+    items = response['items']
+    total = response['total_count'] || items.size
+
+    # Collect field statistics
+    field_stats = {}
+
+    items.each do |record|
+      record.each do |key, value|
+        next if ['id', 'application_id', 'first_created', 'last_updated', 'autonumber'].include?(key)
+
+        field_stats[key] ||= {}
+
+        # Count values for this field
+        value_key = value.to_s[0...50] # Truncate long values
+        field_stats[key][value_key] ||= 0
+        field_stats[key][value_key] += 1
+      end
+    end
+
+    # Build summary text
+    summary_lines = ["Found #{items.size} records (total: #{total})"]
+
+    field_stats.each do |field, values|
+      if values.size <= 10
+        value_summary = values.map { |v, count| "#{v} (#{count})" }.join(", ")
+        summary_lines << "  #{field}: #{value_summary}"
+      else
+        summary_lines << "  #{field}: #{values.size} unique values"
+      end
+    end
+
+    log_metric("✓ Summary: #{items.size} records analyzed")
+    log_metric("📊 Minimal context (summary mode)")
+
+    {
+      'summary': summary_lines.join("\n"),
+      'count': items.size,
+      'total_count': total,
+      'fields_analyzed': field_stats.keys
+    }
+  end
+
+  def filter_record_fields(record, include_fields)
     return record unless record.is_a?(Hash)
 
-    if include_fields
-      # Only include specified fields
-      result = {}
-      include_fields.each do |field|
-        result[field] = truncate_value(record[field]) if record.key?(field)
-      end
-      # Also include any field that's not in the exclude list and not a verbose field
-      record.each do |key, value|
-        next if result.key?(key)
-        next if exclude.include?(key)
-        # Include custom fields (anything not in metadata fields)
-        unless ['id', 'application_id', 'autonumber', 'title', 'first_created', 'last_updated',
-                'description', 'comments_count', 'ranking', 'application_slug', 'deleted_date'].include?(key)
-          result[key] = truncate_value(value)
-        end
-      end
-      result
-    else
-      # Exclude specified fields
-      result = record.dup
-      exclude.each { |field| result.delete(field) }
-      # Truncate remaining values
-      result.transform_values { |v| truncate_value(v) }
+    # Only include specified fields
+    result = {}
+    include_fields.each do |field|
+      result[field] = truncate_value(record[field]) if record.key?(field)
     end
+    result
   end
 
   def truncate_value(value)
@@ -236,5 +273,10 @@ class SmartSuiteClient
     else
       value
     end
+  end
+
+  def log_metric(message)
+    timestamp = Time.now.strftime('%H:%M:%S')
+    @metrics_log.puts "[#{timestamp}] #{message}"
   end
 end

@@ -386,18 +386,19 @@ class SmartSuiteServerTest < Minitest::Test
 
     result = client.list_records('tbl_123', 10, 0)
 
-    # Check that verbose fields are removed
+    # Default behavior: only id and title
+    assert result['items'][0].key?('id'), 'Should keep id'
+    assert result['items'][0].key?('title'), 'Should keep title'
+
+    # Everything else should be filtered out by default
     refute result['items'][0].key?('description'), 'Should filter out description'
     refute result['items'][0].key?('comments_count'), 'Should filter out comments_count'
     refute result['items'][0].key?('ranking'), 'Should filter out ranking'
+    refute result['items'][0].key?('first_created'), 'Should filter out first_created by default'
+    refute result['items'][0].key?('custom_field'), 'Should filter out custom fields by default'
 
-    # Check that essential fields are kept
-    assert result['items'][0].key?('id'), 'Should keep id'
-    assert result['items'][0].key?('title'), 'Should keep title'
-    assert result['items'][0].key?('first_created'), 'Should keep first_created'
-
-    # Check that custom fields are kept
-    assert result['items'][0].key?('custom_field'), 'Should keep custom fields'
+    # Should only have id and title
+    assert_equal 2, result['items'][0].keys.size, 'Should only have id and title'
   end
 
   def test_client_list_records_with_fields_parameter
@@ -449,11 +450,37 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_records('tbl_123', 10, 0)
+    result = client.list_records('tbl_123', 10, 0, fields: ['long_field'])
 
     truncated_value = result['items'][0]['long_field']
     assert truncated_value.length < long_string.length, 'Should truncate long strings'
     assert truncated_value.include?('[truncated]'), 'Should include truncation marker'
+  end
+
+  def test_client_list_records_summary_only
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {'id' => 'rec_1', 'title' => 'Record 1', 'status' => 'active', 'priority' => 'high'},
+        {'id' => 'rec_2', 'title' => 'Record 2', 'status' => 'active', 'priority' => 'low'},
+        {'id' => 'rec_3', 'title' => 'Record 3', 'status' => 'pending', 'priority' => 'high'}
+      ],
+      'total_count' => 3
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.list_records('tbl_123', 10, 0, summary_only: true)
+
+    # Should return summary structure
+    assert result.key?(:summary), 'Should have summary'
+    assert result.key?(:count), 'Should have count'
+    assert result.key?(:total_count), 'Should have total_count'
+    assert_equal 3, result[:count]
+    assert_includes result[:summary], 'Found 3 records'
   end
 
   # Test tool call handling
