@@ -145,6 +145,10 @@ class SmartSuiteClient
   def filter_records_response(response, fields)
     return response unless response.is_a?(Hash) && response['items'].is_a?(Array)
 
+    # Calculate original size in tokens (approximate)
+    original_json = JSON.generate(response)
+    original_tokens = estimate_tokens(original_json)
+
     # Fields to always strip out (very verbose)
     verbose_fields = ['description', 'comments_count', 'ranking', 'application_slug', 'deleted_date']
 
@@ -162,11 +166,27 @@ class SmartSuiteClient
       end
     end
 
-    {
+    result = {
       'items' => filtered_items,
       'total_count' => response['total_count'],
       'count' => filtered_items.size
     }
+
+    # Calculate filtered size in tokens and log reduction
+    filtered_json = JSON.generate(result)
+    filtered_tokens = estimate_tokens(filtered_json)
+    reduction_percent = ((original_tokens - filtered_tokens).to_f / original_tokens * 100).round(1)
+
+    $stderr.puts "📊 Response: #{original_tokens} tokens → #{filtered_tokens} tokens (#{reduction_percent}% reduction)"
+
+    result
+  end
+
+  def estimate_tokens(text)
+    # Rough approximation: 1 token ≈ 4 characters for English text
+    # For JSON, it's closer to 1 token per 3-4 bytes
+    # Using 3.5 as a reasonable middle ground
+    (text.length / 3.5).round
   end
 
   def filter_record_fields(record, include_fields = nil, exclude: [])
