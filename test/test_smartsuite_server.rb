@@ -2,6 +2,8 @@ require 'minitest/autorun'
 require 'json'
 require 'stringio'
 require_relative '../smartsuite_server'
+require_relative '../lib/smartsuite_client'
+require_relative '../lib/api_stats_tracker'
 
 class SmartSuiteServerTest < Minitest::Test
   def setup
@@ -137,52 +139,53 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   # Test API statistics tracking
-  def test_initialize_stats
-    stats = call_private_method(:initialize_stats)
+  def test_stats_tracker_initialization
+    tracker = ApiStatsTracker.new('test_key')
+    stats = tracker.get_stats
 
-    assert_equal 0, stats['total_calls']
-    assert_equal({}, stats['by_user'])
-    assert_equal({}, stats['by_solution'])
-    assert_equal({}, stats['by_table'])
-    assert_equal({}, stats['by_method'])
-    assert_equal({}, stats['by_endpoint'])
-    assert_nil stats['first_call']
-    assert_nil stats['last_call']
+    assert_equal 0, stats['summary']['total_calls']
+    assert_equal 0, stats['summary']['unique_users']
+    assert_equal 0, stats['summary']['unique_solutions']
+    assert_equal 0, stats['summary']['unique_tables']
   end
 
-  def test_extract_ids_from_endpoint
-    # Test extracting solution ID
-    call_private_method(:extract_ids_from_endpoint, '/solutions/sol_abc123/')
-    stats = call_private_method(:get_api_stats)
+  def test_stats_tracker_tracks_calls
+    tracker = ApiStatsTracker.new('test_key')
+
+    # Track some calls
+    tracker.track_api_call(:get, '/solutions/sol_abc123/')
+    tracker.track_api_call(:post, '/applications/tbl_123/records/')
+
+    stats = tracker.get_stats
+
+    assert_equal 2, stats['summary']['total_calls']
     assert_equal 1, stats['by_solution']['sol_abc123']
-
-    # Test extracting table ID
-    call_private_method(:extract_ids_from_endpoint, '/applications/tbl_123/records/')
-    stats = call_private_method(:get_api_stats)
     assert_equal 1, stats['by_table']['tbl_123']
+    assert_equal 1, stats['by_method']['GET']
+    assert_equal 1, stats['by_method']['POST']
   end
 
-  def test_reset_api_stats
-    # Track some calls first
-    call_private_method(:track_api_call, :get, '/solutions/')
-    call_private_method(:track_api_call, :post, '/applications/abc/records/')
+  def test_stats_tracker_reset
+    tracker = ApiStatsTracker.new('test_key')
+
+    # Track some calls
+    tracker.track_api_call(:get, '/solutions/')
 
     # Verify stats exist
-    stats = call_private_method(:get_api_stats)
-    assert stats['summary']['total_calls'] > 0
+    assert tracker.get_stats['summary']['total_calls'] > 0
 
     # Reset stats
-    result = call_private_method(:reset_api_stats)
-
+    result = tracker.reset_stats
     assert_equal 'success', result['status']
 
     # Verify stats are reset
-    stats = call_private_method(:get_api_stats)
-    assert_equal 0, stats['summary']['total_calls']
+    assert_equal 0, tracker.get_stats['summary']['total_calls']
   end
 
-  # Test data formatting for list methods
-  def test_list_solutions_formats_hash_response
+  # Test SmartSuiteClient data formatting
+  def test_client_list_solutions_formats_hash_response
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
     mock_response = {
       'items' => [
         {
@@ -201,12 +204,12 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    # Mock the api_request method (accepts 3 args: method, endpoint, body)
-    @server.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    # Mock the api_request method
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
       mock_response
     end
 
-    result = call_private_method(:list_solutions)
+    result = client.list_solutions
 
     assert_equal 2, result['count']
     assert_equal 2, result['solutions'].length
@@ -215,7 +218,9 @@ class SmartSuiteServerTest < Minitest::Test
     refute result['solutions'][0].key?('extra_field'), 'Should filter out extra fields'
   end
 
-  def test_list_solutions_formats_array_response
+  def test_client_list_solutions_formats_array_response
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
     mock_response = [
       {
         'id' => 'sol_1',
@@ -226,17 +231,19 @@ class SmartSuiteServerTest < Minitest::Test
     ]
 
     # Mock the api_request method
-    @server.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
       mock_response
     end
 
-    result = call_private_method(:list_solutions)
+    result = client.list_solutions
 
     assert_equal 1, result['count']
     assert_equal 1, result['solutions'].length
   end
 
-  def test_list_tables_formats_response
+  def test_client_list_tables_formats_response
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
     mock_response = {
       'items' => [
         {
@@ -249,11 +256,11 @@ class SmartSuiteServerTest < Minitest::Test
     }
 
     # Mock the api_request method
-    @server.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
       mock_response
     end
 
-    result = call_private_method(:list_tables)
+    result = client.list_tables
 
     assert_equal 1, result['count']
     assert_equal 'tbl_1', result['tables'][0]['id']
@@ -264,6 +271,9 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test tool call handling
   def test_handle_tool_call_get_api_stats
+    # First track a call so stats aren't empty
+    @server.instance_variable_get(:@stats_tracker).track_api_call(:get, '/test/')
+
     request = {
       'id' => 5,
       'method' => 'tools/call',
@@ -284,6 +294,7 @@ class SmartSuiteServerTest < Minitest::Test
     stats = JSON.parse(response['result']['content'][0]['text'])
     assert stats['summary']
     assert_kind_of Integer, stats['summary']['total_calls']
+    assert stats['summary']['total_calls'] >= 1
   end
 
   def test_handle_tool_call_reset_api_stats
