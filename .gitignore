@@ -1,6 +1,9 @@
 # Environment variables
 .env
 
+# Stats file (may contain usage data)
+.smartsuite_mcp_stats.json
+
 # Ruby
 *.gem
 *.rbc
@@ -22,6 +25,10 @@ tmp
 *.swp
 *.swo
 *~
+.ruby-lsp/
 
 # macOS
 .DS_Store
+
+# Claude Code local settings
+.claude/settings.local.json
