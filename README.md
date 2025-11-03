@@ -7,6 +7,7 @@ A Model Context Protocol (MCP) server for SmartSuite, enabling AI assistants to 
 This MCP server provides the following tools:
 
 ### Data Operations
+- **list_solutions** - List all solutions in your workspace (high-level view)
 - **list_tables** - List all tables in your SmartSuite workspace
 - **list_records** - Query records from a table with pagination support
 - **get_record** - Retrieve a specific record by ID
@@ -98,9 +99,33 @@ Then send MCP protocol messages via stdin. For example:
 
 ## Available Tools
 
+### list_solutions
+
+Lists all solutions in your SmartSuite workspace. Solutions are high-level containers that group related tables together.
+
+**Example response:**
+```json
+{
+  "items": [
+    {
+      "id": "sol_abc123",
+      "name": "Customer Management",
+      "logo_icon": "users",
+      "logo_color": "#3B82F6"
+    },
+    {
+      "id": "sol_def456",
+      "name": "Project Tracking",
+      "logo_icon": "folder",
+      "logo_color": "#10B981"
+    }
+  ]
+}
+```
+
 ### list_tables
 
-Lists all tables in your workspace.
+Lists all tables (applications) in your workspace. This can return a large result if you have many tables - consider using `list_solutions` first to see the high-level organization.
 
 **Example response:**
 ```json

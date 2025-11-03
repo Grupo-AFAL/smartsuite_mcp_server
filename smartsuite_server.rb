@@ -146,6 +146,15 @@ class SmartSuiteServer
       'result' => {
         'tools' => [
           {
+            'name' => 'list_solutions',
+            'description' => 'List all solutions in your SmartSuite workspace (solutions contain tables)',
+            'inputSchema' => {
+              'type' => 'object',
+              'properties' => {},
+              'required' => []
+            }
+          },
+          {
             'name' => 'list_tables',
             'description' => 'List all tables (apps) in your SmartSuite workspace',
             'inputSchema' => {
@@ -262,6 +271,8 @@ class SmartSuiteServer
     arguments = request.dig('params', 'arguments') || {}
 
     result = case tool_name
+    when 'list_solutions'
+      list_solutions
     when 'list_tables'
       list_tables
     when 'list_records'
@@ -310,9 +321,64 @@ class SmartSuiteServer
     }
   end
 
+  def list_solutions
+    response = api_request(:get, '/solutions/')
+
+    # Extract only essential fields to reduce response size
+    if response.is_a?(Hash) && response['items'].is_a?(Array)
+      solutions = response['items'].map do |solution|
+        {
+          'id' => solution['id'],
+          'name' => solution['name'],
+          'logo_icon' => solution['logo_icon'],
+          'logo_color' => solution['logo_color']
+        }
+      end
+      { 'solutions' => solutions, 'count' => solutions.size }
+    elsif response.is_a?(Array)
+      # If response is directly an array
+      solutions = response.map do |solution|
+        {
+          'id' => solution['id'],
+          'name' => solution['name'],
+          'logo_icon' => solution['logo_icon'],
+          'logo_color' => solution['logo_color']
+        }
+      end
+      { 'solutions' => solutions, 'count' => solutions.size }
+    else
+      # Return raw response if structure is unexpected
+      response
+    end
+  end
+
   def list_tables
     response = api_request(:get, '/applications/')
-    response
+
+    # Extract only essential fields to reduce response size
+    if response.is_a?(Hash) && response['items'].is_a?(Array)
+      tables = response['items'].map do |table|
+        {
+          'id' => table['id'],
+          'name' => table['name'],
+          'solution_id' => table['solution_id']
+        }
+      end
+      { 'tables' => tables, 'count' => tables.size }
+    elsif response.is_a?(Array)
+      # If response is directly an array
+      tables = response.map do |table|
+        {
+          'id' => table['id'],
+          'name' => table['name'],
+          'solution_id' => table['solution_id']
+        }
+      end
+      { 'tables' => tables, 'count' => tables.size }
+    else
+      # Return raw response if structure is unexpected
+      response
+    end
   end
 
   def list_records(table_id, limit = 50, offset = 0)
