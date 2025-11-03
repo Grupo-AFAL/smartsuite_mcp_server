@@ -199,6 +199,13 @@ class SmartSuiteServer
                       }
                     }
                   }
+                },
+                'fields' => {
+                  'type' => 'array',
+                  'description' => 'Optional: Specific field slugs to return. If not provided, returns essential fields only (id, title, first_created, last_updated) plus custom fields. Reduces response size significantly.',
+                  'items' => {
+                    'type' => 'string'
+                  }
                 }
               },
               'required' => ['table_id']
@@ -300,7 +307,8 @@ class SmartSuiteServer
         arguments['limit'],
         arguments['offset'],
         filter: arguments['filter'],
-        sort: arguments['sort']
+        sort: arguments['sort'],
+        fields: arguments['fields']
       )
     when 'get_record'
       @client.get_record(arguments['table_id'], arguments['record_id'])

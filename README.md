@@ -144,12 +144,15 @@ Lists all tables (applications) in your workspace. This can return a large resul
 
 Lists records from a specific table with optional filtering and sorting.
 
+**⚡ Response Optimization:** This tool automatically filters verbose fields (description, comments_count, ranking, etc.) and truncates long text to reduce context usage. Use the `fields` parameter to specify exactly which fields you need.
+
 **Parameters:**
 - `table_id` (required): The ID of the table
 - `limit` (optional): Number of records to return (default: 50)
 - `offset` (optional): Number of records to skip (for pagination)
 - `filter` (optional): Filter criteria with operator and fields array
 - `sort` (optional): Sort criteria as array of field-direction pairs
+- `fields` (optional): Array of specific field slugs to return. If not provided, returns essential fields (id, title, first_created, last_updated) plus custom fields, with verbose metadata stripped
 
 **Filter Structure:**
 
@@ -241,6 +244,26 @@ The filter parameter uses the following structure:
   ]
 }
 ```
+
+**Example with Specific Fields (Reduces Response Size):**
+```json
+{
+  "table_id": "abc123",
+  "limit": 50,
+  "fields": ["status", "priority", "assigned_to", "due_date"]
+}
+```
+
+**Response Filtering Behavior:**
+
+By default (without `fields` parameter):
+- ✅ Keeps: `id`, `title`, `first_created`, `last_updated`, all custom fields
+- ❌ Removes: `description`, `comments_count`, `ranking`, `application_slug`, `deleted_date`
+- ✂️ Truncates: Strings > 500 chars, Arrays > 10 items, Rich text fields
+
+With `fields` parameter:
+- ✅ Returns only specified fields plus essential metadata (`id`, `title`, etc.)
+- ✂️ Still applies truncation to prevent context overflow
 
 ### get_record
 

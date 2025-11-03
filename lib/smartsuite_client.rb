@@ -71,7 +71,7 @@ class SmartSuiteClient
     end
   end
 
-  def list_records(table_id, limit = 50, offset = 0, filter: nil, sort: nil)
+  def list_records(table_id, limit = 50, offset = 0, filter: nil, sort: nil, fields: nil)
     body = {
       limit: limit,
       offset: offset
@@ -87,7 +87,10 @@ class SmartSuiteClient
     # Example: [{"field": "created_on", "direction": "desc"}]
     body[:sort] = sort if sort
 
-    api_request(:post, "/applications/#{table_id}/records/list/", body)
+    response = api_request(:post, "/applications/#{table_id}/records/list/", body)
+
+    # Apply aggressive filtering to reduce response size
+    filter_records_response(response, fields)
   end
 
   def get_record(table_id, record_id)
@@ -137,5 +140,81 @@ class SmartSuiteClient
     end
 
     JSON.parse(response.body)
+  end
+
+  def filter_records_response(response, fields)
+    return response unless response.is_a?(Hash) && response['items'].is_a?(Array)
+
+    # Fields to always strip out (very verbose)
+    verbose_fields = ['description', 'comments_count', 'ranking', 'application_slug', 'deleted_date']
+
+    # Essential metadata fields to keep
+    essential_fields = ['id', 'application_id', 'autonumber', 'title', 'first_created', 'last_updated']
+
+    filtered_items = response['items'].map do |record|
+      if fields && !fields.empty?
+        # If specific fields requested, only return those + essential fields
+        requested_fields = (fields + essential_fields).uniq
+        filter_record_fields(record, requested_fields)
+      else
+        # Apply aggressive default filtering
+        filter_record_fields(record, essential_fields, exclude: verbose_fields)
+      end
+    end
+
+    {
+      'items' => filtered_items,
+      'total_count' => response['total_count'],
+      'count' => filtered_items.size
+    }
+  end
+
+  def filter_record_fields(record, include_fields = nil, exclude: [])
+    return record unless record.is_a?(Hash)
+
+    if include_fields
+      # Only include specified fields
+      result = {}
+      include_fields.each do |field|
+        result[field] = truncate_value(record[field]) if record.key?(field)
+      end
+      # Also include any field that's not in the exclude list and not a verbose field
+      record.each do |key, value|
+        next if result.key?(key)
+        next if exclude.include?(key)
+        # Include custom fields (anything not in metadata fields)
+        unless ['id', 'application_id', 'autonumber', 'title', 'first_created', 'last_updated',
+                'description', 'comments_count', 'ranking', 'application_slug', 'deleted_date'].include?(key)
+          result[key] = truncate_value(value)
+        end
+      end
+      result
+    else
+      # Exclude specified fields
+      result = record.dup
+      exclude.each { |field| result.delete(field) }
+      # Truncate remaining values
+      result.transform_values { |v| truncate_value(v) }
+    end
+  end
+
+  def truncate_value(value)
+    case value
+    when String
+      value.length > 500 ? value[0...500] + '... [truncated]' : value
+    when Hash
+      # For nested hashes (like description), truncate aggressively
+      if value['html'] || value['data'] || value['yjsData']
+        # This is likely a rich text field - just keep preview
+        value['preview'] ? value['preview'][0...200] : '[Rich text content]'
+      else
+        value
+      end
+    when Array
+      # Truncate arrays to first 10 items
+      value.length > 10 ? value[0...10] + ['... [truncated]'] : value
+    else
+      value
+    end
   end
 end

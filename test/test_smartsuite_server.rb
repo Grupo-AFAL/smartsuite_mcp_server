@@ -354,6 +354,108 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal 0, sent_body[:offset]
   end
 
+  # Test response filtering
+  def test_client_list_records_filters_verbose_fields
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'rec_123',
+          'title' => 'Test Record',
+          'application_id' => 'app_123',
+          'first_created' => {'on' => '2025-01-01', 'by' => 'user1'},
+          'last_updated' => {'on' => '2025-01-02', 'by' => 'user2'},
+          'description' => {
+            'data' => {'huge' => 'nested structure'},
+            'html' => '<p>Very long HTML content...</p>',
+            'yjsData' => 'base64encodeddata...',
+            'preview' => 'Short preview'
+          },
+          'comments_count' => 5,
+          'ranking' => {'default' => 'abc123'},
+          'custom_field' => 'Important data'
+        }
+      ],
+      'total_count' => 1
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.list_records('tbl_123', 10, 0)
+
+    # Check that verbose fields are removed
+    refute result['items'][0].key?('description'), 'Should filter out description'
+    refute result['items'][0].key?('comments_count'), 'Should filter out comments_count'
+    refute result['items'][0].key?('ranking'), 'Should filter out ranking'
+
+    # Check that essential fields are kept
+    assert result['items'][0].key?('id'), 'Should keep id'
+    assert result['items'][0].key?('title'), 'Should keep title'
+    assert result['items'][0].key?('first_created'), 'Should keep first_created'
+
+    # Check that custom fields are kept
+    assert result['items'][0].key?('custom_field'), 'Should keep custom fields'
+  end
+
+  def test_client_list_records_with_fields_parameter
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'rec_123',
+          'title' => 'Test Record',
+          'status' => 'active',
+          'priority' => 5,
+          'description' => 'Should be filtered',
+          'custom_field' => 'Custom value'
+        }
+      ],
+      'total_count' => 1
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.list_records('tbl_123', 10, 0, fields: ['status', 'priority'])
+
+    # Check that only requested fields + essential fields are returned
+    assert result['items'][0].key?('id'), 'Should include id (essential)'
+    assert result['items'][0].key?('status'), 'Should include status (requested)'
+    assert result['items'][0].key?('priority'), 'Should include priority (requested)'
+    refute result['items'][0].key?('description'), 'Should not include description'
+  end
+
+  def test_client_truncates_long_strings
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    long_string = 'a' * 1000
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'rec_123',
+          'title' => 'Test',
+          'long_field' => long_string
+        }
+      ],
+      'total_count' => 1
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.list_records('tbl_123', 10, 0)
+
+    truncated_value = result['items'][0]['long_field']
+    assert truncated_value.length < long_string.length, 'Should truncate long strings'
+    assert truncated_value.include?('[truncated]'), 'Should include truncation marker'
+  end
+
   # Test tool call handling
   def test_handle_tool_call_get_api_stats
     # First track a call so stats aren't empty
