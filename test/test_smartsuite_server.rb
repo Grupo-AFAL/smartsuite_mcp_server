@@ -91,6 +91,7 @@ class SmartSuiteServerTest < Minitest::Test
     assert_includes tool_names, 'get_record'
     assert_includes tool_names, 'create_record'
     assert_includes tool_names, 'update_record'
+    assert_includes tool_names, 'delete_record'
     assert_includes tool_names, 'get_api_stats'
     assert_includes tool_names, 'reset_api_stats'
   end
@@ -671,6 +672,67 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal 7, response['id']
     assert_equal(-32602, response['error']['code'])
     assert_match(/Unknown tool/, response['error']['message'])
+  end
+
+  # Test delete_record
+  def test_client_delete_record
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    # Track what API call was made
+    api_method = nil
+    api_endpoint = nil
+    mock_response = {'message' => 'Record deleted successfully'}
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      api_method = method
+      api_endpoint = endpoint
+      mock_response
+    end
+
+    result = client.delete_record('tbl_123', 'rec_456')
+
+    assert_equal :delete, api_method, 'Should use DELETE method'
+    assert_equal '/applications/tbl_123/records/rec_456/', api_endpoint
+    assert_equal 'Record deleted successfully', result['message']
+  end
+
+  def test_handle_tool_call_delete_record
+    # Mock the client delete_record method
+    client = @server.instance_variable_get(:@client)
+
+    delete_called = false
+    table_id_param = nil
+    record_id_param = nil
+
+    client.define_singleton_method(:delete_record) do |table_id, record_id|
+      delete_called = true
+      table_id_param = table_id
+      record_id_param = record_id
+      {'message' => 'Record deleted', 'id' => record_id}
+    end
+
+    request = {
+      'id' => 8,
+      'method' => 'tools/call',
+      'params' => {
+        'name' => 'delete_record',
+        'arguments' => {
+          'table_id' => 'tbl_test',
+          'record_id' => 'rec_test'
+        }
+      }
+    }
+
+    response = call_private_method(:handle_tool_call, request)
+
+    assert_equal '2.0', response['jsonrpc']
+    assert_equal 8, response['id']
+    assert delete_called, 'Should call delete_record method'
+    assert_equal 'tbl_test', table_id_param
+    assert_equal 'rec_test', record_id_param
+
+    result = JSON.parse(response['result']['content'][0]['text'])
+    assert_equal 'Record deleted', result['message']
   end
 
   # Test error handling through handle_request

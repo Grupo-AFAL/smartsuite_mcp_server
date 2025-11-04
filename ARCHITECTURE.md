@@ -56,6 +56,7 @@ smartsuite_mcp/
 - `get_record()` - Get specific record
 - `create_record()` - Create new record
 - `update_record()` - Update existing record
+- `delete_record()` - Delete a record
 - `api_request()` - Private HTTP client
 
 **Features:**
@@ -82,7 +83,7 @@ smartsuite_mcp/
 **Tracking Dimensions:**
 - Total calls
 - By user (hashed API key)
-- By HTTP method (GET, POST, PATCH)
+- By HTTP method (GET, POST, PATCH, DELETE)
 - By SmartSuite solution
 - By SmartSuite table
 - By API endpoint

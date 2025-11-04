@@ -14,6 +14,7 @@ This MCP server provides the following tools:
 - **get_record** - Retrieve a specific record by ID
 - **create_record** - Create new records in tables
 - **update_record** - Update existing records
+- **delete_record** - Delete a record from a table
 
 ### API Usage Tracking
 - **get_api_stats** - View detailed API usage statistics by user, solution, table, method, and endpoint
@@ -504,6 +505,31 @@ Updates an existing record.
 }
 ```
 
+### delete_record
+
+Deletes a record from a table.
+
+**Parameters:**
+- `table_id` (required): The ID of the table
+- `record_id` (required): The ID of the record to delete
+
+**Example:**
+```json
+{
+  "table_id": "abc123",
+  "record_id": "rec456"
+}
+```
+
+**Example response:**
+```json
+{
+  "message": "Record deleted successfully"
+}
+```
+
+**Note:** This operation is permanent and cannot be undone. Ensure you have the correct record_id before deleting.
+
 ### get_api_stats
 
 Retrieves comprehensive API call statistics.
@@ -533,7 +559,8 @@ Tracks API usage across multiple dimensions:
   "by_method": {
     "GET": 50,
     "POST": 75,
-    "PATCH": 25
+    "PATCH": 25,
+    "DELETE": 5
   },
   "by_solution": {
     "sol_abc123": 100,
@@ -571,7 +598,7 @@ This server automatically tracks all API calls made to SmartSuite. The tracking 
 - **By User**: API key is hashed (SHA256, first 8 chars) for privacy
 - **By Solution**: Extracted from endpoints like `/solutions/{id}/`
 - **By Table**: Extracted from endpoints like `/applications/{id}/`
-- **By HTTP Method**: GET, POST, PATCH
+- **By HTTP Method**: GET, POST, PATCH, DELETE
 - **By Endpoint**: Full endpoint path
 - **Timestamps**: First and last API call times
 

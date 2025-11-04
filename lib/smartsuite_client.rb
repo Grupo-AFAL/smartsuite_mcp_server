@@ -192,6 +192,10 @@ class SmartSuiteClient
     api_request(:patch, "/applications/#{table_id}/records/#{record_id}/", data)
   end
 
+  def delete_record(table_id, record_id)
+    api_request(:delete, "/applications/#{table_id}/records/#{record_id}/")
+  end
+
   private
 
   def filter_field_structure(field)
@@ -247,6 +251,8 @@ class SmartSuiteClient
       Net::HTTP::Post.new(uri.request_uri)
     when :patch
       Net::HTTP::Patch.new(uri.request_uri)
+    when :delete
+      Net::HTTP::Delete.new(uri.request_uri)
     end
 
     request['Authorization'] = "Token #{@api_key}"

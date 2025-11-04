@@ -501,6 +501,24 @@ class SmartSuiteServer
             }
           },
           {
+            'name' => 'delete_record',
+            'description' => 'Delete a record from a SmartSuite table',
+            'inputSchema' => {
+              'type' => 'object',
+              'properties' => {
+                'table_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the table'
+                },
+                'record_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the record to delete'
+                }
+              },
+              'required' => ['table_id', 'record_id']
+            }
+          },
+          {
             'name' => 'get_api_stats',
             'description' => 'Get API call statistics tracked by user, solution, table, and HTTP method',
             'inputSchema' => {
@@ -551,6 +569,8 @@ class SmartSuiteServer
       @client.create_record(arguments['table_id'], arguments['data'])
     when 'update_record'
       @client.update_record(arguments['table_id'], arguments['record_id'], arguments['data'])
+    when 'delete_record'
+      @client.delete_record(arguments['table_id'], arguments['record_id'])
     when 'get_api_stats'
       @stats_tracker.get_stats
     when 'reset_api_stats'
