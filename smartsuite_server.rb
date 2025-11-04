@@ -96,6 +96,8 @@ class SmartSuiteServer
       handle_tool_call(request)
     when 'prompts/list'
       handle_prompts_list(request)
+    when 'prompts/get'
+      handle_prompt_get(request)
     when 'resources/list'
       handle_resources_list(request)
     else
@@ -134,7 +136,196 @@ class SmartSuiteServer
       'jsonrpc' => '2.0',
       'id' => request['id'],
       'result' => {
-        'prompts' => []
+        'prompts' => [
+          {
+            'name' => 'filter_active_records',
+            'description' => 'Example: Filter records where status is "active"',
+            'arguments' => [
+              {
+                'name' => 'table_id',
+                'description' => 'The table ID to query',
+                'required' => true
+              },
+              {
+                'name' => 'status_field',
+                'description' => 'The field slug for status (default: "status")',
+                'required' => false
+              },
+              {
+                'name' => 'fields',
+                'description' => 'Comma-separated list of field slugs to return',
+                'required' => true
+              }
+            ]
+          },
+          {
+            'name' => 'filter_by_date_range',
+            'description' => 'Example: Filter records within a date range',
+            'arguments' => [
+              {
+                'name' => 'table_id',
+                'description' => 'The table ID to query',
+                'required' => true
+              },
+              {
+                'name' => 'date_field',
+                'description' => 'The field slug for the date field',
+                'required' => true
+              },
+              {
+                'name' => 'start_date',
+                'description' => 'Start date (YYYY-MM-DD format)',
+                'required' => true
+              },
+              {
+                'name' => 'end_date',
+                'description' => 'End date (YYYY-MM-DD format)',
+                'required' => true
+              },
+              {
+                'name' => 'fields',
+                'description' => 'Comma-separated list of field slugs to return',
+                'required' => true
+              }
+            ]
+          },
+          {
+            'name' => 'list_tables_by_solution',
+            'description' => 'Example: List all tables in a specific solution',
+            'arguments' => [
+              {
+                'name' => 'solution_id',
+                'description' => 'The solution ID to filter by',
+                'required' => true
+              }
+            ]
+          },
+          {
+            'name' => 'filter_records_contains_text',
+            'description' => 'Example: Filter records where a field contains specific text',
+            'arguments' => [
+              {
+                'name' => 'table_id',
+                'description' => 'The table ID to query',
+                'required' => true
+              },
+              {
+                'name' => 'field_slug',
+                'description' => 'The field slug to search in',
+                'required' => true
+              },
+              {
+                'name' => 'search_text',
+                'description' => 'The text to search for',
+                'required' => true
+              },
+              {
+                'name' => 'fields',
+                'description' => 'Comma-separated list of field slugs to return',
+                'required' => true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  end
+
+  def handle_prompt_get(request)
+    prompt_name = request.dig('params', 'name')
+    arguments = request.dig('params', 'arguments') || {}
+
+    prompt_text = case prompt_name
+    when 'filter_active_records'
+      status_field = arguments['status_field'] || 'status'
+      fields = arguments['fields']&.split(',')&.map(&:strip) || []
+
+      "Use the list_records tool with these parameters:\n\n" +
+      "table_id: #{arguments['table_id']}\n" +
+      "fields: #{fields.inspect}\n" +
+      "filter: {\n" +
+      "  \"operator\": \"and\",\n" +
+      "  \"fields\": [\n" +
+      "    {\n" +
+      "      \"field\": \"#{status_field}\",\n" +
+      "      \"comparison\": \"is\",\n" +
+      "      \"value\": \"active\"\n" +
+      "    }\n" +
+      "  ]\n" +
+      "}"
+
+    when 'filter_by_date_range'
+      date_field = arguments['date_field']
+      start_date = arguments['start_date']
+      end_date = arguments['end_date']
+      fields = arguments['fields']&.split(',')&.map(&:strip) || []
+
+      "Use the list_records tool with these parameters:\n\n" +
+      "table_id: #{arguments['table_id']}\n" +
+      "fields: #{fields.inspect}\n" +
+      "filter: {\n" +
+      "  \"operator\": \"and\",\n" +
+      "  \"fields\": [\n" +
+      "    {\n" +
+      "      \"field\": \"#{date_field}\",\n" +
+      "      \"comparison\": \"is_after\",\n" +
+      "      \"value\": {\n" +
+      "        \"date_mode\": \"exact_date\",\n" +
+      "        \"date_mode_value\": \"#{start_date}\"\n" +
+      "      }\n" +
+      "    },\n" +
+      "    {\n" +
+      "      \"field\": \"#{date_field}\",\n" +
+      "      \"comparison\": \"is_before\",\n" +
+      "      \"value\": {\n" +
+      "        \"date_mode\": \"exact_date\",\n" +
+      "        \"date_mode_value\": \"#{end_date}\"\n" +
+      "      }\n" +
+      "    }\n" +
+      "  ]\n" +
+      "}"
+
+    when 'list_tables_by_solution'
+      "Use the list_tables tool with this parameter:\n\n" +
+      "solution_id: #{arguments['solution_id']}\n\n" +
+      "This will return only tables from the specified solution."
+
+    when 'filter_records_contains_text'
+      field_slug = arguments['field_slug']
+      search_text = arguments['search_text']
+      fields = arguments['fields']&.split(',')&.map(&:strip) || []
+
+      "Use the list_records tool with these parameters:\n\n" +
+      "table_id: #{arguments['table_id']}\n" +
+      "fields: #{fields.inspect}\n" +
+      "filter: {\n" +
+      "  \"operator\": \"and\",\n" +
+      "  \"fields\": [\n" +
+      "    {\n" +
+      "      \"field\": \"#{field_slug}\",\n" +
+      "      \"comparison\": \"contains\",\n" +
+      "      \"value\": \"#{search_text}\"\n" +
+      "    }\n" +
+      "  ]\n" +
+      "}"
+
+    else
+      "Unknown prompt: #{prompt_name}"
+    end
+
+    {
+      'jsonrpc' => '2.0',
+      'id' => request['id'],
+      'result' => {
+        'messages' => [
+          {
+            'role' => 'user',
+            'content' => {
+              'type' => 'text',
+              'text' => prompt_text
+            }
+          }
+        ]
       }
     }
   end
@@ -166,11 +357,30 @@ class SmartSuiteServer
           },
           {
             'name' => 'list_tables',
-            'description' => 'List all tables (apps) in your SmartSuite workspace',
+            'description' => 'List all tables (apps) in your SmartSuite workspace. Optionally filter by solution_id to only show tables from a specific solution.',
             'inputSchema' => {
               'type' => 'object',
-              'properties' => {},
+              'properties' => {
+                'solution_id' => {
+                  'type' => 'string',
+                  'description' => 'Optional: Filter tables by solution ID. Use list_solutions first to get solution IDs.'
+                }
+              },
               'required' => []
+            }
+          },
+          {
+            'name' => 'get_table',
+            'description' => 'Get a specific table by ID including its structure (fields, their slugs, types, etc). Use this BEFORE querying records to understand what fields are available for filtering and selection.',
+            'inputSchema' => {
+              'type' => 'object',
+              'properties' => {
+                'table_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the table to retrieve'
+                }
+              },
+              'required' => ['table_id']
             }
           },
           {
@@ -193,7 +403,7 @@ class SmartSuiteServer
                 },
                 'filter' => {
                   'type' => 'object',
-                  'description' => 'Filter criteria with operator and fields array. Example: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}]}'
+                  'description' => 'Filter criteria. STRUCTURE: {"operator": "and|or", "fields": [{"field": "field_slug", "comparison": "operator", "value": "value"}]}. EXAMPLES: 1) Single filter: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}]}. 2) Multiple filters: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}, {"field": "priority", "comparison": "is_greater_than", "value": 3}]}. 3) Date filter (IMPORTANT - use date value object): {"operator": "and", "fields": [{"field": "due_date", "comparison": "is_after", "value": {"date_mode": "exact_date", "date_mode_value": "2025-01-01"}}]}. OPERATORS: is, is_not, contains, is_greater_than, is_less_than, is_empty, is_not_empty, is_before, is_after. NOTE: Date fields require value as object with date_mode and date_mode_value.'
                 },
                 'sort' => {
                   'type' => 'array',
@@ -223,6 +433,10 @@ class SmartSuiteServer
                 'summary_only' => {
                   'type' => 'boolean',
                   'description' => 'If true, returns statistics/summary instead of actual records. Minimal context usage for overview purposes.'
+                },
+                'full_content' => {
+                  'type' => 'boolean',
+                  'description' => 'If true, returns full field content without truncation. Default (false): strings truncated to 500 chars. Use when you need complete field values (like full descriptions) to avoid multiple get_record calls.'
                 }
               },
               'required' => ['table_id']
@@ -317,7 +531,9 @@ class SmartSuiteServer
     when 'list_solutions'
       @client.list_solutions
     when 'list_tables'
-      @client.list_tables
+      @client.list_tables(solution_id: arguments['solution_id'])
+    when 'get_table'
+      @client.get_table(arguments['table_id'])
     when 'list_records'
       @client.list_records(
         arguments['table_id'],
@@ -326,7 +542,8 @@ class SmartSuiteServer
         filter: arguments['filter'],
         sort: arguments['sort'],
         fields: arguments['fields'],
-        summary_only: arguments['summary_only']
+        summary_only: arguments['summary_only'],
+        full_content: arguments['full_content']
       )
     when 'get_record'
       @client.get_record(arguments['table_id'], arguments['record_id'])

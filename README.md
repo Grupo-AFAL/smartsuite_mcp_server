@@ -9,6 +9,7 @@ This MCP server provides the following tools:
 ### Data Operations
 - **list_solutions** - List all solutions in your workspace (high-level view)
 - **list_tables** - List all tables in your SmartSuite workspace
+- **get_table** - Get a specific table's structure (fields, slugs, types) - **Use this first to understand what fields are available**
 - **list_records** - Query records from a table with pagination support
 - **get_record** - Retrieve a specific record by ID
 - **create_record** - Create new records in tables
@@ -19,6 +20,16 @@ This MCP server provides the following tools:
 - **reset_api_stats** - Reset API usage statistics
 
 All API calls are automatically tracked and persisted across sessions, helping you monitor usage and stay within SmartSuite's rate limits.
+
+### MCP Prompts (Filter Examples)
+This server provides ready-to-use prompts that show AI assistants exactly how to construct filters:
+
+- **filter_active_records** - Filter records where status is "active" (or any custom status field)
+- **filter_by_date_range** - Filter records within a date range
+- **list_tables_by_solution** - List tables filtered by solution ID
+- **filter_records_contains_text** - Filter records where a field contains specific text
+
+These prompts provide concrete JSON examples that make it much easier for AI assistants to construct valid filters without guessing the syntax.
 
 ## Prerequisites
 
@@ -125,39 +136,103 @@ Lists all solutions in your SmartSuite workspace. Solutions are high-level conta
 
 ### list_tables
 
-Lists all tables (applications) in your workspace. This can return a large result if you have many tables - consider using `list_solutions` first to see the high-level organization.
+Lists all tables (applications) in your workspace. Optionally filter by solution_id to only show tables from a specific solution.
+
+**Parameters:**
+- `solution_id` (optional): Filter tables by solution ID. Use `list_solutions` first to get solution IDs.
+
+**Example (all tables):**
+```json
+{
+  "table_id": ""
+}
+```
+
+**Example (filtered by solution):**
+```json
+{
+  "solution_id": "sol_abc123"
+}
+```
 
 **Example response:**
 ```json
 {
-  "items": [
+  "tables": [
     {
       "id": "table_id",
       "name": "Customers",
-      "structure": [...]
+      "solution_id": "sol_abc123"
+    }
+  ],
+  "count": 1
+}
+```
+
+### get_table
+
+**IMPORTANT: Use this tool FIRST before querying records.** Get a specific table by ID including its structure (fields, field slugs, field types). This tells you what fields are available for filtering and selection.
+
+**Parameters:**
+- `table_id` (required): The ID of the table
+
+**Example:**
+```json
+{
+  "table_id": "tbl_abc123"
+}
+```
+
+**Example response:**
+```json
+{
+  "id": "tbl_abc123",
+  "name": "Customers",
+  "solution_id": "sol_xyz",
+  "structure": [
+    {
+      "slug": "status",
+      "label": "Status",
+      "field_type": "statusfield"
+    },
+    {
+      "slug": "priority",
+      "label": "Priority",
+      "field_type": "numberfield"
+    },
+    {
+      "slug": "due_date",
+      "label": "Due Date",
+      "field_type": "duedatefield"
     }
   ]
 }
 ```
+
+**Workflow recommendation:**
+1. Use `get_table` to see available fields and their slugs
+2. Use the field slugs in `list_records` filters and fields parameters
+3. This prevents errors from using wrong field names
 
 ### list_records
 
 Lists records from a specific table with optional filtering and sorting.
 
 **⚡ ULTRA-MINIMAL CONTEXT USAGE:**
-- **Default limit**: 5 records (not 50!)
-- **Default fields**: Only `id` + `title` returned
-- **Summary mode**: Get statistics without record data
-- Use `fields` parameter only when you need specific data
+- **REQUIRED**: You MUST specify either `fields` parameter OR `summary_only: true`
+- **Automatic limit**: Without a filter, limit is automatically capped at 2 records (prevents excessive token usage)
+- **Plain text format**: Responses are returned as plain text (saves 30-50% tokens vs JSON)
+- **Summary mode**: Get statistics without record data (minimal context)
 
 **Parameters:**
 - `table_id` (required): The ID of the table
-- `limit` (optional): Number of records to return (default: **5**)
+- `limit` (optional): Number of records to return (default: **5**). Without a filter, automatically reduced to 2.
 - `offset` (optional): Number of records to skip (for pagination)
 - `filter` (optional): Filter criteria with operator and fields array
 - `sort` (optional): Sort criteria as array of field-direction pairs
-- `fields` (optional): Array of specific field slugs to return. **Default: only id + title**
-- `summary_only` (optional): Boolean. If true, returns statistics instead of records (minimal context)
+- `fields` (REQUIRED unless using summary_only): Array of specific field slugs to return (includes id + title automatically)
+- `summary_only` (optional): Boolean. If true, returns statistics instead of records (no fields parameter needed)
+- `full_content` (optional): Boolean. If true, returns full field content without truncation. Default (false) truncates strings to 500 chars. **Use this when you need complete field values** (like full descriptions) to avoid making multiple `get_record` calls.
 
 **Filter Structure:**
 
@@ -183,13 +258,48 @@ The filter parameter uses the following structure:
 - `is_empty` / `is_not_empty` - Empty/non-empty check
 - `is_before` / `is_after` / `is_on` - Date comparisons
 
-**Basic Example (Default - Minimal Context):**
+**⚠️ IMPORTANT: Date Value Objects**
+
+Date fields require a special date value object format instead of a simple string:
+
 ```json
 {
-  "table_id": "abc123"
+  "field": "due_date",
+  "comparison": "is_after",
+  "value": {
+    "date_mode": "exact_date",
+    "date_mode_value": "2025-01-01"
+  }
 }
 ```
-Returns: 5 records with only `id` and `title` fields
+
+**Date modes:**
+- `exact_date` - Specific date (YYYY-MM-DD format)
+- `today` - Current date
+- Other modes available (see SmartSuite API docs)
+
+**Example: Minimal Fields (Recommended):**
+```json
+{
+  "table_id": "abc123",
+  "fields": ["status"]
+}
+```
+Returns (plain text):
+```
+Found 2 records (total: 50)
+
+Record 1:
+  id: rec_123
+  title: First Record
+  status: active
+
+Record 2:
+  id: rec_456
+  title: Second Record
+  status: pending
+```
+Note: Without a filter, limit is automatically capped at 2 records.
 
 **Example with Filter:**
 ```json
@@ -205,21 +315,42 @@ Returns: 5 records with only `id` and `title` fields
         "value": "active"
       }
     ]
-  }
+  },
+  "fields": ["status", "priority"]
 }
 ```
+Returns: Plain text with up to 20 records (filter allows higher limits)
 
-**Example with Sort:**
+**Example with Date Filter:**
 ```json
 {
   "table_id": "abc123",
   "limit": 50,
-  "sort": [
-    {"field": "created_on", "direction": "desc"},
-    {"field": "title", "direction": "asc"}
-  ]
+  "filter": {
+    "operator": "and",
+    "fields": [
+      {
+        "field": "due_date",
+        "comparison": "is_after",
+        "value": {
+          "date_mode": "exact_date",
+          "date_mode_value": "2025-01-01"
+        }
+      },
+      {
+        "field": "due_date",
+        "comparison": "is_before",
+        "value": {
+          "date_mode": "exact_date",
+          "date_mode_value": "2025-12-31"
+        }
+      }
+    ]
+  },
+  "fields": ["title", "due_date", "status"]
 }
 ```
+Returns: Plain text with records where due_date is in 2025
 
 **Example with Filter and Sort:**
 ```json
@@ -245,19 +376,11 @@ Returns: 5 records with only `id` and `title` fields
   "sort": [
     {"field": "priority", "direction": "desc"},
     {"field": "due_date", "direction": "asc"}
-  ]
+  ],
+  "fields": ["status", "priority", "due_date"]
 }
 ```
-
-**Example with Specific Fields:**
-```json
-{
-  "table_id": "abc123",
-  "limit": 10,
-  "fields": ["status", "priority", "assigned_to"]
-}
-```
-Returns: 10 records with `id`, `title`, `status`, `priority`, and `assigned_to`
+Returns: Plain text with filtered, sorted records
 
 **Example with Summary Only (Ultra-Minimal Context):**
 ```json
@@ -277,10 +400,20 @@ Returns:
 
 **Response Optimization:**
 
-- **Default**: Returns only `id` and `title` (2 fields per record)
-- **With fields**: Returns specified fields + id/title
-- **Summary mode**: No records returned, only statistics
-- **Truncation**: Strings > 500 chars automatically truncated
+- **Plain text format**: All responses are in plain text (saves 30-50% tokens vs JSON)
+- **Field selection**: Only requested fields + id/title are returned
+- **Summary mode**: Returns statistics only, no record data (minimal tokens)
+- **Automatic limiting**: Without filter, maximum 2 records (prevents excessive usage)
+- **Smart truncation**:
+  - Default: Strings truncated to 500 chars (reasonable safety net)
+  - Rich text fields: Preview kept at ~500 chars
+  - Arrays: First 10 items
+  - With `full_content: true`: No truncation - get complete field values
+
+**When to use `full_content: true`:**
+- When you need complete descriptions, long text fields, or full rich text content
+- Prevents needing multiple `get_record` calls for individual records
+- Example: Getting full descriptions from filtered records
 
 ### get_record
 

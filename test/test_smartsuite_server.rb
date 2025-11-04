@@ -106,7 +106,46 @@ class SmartSuiteServerTest < Minitest::Test
 
     assert_equal '2.0', response['jsonrpc']
     assert_equal 2, response['id']
-    assert_equal [], response['result']['prompts']
+
+    # Should now return prompts for common filtering patterns
+    prompts = response['result']['prompts']
+    assert prompts.length > 0, 'Should return at least one prompt'
+
+    # Check that filter_active_records prompt exists
+    active_prompt = prompts.find { |p| p['name'] == 'filter_active_records' }
+    refute_nil active_prompt, 'Should include filter_active_records prompt'
+    assert_equal 'Example: Filter records where status is "active"', active_prompt['description']
+  end
+
+  def test_handle_prompt_get
+    request = {
+      'id' => 10,
+      'method' => 'prompts/get',
+      'params' => {
+        'name' => 'filter_active_records',
+        'arguments' => {
+          'table_id' => 'tbl_123',
+          'fields' => 'status,priority'
+        }
+      }
+    }
+
+    response = call_private_method(:handle_prompt_get, request)
+
+    assert_equal '2.0', response['jsonrpc']
+    assert_equal 10, response['id']
+
+    # Check that the prompt text includes the filter structure
+    messages = response['result']['messages']
+    assert_equal 1, messages.length
+    assert_equal 'user', messages[0]['role']
+
+    prompt_text = messages[0]['content']['text']
+    assert_includes prompt_text, 'list_records', 'Should mention list_records tool'
+    assert_includes prompt_text, 'tbl_123', 'Should include table_id'
+    assert_includes prompt_text, '"operator": "and"', 'Should include filter operator'
+    assert_includes prompt_text, '"comparison": "is"', 'Should include comparison operator'
+    assert_includes prompt_text, '"value": "active"', 'Should include active value'
   end
 
   def test_handle_resources_list
@@ -269,6 +308,83 @@ class SmartSuiteServerTest < Minitest::Test
     refute result['tables'][0].key?('structure'), 'Should filter out structure field'
   end
 
+  def test_client_list_tables_filters_by_solution_id
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    # Track the endpoint that was called
+    called_endpoint = nil
+
+    # Mock response - API returns only filtered tables
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'tbl_1',
+          'name' => 'Customers',
+          'solution_id' => 'sol_1'
+        },
+        {
+          'id' => 'tbl_2',
+          'name' => 'Orders',
+          'solution_id' => 'sol_1'
+        }
+      ]
+    }
+
+    # Mock the api_request method to track endpoint
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      called_endpoint = endpoint
+      mock_response
+    end
+
+    # Test filtering by solution_id
+    result = client.list_tables(solution_id: 'sol_1')
+
+    # Verify the API was called with the solution query parameter
+    assert_equal '/applications/?solution=sol_1', called_endpoint, 'Should use solution query parameter'
+
+    # Verify response
+    assert_equal 2, result['count'], 'Should return only tables from sol_1'
+    assert_equal 'tbl_1', result['tables'][0]['id']
+    assert_equal 'tbl_2', result['tables'][1]['id']
+  end
+
+  def test_client_get_table
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'id' => 'tbl_123',
+      'name' => 'Customers',
+      'solution_id' => 'sol_1',
+      'structure' => [
+        {
+          'slug' => 'status',
+          'label' => 'Status',
+          'field_type' => 'statusfield'
+        },
+        {
+          'slug' => 'priority',
+          'label' => 'Priority',
+          'field_type' => 'numberfield'
+        }
+      ]
+    }
+
+    # Mock the api_request method
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.get_table('tbl_123')
+
+    assert_equal 'tbl_123', result['id']
+    assert_equal 'Customers', result['name']
+    assert_equal 'sol_1', result['solution_id']
+    refute_nil result['structure'], 'Should include structure'
+    assert_equal 2, result['structure'].length, 'Should have 2 fields'
+    assert_equal 'status', result['structure'][0]['slug']
+    assert_equal 'priority', result['structure'][1]['slug']
+  end
+
   # Test filtering and sorting
   def test_client_list_records_with_filter
     client = SmartSuiteClient.new('test_key', 'test_account')
@@ -286,7 +402,7 @@ class SmartSuiteServerTest < Minitest::Test
         {'field' => 'status', 'comparison' => 'is', 'value' => 'active'}
       ]
     }
-    client.list_records('tbl_123', 10, 0, filter: filter)
+    client.list_records('tbl_123', 10, 0, filter: filter, fields: ['status'])
 
     assert_equal filter, sent_body[:filter]
     assert_equal 10, sent_body[:limit]
@@ -300,14 +416,15 @@ class SmartSuiteServerTest < Minitest::Test
     sent_body = nil
     client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
       sent_body = body
-      {'items' => []}
+      {'items' => [], 'total_count' => 0}
     end
 
     sort = [{'field' => 'created_on', 'direction' => 'desc'}]
-    client.list_records('tbl_123', 10, 0, sort: sort)
+    client.list_records('tbl_123', 10, 0, sort: sort, fields: ['status'])
 
     assert_equal sort, sent_body[:sort]
-    assert_equal 10, sent_body[:limit]
+    # Without filter, limit is automatically reduced to 2
+    assert_equal 2, sent_body[:limit], 'Should limit to 2 records without filter'
   end
 
   def test_client_list_records_with_filter_and_sort
@@ -317,7 +434,7 @@ class SmartSuiteServerTest < Minitest::Test
     sent_body = nil
     client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
       sent_body = body
-      {'items' => []}
+      {'items' => [], 'total_count' => 0}
     end
 
     filter = {
@@ -328,7 +445,7 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
     sort = [{'field' => 'created_on', 'direction' => 'desc'}, {'field' => 'title', 'direction' => 'asc'}]
-    client.list_records('tbl_123', 20, 10, filter: filter, sort: sort)
+    client.list_records('tbl_123', 20, 10, filter: filter, sort: sort, fields: ['status', 'priority'])
 
     assert_equal filter, sent_body[:filter]
     assert_equal sort, sent_body[:sort]
@@ -343,18 +460,19 @@ class SmartSuiteServerTest < Minitest::Test
     sent_body = nil
     client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
       sent_body = body
-      {'items' => []}
+      {'items' => [], 'total_count' => 0}
     end
 
-    client.list_records('tbl_123', 50, 0)
+    client.list_records('tbl_123', 50, 0, fields: ['status'])
 
     refute sent_body.key?(:filter), 'Should not include filter when nil'
     refute sent_body.key?(:sort), 'Should not include sort when nil'
-    assert_equal 50, sent_body[:limit]
+    # Without filter, limit is automatically reduced to 2
+    assert_equal 2, sent_body[:limit], 'Should limit to 2 records without filter'
     assert_equal 0, sent_body[:offset]
   end
 
-  # Test response filtering
+  # Test response filtering - now returns plain text
   def test_client_list_records_filters_verbose_fields
     client = SmartSuiteClient.new('test_key', 'test_account')
 
@@ -384,21 +502,20 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_records('tbl_123', 10, 0)
+    # Providing fields parameter to pass validation
+    result = client.list_records('tbl_123', 10, 0, fields: ['title'])
 
-    # Default behavior: only id and title
-    assert result['items'][0].key?('id'), 'Should keep id'
-    assert result['items'][0].key?('title'), 'Should keep title'
+    # Result is now plain text string
+    assert result.is_a?(String), 'Should return plain text string'
 
-    # Everything else should be filtered out by default
-    refute result['items'][0].key?('description'), 'Should filter out description'
-    refute result['items'][0].key?('comments_count'), 'Should filter out comments_count'
-    refute result['items'][0].key?('ranking'), 'Should filter out ranking'
-    refute result['items'][0].key?('first_created'), 'Should filter out first_created by default'
-    refute result['items'][0].key?('custom_field'), 'Should filter out custom fields by default'
+    # Should contain id and title
+    assert_includes result, 'id: rec_123', 'Should include id'
+    assert_includes result, 'title: Test Record', 'Should include title'
 
-    # Should only have id and title
-    assert_equal 2, result['items'][0].keys.size, 'Should only have id and title'
+    # Should not contain verbose fields
+    refute_includes result, 'description:', 'Should not include description'
+    refute_includes result, 'comments_count:', 'Should not include comments_count'
+    refute_includes result, 'ranking:', 'Should not include ranking'
   end
 
   def test_client_list_records_with_fields_parameter
@@ -424,11 +541,15 @@ class SmartSuiteServerTest < Minitest::Test
 
     result = client.list_records('tbl_123', 10, 0, fields: ['status', 'priority'])
 
-    # Check that only requested fields + essential fields are returned
-    assert result['items'][0].key?('id'), 'Should include id (essential)'
-    assert result['items'][0].key?('status'), 'Should include status (requested)'
-    assert result['items'][0].key?('priority'), 'Should include priority (requested)'
-    refute result['items'][0].key?('description'), 'Should not include description'
+    # Result is now plain text string
+    assert result.is_a?(String), 'Should return plain text string'
+
+    # Check that requested fields are included in plain text
+    assert_includes result, 'id: rec_123', 'Should include id (essential)'
+    assert_includes result, 'title: Test Record', 'Should include title (essential)'
+    assert_includes result, 'status: active', 'Should include status (requested)'
+    assert_includes result, 'priority: 5', 'Should include priority (requested)'
+    refute_includes result, 'description:', 'Should not include description'
   end
 
   def test_client_truncates_long_strings
@@ -452,9 +573,13 @@ class SmartSuiteServerTest < Minitest::Test
 
     result = client.list_records('tbl_123', 10, 0, fields: ['long_field'])
 
-    truncated_value = result['items'][0]['long_field']
-    assert truncated_value.length < long_string.length, 'Should truncate long strings'
-    assert truncated_value.include?('[truncated]'), 'Should include truncation marker'
+    # Result is now plain text string
+    assert result.is_a?(String), 'Should return plain text string'
+
+    # Check for truncation marker in plain text output
+    assert_includes result, '...', 'Should truncate long strings in plain text'
+    # The long string should be truncated (won't contain all 1000 'a's in sequence)
+    refute_includes result, long_string, 'Should not include full long string'
   end
 
   def test_client_list_records_summary_only

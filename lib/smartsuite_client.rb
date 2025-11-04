@@ -13,6 +13,10 @@ class SmartSuiteClient
     # Create a separate, clean log file for metrics
     @metrics_log = File.open(File.join(Dir.home, '.smartsuite_mcp_metrics.log'), 'a')
     @metrics_log.sync = true  # Auto-flush
+
+    # Token usage tracking
+    @total_tokens_used = 0
+    @context_limit = 200000  # Claude's context window
   end
 
   def list_solutions
@@ -28,8 +32,11 @@ class SmartSuiteClient
           'logo_color' => solution['logo_color']
         }
       end
+      result = { 'solutions' => solutions, 'count' => solutions.size }
+      tokens = estimate_tokens(JSON.generate(result))
       log_metric("✓ Found #{solutions.size} solutions")
-      { 'solutions' => solutions, 'count' => solutions.size }
+      log_token_usage(tokens)
+      result
     elsif response.is_a?(Array)
       # If response is directly an array
       solutions = response.map do |solution|
@@ -40,16 +47,26 @@ class SmartSuiteClient
           'logo_color' => solution['logo_color']
         }
       end
+      result = { 'solutions' => solutions, 'count' => solutions.size }
+      tokens = estimate_tokens(JSON.generate(result))
       log_metric("✓ Found #{solutions.size} solutions")
-      { 'solutions' => solutions, 'count' => solutions.size }
+      log_token_usage(tokens)
+      result
     else
       # Return raw response if structure is unexpected
       response
     end
   end
 
-  def list_tables
-    response = api_request(:get, '/applications/')
+  def list_tables(solution_id: nil)
+    # Build endpoint with query parameter if solution_id is provided
+    endpoint = '/applications/'
+    if solution_id
+      endpoint += "?solution=#{solution_id}"
+      log_metric("→ Filtering tables by solution: #{solution_id}")
+    end
+
+    response = api_request(:get, endpoint)
 
     # Extract only essential fields to reduce response size
     if response.is_a?(Hash) && response['items'].is_a?(Array)
@@ -60,8 +77,12 @@ class SmartSuiteClient
           'solution_id' => table['solution_id']
         }
       end
+
+      result = { 'tables' => tables, 'count' => tables.size }
+      tokens = estimate_tokens(JSON.generate(result))
       log_metric("✓ Found #{tables.size} tables")
-      { 'tables' => tables, 'count' => tables.size }
+      log_token_usage(tokens)
+      result
     elsif response.is_a?(Array)
       # If response is directly an array
       tables = response.map do |table|
@@ -71,15 +92,58 @@ class SmartSuiteClient
           'solution_id' => table['solution_id']
         }
       end
+
+      result = { 'tables' => tables, 'count' => tables.size }
+      tokens = estimate_tokens(JSON.generate(result))
       log_metric("✓ Found #{tables.size} tables")
-      { 'tables' => tables, 'count' => tables.size }
+      log_token_usage(tokens)
+      result
     else
       # Return raw response if structure is unexpected
       response
     end
   end
 
-  def list_records(table_id, limit = 5, offset = 0, filter: nil, sort: nil, fields: nil, summary_only: false)
+  def get_table(table_id)
+    log_metric("→ Getting table structure: #{table_id}")
+    response = api_request(:get, "/applications/#{table_id}/")
+
+    # Return full structure including fields
+    if response.is_a?(Hash)
+      # Extract essential info + structure
+      result = {
+        'id' => response['id'],
+        'name' => response['name'],
+        'solution_id' => response['solution_id'],
+        'structure' => response['structure']
+      }
+
+      tokens = estimate_tokens(JSON.generate(result))
+      log_metric("✓ Retrieved table structure (#{tokens} tokens)")
+      log_token_usage(tokens)
+      result
+    else
+      response
+    end
+  end
+
+  def list_records(table_id, limit = 5, offset = 0, filter: nil, sort: nil, fields: nil, summary_only: false, full_content: false)
+    # VALIDATION: Require fields or summary_only to prevent excessive context usage
+    if !summary_only && (!fields || fields.empty?)
+      error_msg = "ERROR: You must specify 'fields' or use 'summary_only: true'\n\n" +
+                  "Correct examples:\n" +
+                  "  list_records(table_id, fields: ['status', 'priority'])\n" +
+                  "  list_records(table_id, summary_only: true)\n\n" +
+                  "This prevents excessive context consumption."
+      return {'error' => error_msg}
+    end
+
+    # LIMIT: Without filter, maximum 2 records to prevent excessive usage
+    if !filter && limit > 2
+      log_metric("⚠️  No filter: limit reduced from #{limit} → 2")
+      limit = 2
+    end
+
     body = {
       limit: limit,
       offset: offset
@@ -103,7 +167,8 @@ class SmartSuiteClient
     end
 
     # Apply aggressive filtering to reduce response size
-    filter_records_response(response, fields)
+    # Returns plain text format to save ~40% tokens vs JSON
+    filter_records_response(response, fields, plain_text: true, full_content: full_content)
   end
 
   def get_record(table_id, record_id)
@@ -157,7 +222,7 @@ class SmartSuiteClient
     JSON.parse(response.body)
   end
 
-  def filter_records_response(response, fields)
+  def filter_records_response(response, fields, plain_text: false, full_content: false)
     return response unless response.is_a?(Hash) && response['items'].is_a?(Array)
 
     # Calculate original size in tokens (approximate)
@@ -168,13 +233,28 @@ class SmartSuiteClient
       if fields && !fields.empty?
         # If specific fields requested, only return those + id/title
         requested_fields = (fields + ['id', 'title']).uniq
-        filter_record_fields(record, requested_fields)
+        filter_record_fields(record, requested_fields, full_content: full_content)
       else
         # Default: only id and title (minimal context usage)
-        filter_record_fields(record, ['id', 'title'])
+        filter_record_fields(record, ['id', 'title'], full_content: full_content)
       end
     end
 
+    # Format as plain text to save ~40% tokens vs JSON
+    if plain_text
+      result_text = format_as_plain_text(filtered_items, response['total_count'], full_content: full_content)
+      tokens = estimate_tokens(result_text)
+      reduction_percent = ((original_tokens - tokens).to_f / original_tokens * 100).round(1)
+
+      content_mode = full_content ? "full content" : "truncated"
+      log_metric("✓ Found #{filtered_items.size} records (plain text, #{content_mode})")
+      log_metric("📊 #{original_tokens} → #{tokens} tokens (saved #{reduction_percent}%)")
+      log_token_usage(tokens)
+
+      return result_text
+    end
+
+    # JSON format (for backward compatibility)
     result = {
       'items' => filtered_items,
       'total_count' => response['total_count'],
@@ -188,15 +268,17 @@ class SmartSuiteClient
 
     log_metric("✓ Found #{result['count']} records")
     log_metric("📊 #{original_tokens} → #{filtered_tokens} tokens (saved #{reduction_percent}%)")
+    log_token_usage(filtered_tokens)
 
     result
   end
 
   def estimate_tokens(text)
-    # Rough approximation: 1 token ≈ 4 characters for English text
-    # For JSON, it's closer to 1 token per 3-4 bytes
-    # Using 3.5 as a reasonable middle ground
-    (text.length / 3.5).round
+    # More accurate approximation for JSON:
+    # - Each character is ~1 token due to structure (brackets, quotes, commas)
+    # - Using 1.5 chars per token is more realistic for JSON
+    # This tends to OVERESTIMATE slightly, which is safer than underestimating
+    (text.length / 1.5).round
   end
 
   def generate_summary(response)
@@ -233,29 +315,65 @@ class SmartSuiteClient
       end
     end
 
-    log_metric("✓ Summary: #{items.size} records analyzed")
-    log_metric("📊 Minimal context (summary mode)")
-
-    {
+    result = {
       'summary': summary_lines.join("\n"),
       'count': items.size,
       'total_count': total,
       'fields_analyzed': field_stats.keys
     }
+
+    tokens = estimate_tokens(JSON.generate(result))
+    log_metric("✓ Summary: #{items.size} records analyzed")
+    log_metric("📊 Minimal context (summary mode)")
+    log_token_usage(tokens)
+
+    result
   end
 
-  def filter_record_fields(record, include_fields)
+  def format_as_plain_text(records, total_count, full_content: false)
+    return "No records found." if records.empty?
+
+    lines = []
+    lines << "Found #{records.size} records (total: #{total_count || records.size})"
+    lines << ""
+
+    records.each_with_index do |record, index|
+      lines << "Record #{index + 1}:"
+      record.each do |key, value|
+        # Format value appropriately - values are already truncated by truncate_value if needed
+        # We don't truncate again here (removed the 100-char limit)
+        formatted_value = case value
+        when Hash
+          value.inspect # No truncation - already handled
+        when Array
+          value.join(", ") # No truncation - already handled
+        else
+          value.to_s
+        end
+        lines << "  #{key}: #{formatted_value}"
+      end
+      lines << ""
+    end
+
+    lines.join("\n")
+  end
+
+  def filter_record_fields(record, include_fields, full_content: false)
     return record unless record.is_a?(Hash)
 
     # Only include specified fields
     result = {}
     include_fields.each do |field|
-      result[field] = truncate_value(record[field]) if record.key?(field)
+      result[field] = truncate_value(record[field], full_content: full_content) if record.key?(field)
     end
     result
   end
 
-  def truncate_value(value)
+  def truncate_value(value, full_content: false)
+    # If full_content is true, return value as-is (no truncation)
+    return value if full_content
+
+    # Default behavior: truncate to 500 chars for safety
     case value
     when String
       value.length > 500 ? value[0...500] + '... [truncated]' : value
@@ -263,7 +381,7 @@ class SmartSuiteClient
       # For nested hashes (like description), truncate aggressively
       if value['html'] || value['data'] || value['yjsData']
         # This is likely a rich text field - just keep preview
-        value['preview'] ? value['preview'][0...200] : '[Rich text content]'
+        value['preview'] ? value['preview'][0...500] : '[Rich text content]'
       else
         value
       end
@@ -278,5 +396,13 @@ class SmartSuiteClient
   def log_metric(message)
     timestamp = Time.now.strftime('%H:%M:%S')
     @metrics_log.puts "[#{timestamp}] #{message}"
+  end
+
+  def log_token_usage(tokens_used)
+    @total_tokens_used += tokens_used
+    usage_percent = (@total_tokens_used.to_f / @context_limit * 100).round(1)
+    remaining = @context_limit - @total_tokens_used
+
+    log_metric("📈 Total usado: #{@total_tokens_used} tokens (#{usage_percent}%) | Quedan: #{remaining}")
   end
 end
