@@ -202,7 +202,9 @@ class SmartSuiteClient
       'field_type' => field['field_type']
     }
 
-    # Only include essential params
+    # Only include essential params if params exist
+    return filtered unless field['params']
+
     params = {}
 
     # Always include these if present
