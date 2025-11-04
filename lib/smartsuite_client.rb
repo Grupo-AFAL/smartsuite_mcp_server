@@ -108,18 +108,27 @@ class SmartSuiteClient
     log_metric("→ Getting table structure: #{table_id}")
     response = api_request(:get, "/applications/#{table_id}/")
 
-    # Return full structure including fields
+    # Return filtered structure including only essential fields
     if response.is_a?(Hash)
-      # Extract essential info + structure
+      # Calculate original size for comparison
+      original_structure_json = JSON.generate(response['structure'])
+      original_tokens = estimate_tokens(original_structure_json)
+
+      # Filter structure to only essential fields
+      filtered_structure = response['structure'].map { |field| filter_field_structure(field) }
+
       result = {
         'id' => response['id'],
         'name' => response['name'],
         'solution_id' => response['solution_id'],
-        'structure' => response['structure']
+        'structure' => filtered_structure
       }
 
       tokens = estimate_tokens(JSON.generate(result))
-      log_metric("✓ Retrieved table structure (#{tokens} tokens)")
+      reduction_percent = ((original_tokens - tokens).to_f / original_tokens * 100).round(1)
+
+      log_metric("✓ Retrieved table structure: #{filtered_structure.length} fields")
+      log_metric("📊 #{original_tokens} → #{tokens} tokens (saved #{reduction_percent}%)")
       log_token_usage(tokens)
       result
     else
@@ -184,6 +193,39 @@ class SmartSuiteClient
   end
 
   private
+
+  def filter_field_structure(field)
+    # Extract only essential field information
+    filtered = {
+      'slug' => field['slug'],
+      'label' => field['label'],
+      'field_type' => field['field_type']
+    }
+
+    # Only include essential params
+    params = {}
+
+    # Always include these if present
+    params['primary'] = true if field['params']['primary']
+    params['required'] = field['params']['required'] unless field['params']['required'].nil?
+    params['unique'] = field['params']['unique'] unless field['params']['unique'].nil?
+
+    # For choice fields (status, single select, multi select), strip down choices to only label and value
+    if field['params']['choices']
+      params['choices'] = field['params']['choices'].map do |choice|
+        {'label' => choice['label'], 'value' => choice['value']}
+      end
+    end
+
+    # For linked record fields, include target table and cardinality
+    if field['params']['linked_application']
+      params['linked_application'] = field['params']['linked_application']
+      params['entries_allowed'] = field['params']['entries_allowed'] if field['params']['entries_allowed']
+    end
+
+    filtered['params'] = params unless params.empty?
+    filtered
+  end
 
   def api_request(method, endpoint, body = nil)
     # Track the API call if stats tracker is available
