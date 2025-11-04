@@ -196,6 +196,40 @@ class SmartSuiteClient
     api_request(:delete, "/applications/#{table_id}/records/#{record_id}/")
   end
 
+  def list_members(limit = 100, offset = 0)
+    log_metric("→ Listing workspace members")
+
+    body = {
+      limit: limit,
+      offset: offset
+    }
+
+    response = api_request(:post, "/applications/members/records/list/", body)
+
+    # Extract only essential member information
+    if response.is_a?(Hash) && response['items'].is_a?(Array)
+      members = response['items'].map do |member|
+        {
+          'id' => member['id'],
+          'title' => member['title'],
+          'email' => member['email'],
+          'first_name' => member['first_name'],
+          'last_name' => member['last_name'],
+          'role' => member['role'],
+          'status' => member['status']
+        }.compact # Remove nil values
+      end
+
+      result = { 'members' => members, 'count' => members.size, 'total_count' => response['total_count'] }
+      tokens = estimate_tokens(JSON.generate(result))
+      log_metric("✓ Found #{members.size} members")
+      log_token_usage(tokens)
+      result
+    else
+      response
+    end
+  end
+
   private
 
   def filter_field_structure(field)

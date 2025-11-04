@@ -8,6 +8,7 @@ This MCP server provides the following tools:
 
 ### Data Operations
 - **list_solutions** - List all solutions in your workspace (high-level view)
+- **list_members** - List all members (users) in your workspace - **Use this to get user IDs for assigning people to records**
 - **list_tables** - List all tables in your SmartSuite workspace
 - **get_table** - Get a specific table's structure (fields, slugs, types) - **Use this first to understand what fields are available**
 - **list_records** - Query records from a table with pagination support
@@ -118,7 +119,7 @@ Lists all solutions in your SmartSuite workspace. Solutions are high-level conta
 **Example response:**
 ```json
 {
-  "items": [
+  "solutions": [
     {
       "id": "sol_abc123",
       "name": "Customer Management",
@@ -131,7 +132,66 @@ Lists all solutions in your SmartSuite workspace. Solutions are high-level conta
       "logo_icon": "folder",
       "logo_color": "#10B981"
     }
-  ]
+  ],
+  "count": 2
+}
+```
+
+### list_members
+
+Lists all members (users) in your SmartSuite workspace. **Use this tool to get user IDs when you need to assign people to records.**
+
+**Parameters:**
+- `limit` (optional): Maximum number of members to return (default: 100)
+- `offset` (optional): Number of members to skip (for pagination)
+
+**Example:**
+```json
+{
+  "limit": 100,
+  "offset": 0
+}
+```
+
+**Example response:**
+```json
+{
+  "members": [
+    {
+      "id": "usr_abc123",
+      "title": "John Doe",
+      "email": "john@example.com",
+      "first_name": "John",
+      "last_name": "Doe",
+      "role": "admin",
+      "status": "active"
+    },
+    {
+      "id": "usr_def456",
+      "title": "Jane Smith",
+      "email": "jane@example.com",
+      "first_name": "Jane",
+      "last_name": "Smith",
+      "role": "member",
+      "status": "active"
+    }
+  ],
+  "count": 2,
+  "total_count": 2
+}
+```
+
+**Use case - Assigning users to records:**
+
+When creating or updating records with user assignment fields, use the user `id` from this response:
+
+```json
+{
+  "table_id": "tbl_projects",
+  "data": {
+    "title": "New Project",
+    "assigned_to": "usr_abc123"
+  }
 }
 ```
 

@@ -86,6 +86,7 @@ class SmartSuiteServerTest < Minitest::Test
 
     tool_names = response['result']['tools'].map { |t| t['name'] }
     assert_includes tool_names, 'list_solutions'
+    assert_includes tool_names, 'list_members'
     assert_includes tool_names, 'list_tables'
     assert_includes tool_names, 'list_records'
     assert_includes tool_names, 'get_record'
@@ -347,6 +348,50 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal 2, result['count'], 'Should return only tables from sol_1'
     assert_equal 'tbl_1', result['tables'][0]['id']
     assert_equal 'tbl_2', result['tables'][1]['id']
+  end
+
+  def test_client_list_members
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'usr_123',
+          'title' => 'John Doe',
+          'email' => 'john@example.com',
+          'first_name' => 'John',
+          'last_name' => 'Doe',
+          'role' => 'admin',
+          'status' => 'active',
+          'extra_field' => 'should be filtered'
+        },
+        {
+          'id' => 'usr_456',
+          'title' => 'Jane Smith',
+          'email' => 'jane@example.com',
+          'first_name' => 'Jane',
+          'last_name' => 'Smith',
+          'role' => 'member',
+          'status' => 'active'
+        }
+      ],
+      'total_count' => 2
+    }
+
+    # Mock the api_request method
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.list_members
+
+    assert_equal 2, result['count']
+    assert_equal 2, result['total_count']
+    assert_equal 2, result['members'].length
+    assert_equal 'usr_123', result['members'][0]['id']
+    assert_equal 'John Doe', result['members'][0]['title']
+    assert_equal 'john@example.com', result['members'][0]['email']
+    refute result['members'][0].key?('extra_field'), 'Should filter out extra fields'
   end
 
   def test_client_get_table
@@ -672,6 +717,44 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal 7, response['id']
     assert_equal(-32602, response['error']['code'])
     assert_match(/Unknown tool/, response['error']['message'])
+  end
+
+  def test_handle_tool_call_list_members
+    # Mock the client list_members method
+    client = @server.instance_variable_get(:@client)
+
+    list_members_called = false
+
+    client.define_singleton_method(:list_members) do |limit, offset|
+      list_members_called = true
+      {
+        'members' => [
+          {'id' => 'usr_1', 'title' => 'User One', 'email' => 'user1@example.com'},
+          {'id' => 'usr_2', 'title' => 'User Two', 'email' => 'user2@example.com'}
+        ],
+        'count' => 2,
+        'total_count' => 2
+      }
+    end
+
+    request = {
+      'id' => 9,
+      'method' => 'tools/call',
+      'params' => {
+        'name' => 'list_members',
+        'arguments' => {}
+      }
+    }
+
+    response = call_private_method(:handle_tool_call, request)
+
+    assert_equal '2.0', response['jsonrpc']
+    assert_equal 9, response['id']
+    assert list_members_called, 'Should call list_members method'
+
+    result = JSON.parse(response['result']['content'][0]['text'])
+    assert_equal 2, result['count']
+    assert_equal 'usr_1', result['members'][0]['id']
   end
 
   # Test delete_record
