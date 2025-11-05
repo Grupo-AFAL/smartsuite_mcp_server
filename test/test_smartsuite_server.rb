@@ -197,6 +197,9 @@ class SmartSuiteServerTest < Minitest::Test
   def test_stats_tracker_tracks_calls
     tracker = ApiStatsTracker.new('test_key')
 
+    # Reset stats first to ensure clean slate (important if real-world testing was done)
+    tracker.reset_stats
+
     # Track some calls
     tracker.track_api_call(:get, '/solutions/sol_abc123/')
     tracker.track_api_call(:post, '/applications/tbl_123/records/')
