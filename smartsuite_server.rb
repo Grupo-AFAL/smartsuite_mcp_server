@@ -357,17 +357,21 @@ class SmartSuiteServer
           },
           {
             'name' => 'list_members',
-            'description' => 'List all members (users) in your SmartSuite workspace. Use this to get user IDs for assigning people to records.',
+            'description' => 'List all members (users) in your SmartSuite workspace. Use this to get user IDs for assigning people to records. Optionally filter by solution_id to only show members who have access to that solution (saves tokens).',
             'inputSchema' => {
               'type' => 'object',
               'properties' => {
                 'limit' => {
                   'type' => 'number',
-                  'description' => 'Maximum number of members to return (default: 100)'
+                  'description' => 'Maximum number of members to return (default: 100). Ignored when solution_id is provided.'
                 },
                 'offset' => {
                   'type' => 'number',
-                  'description' => 'Number of members to skip (for pagination)'
+                  'description' => 'Number of members to skip (for pagination). Ignored when solution_id is provided.'
+                },
+                'solution_id' => {
+                  'type' => 'string',
+                  'description' => 'Optional: Filter members by solution ID. Returns only members who have access to this solution. This saves tokens by filtering server-side.'
                 }
               },
               'required' => []
@@ -567,7 +571,7 @@ class SmartSuiteServer
     when 'list_solutions'
       @client.list_solutions
     when 'list_members'
-      @client.list_members(arguments['limit'], arguments['offset'])
+      @client.list_members(arguments['limit'], arguments['offset'], solution_id: arguments['solution_id'])
     when 'list_tables'
       @client.list_tables(solution_id: arguments['solution_id'])
     when 'get_table'

@@ -58,6 +58,11 @@ class SmartSuiteClient
     end
   end
 
+  def get_solution(solution_id)
+    log_metric("→ Getting solution details: #{solution_id}")
+    api_request(:get, "/solutions/#{solution_id}/")
+  end
+
   def list_tables(solution_id: nil)
     # Build endpoint with query parameter if solution_id is provided
     endpoint = '/applications/'
@@ -196,37 +201,88 @@ class SmartSuiteClient
     api_request(:delete, "/applications/#{table_id}/records/#{record_id}/")
   end
 
-  def list_members(limit = 100, offset = 0)
-    log_metric("→ Listing workspace members")
+  def list_members(limit = 100, offset = 0, solution_id: nil)
+    if solution_id
+      log_metric("→ Listing members for solution: #{solution_id}")
 
-    body = {
-      limit: limit,
-      offset: offset
-    }
+      # Get solution details to find member IDs
+      solution = get_solution(solution_id)
+      solution_member_ids = solution['member_ids'] || []
 
-    response = api_request(:post, "/applications/members/records/list/", body)
-
-    # Extract only essential member information
-    if response.is_a?(Hash) && response['items'].is_a?(Array)
-      members = response['items'].map do |member|
-        {
-          'id' => member['id'],
-          'title' => member['title'],
-          'email' => member['email'],
-          'first_name' => member['first_name'],
-          'last_name' => member['last_name'],
-          'role' => member['role'],
-          'status' => member['status']
-        }.compact # Remove nil values
+      if solution_member_ids.empty?
+        log_metric("⚠️  Solution has no members")
+        return { 'members' => [], 'count' => 0, 'total_count' => 0, 'filtered_by_solution' => solution_id }
       end
 
-      result = { 'members' => members, 'count' => members.size, 'total_count' => response['total_count'] }
-      tokens = estimate_tokens(JSON.generate(result))
-      log_metric("✓ Found #{members.size} members")
-      log_token_usage(tokens)
-      result
+      # Get all members (with high limit to ensure we get all)
+      body = {
+        limit: 1000,  # High limit to get all members
+        offset: 0
+      }
+
+      response = api_request(:post, "/applications/members/records/list/", body)
+
+      if response.is_a?(Hash) && response['items'].is_a?(Array)
+        # Filter to only members in the solution
+        filtered_members = response['items'].select { |member| solution_member_ids.include?(member['id']) }
+
+        members = filtered_members.map do |member|
+          {
+            'id' => member['id'],
+            'title' => member['title'],
+            'email' => member['email'],
+            'first_name' => member['first_name'],
+            'last_name' => member['last_name'],
+            'role' => member['role'],
+            'status' => member['status']
+          }.compact # Remove nil values
+        end
+
+        result = {
+          'members' => members,
+          'count' => members.size,
+          'total_count' => members.size,
+          'filtered_by_solution' => solution_id
+        }
+        tokens = estimate_tokens(JSON.generate(result))
+        log_metric("✓ Found #{members.size} members (filtered from #{response['items'].size} total)")
+        log_token_usage(tokens)
+        result
+      else
+        response
+      end
     else
-      response
+      log_metric("→ Listing workspace members")
+
+      body = {
+        limit: limit,
+        offset: offset
+      }
+
+      response = api_request(:post, "/applications/members/records/list/", body)
+
+      # Extract only essential member information
+      if response.is_a?(Hash) && response['items'].is_a?(Array)
+        members = response['items'].map do |member|
+          {
+            'id' => member['id'],
+            'title' => member['title'],
+            'email' => member['email'],
+            'first_name' => member['first_name'],
+            'last_name' => member['last_name'],
+            'role' => member['role'],
+            'status' => member['status']
+          }.compact # Remove nil values
+        end
+
+        result = { 'members' => members, 'count' => members.size, 'total_count' => response['total_count'] }
+        tokens = estimate_tokens(JSON.generate(result))
+        log_metric("✓ Found #{members.size} members")
+        log_token_usage(tokens)
+        result
+      else
+        response
+      end
     end
   end
 

@@ -141,11 +141,14 @@ Lists all solutions in your SmartSuite workspace. Solutions are high-level conta
 
 Lists all members (users) in your SmartSuite workspace. **Use this tool to get user IDs when you need to assign people to records.**
 
-**Parameters:**
-- `limit` (optional): Maximum number of members to return (default: 100)
-- `offset` (optional): Number of members to skip (for pagination)
+**Token Optimization:** Use the `solution_id` parameter to filter members server-side, returning only those with access to a specific solution. This significantly reduces token usage.
 
-**Example:**
+**Parameters:**
+- `limit` (optional): Maximum number of members to return (default: 100). Ignored when solution_id is provided.
+- `offset` (optional): Number of members to skip (for pagination). Ignored when solution_id is provided.
+- `solution_id` (optional): Filter members by solution ID. Returns only members who have access to this solution. **Recommended for token savings.**
+
+**Example (all members):**
 ```json
 {
   "limit": 100,
@@ -153,7 +156,14 @@ Lists all members (users) in your SmartSuite workspace. **Use this tool to get u
 }
 ```
 
-**Example response:**
+**Example (filtered by solution - RECOMMENDED):**
+```json
+{
+  "solution_id": "sol_abc123"
+}
+```
+
+**Example response (all members):**
 ```json
 {
   "members": [
@@ -181,6 +191,24 @@ Lists all members (users) in your SmartSuite workspace. **Use this tool to get u
 }
 ```
 
+**Example response (filtered by solution):**
+```json
+{
+  "members": [
+    {
+      "id": "usr_abc123",
+      "title": "John Doe",
+      "email": "john@example.com",
+      "role": "admin",
+      "status": "active"
+    }
+  ],
+  "count": 1,
+  "total_count": 1,
+  "filtered_by_solution": "sol_abc123"
+}
+```
+
 **Use case - Assigning users to records:**
 
 When creating or updating records with user assignment fields, use the user `id` from this response:
@@ -194,6 +222,10 @@ When creating or updating records with user assignment fields, use the user `id`
   }
 }
 ```
+
+**Workflow recommendation:**
+1. If working within a specific solution, use `list_members` with `solution_id` to get only relevant members (saves tokens)
+2. If you need all workspace members, call `list_members` without parameters
 
 ### list_tables
 

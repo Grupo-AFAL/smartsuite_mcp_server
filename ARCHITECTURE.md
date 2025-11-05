@@ -51,7 +51,8 @@ smartsuite_mcp/
 
 **Key Methods:**
 - `list_solutions()` - Get workspace solutions
-- `list_members()` - Get workspace members/users
+- `get_solution()` - Get single solution details (includes member_ids)
+- `list_members()` - Get workspace members/users (supports solution filtering)
 - `list_tables()` - Get workspace tables
 - `list_records()` - Query table records
 - `get_record()` - Get specific record

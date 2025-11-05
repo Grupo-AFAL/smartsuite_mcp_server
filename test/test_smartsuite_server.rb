@@ -350,6 +350,27 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal 'tbl_2', result['tables'][1]['id']
   end
 
+  def test_client_get_solution
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'id' => 'sol_123',
+      'name' => 'Test Solution',
+      'member_ids' => ['usr_1', 'usr_2']
+    }
+
+    # Mock the api_request method
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.get_solution('sol_123')
+
+    assert_equal 'sol_123', result['id']
+    assert_equal 'Test Solution', result['name']
+    assert_equal ['usr_1', 'usr_2'], result['member_ids']
+  end
+
   def test_client_list_members
     client = SmartSuiteClient.new('test_key', 'test_account')
 
@@ -392,6 +413,61 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal 'John Doe', result['members'][0]['title']
     assert_equal 'john@example.com', result['members'][0]['email']
     refute result['members'][0].key?('extra_field'), 'Should filter out extra fields'
+  end
+
+  def test_client_list_members_filtered_by_solution
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    # Mock solution response
+    mock_solution = {
+      'id' => 'sol_123',
+      'name' => 'Test Solution',
+      'member_ids' => ['usr_123', 'usr_789']  # Only these two members
+    }
+
+    # Mock members response (has 3 members total)
+    mock_members = {
+      'items' => [
+        {
+          'id' => 'usr_123',
+          'title' => 'John Doe',
+          'email' => 'john@example.com'
+        },
+        {
+          'id' => 'usr_456',
+          'title' => 'Jane Smith',
+          'email' => 'jane@example.com'
+        },
+        {
+          'id' => 'usr_789',
+          'title' => 'Bob Wilson',
+          'email' => 'bob@example.com'
+        }
+      ],
+      'total_count' => 3
+    }
+
+    # Mock the api_request method to return different data based on endpoint
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      if endpoint.include?('/solutions/')
+        mock_solution
+      else
+        mock_members
+      end
+    end
+
+    result = client.list_members(100, 0, solution_id: 'sol_123')
+
+    # Should only return 2 members (those in the solution)
+    assert_equal 2, result['count']
+    assert_equal 2, result['members'].length
+    assert_equal 'sol_123', result['filtered_by_solution']
+
+    # Check that only solution members are returned
+    member_ids = result['members'].map { |m| m['id'] }
+    assert_includes member_ids, 'usr_123'
+    assert_includes member_ids, 'usr_789'
+    refute_includes member_ids, 'usr_456', 'Should not include member not in solution'
   end
 
   def test_client_get_table
@@ -725,7 +801,7 @@ class SmartSuiteServerTest < Minitest::Test
 
     list_members_called = false
 
-    client.define_singleton_method(:list_members) do |limit, offset|
+    client.define_singleton_method(:list_members) do |limit, offset, solution_id: nil|
       list_members_called = true
       {
         'members' => [
@@ -755,6 +831,46 @@ class SmartSuiteServerTest < Minitest::Test
     result = JSON.parse(response['result']['content'][0]['text'])
     assert_equal 2, result['count']
     assert_equal 'usr_1', result['members'][0]['id']
+  end
+
+  def test_handle_tool_call_list_members_with_solution_filter
+    # Mock the client list_members method
+    client = @server.instance_variable_get(:@client)
+
+    solution_id_param = nil
+
+    client.define_singleton_method(:list_members) do |limit, offset, solution_id: nil|
+      solution_id_param = solution_id
+      {
+        'members' => [
+          {'id' => 'usr_1', 'title' => 'User One', 'email' => 'user1@example.com'}
+        ],
+        'count' => 1,
+        'total_count' => 1,
+        'filtered_by_solution' => solution_id
+      }
+    end
+
+    request = {
+      'id' => 10,
+      'method' => 'tools/call',
+      'params' => {
+        'name' => 'list_members',
+        'arguments' => {
+          'solution_id' => 'sol_abc123'
+        }
+      }
+    }
+
+    response = call_private_method(:handle_tool_call, request)
+
+    assert_equal '2.0', response['jsonrpc']
+    assert_equal 10, response['id']
+    assert_equal 'sol_abc123', solution_id_param, 'Should pass solution_id to client'
+
+    result = JSON.parse(response['result']['content'][0]['text'])
+    assert_equal 1, result['count']
+    assert_equal 'sol_abc123', result['filtered_by_solution']
   end
 
   # Test delete_record
