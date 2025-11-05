@@ -1,6 +1,6 @@
 require 'json'
 require_relative 'smartsuite/api/http_client'
-require_relative 'smartsuite/api/data_operations'
+require_relative 'smartsuite/api/workspace_operations'
 require_relative 'smartsuite/api/record_operations'
 require_relative 'smartsuite/api/field_operations'
 require_relative 'smartsuite/api/member_operations'
@@ -8,7 +8,7 @@ require_relative 'smartsuite/formatters/response_formatter'
 
 class SmartSuiteClient
   include SmartSuite::API::HttpClient
-  include SmartSuite::API::DataOperations
+  include SmartSuite::API::WorkspaceOperations
   include SmartSuite::API::RecordOperations
   include SmartSuite::API::FieldOperations
   include SmartSuite::API::MemberOperations

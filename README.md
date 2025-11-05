@@ -4,24 +4,30 @@ A Model Context Protocol (MCP) server for SmartSuite, enabling AI assistants to 
 
 ## Features
 
-This MCP server provides the following tools:
+This MCP server provides the following tools organized by module:
 
-### Data Operations
+### Workspace Operations
 - **list_solutions** - List all solutions in your workspace (high-level view)
-- **list_members** - List all members (users) in your workspace - **Use this to get user IDs for assigning people to records**
+  - Optional: `include_activity_data: true` to get usage metrics for each solution
+- **analyze_solution_usage** - Identify inactive or underutilized solutions based on last access date, record count, and automation activity
 - **list_tables** - List all tables in your SmartSuite workspace
 - **get_table** - Get a specific table's structure (fields, slugs, types) - **Use this first to understand what fields are available**
+
+### Record Operations
 - **list_records** - Query records from a table with pagination support
 - **get_record** - Retrieve a specific record by ID
 - **create_record** - Create new records in tables
 - **update_record** - Update existing records
 - **delete_record** - Delete a record from a table
 
-### Field Management
+### Field Operations
 - **add_field** - Add a new field to a table
 - **bulk_add_fields** - Add multiple fields to a table in one request
 - **update_field** - Update an existing field's properties
 - **delete_field** - Delete a field from a table
+
+### Member Operations
+- **list_members** - List all members (users) in your workspace - **Use this to get user IDs for assigning people to records**
 
 ### API Usage Tracking
 - **get_api_stats** - View detailed API usage statistics by user, solution, table, method, and endpoint
