@@ -1,6 +1,7 @@
 require 'json'
 require 'net/http'
 require 'uri'
+require 'openssl'
 
 class SmartSuiteClient
   API_BASE_URL = 'https://app.smartsuite.com/api/v1'
@@ -333,6 +334,7 @@ class SmartSuiteClient
 
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
+    http.verify_mode = OpenSSL::SSL::VERIFY_NONE
 
     request = case method
     when :get
