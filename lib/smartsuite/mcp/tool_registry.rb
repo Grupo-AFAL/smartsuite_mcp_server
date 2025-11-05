@@ -17,7 +17,30 @@ module SmartSuite
           'description' => 'List all solutions in your SmartSuite workspace (solutions contain tables)',
           'inputSchema' => {
             'type' => 'object',
-            'properties' => {},
+            'properties' => {
+              'include_activity_data' => {
+                'type' => 'boolean',
+                'description' => 'Optional: Include usage and activity metrics (status, last_access, records_count, etc.) for identifying inactive solutions. Default: false.'
+              }
+            },
+            'required' => []
+          }
+        },
+        {
+          'name' => 'analyze_solution_usage',
+          'description' => 'Analyze solution usage to identify inactive or underutilized solutions. Returns solutions categorized as inactive, potentially unused, or active based on last access date, record count, and automation activity.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'days_inactive' => {
+                'type' => 'number',
+                'description' => 'Optional: Number of days since last access to consider a solution inactive. Default: 90.'
+              },
+              'min_records' => {
+                'type' => 'number',
+                'description' => 'Optional: Minimum number of records for a solution to not be considered empty. Default: 10.'
+              }
+            },
             'required' => []
           }
         },

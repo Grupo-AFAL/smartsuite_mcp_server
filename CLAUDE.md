@@ -65,9 +65,9 @@ Handles MCP protocol responses and schemas:
 Handles SmartSuite API communication:
 
 - **HttpClient** (`http_client.rb`, 68 lines): HTTP request execution, authentication, logging
-- **DataOperations** (`data_operations.rb`, 159 lines): Solutions and tables management
+- **WorkspaceOperations** (`workspace_operations.rb`, 295 lines): Solution and table management, usage analysis
 - **RecordOperations** (`record_operations.rb`, 114 lines): Record CRUD operations
-- **FieldOperations** (`field_operations.rb`, 103 lines): Table schema management
+- **FieldOperations** (`field_operations.rb`, 103 lines): Table schema management (add/update/delete fields)
 - **MemberOperations** (`member_operations.rb`, 212 lines): User and team management
 
 **SmartSuiteClient** (`lib/smartsuite_client.rb`, 30 lines)
@@ -111,7 +111,7 @@ SmartSuiteServer.handle_tool_call()
     ↓
 SmartSuiteClient (includes modules):
   - HttpClient.api_request()  ←  ApiStatsTracker.track_api_call()
-  - DataOperations/RecordOperations/FieldOperations/MemberOperations
+  - WorkspaceOperations/RecordOperations/FieldOperations/MemberOperations
   - ResponseFormatter.filter_*()
     ↓                                          ↓
 SmartSuite API                           Save to ~/.smartsuite_mcp_stats.json
@@ -137,10 +137,49 @@ Always required:
 The server implements:
 - `initialize`: MCP handshake and capability negotiation
 - `tools/list`: List all available SmartSuite tools
-- `tools/call`: Execute a tool (list_solutions, list_tables, get_table, list_records, create_record, update_record, delete_record, add_field, bulk_add_fields, update_field, delete_field, list_members, get_api_stats, reset_api_stats)
+- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_tables, get_table, list_records, create_record, update_record, delete_record, add_field, bulk_add_fields, update_field, delete_field, list_members, get_api_stats, reset_api_stats)
 - `prompts/list`: List example prompts for filters
 - `prompts/get`: Get specific prompt templates
 - `resources/list`: List available resources (empty)
+
+### Solution Usage Analysis
+
+The server provides powerful tools for identifying unused or underutilized solutions:
+
+**analyze_solution_usage** - Analyzes all solutions and categorizes them by usage level:
+- **Inactive solutions**: Never accessed or not accessed in X days + minimal records/automations
+- **Potentially unused**: Not accessed in X days but has some activity
+- **Active solutions**: Recently accessed
+
+Parameters:
+- `days_inactive` (default: 90): Days since last access to consider inactive
+- `min_records` (default: 10): Minimum records to not be considered empty
+
+Returns:
+```json
+{
+  "analysis_date": "2025-01-05T...",
+  "thresholds": {"days_inactive": 90, "min_records": 10},
+  "summary": {
+    "total_solutions": 110,
+    "inactive_count": 15,
+    "potentially_unused_count": 8,
+    "active_count": 87
+  },
+  "inactive_solutions": [...],
+  "potentially_unused_solutions": [...]
+}
+```
+
+Each solution includes:
+- `id`, `name`, `status`, `hidden`
+- `last_access`, `days_since_access`
+- `records_count`, `members_count`, `applications_count`, `automation_count`
+- `has_demo_data`
+- `reason`: Why it's categorized as inactive/potentially unused
+
+**list_solutions** - Now accepts optional parameter:
+- `include_activity_data: true`: Include all activity/usage fields for custom analysis
 
 ### Available Prompt Templates
 The PromptRegistry provides 8 example prompts demonstrating common filter patterns:
