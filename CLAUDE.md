@@ -65,7 +65,8 @@ Handles MCP protocol responses and schemas:
 Handles SmartSuite API communication:
 
 - **HttpClient** (`http_client.rb`, 68 lines): HTTP request execution, authentication, logging
-- **WorkspaceOperations** (`workspace_operations.rb`, 295 lines): Solution and table management, usage analysis
+- **WorkspaceOperations** (`workspace_operations.rb`): Solution management and usage analysis
+- **TableOperations** (`table_operations.rb`): Table/application management (list, get, create)
 - **RecordOperations** (`record_operations.rb`, 114 lines): Record CRUD operations
 - **FieldOperations** (`field_operations.rb`, 103 lines): Table schema management (add/update/delete fields)
 - **MemberOperations** (`member_operations.rb`, 212 lines): User and team management
@@ -111,7 +112,7 @@ SmartSuiteServer.handle_tool_call()
     ↓
 SmartSuiteClient (includes modules):
   - HttpClient.api_request()  ←  ApiStatsTracker.track_api_call()
-  - WorkspaceOperations/RecordOperations/FieldOperations/MemberOperations
+  - WorkspaceOperations/TableOperations/RecordOperations/FieldOperations/MemberOperations
   - ResponseFormatter.filter_*()
     ↓                                          ↓
 SmartSuite API                           Save to ~/.smartsuite_mcp_stats.json
@@ -137,7 +138,7 @@ Always required:
 The server implements:
 - `initialize`: MCP handshake and capability negotiation
 - `tools/list`: List all available SmartSuite tools
-- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_tables, get_table, list_records, create_record, update_record, delete_record, add_field, bulk_add_fields, update_field, delete_field, list_members, get_api_stats, reset_api_stats)
+- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_tables, get_table, create_table, list_records, create_record, update_record, delete_record, add_field, bulk_add_fields, update_field, delete_field, list_members, list_teams, get_team, get_api_stats, reset_api_stats)
 - `prompts/list`: List example prompts for filters
 - `prompts/get`: Get specific prompt templates
 - `resources/list`: List available resources (empty)

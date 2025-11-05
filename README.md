@@ -10,8 +10,11 @@ This MCP server provides the following tools organized by module:
 - **list_solutions** - List all solutions in your workspace (high-level view)
   - Optional: `include_activity_data: true` to get usage metrics for each solution
 - **analyze_solution_usage** - Identify inactive or underutilized solutions based on last access date, record count, and automation activity
+
+### Table Operations
 - **list_tables** - List all tables in your SmartSuite workspace
 - **get_table** - Get a specific table's structure (fields, slugs, types) - **Use this first to understand what fields are available**
+- **create_table** - Create a new table (application) in a solution
 
 ### Record Operations
 - **list_records** - Query records from a table with pagination support
@@ -28,6 +31,8 @@ This MCP server provides the following tools organized by module:
 
 ### Member Operations
 - **list_members** - List all members (users) in your workspace - **Use this to get user IDs for assigning people to records**
+- **list_teams** - List all teams in your workspace
+- **get_team** - Get a specific team by ID with member details
 
 ### API Usage Tracking
 - **get_api_stats** - View detailed API usage statistics by user, solution, table, method, and endpoint
@@ -239,6 +244,74 @@ When creating or updating records with user assignment fields, use the user `id`
 1. If working within a specific solution, use `list_members` with `solution_id` to get only relevant members (saves tokens)
 2. If you need all workspace members, call `list_members` without parameters
 
+### list_teams
+
+Lists all teams in your SmartSuite workspace. Teams are groups of users that can be assigned permissions to solutions and tables.
+
+**Parameters:** None
+
+**Example:**
+```json
+{}
+```
+
+**Example response:**
+```json
+[
+  {
+    "id": "team_abc123",
+    "name": "Engineering Team",
+    "member_count": 15,
+    "created": "2024-01-15T10:30:00Z"
+  },
+  {
+    "id": "team_def456",
+    "name": "Marketing Team",
+    "member_count": 8,
+    "created": "2024-02-20T14:45:00Z"
+  }
+]
+```
+
+### get_team
+
+Retrieves a specific team by ID including its members and details.
+
+**Parameters:**
+- `team_id` (required): The ID of the team to retrieve
+
+**Example:**
+```json
+{
+  "team_id": "team_abc123"
+}
+```
+
+**Example response:**
+```json
+{
+  "id": "team_abc123",
+  "name": "Engineering Team",
+  "members": [
+    {
+      "id": "usr_123",
+      "name": "John Doe",
+      "email": "john@example.com"
+    },
+    {
+      "id": "usr_456",
+      "name": "Jane Smith",
+      "email": "jane@example.com"
+    }
+  ],
+  "created": "2024-01-15T10:30:00Z",
+  "updated": "2024-03-10T16:20:00Z"
+}
+```
+
+**Use case:**
+Teams can be used when configuring permissions for solutions or when you need to understand team structures in your workspace.
+
 ### list_tables
 
 Lists all tables (applications) in your workspace. Optionally filter by solution_id to only show tables from a specific solution.
@@ -359,6 +432,63 @@ Lists all tables (applications) in your workspace. Optionally filter by solution
 1. Use `get_table` to see available fields and their slugs
 2. Use the field slugs in `list_records` filters and fields parameters
 3. This prevents errors from using wrong field names
+
+### create_table
+
+Creates a new table (application) in a SmartSuite solution.
+
+**Parameters:**
+- `solution_id` (required): The ID of the solution where the table will be created
+- `name` (required): Name of the new table
+- `description` (optional): Description for the table
+- `structure` (optional): Array of field definitions for the table. If not provided, an empty array will be used.
+
+**Example (basic table):**
+```json
+{
+  "solution_id": "sol_abc123",
+  "name": "Customers",
+  "description": "Customer relationship management"
+}
+```
+
+**Example (table with initial fields):**
+```json
+{
+  "solution_id": "sol_abc123",
+  "name": "Customers",
+  "description": "Customer relationship management",
+  "structure": [
+    {
+      "slug": "s7e8c12e98",
+      "label": "Company",
+      "field_type": "textfield"
+    },
+    {
+      "slug": "s7e8c12e99",
+      "label": "Email",
+      "field_type": "emailfield"
+    }
+  ]
+}
+```
+
+**Example response:**
+```json
+{
+  "id": "tbl_xyz789",
+  "name": "Customers",
+  "solution_id": "sol_abc123",
+  "description": "Customer relationship management",
+  "structure": [...],
+  "created": "2025-11-05T12:00:00Z"
+}
+```
+
+**Note:**
+- If you don't provide a `structure`, the table will be created with an empty field structure
+- You can add fields after creation using `add_field` or `bulk_add_fields`
+- Field slugs should be unique alphanumeric identifiers (typically 10 characters)
 
 ### list_records
 
