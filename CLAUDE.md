@@ -44,24 +44,43 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ruby smartsu
 
 ## Architecture
 
-The codebase follows a three-layer modular architecture with clear separation of concerns:
+The codebase follows a modular architecture with clear separation of concerns across three layers:
 
-### 1. SmartSuiteServer (`smartsuite_server.rb`)
+### 1. Server Layer
+**SmartSuiteServer** (`smartsuite_server.rb`, 262 lines)
 - **Responsibility**: MCP protocol handler and main entry point
 - Manages JSON-RPC communication over stdin/stdout
-- Routes MCP protocol methods (initialize, tools/list, tools/call, prompts/list, resources/list)
+- Routes MCP protocol methods to appropriate registries
 - Handles errors and notifications
-- Does NOT handle SmartSuite API calls directly
+- Does NOT handle SmartSuite API calls or tool schemas directly
 
-### 2. SmartSuiteClient (`lib/smartsuite_client.rb`)
-- **Responsibility**: SmartSuite API interaction layer
-- Executes HTTP requests to SmartSuite API (`https://app.smartsuite.com/api/v1`)
-- Implements aggressive response filtering to reduce token usage (83.8% reduction for table structures)
-- Returns plain text format for record lists (30-50% token savings)
-- Tracks token usage with metrics logging
-- Does NOT handle MCP protocol
+### 2. MCP Protocol Layer (`lib/smartsuite/mcp/`)
+Handles MCP protocol responses and schemas:
 
-### 3. ApiStatsTracker (`lib/api_stats_tracker.rb`)
+- **ToolRegistry** (`tool_registry.rb`, 344 lines): All 15 tool schemas organized by category
+- **PromptRegistry** (`prompt_registry.rb`, 447 lines): 8 prompt templates covering all major filter patterns
+- **ResourceRegistry** (`resource_registry.rb`, 15 lines): Resource listing (currently empty)
+
+### 3. API Client Layer (`lib/smartsuite/api/`)
+Handles SmartSuite API communication:
+
+- **HttpClient** (`http_client.rb`, 68 lines): HTTP request execution, authentication, logging
+- **DataOperations** (`data_operations.rb`, 159 lines): Solutions and tables management
+- **RecordOperations** (`record_operations.rb`, 114 lines): Record CRUD operations
+- **FieldOperations** (`field_operations.rb`, 103 lines): Table schema management
+- **MemberOperations** (`member_operations.rb`, 212 lines): User and team management
+
+**SmartSuiteClient** (`lib/smartsuite_client.rb`, 30 lines)
+- Thin wrapper that includes all API modules
+- 30 lines vs original 708 lines (96% reduction)
+
+### 4. Formatters Layer (`lib/smartsuite/formatters/`)
+Implements token optimization:
+
+- **ResponseFormatter** (`response_formatter.rb`, 211 lines): Response filtering, plain text formatting, truncation strategies
+
+### 5. Supporting Components
+**ApiStatsTracker** (`lib/api_stats_tracker.rb`)
 - **Responsibility**: API usage monitoring and persistence
 - Tracks API calls by user, solution, table, method, endpoint
 - Persists statistics to `~/.smartsuite_mcp_stats.json`
@@ -84,9 +103,16 @@ This server is heavily optimized to minimize Claude's token usage:
 ```
 User Request (stdin)
     ↓
+SmartSuiteServer.handle_request()
+    ↓
+ToolRegistry/PromptRegistry (MCP layer)
+    ↓
 SmartSuiteServer.handle_tool_call()
     ↓
-SmartSuiteClient.{method}()  ←  ApiStatsTracker.track_api_call()
+SmartSuiteClient (includes modules):
+  - HttpClient.api_request()  ←  ApiStatsTracker.track_api_call()
+  - DataOperations/RecordOperations/FieldOperations/MemberOperations
+  - ResponseFormatter.filter_*()
     ↓                                          ↓
 SmartSuite API                           Save to ~/.smartsuite_mcp_stats.json
     ↓
@@ -116,12 +142,46 @@ The server implements:
 - `prompts/get`: Get specific prompt templates
 - `resources/list`: List available resources (empty)
 
+### Available Prompt Templates
+The PromptRegistry provides 8 example prompts demonstrating common filter patterns:
+
+1. **filter_active_records**: Single select/status filtering (uses `is` operator)
+2. **filter_by_date_range**: Date range filtering (uses special date object format)
+3. **list_tables_by_solution**: Simple solution-based filtering
+4. **filter_records_contains_text**: Text search (uses `contains` operator)
+5. **filter_by_linked_record**: Linked record filtering (uses `has_any_of` with record IDs) ⚠️ Common pitfall: NOT `is`
+6. **filter_by_numeric_range**: Numeric range filtering (uses `is_equal_or_greater_than`, `is_equal_or_less_than`)
+7. **filter_by_multiple_select**: Multiple select/tag filtering (uses `has_any_of`, `has_all_of`, or `is_exactly`)
+8. **filter_by_assigned_user**: User field filtering (uses `has_any_of` with user IDs)
+
+Each prompt generates a complete example with the correct filter structure, operators, and value format for that field type.
+
 ### SmartSuite Filter Syntax
-Date filters require special object format:
+
+#### Filter Operators by Field Type
+
+**Text-based fields** (Text, Email, Phone, Full Name, Address, Link, Text Area, etc.):
+- Operators: `is`, `is_not`, `is_empty`, `is_not_empty`, `contains`, `not_contains`
+- Value: String
+```ruby
+{"field" => "email", "comparison" => "contains", "value" => "example.com"}
+```
+
+**Numeric fields** (Number, Currency, Rating, Percent, Duration, etc.):
+- Operators: `is_equal_to`, `is_not_equal_to`, `is_greater_than`, `is_less_than`, `is_equal_or_greater_than`, `is_equal_or_less_than`, `is_empty`, `is_not_empty`
+- Value: Numeric
+```ruby
+{"field" => "amount", "comparison" => "is_greater_than", "value" => 1000}
+```
+
+**Date fields** (Date, Due Date, Date Range, First Created, Last Updated):
+- Operators: `is`, `is_not`, `is_before`, `is_on_or_before`, `is_on_or_after`, `is_empty`, `is_not_empty`
+- Special for Due Date: `is_overdue`, `is_not_overdue`
+- Value: Date object with `date_mode` and `date_mode_value`
 ```ruby
 {
   "field" => "due_date",
-  "comparison" => "is_after",
+  "comparison" => "is_on_or_after",
   "value" => {
     "date_mode" => "exact_date",
     "date_mode_value" => "2025-01-01"
@@ -129,17 +189,55 @@ Date filters require special object format:
 }
 ```
 
-Regular filters use simple values:
+**Single Select/Status fields**:
+- Operators: `is`, `is_not`, `is_any_of`, `is_none_of`, `is_empty`, `is_not_empty`
+- Value: String or array
 ```ruby
-{
-  "field" => "status",
-  "comparison" => "is",
-  "value" => "active"
-}
+{"field" => "status", "comparison" => "is_any_of", "value" => ["Active", "Pending"]}
 ```
 
-### Response Filtering in SmartSuiteClient
-The `filter_field_structure` method aggressively removes non-essential data:
+**Multiple Select/Tag fields**:
+- Operators: `has_any_of`, `has_all_of`, `is_exactly`, `has_none_of`, `is_empty`, `is_not_empty`
+- Value: Array
+```ruby
+{"field" => "tags", "comparison" => "has_any_of", "value" => ["urgent", "bug"]}
+```
+
+**Linked Record fields**:
+- Operators: `contains`, `not_contains`, `has_any_of`, `has_all_of`, `is_exactly`, `has_none_of`, `is_empty`, `is_not_empty`
+- Value: Array of record IDs (use null for empty checks)
+```ruby
+{"field" => "related_project", "comparison" => "has_any_of", "value" => ["record_id_1", "record_id_2"]}
+{"field" => "related_project", "comparison" => "is_empty", "value" => nil}
+```
+
+**Assigned To (User) fields**:
+- Operators: `has_any_of`, `has_all_of`, `is_exactly`, `has_none_of`, `is_empty`, `is_not_empty`
+- Value: Array of user IDs
+```ruby
+{"field" => "assigned_user", "comparison" => "has_any_of", "value" => ["user_id_1"]}
+```
+
+**Files & Images**:
+- Operators: `file_name_contains`, `file_type_is`, `is_empty`, `is_not_empty`
+- Value: String (filename or file type)
+- Valid file types: archive, image, music, pdf, powerpoint, spreadsheet, video, word, other
+```ruby
+{"field" => "attachments", "comparison" => "file_type_is", "value" => "pdf"}
+```
+
+**Yes/No (Boolean)**:
+- Operators: `is`, `is_empty`, `is_not_empty`
+- Value: Boolean or null
+
+**Important notes:**
+- Filter operators are case-sensitive
+- For empty checks, use `nil` or `null` as value
+- Date Range fields reference dates as `[field_slug].from_date` and `[field_slug].to_date`
+- Formula and Lookup fields inherit operators from their return types
+
+### Response Filtering in ResponseFormatter
+The `filter_field_structure` method (`lib/smartsuite/formatters/response_formatter.rb:21`) aggressively removes non-essential data:
 - Keeps: slug, label, field_type, required, unique, primary, choices (minimal), linked_application, entries_allowed
 - Removes: display_format, help_doc, default_value, width, column_widths, visible_fields, choice colors/icons, etc.
 
@@ -160,24 +258,24 @@ When adding tests:
 
 ### Field Operations
 
-The server supports full CRUD operations on table fields:
+The server supports full CRUD operations on table fields via the FieldOperations module (`lib/smartsuite/api/field_operations.rb`):
 
-**add_field** (`lib/smartsuite_client.rb:378`):
+**add_field** (line 19):
 - Endpoint: `POST /api/v1/applications/{table_id}/add_field/`
 - Always includes `field_position` (defaults to `{}`) and `auto_fill_structure_layout` (defaults to `true`)
 - Handles empty API responses (returns `{}` on success)
 
-**bulk_add_fields** (`lib/smartsuite_client.rb:396`):
+**bulk_add_fields** (line 46):
 - Endpoint: `POST /api/v1/applications/{table_id}/bulk-add-fields/`
 - Add multiple fields in one request for better performance
 - Note: Certain field types not supported (Formula, Count, TimeTracking)
 
-**update_field** (`lib/smartsuite_client.rb:413`):
+**update_field** (line 70):
 - Endpoint: `PUT /api/v1/applications/{table_id}/change_field/`
 - Automatically merges slug into field_data body
 - Uses PUT HTTP method
 
-**delete_field** (`lib/smartsuite_client.rb:428`):
+**delete_field** (line 92):
 - Endpoint: `POST /api/v1/applications/{table_id}/delete_field/`
 - Returns deleted field object on success
 - Operation is permanent
