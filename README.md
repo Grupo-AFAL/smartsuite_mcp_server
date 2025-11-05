@@ -17,6 +17,12 @@ This MCP server provides the following tools:
 - **update_record** - Update existing records
 - **delete_record** - Delete a record from a table
 
+### Field Management
+- **add_field** - Add a new field to a table
+- **bulk_add_fields** - Add multiple fields to a table in one request
+- **update_field** - Update an existing field's properties
+- **delete_field** - Delete a field from a table
+
 ### API Usage Tracking
 - **get_api_stats** - View detailed API usage statistics by user, solution, table, method, and endpoint
 - **reset_api_stats** - Reset API usage statistics
@@ -621,6 +627,155 @@ Deletes a record from a table.
 ```
 
 **Note:** This operation is permanent and cannot be undone. Ensure you have the correct record_id before deleting.
+
+## Field Management Operations
+
+### add_field
+
+Adds a new field to a SmartSuite table.
+
+**Parameters:**
+- `table_id` (required): The ID of the table to add the field to
+- `field_data` (required): Field configuration object with slug, label, field_type, and params
+- `field_position` (optional): Position metadata to place field after another field
+- `auto_fill_structure_layout` (optional): Enable automatic layout structure updates (default: true)
+
+**Example (basic text field):**
+```json
+{
+  "table_id": "tbl_abc123",
+  "field_data": {
+    "slug": "my_field_01",
+    "label": "My Custom Field",
+    "field_type": "textfield",
+    "params": {
+      "help_doc": {
+        "data": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Enter text here"
+                }
+              ]
+            }
+          ]
+        },
+        "html": "<p>Enter text here</p>",
+        "preview": "Enter text here"
+      },
+      "help_text_display_format": "inline"
+    },
+    "is_new": true
+  }
+}
+```
+
+**Field types available:** textfield, numberfield, datefield, statusfield, singleselectfield, multiselectfield, userfield, linkedrecordfield, and many more.
+
+**Note:** The `slug` should be a unique alphanumeric identifier (typically 10 characters). The `help_doc` parameter uses rich text format similar to SmartDoc.
+
+### bulk_add_fields
+
+Adds multiple fields to a table in one request for better performance.
+
+**Parameters:**
+- `table_id` (required): The ID of the table to add fields to
+- `fields` (required): Array of field configuration objects
+- `set_as_visible_fields_in_reports` (optional): Array of view IDs where the added fields should be visible
+
+**Example:**
+```json
+{
+  "table_id": "tbl_abc123",
+  "fields": [
+    {
+      "slug": "field_01",
+      "label": "Field One",
+      "field_type": "textfield",
+      "params": {},
+      "is_new": true
+    },
+    {
+      "slug": "field_02",
+      "label": "Field Two",
+      "field_type": "numberfield",
+      "params": {},
+      "is_new": true
+    }
+  ]
+}
+```
+
+**Note:** Certain field types are not supported in bulk operations (e.g., Formula, Count, TimeTracking). Use `add_field` for these types.
+
+### update_field
+
+Updates an existing field's properties in a table.
+
+**Parameters:**
+- `table_id` (required): The ID of the table containing the field
+- `slug` (required): The slug of the field to update
+- `field_data` (required): Updated field configuration object
+
+**Example (updating field label and help text):**
+```json
+{
+  "table_id": "tbl_abc123",
+  "slug": "my_field_01",
+  "field_data": {
+    "label": "Updated Field Name",
+    "field_type": "textfield",
+    "params": {
+      "help_doc": {
+        "data": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "New help text"
+                }
+              ]
+            }
+          ]
+        },
+        "html": "<p>New help text</p>",
+        "preview": "New help text"
+      },
+      "help_text_display_format": "tooltip"
+    }
+  }
+}
+```
+
+**Note:** The slug in `field_data` will be automatically added from the `slug` parameter.
+
+### delete_field
+
+Deletes a field from a table.
+
+**Parameters:**
+- `table_id` (required): The ID of the table containing the field
+- `slug` (required): The slug of the field to delete
+
+**Example:**
+```json
+{
+  "table_id": "tbl_abc123",
+  "slug": "my_field_01"
+}
+```
+
+**Example response:**
+Returns the deleted field object.
+
+**Note:** This operation is permanent and cannot be undone. All data in this field will be lost.
 
 ### get_api_stats
 

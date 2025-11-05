@@ -93,6 +93,10 @@ class SmartSuiteServerTest < Minitest::Test
     assert_includes tool_names, 'create_record'
     assert_includes tool_names, 'update_record'
     assert_includes tool_names, 'delete_record'
+    assert_includes tool_names, 'add_field'
+    assert_includes tool_names, 'bulk_add_fields'
+    assert_includes tool_names, 'update_field'
+    assert_includes tool_names, 'delete_field'
     assert_includes tool_names, 'get_api_stats'
     assert_includes tool_names, 'reset_api_stats'
   end
@@ -1020,5 +1024,269 @@ class SmartSuiteServerTest < Minitest::Test
     assert response['error']
     assert response['error']['code']
     assert response['error']['message']
+  end
+
+  # Test field operations
+  def test_client_add_field
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    # Track what API call was made
+    api_method = nil
+    api_endpoint = nil
+    api_body = nil
+    mock_response = {
+      'slug' => 'test_field',
+      'label' => 'Test Field',
+      'field_type' => 'textfield'
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      api_method = method
+      api_endpoint = endpoint
+      api_body = body
+      mock_response
+    end
+
+    field_data = {
+      'slug' => 'test_field',
+      'label' => 'Test Field',
+      'field_type' => 'textfield',
+      'is_new' => true
+    }
+
+    result = client.add_field('tbl_123', field_data)
+
+    assert_equal :post, api_method, 'Should use POST method'
+    assert_equal '/applications/tbl_123/add_field/', api_endpoint
+    assert_equal field_data, api_body['field']
+    assert_equal true, api_body['auto_fill_structure_layout']
+    assert_equal 'Test Field', result['label']
+  end
+
+  def test_handle_tool_call_add_field
+    client = @server.instance_variable_get(:@client)
+
+    add_field_called = false
+    table_id_param = nil
+    field_data_param = nil
+
+    client.define_singleton_method(:add_field) do |table_id, field_data, field_position: nil, auto_fill_structure_layout: true|
+      add_field_called = true
+      table_id_param = table_id
+      field_data_param = field_data
+      {'slug' => field_data['slug'], 'label' => field_data['label']}
+    end
+
+    request = {
+      'id' => 11,
+      'method' => 'tools/call',
+      'params' => {
+        'name' => 'add_field',
+        'arguments' => {
+          'table_id' => 'tbl_test',
+          'field_data' => {
+            'slug' => 'new_field',
+            'label' => 'New Field',
+            'field_type' => 'textfield'
+          }
+        }
+      }
+    }
+
+    response = call_private_method(:handle_tool_call, request)
+
+    assert_equal '2.0', response['jsonrpc']
+    assert_equal 11, response['id']
+    assert add_field_called, 'Should call add_field method'
+    assert_equal 'tbl_test', table_id_param
+    assert_equal 'new_field', field_data_param['slug']
+  end
+
+  def test_client_bulk_add_fields
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    api_method = nil
+    api_endpoint = nil
+    api_body = nil
+    mock_response = {'success' => true}
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      api_method = method
+      api_endpoint = endpoint
+      api_body = body
+      mock_response
+    end
+
+    fields = [
+      {'slug' => 'field1', 'label' => 'Field 1', 'field_type' => 'textfield', 'is_new' => true},
+      {'slug' => 'field2', 'label' => 'Field 2', 'field_type' => 'numberfield', 'is_new' => true}
+    ]
+
+    result = client.bulk_add_fields('tbl_123', fields)
+
+    assert_equal :post, api_method, 'Should use POST method'
+    assert_equal '/applications/tbl_123/bulk-add-fields/', api_endpoint
+    assert_equal fields, api_body['fields']
+    assert_equal true, result['success']
+  end
+
+  def test_handle_tool_call_bulk_add_fields
+    client = @server.instance_variable_get(:@client)
+
+    bulk_add_called = false
+    table_id_param = nil
+    fields_param = nil
+
+    client.define_singleton_method(:bulk_add_fields) do |table_id, fields, set_as_visible_fields_in_reports: nil|
+      bulk_add_called = true
+      table_id_param = table_id
+      fields_param = fields
+      {'success' => true, 'count' => fields.length}
+    end
+
+    request = {
+      'id' => 12,
+      'method' => 'tools/call',
+      'params' => {
+        'name' => 'bulk_add_fields',
+        'arguments' => {
+          'table_id' => 'tbl_test',
+          'fields' => [
+            {'slug' => 'f1', 'label' => 'Field 1'},
+            {'slug' => 'f2', 'label' => 'Field 2'}
+          ]
+        }
+      }
+    }
+
+    response = call_private_method(:handle_tool_call, request)
+
+    assert_equal '2.0', response['jsonrpc']
+    assert_equal 12, response['id']
+    assert bulk_add_called, 'Should call bulk_add_fields method'
+    assert_equal 'tbl_test', table_id_param
+    assert_equal 2, fields_param.length
+  end
+
+  def test_client_update_field
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    api_method = nil
+    api_endpoint = nil
+    api_body = nil
+    mock_response = {'slug' => 'test_field', 'label' => 'Updated Label'}
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      api_method = method
+      api_endpoint = endpoint
+      api_body = body
+      mock_response
+    end
+
+    field_data = {'label' => 'Updated Label', 'field_type' => 'textfield'}
+    result = client.update_field('tbl_123', 'test_field', field_data)
+
+    assert_equal :put, api_method, 'Should use PUT method'
+    assert_equal '/applications/tbl_123/change_field/', api_endpoint
+    assert_equal 'test_field', api_body['slug']
+    assert_equal 'Updated Label', api_body['label']
+    assert_equal 'Updated Label', result['label']
+  end
+
+  def test_handle_tool_call_update_field
+    client = @server.instance_variable_get(:@client)
+
+    update_called = false
+    table_id_param = nil
+    slug_param = nil
+    field_data_param = nil
+
+    client.define_singleton_method(:update_field) do |table_id, slug, field_data|
+      update_called = true
+      table_id_param = table_id
+      slug_param = slug
+      field_data_param = field_data
+      {'slug' => slug, 'label' => field_data['label']}
+    end
+
+    request = {
+      'id' => 13,
+      'method' => 'tools/call',
+      'params' => {
+        'name' => 'update_field',
+        'arguments' => {
+          'table_id' => 'tbl_test',
+          'slug' => 'field_slug',
+          'field_data' => {'label' => 'New Label'}
+        }
+      }
+    }
+
+    response = call_private_method(:handle_tool_call, request)
+
+    assert_equal '2.0', response['jsonrpc']
+    assert_equal 13, response['id']
+    assert update_called, 'Should call update_field method'
+    assert_equal 'tbl_test', table_id_param
+    assert_equal 'field_slug', slug_param
+    assert_equal 'New Label', field_data_param['label']
+  end
+
+  def test_client_delete_field
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    api_method = nil
+    api_endpoint = nil
+    api_body = nil
+    mock_response = {'slug' => 'deleted_field', 'label' => 'Deleted Field'}
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      api_method = method
+      api_endpoint = endpoint
+      api_body = body
+      mock_response
+    end
+
+    result = client.delete_field('tbl_123', 'deleted_field')
+
+    assert_equal :post, api_method, 'Should use POST method'
+    assert_equal '/applications/tbl_123/delete_field/', api_endpoint
+    assert_equal 'deleted_field', api_body['slug']
+    assert_equal 'Deleted Field', result['label']
+  end
+
+  def test_handle_tool_call_delete_field
+    client = @server.instance_variable_get(:@client)
+
+    delete_called = false
+    table_id_param = nil
+    slug_param = nil
+
+    client.define_singleton_method(:delete_field) do |table_id, slug|
+      delete_called = true
+      table_id_param = table_id
+      slug_param = slug
+      {'slug' => slug, 'deleted' => true}
+    end
+
+    request = {
+      'id' => 14,
+      'method' => 'tools/call',
+      'params' => {
+        'name' => 'delete_field',
+        'arguments' => {
+          'table_id' => 'tbl_test',
+          'slug' => 'field_to_delete'
+        }
+      }
+    }
+
+    response = call_private_method(:handle_tool_call, request)
+
+    assert_equal '2.0', response['jsonrpc']
+    assert_equal 14, response['id']
+    assert delete_called, 'Should call delete_field method'
+    assert_equal 'tbl_test', table_id_param
+    assert_equal 'field_to_delete', slug_param
   end
 end

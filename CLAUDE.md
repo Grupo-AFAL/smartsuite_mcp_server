@@ -111,7 +111,7 @@ Always required:
 The server implements:
 - `initialize`: MCP handshake and capability negotiation
 - `tools/list`: List all available SmartSuite tools
-- `tools/call`: Execute a tool (list_solutions, list_tables, get_table, list_records, create_record, update_record, delete_record, list_members, get_api_stats, reset_api_stats)
+- `tools/call`: Execute a tool (list_solutions, list_tables, get_table, list_records, create_record, update_record, delete_record, add_field, bulk_add_fields, update_field, delete_field, list_members, get_api_stats, reset_api_stats)
 - `prompts/list`: List example prompts for filters
 - `prompts/get`: Get specific prompt templates
 - `resources/list`: List available resources (empty)
@@ -157,6 +157,50 @@ When adding tests:
 2. Use `call_private_method` helper for internal methods
 3. Mock HTTP responses for API tests
 4. Verify both success and error cases
+
+### Field Operations
+
+The server supports full CRUD operations on table fields:
+
+**add_field** (`lib/smartsuite_client.rb:378`):
+- Endpoint: `POST /api/v1/applications/{table_id}/add_field/`
+- Always includes `field_position` (defaults to `{}`) and `auto_fill_structure_layout` (defaults to `true`)
+- Handles empty API responses (returns `{}` on success)
+
+**bulk_add_fields** (`lib/smartsuite_client.rb:396`):
+- Endpoint: `POST /api/v1/applications/{table_id}/bulk-add-fields/`
+- Add multiple fields in one request for better performance
+- Note: Certain field types not supported (Formula, Count, TimeTracking)
+
+**update_field** (`lib/smartsuite_client.rb:413`):
+- Endpoint: `PUT /api/v1/applications/{table_id}/change_field/`
+- Automatically merges slug into field_data body
+- Uses PUT HTTP method
+
+**delete_field** (`lib/smartsuite_client.rb:428`):
+- Endpoint: `POST /api/v1/applications/{table_id}/delete_field/`
+- Returns deleted field object on success
+- Operation is permanent
+
+**Help Text Format:**
+The `help_doc` parameter requires rich text format (TipTap/ProseMirror):
+```ruby
+{
+  "data" => {
+    "type" => "doc",
+    "content" => [
+      {
+        "type" => "paragraph",
+        "content" => [{"type" => "text", "text" => "Help text"}]
+      }
+    ]
+  },
+  "html" => "<p>Help text</p>",
+  "preview" => "Help text"
+}
+```
+
+Display format can be `"tooltip"` (hover to see) or `"inline"` (shown below field name).
 
 ## Logging and Metrics
 

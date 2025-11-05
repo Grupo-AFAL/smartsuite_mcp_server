@@ -375,6 +375,71 @@ class SmartSuiteClient
     end
   end
 
+  def add_field(table_id, field_data, field_position: nil, auto_fill_structure_layout: true)
+    log_metric("→ Adding field to table: #{table_id}")
+
+    body = {
+      'field' => field_data,
+      'field_position' => field_position || {},
+      'auto_fill_structure_layout' => auto_fill_structure_layout
+    }
+
+    response = api_request(:post, "/applications/#{table_id}/add_field/", body)
+
+    if response.is_a?(Hash)
+      log_metric("✓ Field added successfully: #{field_data['label']}")
+    end
+
+    response
+  end
+
+  def bulk_add_fields(table_id, fields, set_as_visible_fields_in_reports: nil)
+    log_metric("→ Bulk adding #{fields.size} fields to table: #{table_id}")
+
+    body = {
+      'fields' => fields
+    }
+
+    body['set_as_visible_fields_in_reports'] = set_as_visible_fields_in_reports if set_as_visible_fields_in_reports
+
+    response = api_request(:post, "/applications/#{table_id}/bulk-add-fields/", body)
+
+    log_metric("✓ Successfully added #{fields.size} fields")
+
+    response
+  end
+
+  def update_field(table_id, slug, field_data)
+    log_metric("→ Updating field #{slug} in table: #{table_id}")
+
+    # Ensure slug is included in the field data
+    body = field_data.merge('slug' => slug)
+
+    response = api_request(:put, "/applications/#{table_id}/change_field/", body)
+
+    if response.is_a?(Hash)
+      log_metric("✓ Field updated successfully: #{slug}")
+    end
+
+    response
+  end
+
+  def delete_field(table_id, slug)
+    log_metric("→ Deleting field #{slug} from table: #{table_id}")
+
+    body = {
+      'slug' => slug
+    }
+
+    response = api_request(:post, "/applications/#{table_id}/delete_field/", body)
+
+    if response.is_a?(Hash)
+      log_metric("✓ Field deleted successfully: #{slug}")
+    end
+
+    response
+  end
+
   private
 
   def filter_field_structure(field)
@@ -429,6 +494,8 @@ class SmartSuiteClient
       Net::HTTP::Get.new(uri.request_uri)
     when :post
       Net::HTTP::Post.new(uri.request_uri)
+    when :put
+      Net::HTTP::Put.new(uri.request_uri)
     when :patch
       Net::HTTP::Patch.new(uri.request_uri)
     when :delete
@@ -448,6 +515,9 @@ class SmartSuiteClient
     unless response.is_a?(Net::HTTPSuccess)
       raise "API request failed: #{response.code} - #{response.body}"
     end
+
+    # Handle empty responses (some endpoints return empty body on success)
+    return {} if response.body.nil? || response.body.strip.empty?
 
     JSON.parse(response.body)
   end

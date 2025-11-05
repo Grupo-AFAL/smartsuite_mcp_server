@@ -541,6 +541,100 @@ class SmartSuiteServer
             }
           },
           {
+            'name' => 'add_field',
+            'description' => 'Add a new field to a SmartSuite table. Returns the created field object.',
+            'inputSchema' => {
+              'type' => 'object',
+              'properties' => {
+                'table_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the table to add the field to'
+                },
+                'field_data' => {
+                  'type' => 'object',
+                  'description' => 'Field configuration object with slug, label, field_type, and params. Example: {"slug": "abc123defg", "label": "My Field", "field_type": "textfield", "params": {"help_text": "Enter text"}, "is_new": true}'
+                },
+                'field_position' => {
+                  'type' => 'object',
+                  'description' => 'Optional: Position metadata. Example: {"prev_sibling_slug": "field_slug"} to place after another field'
+                },
+                'auto_fill_structure_layout' => {
+                  'type' => 'boolean',
+                  'description' => 'Optional: Enable automatic layout structure updates (default: true)'
+                }
+              },
+              'required' => ['table_id', 'field_data']
+            }
+          },
+          {
+            'name' => 'bulk_add_fields',
+            'description' => 'Add multiple fields to a SmartSuite table in one request. Note: Certain field types are not supported in bulk operations (e.g., Formula, Count, TimeTracking).',
+            'inputSchema' => {
+              'type' => 'object',
+              'properties' => {
+                'table_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the table to add fields to'
+                },
+                'fields' => {
+                  'type' => 'array',
+                  'description' => 'Array of field configuration objects. Each should have slug, label, field_type, icon, params, and is_new.',
+                  'items' => {
+                    'type' => 'object'
+                  }
+                },
+                'set_as_visible_fields_in_reports' => {
+                  'type' => 'array',
+                  'description' => 'Optional: Array of view (report) IDs where the added fields should be visible',
+                  'items' => {
+                    'type' => 'string'
+                  }
+                }
+              },
+              'required' => ['table_id', 'fields']
+            }
+          },
+          {
+            'name' => 'update_field',
+            'description' => 'Update an existing field in a SmartSuite table. Returns the updated field object.',
+            'inputSchema' => {
+              'type' => 'object',
+              'properties' => {
+                'table_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the table containing the field'
+                },
+                'slug' => {
+                  'type' => 'string',
+                  'description' => 'The slug of the field to update'
+                },
+                'field_data' => {
+                  'type' => 'object',
+                  'description' => 'Updated field configuration object with label, field_type, and params. Example: {"label": "Updated Label", "field_type": "textfield", "params": {"help_text": "New help text"}}'
+                }
+              },
+              'required' => ['table_id', 'slug', 'field_data']
+            }
+          },
+          {
+            'name' => 'delete_field',
+            'description' => 'Delete a field from a SmartSuite table. Returns the deleted field object.',
+            'inputSchema' => {
+              'type' => 'object',
+              'properties' => {
+                'table_id' => {
+                  'type' => 'string',
+                  'description' => 'The ID of the table containing the field'
+                },
+                'slug' => {
+                  'type' => 'string',
+                  'description' => 'The slug of the field to delete'
+                }
+              },
+              'required' => ['table_id', 'slug']
+            }
+          },
+          {
             'name' => 'get_api_stats',
             'description' => 'Get API call statistics tracked by user, solution, table, and HTTP method',
             'inputSchema' => {
@@ -595,6 +689,23 @@ class SmartSuiteServer
       @client.update_record(arguments['table_id'], arguments['record_id'], arguments['data'])
     when 'delete_record'
       @client.delete_record(arguments['table_id'], arguments['record_id'])
+    when 'add_field'
+      @client.add_field(
+        arguments['table_id'],
+        arguments['field_data'],
+        field_position: arguments['field_position'],
+        auto_fill_structure_layout: arguments['auto_fill_structure_layout'].nil? ? true : arguments['auto_fill_structure_layout']
+      )
+    when 'bulk_add_fields'
+      @client.bulk_add_fields(
+        arguments['table_id'],
+        arguments['fields'],
+        set_as_visible_fields_in_reports: arguments['set_as_visible_fields_in_reports']
+      )
+    when 'update_field'
+      @client.update_field(arguments['table_id'], arguments['slug'], arguments['field_data'])
+    when 'delete_field'
+      @client.delete_field(arguments['table_id'], arguments['slug'])
     when 'get_api_stats'
       @stats_tracker.get_stats
     when 'reset_api_stats'
