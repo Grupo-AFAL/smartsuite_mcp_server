@@ -2,7 +2,7 @@ module SmartSuite
   module MCP
     # ToolRegistry manages the MCP tool schemas for SmartSuite operations.
     #
-    # This module organizes all available tools into categories (data, records, fields,
+    # This module organizes all available tools into categories (workspace, tables, records, fields,
     # members, stats) and provides methods to generate JSON-RPC responses for tool listing.
     #
     # All tool schemas follow the MCP protocol specification with:
@@ -10,8 +10,9 @@ module SmartSuite
     # - description: Human-readable description
     # - inputSchema: JSON Schema for parameters
     module ToolRegistry
-      # Data operation tools for solutions and tables
-      DATA_TOOLS = [
+      # Workspace operation tools for solutions
+      # Includes: list_solutions, analyze_solution_usage
+      WORKSPACE_TOOLS = [
         {
           'name' => 'list_solutions',
           'description' => 'List all solutions in your SmartSuite workspace (solutions contain tables)',
@@ -43,7 +44,12 @@ module SmartSuite
             },
             'required' => []
           }
-        },
+        }
+      ].freeze
+
+      # Table operation tools for table management
+      # Includes: list_tables, get_table, create_table
+      TABLE_TOOLS = [
         {
           'name' => 'list_tables',
           'description' => 'List all tables (apps) in your SmartSuite workspace. Optionally filter by solution_id to only show tables from a specific solution.',
@@ -70,6 +76,35 @@ module SmartSuite
               }
             },
             'required' => ['table_id']
+          }
+        },
+        {
+          'name' => 'create_table',
+          'description' => 'Create a new table (application) in a SmartSuite solution.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'solution_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the solution where the table will be created'
+              },
+              'name' => {
+                'type' => 'string',
+                'description' => 'Name of the new table'
+              },
+              'description' => {
+                'type' => 'string',
+                'description' => 'Optional: Description for the table'
+              },
+              'structure' => {
+                'type' => 'array',
+                'description' => 'Optional: Array of field definitions for the table. If not provided, an empty array will be used.',
+                'items' => {
+                  'type' => 'object'
+                }
+              }
+            },
+            'required' => ['solution_id', 'name']
           }
         }
       ].freeze
@@ -314,7 +349,7 @@ module SmartSuite
       ].freeze
 
       # Member operation tools for workspace user management
-      # Includes: list_members (with optional solution filtering)
+      # Includes: list_members (with optional solution filtering), list_teams, get_team
       MEMBER_TOOLS = [
         {
           'name' => 'list_members',
@@ -336,6 +371,29 @@ module SmartSuite
               }
             },
             'required' => []
+          }
+        },
+        {
+          'name' => 'list_teams',
+          'description' => 'List all teams in your SmartSuite workspace. Teams are groups of users that can be assigned permissions to solutions and tables.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {},
+            'required' => []
+          }
+        },
+        {
+          'name' => 'get_team',
+          'description' => 'Get a specific team by ID. Returns team details including members.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'team_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the team to retrieve'
+              }
+            },
+            'required' => ['team_id']
           }
         }
       ].freeze
@@ -364,8 +422,8 @@ module SmartSuite
       ].freeze
 
       # All tools combined into a single array for MCP protocol responses
-      # Total: 15 tools across 5 categories
-      ALL_TOOLS = (DATA_TOOLS + RECORD_TOOLS + FIELD_TOOLS + MEMBER_TOOLS + STATS_TOOLS).freeze
+      # Total: 18 tools across 6 categories
+      ALL_TOOLS = (WORKSPACE_TOOLS + TABLE_TOOLS + RECORD_TOOLS + FIELD_TOOLS + MEMBER_TOOLS + STATS_TOOLS).freeze
 
       # Generates a JSON-RPC 2.0 response for the tools/list MCP method.
       #

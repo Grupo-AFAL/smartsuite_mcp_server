@@ -164,10 +164,21 @@ class SmartSuiteServer
       )
     when 'list_members'
       @client.list_members(arguments['limit'], arguments['offset'], solution_id: arguments['solution_id'])
+    when 'list_teams'
+      @client.list_teams
+    when 'get_team'
+      @client.get_team(arguments['team_id'])
     when 'list_tables'
       @client.list_tables(solution_id: arguments['solution_id'])
     when 'get_table'
       @client.get_table(arguments['table_id'])
+    when 'create_table'
+      @client.create_table(
+        arguments['solution_id'],
+        arguments['name'],
+        description: arguments['description'],
+        structure: arguments['structure']
+      )
     when 'list_records'
       @client.list_records(
         arguments['table_id'],
