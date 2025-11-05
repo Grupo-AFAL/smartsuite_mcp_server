@@ -385,20 +385,26 @@ class SmartSuiteServerTest < Minitest::Test
       'items' => [
         {
           'id' => 'usr_123',
-          'title' => 'John Doe',
           'email' => 'john@example.com',
-          'first_name' => 'John',
-          'last_name' => 'Doe',
+          'full_name' => {
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'sys_root' => 'John Doe'
+          },
+          'job_title' => 'Developer',
+          'department' => 'Engineering',
           'role' => 'admin',
           'status' => 'active',
           'extra_field' => 'should be filtered'
         },
         {
           'id' => 'usr_456',
-          'title' => 'Jane Smith',
           'email' => 'jane@example.com',
-          'first_name' => 'Jane',
-          'last_name' => 'Smith',
+          'full_name' => {
+            'first_name' => 'Jane',
+            'last_name' => 'Smith',
+            'sys_root' => 'Jane Smith'
+          },
           'role' => 'member',
           'status' => 'active'
         }
@@ -417,8 +423,12 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal 2, result['total_count']
     assert_equal 2, result['members'].length
     assert_equal 'usr_123', result['members'][0]['id']
-    assert_equal 'John Doe', result['members'][0]['title']
+    assert_equal 'John Doe', result['members'][0]['full_name']
+    assert_equal 'John', result['members'][0]['first_name']
+    assert_equal 'Doe', result['members'][0]['last_name']
     assert_equal 'john@example.com', result['members'][0]['email']
+    assert_equal 'Developer', result['members'][0]['job_title']
+    assert_equal 'Engineering', result['members'][0]['department']
     refute result['members'][0].key?('extra_field'), 'Should filter out extra fields'
   end
 
@@ -452,28 +462,49 @@ class SmartSuiteServerTest < Minitest::Test
       'items' => [
         {
           'id' => 'usr_123',
-          'title' => 'John Doe',
-          'email' => 'john@example.com'
+          'email' => 'john@example.com',
+          'full_name' => {
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'sys_root' => 'John Doe'
+          },
+          'job_title' => 'Developer'
         },
         {
           'id' => 'usr_456',
-          'title' => 'Jane Smith',
-          'email' => 'jane@example.com'
+          'email' => 'jane@example.com',
+          'full_name' => {
+            'first_name' => 'Jane',
+            'last_name' => 'Smith',
+            'sys_root' => 'Jane Smith'
+          }
         },
         {
           'id' => 'usr_789',
-          'title' => 'Bob Wilson',
-          'email' => 'bob@example.com'
+          'email' => 'bob@example.com',
+          'full_name' => {
+            'first_name' => 'Bob',
+            'last_name' => 'Wilson',
+            'sys_root' => 'Bob Wilson'
+          }
         },
         {
           'id' => 'usr_999',
-          'title' => 'Alice Brown',
-          'email' => 'alice@example.com'
+          'email' => 'alice@example.com',
+          'full_name' => {
+            'first_name' => 'Alice',
+            'last_name' => 'Brown',
+            'sys_root' => 'Alice Brown'
+          }
         },
         {
           'id' => 'usr_000',
-          'title' => 'Not in Solution',
-          'email' => 'not@example.com'
+          'email' => 'not@example.com',
+          'full_name' => {
+            'first_name' => 'Not',
+            'last_name' => 'InSolution',
+            'sys_root' => 'Not InSolution'
+          }
         }
       ],
       'total_count' => 5

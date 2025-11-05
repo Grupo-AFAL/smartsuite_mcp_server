@@ -296,15 +296,25 @@ class SmartSuiteClient
         filtered_members = response['items'].select { |member| solution_member_ids.include?(member['id']) }
 
         members = filtered_members.map do |member|
-          {
+          result = {
             'id' => member['id'],
-            'title' => member['title'],
             'email' => member['email'],
-            'first_name' => member['first_name'],
-            'last_name' => member['last_name'],
             'role' => member['role'],
             'status' => member['status']
-          }.compact # Remove nil values
+          }
+
+          # Add name fields if available
+          if member['full_name']
+            result['first_name'] = member['full_name']['first_name']
+            result['last_name'] = member['full_name']['last_name']
+            result['full_name'] = member['full_name']['sys_root']
+          end
+
+          # Add other useful fields
+          result['job_title'] = member['job_title'] if member['job_title']
+          result['department'] = member['department'] if member['department']
+
+          result.compact # Remove nil values
         end
 
         result = {
@@ -333,15 +343,25 @@ class SmartSuiteClient
       # Extract only essential member information
       if response.is_a?(Hash) && response['items'].is_a?(Array)
         members = response['items'].map do |member|
-          {
+          result = {
             'id' => member['id'],
-            'title' => member['title'],
             'email' => member['email'],
-            'first_name' => member['first_name'],
-            'last_name' => member['last_name'],
             'role' => member['role'],
             'status' => member['status']
-          }.compact # Remove nil values
+          }
+
+          # Add name fields if available
+          if member['full_name']
+            result['first_name'] = member['full_name']['first_name']
+            result['last_name'] = member['full_name']['last_name']
+            result['full_name'] = member['full_name']['sys_root']
+          end
+
+          # Add other useful fields
+          result['job_title'] = member['job_title'] if member['job_title']
+          result['department'] = member['department'] if member['department']
+
+          result.compact # Remove nil values
         end
 
         result = { 'members' => members, 'count' => members.size, 'total_count' => response['total_count'] }
