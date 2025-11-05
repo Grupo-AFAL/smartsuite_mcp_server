@@ -356,7 +356,13 @@ class SmartSuiteServerTest < Minitest::Test
     mock_response = {
       'id' => 'sol_123',
       'name' => 'Test Solution',
-      'member_ids' => ['usr_1', 'usr_2']
+      'permissions' => {
+        'members' => [
+          {'access' => 'full_access', 'entity' => 'usr_1'},
+          {'access' => 'assignee', 'entity' => 'usr_2'}
+        ],
+        'owners' => ['usr_3']
+      }
     }
 
     # Mock the api_request method
@@ -368,7 +374,8 @@ class SmartSuiteServerTest < Minitest::Test
 
     assert_equal 'sol_123', result['id']
     assert_equal 'Test Solution', result['name']
-    assert_equal ['usr_1', 'usr_2'], result['member_ids']
+    assert result['permissions']
+    assert result['permissions']['members']
   end
 
   def test_client_list_members
@@ -418,14 +425,29 @@ class SmartSuiteServerTest < Minitest::Test
   def test_client_list_members_filtered_by_solution
     client = SmartSuiteClient.new('test_key', 'test_account')
 
-    # Mock solution response
+    # Mock solution response with permissions structure (includes team)
     mock_solution = {
       'id' => 'sol_123',
       'name' => 'Test Solution',
-      'member_ids' => ['usr_123', 'usr_789']  # Only these two members
+      'permissions' => {
+        'members' => [
+          {'access' => 'full_access', 'entity' => 'usr_123'}
+        ],
+        'owners' => ['usr_789'],
+        'teams' => [
+          {'access' => 'full_access', 'entity' => 'team_001'}
+        ]
+      }
     }
 
-    # Mock members response (has 3 members total)
+    # Mock team response
+    mock_team = {
+      'id' => 'team_001',
+      'name' => 'Test Team',
+      'members' => ['usr_456', 'usr_999']
+    }
+
+    # Mock members response (has 5 members total)
     mock_members = {
       'items' => [
         {
@@ -442,15 +464,30 @@ class SmartSuiteServerTest < Minitest::Test
           'id' => 'usr_789',
           'title' => 'Bob Wilson',
           'email' => 'bob@example.com'
+        },
+        {
+          'id' => 'usr_999',
+          'title' => 'Alice Brown',
+          'email' => 'alice@example.com'
+        },
+        {
+          'id' => 'usr_000',
+          'title' => 'Not in Solution',
+          'email' => 'not@example.com'
         }
       ],
-      'total_count' => 3
+      'total_count' => 5
     }
+
+    # Mock teams list response
+    mock_teams_list = [mock_team]
 
     # Mock the api_request method to return different data based on endpoint
     client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
       if endpoint.include?('/solutions/')
         mock_solution
+      elsif endpoint.include?('/teams/list/')
+        mock_teams_list
       else
         mock_members
       end
@@ -458,16 +495,18 @@ class SmartSuiteServerTest < Minitest::Test
 
     result = client.list_members(100, 0, solution_id: 'sol_123')
 
-    # Should only return 2 members (those in the solution)
-    assert_equal 2, result['count']
-    assert_equal 2, result['members'].length
+    # Should return 4 members: usr_123 (direct member), usr_789 (owner), usr_456 and usr_999 (from team)
+    assert_equal 4, result['count']
+    assert_equal 4, result['members'].length
     assert_equal 'sol_123', result['filtered_by_solution']
 
-    # Check that only solution members are returned
+    # Check that only solution members are returned (including team members)
     member_ids = result['members'].map { |m| m['id'] }
-    assert_includes member_ids, 'usr_123'
-    assert_includes member_ids, 'usr_789'
-    refute_includes member_ids, 'usr_456', 'Should not include member not in solution'
+    assert_includes member_ids, 'usr_123', 'Should include direct member'
+    assert_includes member_ids, 'usr_789', 'Should include owner'
+    assert_includes member_ids, 'usr_456', 'Should include team member'
+    assert_includes member_ids, 'usr_999', 'Should include team member'
+    refute_includes member_ids, 'usr_000', 'Should not include member not in solution'
   end
 
   def test_client_get_table

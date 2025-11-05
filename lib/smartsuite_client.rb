@@ -64,6 +64,42 @@ class SmartSuiteClient
     api_request(:get, "/solutions/#{solution_id}/")
   end
 
+  def list_teams
+    log_metric("→ Listing teams")
+    body = {
+      limit: 1000,  # High limit to get all teams
+      offset: 0
+    }
+    response = api_request(:post, "/teams/list/", body)
+
+    # Cache teams for efficient lookup
+    @teams_cache ||= {}
+
+    # Handle both array response and hash with 'items' key
+    teams = response.is_a?(Hash) && response['items'] ? response['items'] : response
+
+    if teams.is_a?(Array)
+      teams.each do |team|
+        @teams_cache[team['id']] = team
+      end
+    end
+
+    teams
+  end
+
+  def get_team(team_id)
+    # Use cached teams if available
+    if @teams_cache && @teams_cache[team_id]
+      log_metric("→ Using cached team: #{team_id}")
+      return @teams_cache[team_id]
+    end
+
+    # Otherwise, fetch all teams and cache them
+    log_metric("→ Fetching team from teams list: #{team_id}")
+    list_teams  # This populates @teams_cache
+    @teams_cache[team_id]
+  end
+
   def list_tables(solution_id: nil)
     # Build endpoint with query parameter if solution_id is provided
     endpoint = '/applications/'
@@ -208,7 +244,39 @@ class SmartSuiteClient
 
       # Get solution details to find member IDs
       solution = get_solution(solution_id)
-      solution_member_ids = solution['member_ids'] || []
+
+      # Extract member IDs from permissions structure
+      solution_member_ids = []
+
+      # Add members from permissions.members (array of {access, entity})
+      if solution['permissions'] && solution['permissions']['members']
+        solution_member_ids += solution['permissions']['members'].map { |m| m['entity'] }
+      end
+
+      # Add members from permissions.owners (array of IDs)
+      if solution['permissions'] && solution['permissions']['owners']
+        solution_member_ids += solution['permissions']['owners']
+      end
+
+      # Add members from teams
+      if solution['permissions'] && solution['permissions']['teams']
+        team_ids = solution['permissions']['teams'].map { |t| t['entity'] }
+        log_metric("→ Found #{team_ids.size} team(s), fetching team members...")
+
+        team_ids.each do |team_id|
+          begin
+            team = get_team(team_id)
+            if team && team['members'] && team['members'].is_a?(Array)
+              solution_member_ids += team['members']
+              log_metric("  Team #{team['name'] || team_id}: added #{team['members'].size} member(s)")
+            end
+          rescue => e
+            log_metric("  ⚠️  Failed to fetch team #{team_id}: #{e.message}")
+          end
+        end
+      end
+
+      solution_member_ids.uniq!
 
       if solution_member_ids.empty?
         log_metric("⚠️  Solution has no members")
