@@ -215,6 +215,15 @@ class SmartSuiteServer
       @client.update_field(arguments['table_id'], arguments['slug'], arguments['field_data'])
     when 'delete_field'
       @client.delete_field(arguments['table_id'], arguments['slug'])
+    when 'list_comments'
+      @client.list_comments(arguments['record_id'])
+    when 'add_comment'
+      @client.add_comment(
+        arguments['table_id'],
+        arguments['record_id'],
+        arguments['message'],
+        arguments['assigned_to']
+      )
     when 'get_view_records'
       @client.get_view_records(
         arguments['table_id'],

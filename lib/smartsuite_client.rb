@@ -5,6 +5,7 @@ require_relative 'smartsuite/api/table_operations'
 require_relative 'smartsuite/api/record_operations'
 require_relative 'smartsuite/api/field_operations'
 require_relative 'smartsuite/api/member_operations'
+require_relative 'smartsuite/api/comment_operations'
 require_relative 'smartsuite/api/view_operations'
 require_relative 'smartsuite/formatters/response_formatter'
 
@@ -15,6 +16,7 @@ class SmartSuiteClient
   include SmartSuite::API::RecordOperations
   include SmartSuite::API::FieldOperations
   include SmartSuite::API::MemberOperations
+  include SmartSuite::API::CommentOperations
   include SmartSuite::API::ViewOperations
   include SmartSuite::Formatters::ResponseFormatter
 
