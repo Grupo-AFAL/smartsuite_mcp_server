@@ -174,10 +174,19 @@ The server implements:
 
 The server provides powerful tools for identifying unused or underutilized solutions:
 
-**analyze_solution_usage** - Analyzes all solutions and categorizes them by usage level:
+**analyze_solution_usage** - Analyzes all solutions and categorizes them by usage level based on `last_access` timestamps:
 - **Inactive solutions**: Never accessed or not accessed in X days + minimal records/automations
-- **Potentially unused**: Not accessed in X days but has some activity
-- **Active solutions**: Recently accessed
+- **Potentially unused**: Never accessed but has content, OR not accessed in X days with significant content
+- **Active solutions**: Recently accessed (accessed within the threshold period)
+
+**Important Notes:**
+- The analysis focuses on `last_access` dates as the primary indicator of usage
+- The `has_demo_data` flag is NOT used for categorization - many production solutions contain demo data
+- "Never accessed" solutions may be templates, abandoned projects, or API-only solutions
+- Solutions with high record counts but old `last_access` dates may indicate:
+  - Automated data entry via API (not reflected in `last_access`)
+  - Data repositories that are written to but rarely viewed
+  - Archived/historical data still in use
 
 Parameters:
 - `days_inactive` (default: 90): Days since last access to consider inactive
