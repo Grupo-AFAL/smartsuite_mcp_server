@@ -57,7 +57,7 @@ The codebase follows a modular architecture with clear separation of concerns ac
 ### 2. MCP Protocol Layer (`lib/smartsuite/mcp/`)
 Handles MCP protocol responses and schemas:
 
-- **ToolRegistry** (`tool_registry.rb`, 344 lines): All 15 tool schemas organized by category
+- **ToolRegistry** (`tool_registry.rb`, 600 lines): All 22 tool schemas organized by category
 - **PromptRegistry** (`prompt_registry.rb`, 447 lines): 8 prompt templates covering all major filter patterns
 - **ResourceRegistry** (`resource_registry.rb`, 15 lines): Resource listing (currently empty)
 
@@ -70,6 +70,7 @@ Handles SmartSuite API communication:
 - **RecordOperations** (`record_operations.rb`, 114 lines): Record CRUD operations
 - **FieldOperations** (`field_operations.rb`, 103 lines): Table schema management (add/update/delete fields)
 - **MemberOperations** (`member_operations.rb`, 212 lines): User and team management
+- **CommentOperations** (`comment_operations.rb`, 79 lines): Comment management (list, add comments)
 - **ViewOperations** (`view_operations.rb`, 88 lines): View/report management (get records, create views)
 
 **SmartSuiteClient** (`lib/smartsuite_client.rb`, 30 lines)
@@ -113,7 +114,7 @@ SmartSuiteServer.handle_tool_call()
     ↓
 SmartSuiteClient (includes modules):
   - HttpClient.api_request()  ←  ApiStatsTracker.track_api_call()
-  - WorkspaceOperations/TableOperations/RecordOperations/FieldOperations/MemberOperations/ViewOperations
+  - WorkspaceOperations/TableOperations/RecordOperations/FieldOperations/MemberOperations/CommentOperations/ViewOperations
   - ResponseFormatter.filter_*()
     ↓                                          ↓
 SmartSuite API                           Save to ~/.smartsuite_mcp_stats.json
@@ -139,7 +140,7 @@ Always required:
 The server implements:
 - `initialize`: MCP handshake and capability negotiation
 - `tools/list`: List all available SmartSuite tools
-- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_tables, get_table, create_table, list_records, create_record, update_record, delete_record, add_field, bulk_add_fields, update_field, delete_field, list_members, list_teams, get_team, get_view_records, create_view, get_api_stats, reset_api_stats)
+- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_tables, get_table, create_table, list_records, create_record, update_record, delete_record, add_field, bulk_add_fields, update_field, delete_field, list_members, list_teams, get_team, list_comments, add_comment, get_view_records, create_view, get_api_stats, reset_api_stats)
 - `prompts/list`: List example prompts for filters
 - `prompts/get`: Get specific prompt templates
 - `resources/list`: List available resources (empty)
@@ -340,6 +341,63 @@ The `help_doc` parameter requires rich text format (TipTap/ProseMirror):
 ```
 
 Display format can be `"tooltip"` (hover to see) or `"inline"` (shown below field name).
+
+### Comment Operations
+
+The server supports comment management via the CommentOperations module (`lib/smartsuite/api/comment_operations.rb`):
+
+**list_comments** (line 15):
+- Endpoint: `GET /api/v1/comments/?record=[Record_Id]`
+- Returns array of comment objects with message content, author, timestamps, and assignment information
+- Query parameter: `record` (the record ID)
+
+**add_comment** (line 36):
+- Endpoint: `POST /api/v1/comments/`
+- Creates a new comment on a record
+- Supports plain text input (automatically formatted to rich text)
+- Optional comment assignment to users via `assigned_to` parameter
+
+**Message Format:**
+Comments use SmartSuite's rich text format (TipTap/ProseMirror). Plain text is automatically converted:
+```ruby
+# Input (plain text)
+"This is a comment"
+
+# Automatically formatted to:
+{
+  "data" => {
+    "type" => "doc",
+    "content" => [
+      {
+        "type" => "paragraph",
+        "content" => [
+          {
+            "type" => "text",
+            "text" => "This is a comment"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Comment Object Structure:**
+- `id`: Comment unique identifier
+- `message`: Rich text message object with data, html, and preview
+- `record`: Record ID the comment belongs to
+- `application`: Table/app ID
+- `solution`: Solution ID
+- `member`: User ID of comment creator
+- `created_on`: Timestamp
+- `assigned_to`: Optional assigned user ID
+- `followers`: Array of user IDs following the comment
+- `reactions`: Array of emoji reactions
+- `key`: Comment number on the record
+
+**Important Notes:**
+- Endpoint paths must NOT include `/api/v1/` prefix as HttpClient already prepends the base URL
+- The API expects query parameter named `record`, not `record_id` (though the MCP tool parameter can use any name)
 
 ## Logging and Metrics
 
