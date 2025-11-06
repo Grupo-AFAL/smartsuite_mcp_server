@@ -203,7 +203,7 @@ class TestCommentOperations < Minitest::Test
 
     @client.list_comments(record_id)
 
-    assert_equal "/api/v1/comments/?record=#{record_id}", endpoint_called
+    assert_equal "/comments/?record=#{record_id}", endpoint_called
     assert_equal :get, method_called
   end
 
@@ -226,7 +226,7 @@ class TestCommentOperations < Minitest::Test
 
     @client.add_comment(table_id, record_id, message)
 
-    assert_equal '/api/v1/comments/', endpoint_called
+    assert_equal '/comments/', endpoint_called
     assert_equal :post, method_called
     assert_equal table_id, body_sent['application']
     assert_equal record_id, body_sent['record']
