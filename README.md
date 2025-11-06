@@ -34,6 +34,10 @@ This MCP server provides the following tools organized by module:
 - **list_teams** - List all teams in your workspace
 - **get_team** - Get a specific team by ID with member details
 
+### Comment Operations
+- **list_comments** - List all comments for a specific record with message content, author, and timestamps
+- **add_comment** - Add a comment to a record with optional user assignment (plain text automatically formatted to rich text)
+
 ### View Operations
 - **get_view_records** - Get records for a specific view (report) with the view's filters and configuration applied
 - **create_view** - Create a new view (report) in a table with custom filters, sorting, and display settings
@@ -916,6 +920,162 @@ Deletes a field from a table.
 Returns the deleted field object.
 
 **Note:** This operation is permanent and cannot be undone. All data in this field will be lost.
+
+## Comment Operations
+
+### list_comments
+
+Lists all comments for a specific record. Returns an array of comment objects with message content, author information, timestamps, and assignment details.
+
+**Parameters:**
+- `record_id` (required): The ID of the record whose comments to retrieve
+
+**Example:**
+```json
+{
+  "record_id": "rec_abc123"
+}
+```
+
+**Example response:**
+```json
+{
+  "count": null,
+  "results": [
+    {
+      "id": "comment_123",
+      "message": {
+        "data": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "This is a comment"
+                }
+              ]
+            }
+          ]
+        },
+        "html": "<p>This is a comment</p>",
+        "preview": "This is a comment"
+      },
+      "record": "rec_abc123",
+      "application": "tbl_def456",
+      "solution": "sol_xyz789",
+      "member": "usr_author123",
+      "created_on": "2025-01-15T10:30:00Z",
+      "assigned_to": null,
+      "followers": ["usr_author123"],
+      "reactions": [],
+      "key": 1
+    }
+  ]
+}
+```
+
+**Comment Object Fields:**
+- `id`: Unique comment identifier
+- `message`: Rich text message with data, html, and preview
+- `record`: Record ID the comment belongs to
+- `application`: Table/app ID
+- `solution`: Solution ID
+- `member`: User ID of comment creator
+- `created_on`: Creation timestamp
+- `assigned_to`: Optional assigned user ID
+- `followers`: Array of user IDs following the comment
+- `reactions`: Array of emoji reactions
+- `key`: Comment number on the record (1-indexed)
+
+### add_comment
+
+Creates a new comment on a record. Supports plain text input which is automatically formatted to SmartSuite's rich text format.
+
+**Parameters:**
+- `table_id` (required): The ID of the table/application containing the record
+- `record_id` (required): The ID of the record to add the comment to
+- `message` (required): The comment text (plain text - will be automatically formatted)
+- `assigned_to` (optional): User ID to assign the comment to (use `list_members` to get user IDs)
+
+**Example (simple comment):**
+```json
+{
+  "table_id": "tbl_abc123",
+  "record_id": "rec_def456",
+  "message": "This task is ready for review"
+}
+```
+
+**Example (with assignment):**
+```json
+{
+  "table_id": "tbl_abc123",
+  "record_id": "rec_def456",
+  "message": "Please review this ASAP",
+  "assigned_to": "usr_xyz789"
+}
+```
+
+**Example response:**
+```json
+{
+  "id": "comment_new123",
+  "message": {
+    "data": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "This task is ready for review"
+            }
+          ]
+        }
+      ]
+    },
+    "html": "<p>This task is ready for review</p>",
+    "preview": "This task is ready for review"
+  },
+  "record": "rec_def456",
+  "application": "tbl_abc123",
+  "member": "usr_current_user",
+  "created_on": "2025-01-15T14:30:00Z",
+  "assigned_to": null,
+  "followers": ["usr_current_user"],
+  "key": 4
+}
+```
+
+**Message Formatting:**
+The server automatically converts plain text to SmartSuite's rich text format (TipTap/ProseMirror). You just provide a simple string, and it's formatted as:
+```ruby
+# Input
+"This is a comment"
+
+# Automatically becomes
+{
+  "data": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {"type": "text", "text": "This is a comment"}
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Workflow Example:**
+1. Use `list_members` to get user IDs if you need to assign the comment
+2. Call `add_comment` with plain text message
+3. Comment appears in SmartSuite with proper formatting
 
 ### get_view_records
 
