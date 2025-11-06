@@ -34,6 +34,10 @@ This MCP server provides the following tools organized by module:
 - **list_teams** - List all teams in your workspace
 - **get_team** - Get a specific team by ID with member details
 
+### View Operations
+- **get_view_records** - Get records for a specific view (report) with the view's filters and configuration applied
+- **create_view** - Create a new view (report) in a table with custom filters, sorting, and display settings
+
 ### API Usage Tracking
 - **get_api_stats** - View detailed API usage statistics by user, solution, table, method, and endpoint
 - **reset_api_stats** - Reset API usage statistics
@@ -912,6 +916,113 @@ Deletes a field from a table.
 Returns the deleted field object.
 
 **Note:** This operation is permanent and cannot be undone. All data in this field will be lost.
+
+### get_view_records
+
+Gets records for a specific view (report) with the view's configured filters, sorting, and field visibility applied.
+
+In SmartSuite, views (also called "reports") are saved configurations that define how data is displayed, filtered, and organized. This tool retrieves records matching a view's configuration.
+
+**Parameters:**
+- `table_id` (required): The table identifier
+- `view_id` (required): The view/report identifier
+- `with_empty_values` (optional): Whether to include empty field values (default: false)
+
+**Example:**
+```json
+{
+  "table_id": "tbl_abc123",
+  "view_id": "view_def456",
+  "with_empty_values": false
+}
+```
+
+**Example response:**
+```json
+{
+  "records": [
+    {
+      "id": "rec_123",
+      "title": "Active Project",
+      "status": "In Progress",
+      "due_date": "2025-02-01"
+    }
+  ],
+  "view_config": {
+    "id": "view_def456",
+    "label": "Active Projects",
+    "filters": {...}
+  }
+}
+```
+
+### create_view
+
+Creates a new view (report) in a table with specified configuration.
+
+Views can be of different types (grid, kanban, calendar, etc.) and include filters, sorting, grouping, and display settings.
+
+**Parameters:**
+- `application` (required): Table identifier where view is created
+- `solution` (required): Solution identifier containing the table
+- `label` (required): Display name of the view
+- `view_mode` (required): View type - one of: `grid`, `map`, `calendar`, `kanban`, `gallery`, `timeline`, `gantt`
+- `description` (optional): View description
+- `autosave` (optional): Enable autosave (default: true)
+- `is_locked` (optional): Lock the view (default: false)
+- `is_private` (optional): Make view private (default: false)
+- `is_password_protected` (optional): Password protect view (default: false)
+- `order` (optional): Display position in view list
+- `state` (optional): View state configuration (filters, fields, sort, grouping)
+- `map_state` (optional): Map configuration for map views
+- `sharing` (optional): Sharing settings
+
+**Example (simple grid view):**
+```json
+{
+  "application": "tbl_abc123",
+  "solution": "sol_def456",
+  "label": "Active Tasks",
+  "view_mode": "grid"
+}
+```
+
+**Example (kanban view with configuration):**
+```json
+{
+  "application": "tbl_abc123",
+  "solution": "sol_def456",
+  "label": "Project Board",
+  "view_mode": "kanban",
+  "description": "Kanban board for project tracking",
+  "state": {
+    "filter": {
+      "operator": "and",
+      "fields": [
+        {"field": "status", "comparison": "is_not", "value": "Completed"}
+      ]
+    },
+    "sort": [
+      {"field": "priority", "direction": "desc"}
+    ],
+    "group_by": "status"
+  }
+}
+```
+
+**Example response:**
+```json
+{
+  "id": "view_xyz789",
+  "label": "Active Tasks",
+  "view_mode": "grid",
+  "application": "tbl_abc123",
+  "solution": "sol_def456",
+  "autosave": true,
+  "is_locked": false,
+  "is_private": false
+}
+```
 
 ### get_api_stats
 
