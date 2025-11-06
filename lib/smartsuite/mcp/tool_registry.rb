@@ -421,6 +421,51 @@ module SmartSuite
         }
       ].freeze
 
+      # Comment operation tools for managing record comments
+      # Includes: list_comments, add_comment
+      COMMENT_TOOLS = [
+        {
+          'name' => 'list_comments',
+          'description' => 'List all comments for a specific record. Returns an array of comment objects with message content, author, timestamps, and assignment information.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'record_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the record whose comments to retrieve'
+              }
+            },
+            'required' => ['record_id']
+          }
+        },
+        {
+          'name' => 'add_comment',
+          'description' => 'Add a comment to a record. Returns the created comment object. Comments support plain text which is automatically formatted to rich text.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the table/application containing the record'
+              },
+              'record_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the record to add the comment to'
+              },
+              'message' => {
+                'type' => 'string',
+                'description' => 'The comment text (plain text will be automatically converted to rich text format)'
+              },
+              'assigned_to' => {
+                'type' => 'string',
+                'description' => 'Optional: User ID to assign the comment to. Use list_members to get user IDs.'
+              }
+            },
+            'required' => ['table_id', 'record_id', 'message']
+          }
+        }
+      ].freeze
+
       # View operation tools for view/report management
       # Includes: get_view_records, create_view
       VIEW_TOOLS = [
@@ -511,8 +556,8 @@ module SmartSuite
       ].freeze
 
       # All tools combined into a single array for MCP protocol responses
-      # Total: 20 tools across 7 categories
-      ALL_TOOLS = (WORKSPACE_TOOLS + TABLE_TOOLS + RECORD_TOOLS + FIELD_TOOLS + MEMBER_TOOLS + VIEW_TOOLS + STATS_TOOLS).freeze
+      # Total: 22 tools across 8 categories
+      ALL_TOOLS = (WORKSPACE_TOOLS + TABLE_TOOLS + RECORD_TOOLS + FIELD_TOOLS + MEMBER_TOOLS + COMMENT_TOOLS + VIEW_TOOLS + STATS_TOOLS).freeze
 
       # Generates a JSON-RPC 2.0 response for the tools/list MCP method.
       #
