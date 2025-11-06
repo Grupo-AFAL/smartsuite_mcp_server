@@ -1292,4 +1292,250 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal 'tbl_test', table_id_param
     assert_equal 'field_to_delete', slug_param
   end
+
+  # Test view operations
+  def test_client_get_view_records
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    api_method = nil
+    api_endpoint = nil
+    mock_response = {
+      'records' => [
+        {'id' => 'rec_1', 'title' => 'Record 1', 'status' => 'approved'},
+        {'id' => 'rec_2', 'title' => 'Record 2', 'status' => 'approved'}
+      ],
+      'total_records_count' => 2,
+      'filter' => {'operator' => 'and', 'fields' => []}
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      api_method = method
+      api_endpoint = endpoint
+      mock_response
+    end
+
+    result = client.get_view_records('tbl_123', 'view_456')
+
+    assert_equal :get, api_method, 'Should use GET method'
+    assert_equal '/applications/tbl_123/records-for-report/?report=view_456', api_endpoint
+    assert_equal 2, result['records'].length
+    assert_equal 'rec_1', result['records'][0]['id']
+  end
+
+  def test_client_get_view_records_with_empty_values
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    api_endpoint = nil
+    mock_response = {'records' => [], 'total_records_count' => 0}
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      api_endpoint = endpoint
+      mock_response
+    end
+
+    client.get_view_records('tbl_123', 'view_456', with_empty_values: true)
+
+    assert_includes api_endpoint, 'with_empty_values=true', 'Should include with_empty_values parameter'
+  end
+
+  def test_handle_tool_call_get_view_records
+    client = @server.instance_variable_get(:@client)
+
+    get_view_called = false
+    table_id_param = nil
+    view_id_param = nil
+
+    client.define_singleton_method(:get_view_records) do |table_id, view_id, with_empty_values: false|
+      get_view_called = true
+      table_id_param = table_id
+      view_id_param = view_id
+      {
+        'records' => [
+          {'id' => 'rec_1', 'title' => 'Test Record'}
+        ],
+        'total_records_count' => 1
+      }
+    end
+
+    request = {
+      'id' => 15,
+      'method' => 'tools/call',
+      'params' => {
+        'name' => 'get_view_records',
+        'arguments' => {
+          'table_id' => 'tbl_test',
+          'view_id' => 'view_test'
+        }
+      }
+    }
+
+    response = call_private_method(:handle_tool_call, request)
+
+    assert_equal '2.0', response['jsonrpc']
+    assert_equal 15, response['id']
+    assert get_view_called, 'Should call get_view_records method'
+    assert_equal 'tbl_test', table_id_param
+    assert_equal 'view_test', view_id_param
+  end
+
+  def test_client_create_view
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    api_method = nil
+    api_endpoint = nil
+    api_body = nil
+    mock_response = {
+      'id' => 'view_789',
+      'label' => 'Test View',
+      'view_mode' => 'grid',
+      'application' => 'tbl_123',
+      'solution' => 'sol_456',
+      'is_private' => false,
+      'state' => {
+        'filterWindow' => {
+          'opened' => false,
+          'filter' => {
+            'operator' => 'and',
+            'fields' => []
+          }
+        }
+      }
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      api_method = method
+      api_endpoint = endpoint
+      api_body = body
+      mock_response
+    end
+
+    result = client.create_view(
+      'tbl_123',
+      'sol_456',
+      'Test View',
+      'grid',
+      is_private: false
+    )
+
+    assert_equal :post, api_method, 'Should use POST method'
+    assert_equal '/reports/', api_endpoint
+    assert_equal 'tbl_123', api_body['application']
+    assert_equal 'sol_456', api_body['solution']
+    assert_equal 'Test View', api_body['label']
+    assert_equal 'grid', api_body['view_mode']
+    assert_equal false, api_body['is_private']
+    assert_equal 'view_789', result['id']
+  end
+
+  def test_client_create_view_with_filter_state
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    api_body = nil
+    mock_response = {'id' => 'view_123', 'label' => 'Filtered View'}
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      api_body = body
+      mock_response
+    end
+
+    filter_state = {
+      'filterWindow' => {
+        'opened' => false,
+        'filter' => {
+          'operator' => 'and',
+          'fields' => [
+            {'field' => 'status', 'comparison' => 'is', 'value' => 'approved'}
+          ]
+        }
+      }
+    }
+
+    result = client.create_view(
+      'tbl_123',
+      'sol_456',
+      'Filtered View',
+      'grid',
+      state: filter_state
+    )
+
+    assert_equal filter_state, api_body['state'], 'Should include filter state'
+    assert_equal 'Filtered View', result['label']
+  end
+
+  def test_handle_tool_call_create_view
+    client = @server.instance_variable_get(:@client)
+
+    create_view_called = false
+    application_param = nil
+    solution_param = nil
+    label_param = nil
+    view_mode_param = nil
+    state_param = nil
+
+    client.define_singleton_method(:create_view) do |application, solution, label, view_mode, **options|
+      create_view_called = true
+      application_param = application
+      solution_param = solution
+      label_param = label
+      view_mode_param = view_mode
+      state_param = options[:state]
+      {
+        'id' => 'view_new',
+        'label' => label,
+        'view_mode' => view_mode,
+        'state' => options[:state]
+      }
+    end
+
+    request = {
+      'id' => 16,
+      'method' => 'tools/call',
+      'params' => {
+        'name' => 'create_view',
+        'arguments' => {
+          'application' => 'tbl_test',
+          'solution' => 'sol_test',
+          'label' => 'New View',
+          'view_mode' => 'kanban',
+          'state' => {
+            'filterWindow' => {
+              'opened' => false,
+              'filter' => {
+                'operator' => 'and',
+                'fields' => [
+                  {'field' => 'priority', 'comparison' => 'is', 'value' => 'high'}
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+
+    response = call_private_method(:handle_tool_call, request)
+
+    assert_equal '2.0', response['jsonrpc']
+    assert_equal 16, response['id']
+    assert create_view_called, 'Should call create_view method'
+    assert_equal 'tbl_test', application_param
+    assert_equal 'sol_test', solution_param
+    assert_equal 'New View', label_param
+    assert_equal 'kanban', view_mode_param
+    assert state_param, 'Should pass state parameter'
+    assert_equal 'and', state_param['filterWindow']['filter']['operator']
+  end
+
+  def test_tools_list_includes_view_operations
+    request = {
+      'id' => 17,
+      'method' => 'tools/list',
+      'params' => {}
+    }
+
+    response = call_private_method(:handle_tools_list, request)
+
+    tool_names = response['result']['tools'].map { |t| t['name'] }
+    assert_includes tool_names, 'get_view_records', 'Should include get_view_records tool'
+    assert_includes tool_names, 'create_view', 'Should include create_view tool'
+  end
 end
