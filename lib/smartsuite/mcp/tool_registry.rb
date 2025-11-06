@@ -421,9 +421,98 @@ module SmartSuite
         }
       ].freeze
 
+      # View operation tools for view/report management
+      # Includes: get_view_records, create_view
+      VIEW_TOOLS = [
+        {
+          'name' => 'get_view_records',
+          'description' => 'Get records for a specified view (report) with the view\'s filters, sorting, and field visibility applied. Views define which records are shown based on filters and how they are displayed.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the table containing the view'
+              },
+              'view_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the view (report) to get records from'
+              },
+              'with_empty_values' => {
+                'type' => 'boolean',
+                'description' => 'Optional: Whether to include empty field values in the response. Default: false.'
+              }
+            },
+            'required' => ['table_id', 'view_id']
+          }
+        },
+        {
+          'name' => 'create_view',
+          'description' => 'Create a new view (report) in a SmartSuite table. Views allow you to filter, sort, group, and display records in different formats (grid, calendar, map, kanban, etc.).',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'application' => {
+                'type' => 'string',
+                'description' => 'The ID of the table where the view will be created'
+              },
+              'solution' => {
+                'type' => 'string',
+                'description' => 'The ID of the solution containing the table'
+              },
+              'label' => {
+                'type' => 'string',
+                'description' => 'Display name of the view'
+              },
+              'view_mode' => {
+                'type' => 'string',
+                'description' => 'View type: grid, map, calendar, kanban, gallery, timeline, or gantt'
+              },
+              'description' => {
+                'type' => 'string',
+                'description' => 'Optional: Description of the view'
+              },
+              'autosave' => {
+                'type' => 'boolean',
+                'description' => 'Optional: Enable autosave (default: true)'
+              },
+              'is_locked' => {
+                'type' => 'boolean',
+                'description' => 'Optional: Lock the view (default: false)'
+              },
+              'is_private' => {
+                'type' => 'boolean',
+                'description' => 'Optional: Make view private (default: false)'
+              },
+              'is_password_protected' => {
+                'type' => 'boolean',
+                'description' => 'Optional: Password protect view (default: false)'
+              },
+              'order' => {
+                'type' => 'number',
+                'description' => 'Optional: Display position in view list'
+              },
+              'state' => {
+                'type' => 'object',
+                'description' => 'Optional: View state configuration (filter, fields, sort, group settings)'
+              },
+              'map_state' => {
+                'type' => 'object',
+                'description' => 'Optional: Map configuration for map views'
+              },
+              'sharing' => {
+                'type' => 'object',
+                'description' => 'Optional: Sharing settings for the view'
+              }
+            },
+            'required' => ['application', 'solution', 'label', 'view_mode']
+          }
+        }
+      ].freeze
+
       # All tools combined into a single array for MCP protocol responses
-      # Total: 18 tools across 6 categories
-      ALL_TOOLS = (WORKSPACE_TOOLS + TABLE_TOOLS + RECORD_TOOLS + FIELD_TOOLS + MEMBER_TOOLS + STATS_TOOLS).freeze
+      # Total: 20 tools across 7 categories
+      ALL_TOOLS = (WORKSPACE_TOOLS + TABLE_TOOLS + RECORD_TOOLS + FIELD_TOOLS + MEMBER_TOOLS + VIEW_TOOLS + STATS_TOOLS).freeze
 
       # Generates a JSON-RPC 2.0 response for the tools/list MCP method.
       #

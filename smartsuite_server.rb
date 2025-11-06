@@ -215,6 +215,28 @@ class SmartSuiteServer
       @client.update_field(arguments['table_id'], arguments['slug'], arguments['field_data'])
     when 'delete_field'
       @client.delete_field(arguments['table_id'], arguments['slug'])
+    when 'get_view_records'
+      @client.get_view_records(
+        arguments['table_id'],
+        arguments['view_id'],
+        with_empty_values: arguments['with_empty_values']
+      )
+    when 'create_view'
+      @client.create_view(
+        arguments['application'],
+        arguments['solution'],
+        arguments['label'],
+        arguments['view_mode'],
+        description: arguments['description'],
+        autosave: arguments['autosave'],
+        is_locked: arguments['is_locked'],
+        is_private: arguments['is_private'],
+        is_password_protected: arguments['is_password_protected'],
+        order: arguments['order'],
+        state: arguments['state'],
+        map_state: arguments['map_state'],
+        sharing: arguments['sharing']
+      )
     when 'get_api_stats'
       @stats_tracker.get_stats
     when 'reset_api_stats'

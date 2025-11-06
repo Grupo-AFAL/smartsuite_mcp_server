@@ -70,6 +70,7 @@ Handles SmartSuite API communication:
 - **RecordOperations** (`record_operations.rb`, 114 lines): Record CRUD operations
 - **FieldOperations** (`field_operations.rb`, 103 lines): Table schema management (add/update/delete fields)
 - **MemberOperations** (`member_operations.rb`, 212 lines): User and team management
+- **ViewOperations** (`view_operations.rb`, 88 lines): View/report management (get records, create views)
 
 **SmartSuiteClient** (`lib/smartsuite_client.rb`, 30 lines)
 - Thin wrapper that includes all API modules
@@ -112,7 +113,7 @@ SmartSuiteServer.handle_tool_call()
     ↓
 SmartSuiteClient (includes modules):
   - HttpClient.api_request()  ←  ApiStatsTracker.track_api_call()
-  - WorkspaceOperations/TableOperations/RecordOperations/FieldOperations/MemberOperations
+  - WorkspaceOperations/TableOperations/RecordOperations/FieldOperations/MemberOperations/ViewOperations
   - ResponseFormatter.filter_*()
     ↓                                          ↓
 SmartSuite API                           Save to ~/.smartsuite_mcp_stats.json
@@ -138,7 +139,7 @@ Always required:
 The server implements:
 - `initialize`: MCP handshake and capability negotiation
 - `tools/list`: List all available SmartSuite tools
-- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_tables, get_table, create_table, list_records, create_record, update_record, delete_record, add_field, bulk_add_fields, update_field, delete_field, list_members, list_teams, get_team, get_api_stats, reset_api_stats)
+- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_tables, get_table, create_table, list_records, create_record, update_record, delete_record, add_field, bulk_add_fields, update_field, delete_field, list_members, list_teams, get_team, get_view_records, create_view, get_api_stats, reset_api_stats)
 - `prompts/list`: List example prompts for filters
 - `prompts/get`: Get specific prompt templates
 - `resources/list`: List available resources (empty)
