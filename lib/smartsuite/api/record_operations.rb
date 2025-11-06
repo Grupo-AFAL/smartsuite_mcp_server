@@ -47,10 +47,11 @@ module SmartSuite
           limit = 2
         end
 
-        body = {
-          limit: limit,
-          offset: offset
-        }
+        # Build query params for limit and offset
+        query_params = "?limit=#{limit}&offset=#{offset}"
+
+        # Build body with filter and sort (if provided)
+        body = {}
 
         # Add filter if provided
         # Filter format: {"operator": "and|or", "fields": [{"field": "field_slug", "comparison": "operator", "value": "value"}]}
@@ -62,7 +63,8 @@ module SmartSuite
         # Example: [{"field": "created_on", "direction": "desc"}]
         body[:sort] = sort if sort
 
-        response = api_request(:post, "/applications/#{table_id}/records/list/", body)
+        # Make request with query params and body
+        response = api_request(:post, "/applications/#{table_id}/records/list/#{query_params}", body.empty? ? nil : body)
 
         # If summary_only, return just statistics
         if summary_only

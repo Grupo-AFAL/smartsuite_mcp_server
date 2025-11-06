@@ -155,25 +155,26 @@ module SmartSuite
           }
 
           # Categorization logic
+          # Focus on last_access date - demo data presence doesn't indicate usage
           records_count = solution['records_count'].to_i
           automation_count = solution['automation_count'].to_i
 
           if solution['last_access'].nil? || days_since_access.nil?
-            # Never accessed
+            # Never accessed - highest priority for cleanup
             if records_count < min_records && automation_count == 0
               inactive << category_info.merge('reason' => 'Never accessed, minimal records, no automations')
             else
-              potentially_unused << category_info.merge('reason' => 'Never accessed but has some activity')
+              potentially_unused << category_info.merge('reason' => 'Never accessed but has content (may be template or abandoned)')
             end
           elsif days_since_access >= days_inactive
             # Not accessed in threshold period
             if records_count < min_records && automation_count == 0
               inactive << category_info.merge('reason' => "Not accessed in #{days_since_access} days, minimal records")
             else
-              potentially_unused << category_info.merge('reason' => "Not accessed in #{days_since_access} days")
+              potentially_unused << category_info.merge('reason' => "Not accessed in #{days_since_access} days but has content")
             end
           else
-            # Recently accessed
+            # Recently accessed - in active use
             active << category_info
           end
         end

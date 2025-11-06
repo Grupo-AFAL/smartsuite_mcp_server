@@ -357,6 +357,64 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal 'tbl_2', result['tables'][1]['id']
   end
 
+  def test_client_list_tables_with_fields_parameter
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    # Track the endpoint that was called
+    called_endpoint = nil
+
+    # Mock response - API returns requested fields
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'tbl_1',
+          'name' => 'Table 1',
+          'structure' => [{'slug' => 'field1', 'label' => 'Field 1'}],
+          'solution_id' => 'sol_1'
+        }
+      ]
+    }
+
+    # Mock the api_request method to track endpoint
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      called_endpoint = endpoint
+      mock_response
+    end
+
+    # Test with fields parameter
+    result = client.list_tables(fields: ['name', 'id', 'structure'])
+
+    # Verify the API was called with fields query parameters
+    assert_includes called_endpoint, 'fields=name', 'Should include fields=name'
+    assert_includes called_endpoint, 'fields=id', 'Should include fields=id'
+    assert_includes called_endpoint, 'fields=structure', 'Should include fields=structure'
+
+    # Verify response includes all fields (not client-filtered)
+    assert_equal 1, result['count']
+    assert result['tables'][0].key?('structure'), 'Should include structure field when explicitly requested'
+    assert_equal 'Table 1', result['tables'][0]['name']
+  end
+
+  def test_client_list_tables_with_solution_and_fields
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    called_endpoint = nil
+    mock_response = {'items' => []}
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      called_endpoint = endpoint
+      mock_response
+    end
+
+    # Test with both solution_id and fields
+    client.list_tables(solution_id: 'sol_123', fields: ['name', 'id'])
+
+    # Verify both parameters are in the endpoint
+    assert_includes called_endpoint, 'solution=sol_123', 'Should include solution parameter'
+    assert_includes called_endpoint, 'fields=name', 'Should include fields parameter'
+    assert_includes called_endpoint, 'fields=id', 'Should include fields parameter'
+  end
+
   def test_client_get_solution
     client = SmartSuiteClient.new('test_key', 'test_account')
 
@@ -588,11 +646,13 @@ class SmartSuiteServerTest < Minitest::Test
   def test_client_list_records_with_filter
     client = SmartSuiteClient.new('test_key', 'test_account')
 
-    # Track what body was sent
+    # Track what endpoint and body were sent
+    sent_endpoint = nil
     sent_body = nil
     client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      sent_endpoint = endpoint
       sent_body = body
-      {'items' => []}
+      {'items' => [], 'total_count' => 0}
     end
 
     filter = {
@@ -603,17 +663,20 @@ class SmartSuiteServerTest < Minitest::Test
     }
     client.list_records('tbl_123', 10, 0, filter: filter, fields: ['status'])
 
+    # Filter should be in body
     assert_equal filter, sent_body[:filter]
-    assert_equal 10, sent_body[:limit]
-    assert_equal 0, sent_body[:offset]
+    # limit and offset should be in query params
+    assert_includes sent_endpoint, '?limit=10&offset=0', 'Should have limit and offset as query params'
   end
 
   def test_client_list_records_with_sort
     client = SmartSuiteClient.new('test_key', 'test_account')
 
-    # Track what body was sent
+    # Track what endpoint and body were sent
+    sent_endpoint = nil
     sent_body = nil
     client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      sent_endpoint = endpoint
       sent_body = body
       {'items' => [], 'total_count' => 0}
     end
@@ -621,17 +684,20 @@ class SmartSuiteServerTest < Minitest::Test
     sort = [{'field' => 'created_on', 'direction' => 'desc'}]
     client.list_records('tbl_123', 10, 0, sort: sort, fields: ['status'])
 
+    # Sort should be in body
     assert_equal sort, sent_body[:sort]
-    # Without filter, limit is automatically reduced to 2
-    assert_equal 2, sent_body[:limit], 'Should limit to 2 records without filter'
+    # Without filter, limit is automatically reduced to 2 and should be in query params
+    assert_includes sent_endpoint, '?limit=2&offset=0', 'Should have limit=2 as query param (auto-reduced without filter)'
   end
 
   def test_client_list_records_with_filter_and_sort
     client = SmartSuiteClient.new('test_key', 'test_account')
 
-    # Track what body was sent
+    # Track what endpoint and body were sent
+    sent_endpoint = nil
     sent_body = nil
     client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      sent_endpoint = endpoint
       sent_body = body
       {'items' => [], 'total_count' => 0}
     end
@@ -646,29 +712,31 @@ class SmartSuiteServerTest < Minitest::Test
     sort = [{'field' => 'created_on', 'direction' => 'desc'}, {'field' => 'title', 'direction' => 'asc'}]
     client.list_records('tbl_123', 20, 10, filter: filter, sort: sort, fields: ['status', 'priority'])
 
+    # Filter and sort should be in body
     assert_equal filter, sent_body[:filter]
     assert_equal sort, sent_body[:sort]
-    assert_equal 20, sent_body[:limit]
-    assert_equal 10, sent_body[:offset]
+    # limit and offset should be in query params
+    assert_includes sent_endpoint, '?limit=20&offset=10', 'Should have limit and offset as query params'
   end
 
   def test_client_list_records_without_filter_or_sort
     client = SmartSuiteClient.new('test_key', 'test_account')
 
-    # Track what body was sent
+    # Track what endpoint and body were sent
+    sent_endpoint = nil
     sent_body = nil
     client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      sent_endpoint = endpoint
       sent_body = body
       {'items' => [], 'total_count' => 0}
     end
 
     client.list_records('tbl_123', 50, 0, fields: ['status'])
 
-    refute sent_body.key?(:filter), 'Should not include filter when nil'
-    refute sent_body.key?(:sort), 'Should not include sort when nil'
-    # Without filter, limit is automatically reduced to 2
-    assert_equal 2, sent_body[:limit], 'Should limit to 2 records without filter'
-    assert_equal 0, sent_body[:offset]
+    # Body should be nil or empty when no filter or sort
+    assert sent_body.nil? || sent_body.empty?, 'Body should be nil or empty when no filter/sort'
+    # Without filter, limit is automatically reduced to 2 and should be in query params
+    assert_includes sent_endpoint, '?limit=2&offset=0', 'Should have limit=2 as query param (auto-reduced without filter)'
   end
 
   # Test response filtering - now returns plain text
