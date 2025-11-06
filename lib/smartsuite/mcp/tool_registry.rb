@@ -52,13 +52,18 @@ module SmartSuite
       TABLE_TOOLS = [
         {
           'name' => 'list_tables',
-          'description' => 'List all tables (apps) in your SmartSuite workspace. Optionally filter by solution_id to only show tables from a specific solution.',
+          'description' => 'List all tables (apps) in your SmartSuite workspace. Optionally filter by solution_id and/or specify which fields to return.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
               'solution_id' => {
                 'type' => 'string',
                 'description' => 'Optional: Filter tables by solution ID. Use list_solutions first to get solution IDs.'
+              },
+              'fields' => {
+                'type' => 'array',
+                'items' => {'type' => 'string'},
+                'description' => 'Optional: Array of field slugs to include in response (e.g., ["name", "id", "structure"]). When specified, only these fields are returned. When omitted, returns only essential fields (id, name, solution_id) for minimal token usage.'
               }
             },
             'required' => []

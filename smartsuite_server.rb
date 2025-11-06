@@ -169,7 +169,7 @@ class SmartSuiteServer
     when 'get_team'
       @client.get_team(arguments['team_id'])
     when 'list_tables'
-      @client.list_tables(solution_id: arguments['solution_id'])
+      @client.list_tables(solution_id: arguments['solution_id'], fields: arguments['fields'])
     when 'get_table'
       @client.get_table(arguments['table_id'])
     when 'create_table'

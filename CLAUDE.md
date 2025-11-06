@@ -136,6 +136,31 @@ Always required:
 - `SMARTSUITE_API_KEY`: SmartSuite API authentication
 - `SMARTSUITE_ACCOUNT_ID`: Workspace identifier
 
+### SmartSuite API Parameter Conventions
+The SmartSuite API requires specific parameter placement:
+
+**Query Parameters (in URL):**
+- `limit`: Maximum number of records/items to return (POST endpoints)
+- `offset`: Pagination offset (number of items to skip) (POST endpoints)
+- `fields`: Field slug to include in response (GET endpoints, can be repeated)
+- `solution`: Solution ID to filter by (GET endpoints)
+
+**Body Parameters (JSON payload):**
+- `filter`: Filter criteria object (POST endpoints)
+- `sort`: Sort criteria array (POST endpoints)
+
+**Example Endpoints:**
+- List records: `POST /api/v1/applications/{table_id}/records/list/?limit=10&offset=0`
+  - Body: `{"filter": {...}, "sort": [...]}`
+- List members: `POST /api/v1/members/list/?limit=100&offset=0`
+- List teams: `POST /api/v1/teams/list/?limit=1000&offset=0`
+- List tables: `GET /api/v1/applications/?solution=sol_123&fields=name&fields=id&fields=structure`
+
+**Important Notes:**
+- The endpoints for members and teams are `/members/list/` and `/teams/list/`, NOT `/applications/members/records/list/`
+- The `fields` parameter in GET endpoints (like `/applications/`) can be repeated to request multiple fields
+- When `fields` is specified in `list_tables`, the API returns only those fields; when omitted, client-side filtering returns only essential fields (id, name, solution_id)
+
 ### MCP Protocol Methods
 The server implements:
 - `initialize`: MCP handshake and capability negotiation
@@ -149,10 +174,19 @@ The server implements:
 
 The server provides powerful tools for identifying unused or underutilized solutions:
 
-**analyze_solution_usage** - Analyzes all solutions and categorizes them by usage level:
+**analyze_solution_usage** - Analyzes all solutions and categorizes them by usage level based on `last_access` timestamps:
 - **Inactive solutions**: Never accessed or not accessed in X days + minimal records/automations
-- **Potentially unused**: Not accessed in X days but has some activity
-- **Active solutions**: Recently accessed
+- **Potentially unused**: Never accessed but has content, OR not accessed in X days with significant content
+- **Active solutions**: Recently accessed (accessed within the threshold period)
+
+**Important Notes:**
+- The analysis focuses on `last_access` dates as the primary indicator of usage
+- The `has_demo_data` flag is NOT used for categorization - many production solutions contain demo data
+- "Never accessed" solutions may be templates, abandoned projects, or API-only solutions
+- Solutions with high record counts but old `last_access` dates may indicate:
+  - Automated data entry via API (not reflected in `last_access`)
+  - Data repositories that are written to but rarely viewed
+  - Archived/historical data still in use
 
 Parameters:
 - `days_inactive` (default: 90): Days since last access to consider inactive
