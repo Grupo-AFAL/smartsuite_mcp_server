@@ -11,29 +11,50 @@ module SmartSuite
     module TableOperations
       # Lists tables (applications) in the workspace.
       #
-      # Filters response to only include essential fields (id, name, solution_id).
-      # Optionally filters by solution_id to show only tables in that solution.
+      # Optionally filters by solution_id and/or specific fields.
+      # When fields are specified, only those fields are returned from the API.
+      # When no fields are specified, returns only essential fields (id, name, solution_id).
       #
       # @param solution_id [String, nil] Optional solution ID to filter tables
+      # @param fields [Array<String>, nil] Optional array of field slugs to include in response
       # @return [Hash] Tables with count and filtered data
-      def list_tables(solution_id: nil)
-        # Build endpoint with query parameter if solution_id is provided
-        endpoint = '/applications/'
+      def list_tables(solution_id: nil, fields: nil)
+        # Build endpoint with query parameters
+        query_params = []
+
         if solution_id
-          endpoint += "?solution=#{solution_id}"
+          query_params << "solution=#{solution_id}"
           log_metric("→ Filtering tables by solution: #{solution_id}")
         end
 
+        # Add fields parameters (can be repeated)
+        if fields && !fields.empty?
+          fields.each do |field|
+            query_params << "fields=#{field}"
+          end
+          log_metric("→ Requesting specific fields: #{fields.join(', ')}")
+        end
+
+        endpoint = '/applications/'
+        endpoint += "?#{query_params.join('&')}" unless query_params.empty?
+
         response = api_request(:get, endpoint)
 
-        # Extract only essential fields to reduce response size
+        # When fields are specified, return full response from API
+        # When no fields specified, filter to essential fields only (client-side optimization)
         if response.is_a?(Hash) && response['items'].is_a?(Array)
-          tables = response['items'].map do |table|
-            {
-              'id' => table['id'],
-              'name' => table['name'],
-              'solution_id' => table['solution_id']
-            }
+          if fields && !fields.empty?
+            # User requested specific fields - return as-is from API
+            tables = response['items']
+          else
+            # No fields specified - apply client-side filtering for essential fields only
+            tables = response['items'].map do |table|
+              {
+                'id' => table['id'],
+                'name' => table['name'],
+                'solution_id' => table['solution_id']
+              }
+            end
           end
 
           result = { 'tables' => tables, 'count' => tables.size }
@@ -43,12 +64,18 @@ module SmartSuite
           result
         elsif response.is_a?(Array)
           # If response is directly an array
-          tables = response.map do |table|
-            {
-              'id' => table['id'],
-              'name' => table['name'],
-              'solution_id' => table['solution_id']
-            }
+          if fields && !fields.empty?
+            # User requested specific fields - return as-is from API
+            tables = response
+          else
+            # No fields specified - apply client-side filtering for essential fields only
+            tables = response.map do |table|
+              {
+                'id' => table['id'],
+                'name' => table['name'],
+                'solution_id' => table['solution_id']
+              }
+            end
           end
 
           result = { 'tables' => tables, 'count' => tables.size }

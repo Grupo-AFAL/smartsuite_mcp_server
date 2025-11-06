@@ -68,12 +68,9 @@ module SmartSuite
           end
 
           # Get all members (with high limit to ensure we get all)
-          body = {
-            limit: 1000,  # High limit to get all members
-            offset: 0
-          }
+          query_params = "?limit=1000&offset=0"
 
-          response = api_request(:post, "/applications/members/records/list/", body)
+          response = api_request(:post, "/members/list/#{query_params}", nil)
 
           if response.is_a?(Hash) && response['items'].is_a?(Array)
             # Filter to only members in the solution
@@ -117,12 +114,9 @@ module SmartSuite
         else
           log_metric("→ Listing workspace members")
 
-          body = {
-            limit: limit,
-            offset: offset
-          }
+          query_params = "?limit=#{limit}&offset=#{offset}"
 
-          response = api_request(:post, "/applications/members/records/list/", body)
+          response = api_request(:post, "/members/list/#{query_params}", nil)
 
           # Extract only essential member information
           if response.is_a?(Hash) && response['items'].is_a?(Array)
@@ -167,11 +161,8 @@ module SmartSuite
       # @return [Array<Hash>] Array of team objects
       def list_teams
         log_metric("→ Listing teams")
-        body = {
-          limit: 1000,  # High limit to get all teams
-          offset: 0
-        }
-        response = api_request(:post, "/teams/list/", body)
+        query_params = "?limit=1000&offset=0"
+        response = api_request(:post, "/teams/list/#{query_params}", nil)
 
         # Cache teams for efficient lookup
         @teams_cache ||= {}

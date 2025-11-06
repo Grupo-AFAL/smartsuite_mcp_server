@@ -136,6 +136,31 @@ Always required:
 - `SMARTSUITE_API_KEY`: SmartSuite API authentication
 - `SMARTSUITE_ACCOUNT_ID`: Workspace identifier
 
+### SmartSuite API Parameter Conventions
+The SmartSuite API requires specific parameter placement:
+
+**Query Parameters (in URL):**
+- `limit`: Maximum number of records/items to return (POST endpoints)
+- `offset`: Pagination offset (number of items to skip) (POST endpoints)
+- `fields`: Field slug to include in response (GET endpoints, can be repeated)
+- `solution`: Solution ID to filter by (GET endpoints)
+
+**Body Parameters (JSON payload):**
+- `filter`: Filter criteria object (POST endpoints)
+- `sort`: Sort criteria array (POST endpoints)
+
+**Example Endpoints:**
+- List records: `POST /api/v1/applications/{table_id}/records/list/?limit=10&offset=0`
+  - Body: `{"filter": {...}, "sort": [...]}`
+- List members: `POST /api/v1/members/list/?limit=100&offset=0`
+- List teams: `POST /api/v1/teams/list/?limit=1000&offset=0`
+- List tables: `GET /api/v1/applications/?solution=sol_123&fields=name&fields=id&fields=structure`
+
+**Important Notes:**
+- The endpoints for members and teams are `/members/list/` and `/teams/list/`, NOT `/applications/members/records/list/`
+- The `fields` parameter in GET endpoints (like `/applications/`) can be repeated to request multiple fields
+- When `fields` is specified in `list_tables`, the API returns only those fields; when omitted, client-side filtering returns only essential fields (id, name, solution_id)
+
 ### MCP Protocol Methods
 The server implements:
 - `initialize`: MCP handshake and capability negotiation
