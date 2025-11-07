@@ -234,6 +234,16 @@ Each solution includes:
 - Returns `last_updated.on` timestamp or nil if no records
 - Useful for determining if a solution has recent data activity even without UI access
 
+### Record Listing Behavior
+
+**list_records** respects explicit limit parameters:
+- If `limit` is specified: Uses the specified value (e.g., `limit: 100` returns up to 100 records)
+- If `limit` is not specified: Uses default of 5 records
+- The `fields` parameter is always required (or `summary_only: true`) to prevent excessive token usage
+- Example: `list_records(table_id, 100, fields: ['title'])` will return up to 100 records
+
+**Important**: Previous behavior that capped limits at 2 without filters has been removed. The server now respects all explicit limit values.
+
 ### Available Prompt Templates
 The PromptRegistry provides 8 example prompts demonstrating common filter patterns:
 

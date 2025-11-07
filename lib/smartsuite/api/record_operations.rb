@@ -18,7 +18,7 @@ module SmartSuite
       # Returns plain text format by default (saves ~40% tokens vs JSON).
       #
       # @param table_id [String] Table identifier
-      # @param limit [Integer] Maximum records to return (default: 5)
+      # @param limit [Integer] Maximum records to return (default: 5, or nil to use default)
       # @param offset [Integer] Number of records to skip for pagination (default: 0)
       # @param filter [Hash, nil] Filter criteria following SmartSuite filter syntax
       # @param sort [Array<Hash>, nil] Sort criteria (field + direction)
@@ -26,9 +26,10 @@ module SmartSuite
       # @param summary_only [Boolean] Return statistics instead of records (default: false)
       # @param full_content [Boolean] Return full field values without truncation (default: false)
       # @return [String, Hash] Plain text formatted records or summary hash
-      def list_records(table_id, limit = 5, offset = 0, filter: nil, sort: nil, fields: nil, summary_only: false, full_content: false)
+      def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, summary_only: false, full_content: false)
         # Handle nil values (when called via MCP with missing parameters)
-        limit ||= 5
+        # If limit is nil (not specified), use default of 5
+        limit = 5 if limit.nil?
         offset ||= 0
 
         # VALIDATION: Require fields or summary_only to prevent excessive context usage
@@ -39,12 +40,6 @@ module SmartSuite
                       "  list_records(table_id, summary_only: true)\n\n" +
                       "This prevents excessive context consumption."
           return {'error' => error_msg}
-        end
-
-        # LIMIT: Without filter, maximum 2 records to prevent excessive usage
-        if !filter && limit > 2
-          log_metric("⚠️  No filter: limit reduced from #{limit} → 2")
-          limit = 2
         end
 
         # Build query params for limit and offset

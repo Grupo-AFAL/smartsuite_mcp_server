@@ -686,8 +686,8 @@ class SmartSuiteServerTest < Minitest::Test
 
     # Sort should be in body
     assert_equal sort, sent_body[:sort]
-    # Without filter, limit is automatically reduced to 2 and should be in query params
-    assert_includes sent_endpoint, '?limit=2&offset=0', 'Should have limit=2 as query param (auto-reduced without filter)'
+    # Explicit limit should be respected (no longer auto-reduced)
+    assert_includes sent_endpoint, '?limit=10&offset=0', 'Should respect explicitly specified limit'
   end
 
   def test_client_list_records_with_filter_and_sort
@@ -735,8 +735,8 @@ class SmartSuiteServerTest < Minitest::Test
 
     # Body should be nil or empty when no filter or sort
     assert sent_body.nil? || sent_body.empty?, 'Body should be nil or empty when no filter/sort'
-    # Without filter, limit is automatically reduced to 2 and should be in query params
-    assert_includes sent_endpoint, '?limit=2&offset=0', 'Should have limit=2 as query param (auto-reduced without filter)'
+    # Explicit limit should be respected (no longer auto-reduced)
+    assert_includes sent_endpoint, '?limit=50&offset=0', 'Should respect explicitly specified limit'
   end
 
   # Test response filtering - now returns plain text
