@@ -1606,4 +1606,534 @@ class SmartSuiteServerTest < Minitest::Test
     assert_includes tool_names, 'get_view_records', 'Should include get_view_records tool'
     assert_includes tool_names, 'create_view', 'Should include create_view tool'
   end
+
+  # Test list_solutions_by_owner
+  def test_list_solutions_by_owner_filters_by_owner
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'sol_1',
+          'name' => 'Solution 1',
+          'logo_icon' => 'star',
+          'logo_color' => '#FF0000',
+          'permissions' => {
+            'owners' => ['user_123', 'user_456']
+          }
+        },
+        {
+          'id' => 'sol_2',
+          'name' => 'Solution 2',
+          'logo_icon' => 'heart',
+          'logo_color' => '#00FF00',
+          'permissions' => {
+            'owners' => ['user_789']
+          }
+        },
+        {
+          'id' => 'sol_3',
+          'name' => 'Solution 3',
+          'logo_icon' => 'circle',
+          'logo_color' => '#0000FF',
+          'permissions' => {
+            'owners' => ['user_123']
+          }
+        }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.list_solutions_by_owner('user_123')
+
+    assert_equal 2, result['count'], 'Should return 2 solutions owned by user_123'
+    assert_equal 2, result['solutions'].length
+    assert_equal 'sol_1', result['solutions'][0]['id']
+    assert_equal 'sol_3', result['solutions'][1]['id']
+    assert_equal 'Solution 1', result['solutions'][0]['name']
+    assert_equal 'Solution 3', result['solutions'][1]['name']
+  end
+
+  def test_list_solutions_by_owner_with_activity_data
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'sol_1',
+          'name' => 'Solution 1',
+          'logo_icon' => 'star',
+          'logo_color' => '#FF0000',
+          'permissions' => {
+            'owners' => ['user_123']
+          },
+          'status' => 'active',
+          'last_access' => '2025-01-01T00:00:00Z',
+          'records_count' => 100,
+          'applications_count' => 5
+        }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.list_solutions_by_owner('user_123', include_activity_data: true)
+
+    assert_equal 1, result['count']
+    solution = result['solutions'][0]
+    assert_equal 'active', solution['status']
+    assert_equal '2025-01-01T00:00:00Z', solution['last_access']
+    assert_equal 100, solution['records_count']
+    assert_equal 5, solution['applications_count']
+  end
+
+  def test_list_solutions_by_owner_returns_empty_when_no_matches
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'sol_1',
+          'name' => 'Solution 1',
+          'permissions' => {
+            'owners' => ['user_789']
+          }
+        }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.list_solutions_by_owner('user_123')
+
+    assert_equal 0, result['count']
+    assert_equal 0, result['solutions'].length
+  end
+
+  def test_tools_list_includes_list_solutions_by_owner
+    request = {
+      'id' => 18,
+      'method' => 'tools/list',
+      'params' => {}
+    }
+
+    response = call_private_method(:handle_tools_list, request)
+
+    tool_names = response['result']['tools'].map { |t| t['name'] }
+    assert_includes tool_names, 'list_solutions_by_owner', 'Should include list_solutions_by_owner tool'
+
+    tool = response['result']['tools'].find { |t| t['name'] == 'list_solutions_by_owner' }
+    assert tool['inputSchema']['properties']['owner_id'], 'Should have owner_id parameter'
+    assert tool['inputSchema']['properties']['include_activity_data'], 'Should have include_activity_data parameter'
+    assert_equal ['owner_id'], tool['inputSchema']['required'], 'owner_id should be required'
+  end
+
+  # Test get_solution_most_recent_record_update
+  def test_get_solution_most_recent_record_update_returns_latest_date
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    # Mock responses
+    mock_tables_response = {
+      'tables' => [
+        {'id' => 'tbl_1', 'name' => 'Table 1'},
+        {'id' => 'tbl_2', 'name' => 'Table 2'}
+      ],
+      'count' => 2
+    }
+
+    mock_records_responses = {
+      'tbl_1' => {
+        'items' => [
+          {
+            'last_updated' => {
+              'on' => '2025-01-10T12:00:00Z'
+            }
+          }
+        ]
+      },
+      'tbl_2' => {
+        'items' => [
+          {
+            'last_updated' => {
+              'on' => '2025-01-15T12:00:00Z'
+            }
+          }
+        ]
+      }
+    }
+
+    client.define_singleton_method(:list_tables) do |solution_id: nil|
+      mock_tables_response
+    end
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      # Extract table_id from endpoint like "/applications/tbl_1/records/list/?limit=1&offset=0"
+      if endpoint.include?('/records/list/')
+        table_id = endpoint.match(/applications\/([^\/]+)\/records/)[1]
+        mock_records_responses[table_id]
+      end
+    end
+
+    result = client.get_solution_most_recent_record_update('sol_123')
+
+    assert_equal '2025-01-15T12:00:00Z', result, 'Should return the most recent date across all tables'
+  end
+
+  def test_get_solution_most_recent_record_update_returns_nil_when_no_records
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_tables_response = {
+      'tables' => [
+        {'id' => 'tbl_1', 'name' => 'Table 1'}
+      ],
+      'count' => 1
+    }
+
+    client.define_singleton_method(:list_tables) do |solution_id: nil|
+      mock_tables_response
+    end
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      {'items' => []}
+    end
+
+    result = client.get_solution_most_recent_record_update('sol_123')
+
+    assert_nil result, 'Should return nil when no records exist'
+  end
+
+  def test_get_solution_most_recent_record_update_returns_nil_when_no_tables
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    client.define_singleton_method(:list_tables) do |solution_id: nil|
+      {'tables' => [], 'count' => 0}
+    end
+
+    result = client.get_solution_most_recent_record_update('sol_123')
+
+    assert_nil result, 'Should return nil when solution has no tables'
+  end
+
+  # Test search_member
+  def test_search_member_finds_by_email
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'user_1',
+          'email' => 'john.doe@example.com',
+          'role' => 'admin',
+          'status' => 'active',
+          'full_name' => {
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'sys_root' => 'John Doe'
+          }
+        },
+        {
+          'id' => 'user_2',
+          'email' => 'jane.smith@example.com',
+          'role' => 'member',
+          'status' => 'active',
+          'full_name' => {
+            'first_name' => 'Jane',
+            'last_name' => 'Smith',
+            'sys_root' => 'Jane Smith'
+          }
+        }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.search_member('john.doe')
+
+    assert_equal 1, result['count'], 'Should find 1 member by email'
+    assert_equal 'john.doe', result['query']
+    assert_equal 'user_1', result['members'][0]['id']
+    assert_equal 'john.doe@example.com', result['members'][0]['email']
+  end
+
+  def test_search_member_finds_by_first_name
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'user_1',
+          'email' => 'john.doe@example.com',
+          'role' => 'admin',
+          'status' => 'active',
+          'full_name' => {
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'sys_root' => 'John Doe'
+          }
+        },
+        {
+          'id' => 'user_2',
+          'email' => 'jane.smith@example.com',
+          'role' => 'member',
+          'status' => 'active',
+          'full_name' => {
+            'first_name' => 'Jane',
+            'last_name' => 'Smith',
+            'sys_root' => 'Jane Smith'
+          }
+        }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.search_member('jane')
+
+    assert_equal 1, result['count'], 'Should find 1 member by first name'
+    assert_equal 'user_2', result['members'][0]['id']
+    assert_equal 'Jane', result['members'][0]['first_name']
+  end
+
+  def test_search_member_finds_by_last_name
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'user_1',
+          'email' => 'john.doe@example.com',
+          'role' => 'admin',
+          'status' => 'active',
+          'full_name' => {
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'sys_root' => 'John Doe'
+          }
+        }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.search_member('doe')
+
+    assert_equal 1, result['count'], 'Should find 1 member by last name'
+    assert_equal 'user_1', result['members'][0]['id']
+    assert_equal 'Doe', result['members'][0]['last_name']
+  end
+
+  def test_search_member_is_case_insensitive
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'user_1',
+          'email' => 'John.Doe@Example.COM',
+          'role' => 'admin',
+          'status' => 'active',
+          'full_name' => {
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'sys_root' => 'John Doe'
+          }
+        }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.search_member('JOHN')
+
+    assert_equal 1, result['count'], 'Should be case insensitive'
+    assert_equal 'user_1', result['members'][0]['id']
+  end
+
+  def test_search_member_returns_empty_when_no_matches
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'user_1',
+          'email' => 'john.doe@example.com',
+          'role' => 'admin',
+          'status' => 'active',
+          'full_name' => {
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'sys_root' => 'John Doe'
+          }
+        }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.search_member('nonexistent')
+
+    assert_equal 0, result['count'], 'Should return 0 when no matches'
+    assert_equal 0, result['members'].length
+  end
+
+  def test_search_member_handles_email_array
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'user_1',
+          'email' => ['john.doe@example.com', 'j.doe@example.com'],
+          'role' => 'admin',
+          'status' => 'active',
+          'full_name' => {
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'sys_root' => 'John Doe'
+          }
+        }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.search_member('john.doe')
+
+    assert_equal 1, result['count'], 'Should handle email as array'
+    assert_equal 'user_1', result['members'][0]['id']
+  end
+
+  def test_search_member_includes_optional_fields
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'user_1',
+          'email' => 'john.doe@example.com',
+          'role' => 'admin',
+          'status' => 'active',
+          'full_name' => {
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'sys_root' => 'John Doe'
+          },
+          'job_title' => 'Senior Developer',
+          'department' => 'Engineering'
+        }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.search_member('john')
+
+    assert_equal 1, result['count']
+    member = result['members'][0]
+    assert_equal 'Senior Developer', member['job_title']
+    assert_equal 'Engineering', member['department']
+  end
+
+  def test_tools_list_includes_search_member
+    request = {
+      'id' => 19,
+      'method' => 'tools/list',
+      'params' => {}
+    }
+
+    response = call_private_method(:handle_tools_list, request)
+
+    tool_names = response['result']['tools'].map { |t| t['name'] }
+    assert_includes tool_names, 'search_member', 'Should include search_member tool'
+
+    tool = response['result']['tools'].find { |t| t['name'] == 'search_member' }
+    assert tool['inputSchema']['properties']['query'], 'Should have query parameter'
+    assert_equal ['query'], tool['inputSchema']['required'], 'query should be required'
+  end
+
+  # Test list_solutions with fields parameter
+  def test_list_solutions_with_fields_parameter
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'sol_1',
+          'name' => 'Solution 1',
+          'created' => '2025-01-01T00:00:00Z',
+          'created_by' => 'user_123',
+          'logo_icon' => 'star',
+          'logo_color' => '#FF0000',
+          'extra_field' => 'should not be included'
+        }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.list_solutions(fields: ['id', 'name', 'created'])
+
+    assert_equal 1, result['count']
+    solution = result['solutions'][0]
+    assert_equal 'sol_1', solution['id']
+    assert_equal 'Solution 1', solution['name']
+    assert_equal '2025-01-01T00:00:00Z', solution['created']
+    refute solution.key?('logo_icon'), 'Should not include fields not requested'
+    refute solution.key?('extra_field'), 'Should not include extra fields'
+  end
+
+  def test_list_solutions_without_fields_returns_essential_only
+    client = SmartSuiteClient.new('test_key', 'test_account')
+
+    mock_response = {
+      'items' => [
+        {
+          'id' => 'sol_1',
+          'name' => 'Solution 1',
+          'logo_icon' => 'star',
+          'logo_color' => '#FF0000',
+          'created' => '2025-01-01T00:00:00Z',
+          'status' => 'active'
+        }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      mock_response
+    end
+
+    result = client.list_solutions
+
+    assert_equal 1, result['count']
+    solution = result['solutions'][0]
+    assert_equal 'sol_1', solution['id']
+    assert_equal 'Solution 1', solution['name']
+    assert_equal 'star', solution['logo_icon']
+    assert_equal '#FF0000', solution['logo_color']
+    refute solution.key?('created'), 'Should not include non-essential fields by default'
+    refute solution.key?('status'), 'Should not include activity fields by default'
+  end
 end

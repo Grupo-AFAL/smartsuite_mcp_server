@@ -57,7 +57,7 @@ The codebase follows a modular architecture with clear separation of concerns ac
 ### 2. MCP Protocol Layer (`lib/smartsuite/mcp/`)
 Handles MCP protocol responses and schemas:
 
-- **ToolRegistry** (`tool_registry.rb`, 600 lines): All 22 tool schemas organized by category
+- **ToolRegistry** (`tool_registry.rb`, 633 lines): All 26 tool schemas organized by category
 - **PromptRegistry** (`prompt_registry.rb`, 447 lines): 8 prompt templates covering all major filter patterns
 - **ResourceRegistry** (`resource_registry.rb`, 15 lines): Resource listing (currently empty)
 
@@ -65,11 +65,11 @@ Handles MCP protocol responses and schemas:
 Handles SmartSuite API communication:
 
 - **HttpClient** (`http_client.rb`, 68 lines): HTTP request execution, authentication, logging
-- **WorkspaceOperations** (`workspace_operations.rb`): Solution management and usage analysis
+- **WorkspaceOperations** (`workspace_operations.rb`, 344 lines): Solution management, usage analysis, owner filtering, and recent update tracking
 - **TableOperations** (`table_operations.rb`): Table/application management (list, get, create)
 - **RecordOperations** (`record_operations.rb`, 114 lines): Record CRUD operations
 - **FieldOperations** (`field_operations.rb`, 103 lines): Table schema management (add/update/delete fields)
-- **MemberOperations** (`member_operations.rb`, 212 lines): User and team management
+- **MemberOperations** (`member_operations.rb`, 281 lines): User and team management, member search
 - **CommentOperations** (`comment_operations.rb`, 79 lines): Comment management (list, add comments)
 - **ViewOperations** (`view_operations.rb`, 88 lines): View/report management (get records, create views)
 
@@ -160,12 +160,14 @@ The SmartSuite API requires specific parameter placement:
 - The endpoints for members and teams are `/members/list/` and `/teams/list/`, NOT `/applications/members/records/list/`
 - The `fields` parameter in GET endpoints (like `/applications/`) can be repeated to request multiple fields
 - When `fields` is specified in `list_tables`, the API returns only those fields; when omitted, client-side filtering returns only essential fields (id, name, solution_id)
+- The `/solutions/` endpoint does NOT respect the `fields` parameter - it always returns all fields. The `list_solutions` tool implements client-side filtering when `fields` parameter is provided
+- Note: Requesting `permissions` field for all solutions (110+) may exceed token limits due to large permissions objects. Consider fetching individual solutions or using `include_activity_data` instead
 
 ### MCP Protocol Methods
 The server implements:
 - `initialize`: MCP handshake and capability negotiation
 - `tools/list`: List all available SmartSuite tools
-- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_tables, get_table, create_table, list_records, create_record, update_record, delete_record, add_field, bulk_add_fields, update_field, delete_field, list_members, list_teams, get_team, list_comments, add_comment, get_view_records, create_view, get_api_stats, reset_api_stats)
+- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_solutions_by_owner, list_tables, get_table, create_table, list_records, create_record, update_record, delete_record, add_field, bulk_add_fields, update_field, delete_field, list_members, search_member, list_teams, get_team, list_comments, add_comment, get_view_records, create_view, get_api_stats, reset_api_stats)
 - `prompts/list`: List example prompts for filters
 - `prompts/get`: Get specific prompt templates
 - `resources/list`: List available resources (empty)
@@ -215,8 +217,22 @@ Each solution includes:
 - `has_demo_data`
 - `reason`: Why it's categorized as inactive/potentially unused
 
-**list_solutions** - Now accepts optional parameter:
+**list_solutions** - Now accepts optional parameters:
 - `include_activity_data: true`: Include all activity/usage fields for custom analysis
+- `fields: ["id", "name", ...]`: Request specific fields (client-side filtered since API doesn't support it)
+
+**list_solutions_by_owner** - Filters solutions by owner:
+- Fetches all solutions with permissions data
+- Filters client-side by owner ID from `permissions.owners` array
+- Returns only solutions owned by the specified user
+- Accepts `include_activity_data: true` for usage metrics
+- Much more efficient than requesting `permissions` field for all solutions
+
+**get_solution_most_recent_record_update** - Gets most recent record update:
+- Queries all tables in a solution
+- Finds the most recently updated record across all tables
+- Returns `last_updated.on` timestamp or nil if no records
+- Useful for determining if a solution has recent data activity even without UI access
 
 ### Available Prompt Templates
 The PromptRegistry provides 8 example prompts demonstrating common filter patterns:

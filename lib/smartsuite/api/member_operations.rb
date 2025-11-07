@@ -153,6 +153,84 @@ module SmartSuite
         end
       end
 
+      # Searches for members by name or email.
+      #
+      # Fetches all members and filters by search query (case-insensitive).
+      # Searches in: email, first_name, last_name, full_name.
+      #
+      # @param query [String] Search query for name or email
+      # @return [Hash] Matching members with count
+      def search_member(query)
+        log_metric("→ Searching members with query: #{query}")
+
+        # Get all members
+        query_params = "?limit=1000&offset=0"
+        response = api_request(:post, "/members/list/#{query_params}", nil)
+
+        if response.is_a?(Hash) && response['items'].is_a?(Array)
+          # Filter members by query (case-insensitive)
+          query_lower = query.downcase
+
+          matching_members = response['items'].select do |member|
+            # Search in email (handle both string and array)
+            email_match = false
+            if member['email']
+              email = member['email'].is_a?(Array) ? member['email'].first : member['email']
+              email_match = email && email.to_s.downcase.include?(query_lower)
+            end
+
+            # Search in name fields
+            name_match = false
+            if member['full_name']
+              first_name = member['full_name']['first_name'].to_s
+              last_name = member['full_name']['last_name'].to_s
+              full_name = member['full_name']['sys_root'].to_s
+
+              name_match = first_name.downcase.include?(query_lower) ||
+                          last_name.downcase.include?(query_lower) ||
+                          full_name.downcase.include?(query_lower)
+            end
+
+            email_match || name_match
+          end
+
+          # Format results with essential fields only
+          members = matching_members.map do |member|
+            result = {
+              'id' => member['id'],
+              'email' => member['email'],
+              'role' => member['role'],
+              'status' => member['status']
+            }
+
+            # Add name fields if available
+            if member['full_name']
+              result['first_name'] = member['full_name']['first_name']
+              result['last_name'] = member['full_name']['last_name']
+              result['full_name'] = member['full_name']['sys_root']
+            end
+
+            # Add other useful fields
+            result['job_title'] = member['job_title'] if member['job_title']
+            result['department'] = member['department'] if member['department']
+
+            result.compact
+          end
+
+          result = {
+            'members' => members,
+            'count' => members.size,
+            'query' => query
+          }
+          tokens = estimate_tokens(JSON.generate(result))
+          log_metric("✓ Found #{members.size} matching members")
+          log_token_usage(tokens)
+          result
+        else
+          response
+        end
+      end
+
       # Lists all teams in the workspace with caching.
       #
       # Teams are cached in memory for efficient lookups. Uses high limit
