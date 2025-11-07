@@ -22,6 +22,11 @@ module SmartSuite
               'include_activity_data' => {
                 'type' => 'boolean',
                 'description' => 'Optional: Include usage and activity metrics (status, last_access, records_count, etc.) for identifying inactive solutions. Default: false.'
+              },
+              'fields' => {
+                'type' => 'array',
+                'items' => {'type' => 'string'},
+                'description' => 'Optional: Array of field names to request from API (e.g., ["id", "name", "permissions", "created_by"]). Available fields: name, slug, logo_color, logo_icon, description, permissions (with owners array), hidden, created, created_by, updated, updated_by, has_demo_data, status, automation_count, records_count, members_count, sharing_hash, sharing_password, sharing_enabled, sharing_allow_copy, applications_count, last_access, id, delete_date, deleted_by, template. When specified, only these fields are returned from API. When omitted, client-side filtering returns only essential fields (id, name, logo_icon, logo_color).'
               }
             },
             'required' => []
@@ -43,6 +48,38 @@ module SmartSuite
               }
             },
             'required' => []
+          }
+        },
+        {
+          'name' => 'list_solutions_by_owner',
+          'description' => 'List solutions owned by a specific user. Fetches all solutions, filters client-side by owner ID from permissions.owners array, and returns only matching solutions with essential fields.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'owner_id' => {
+                'type' => 'string',
+                'description' => 'User ID of the solution owner (e.g., from list_members result)'
+              },
+              'include_activity_data' => {
+                'type' => 'boolean',
+                'description' => 'Optional: Include usage and activity metrics (status, last_access, records_count, etc.). Default: false.'
+              }
+            },
+            'required' => ['owner_id']
+          }
+        },
+        {
+          'name' => 'get_solution_most_recent_record_update',
+          'description' => 'Get the most recent record update timestamp across all tables in a solution. Useful for determining if a solution has recent data activity even without UI access.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'solution_id' => {
+                'type' => 'string',
+                'description' => 'Solution ID to check for most recent record update'
+              }
+            },
+            'required' => ['solution_id']
           }
         }
       ].freeze
@@ -399,6 +436,20 @@ module SmartSuite
               }
             },
             'required' => ['team_id']
+          }
+        },
+        {
+          'name' => 'search_member',
+          'description' => 'Search for members by name or email. Performs case-insensitive search across email, first name, last name, and full name fields. Returns only matching members to minimize token usage.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'query' => {
+                'type' => 'string',
+                'description' => 'Search query for name or email (case-insensitive)'
+              }
+            },
+            'required' => ['query']
           }
         }
       ].freeze

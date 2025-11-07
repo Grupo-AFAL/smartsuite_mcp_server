@@ -156,14 +156,26 @@ class SmartSuiteServer
 
     result = case tool_name
     when 'list_solutions'
-      @client.list_solutions(include_activity_data: arguments['include_activity_data'])
+      @client.list_solutions(
+        include_activity_data: arguments['include_activity_data'],
+        fields: arguments['fields']
+      )
     when 'analyze_solution_usage'
       @client.analyze_solution_usage(
         days_inactive: arguments['days_inactive'] || 90,
         min_records: arguments['min_records'] || 10
       )
+    when 'list_solutions_by_owner'
+      @client.list_solutions_by_owner(
+        arguments['owner_id'],
+        include_activity_data: arguments['include_activity_data']
+      )
+    when 'get_solution_most_recent_record_update'
+      @client.get_solution_most_recent_record_update(arguments['solution_id'])
     when 'list_members'
       @client.list_members(arguments['limit'], arguments['offset'], solution_id: arguments['solution_id'])
+    when 'search_member'
+      @client.search_member(arguments['query'])
     when 'list_teams'
       @client.list_teams
     when 'get_team'
