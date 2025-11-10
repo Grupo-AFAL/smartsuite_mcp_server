@@ -27,12 +27,6 @@ module SmartSuite
 
         response = api_request(:post, "/applications/#{table_id}/add_field/", body)
 
-        # Invalidate cache (table structure changed)
-        if cache_enabled?
-          @cache.invalidate_table_cache(table_id)
-          log_metric("→ Cache invalidated for #{table_id} (field added)")
-        end
-
         if response.is_a?(Hash)
           log_metric("✓ Field added successfully: #{field_data['label']}")
         end
@@ -60,12 +54,6 @@ module SmartSuite
 
         response = api_request(:post, "/applications/#{table_id}/bulk-add-fields/", body)
 
-        # Invalidate cache (table structure changed)
-        if cache_enabled?
-          @cache.invalidate_table_cache(table_id)
-          log_metric("→ Cache invalidated for #{table_id} (#{fields.size} fields added)")
-        end
-
         log_metric("✓ Successfully added #{fields.size} fields")
 
         response
@@ -86,12 +74,6 @@ module SmartSuite
         body = field_data.merge('slug' => slug)
 
         response = api_request(:put, "/applications/#{table_id}/change_field/", body)
-
-        # Invalidate cache (table structure changed)
-        if cache_enabled?
-          @cache.invalidate_table_cache(table_id)
-          log_metric("→ Cache invalidated for #{table_id} (field updated)")
-        end
 
         if response.is_a?(Hash)
           log_metric("✓ Field updated successfully: #{slug}")
@@ -115,12 +97,6 @@ module SmartSuite
         }
 
         response = api_request(:post, "/applications/#{table_id}/delete_field/", body)
-
-        # Invalidate cache (table structure changed)
-        if cache_enabled?
-          @cache.invalidate_table_cache(table_id)
-          log_metric("→ Cache invalidated for #{table_id} (field deleted)")
-        end
 
         if response.is_a?(Hash)
           log_metric("✓ Field deleted successfully: #{slug}")
