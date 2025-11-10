@@ -80,27 +80,45 @@ Handles SmartSuite API communication:
 ### 4. Formatters Layer (`lib/smartsuite/formatters/`)
 Implements token optimization:
 
-- **ResponseFormatter** (`response_formatter.rb`, 211 lines): Response filtering, plain text formatting, truncation strategies
+- **ResponseFormatter** (`response_formatter.rb`): Response filtering, plain text formatting (no truncation per user request)
 
-### 5. Supporting Components
+### 5. Cache Layer (`lib/smartsuite/`)
+SQLite-based persistent caching for SmartSuite data:
+
+- **CacheLayer** (`cache_layer.rb`): Dynamic table creation, TTL management, schema evolution
+- **CacheQuery** (`cache_query.rb`): Chainable query builder for flexible multi-criteria queries
+- **Database**: `~/.smartsuite_mcp_cache.db` (single file, includes both cache and API stats)
+
+### 6. Supporting Components
 **ApiStatsTracker** (`lib/api_stats_tracker.rb`)
-- **Responsibility**: API usage monitoring and persistence
-- Tracks API calls by user, solution, table, method, endpoint
-- Persists statistics to `~/.smartsuite_mcp_stats.json`
+- **Responsibility**: API usage monitoring with session tracking
+- Tracks API calls by user, session, solution, table, method, endpoint
+- Persists statistics to SQLite database (shares database with cache layer)
+- Session tracking: Each client instance gets unique session_id
 - Hashes API keys for privacy (SHA256, first 8 chars)
 - Operates silently - never interrupts user work on errors
 
 ## Key Design Patterns
+
+### SQLite Caching Strategy
+The server uses aggressive caching to minimize API calls and enable efficient local queries:
+
+1. **Aggressive Fetch**: When cache misses, fetch ALL records from table (paginated with limit=1000)
+2. **Dynamic Tables**: One SQL table per SmartSuite table with proper column types
+3. **Table-based TTL**: All records in a table expire together (default: 4 hours)
+4. **No Mutation Invalidation**: Cache expires naturally by TTL, not invalidated on create/update/delete
+5. **Local Querying**: Query cached data with flexible filters (SmartSuite API filters only used when cache disabled)
+6. **Session Tracking**: Every client session tracked for usage analysis
 
 ### Token Optimization Strategy
 This server is heavily optimized to minimize Claude's token usage:
 
 1. **Filtered Table Structures**: `get_table` returns only essential fields (slug, label, field_type, minimal params), removing 83.8% of UI/display metadata
 2. **Plain Text Responses**: `list_records` returns formatted text instead of JSON (30-50% savings)
-3. **Summary Mode**: `list_records` with `summary_only: true` returns statistics instead of data
-4. **Field Selection**: `list_records` requires explicit `fields` parameter to prevent returning all columns
-5. **Solution Filtering**: `list_members` accepts `solution_id` to filter server-side
-6. **Automatic Limiting**: `list_records` caps to 2 records when no filter is provided
+3. **Required Field Selection**: `list_records` requires explicit `fields` parameter to prevent returning all columns
+4. **No Truncation**: Fields returned in full (user must specify only needed fields to control tokens)
+5. **Total vs Filtered Counts**: Always shows "X of Y total records" to help AI make informed decisions
+6. **Cache-First Strategy**: Minimize API calls by querying local SQLite cache
 
 ### Data Flow Pattern
 ```
@@ -113,13 +131,16 @@ ToolRegistry/PromptRegistry (MCP layer)
 SmartSuiteServer.handle_tool_call()
     ↓
 SmartSuiteClient (includes modules):
+  - CacheLayer (check cache validity)
+      ├─ Cache HIT → Query SQLite → Return results
+      └─ Cache MISS → Fetch ALL records → Cache → Query → Return
   - HttpClient.api_request()  ←  ApiStatsTracker.track_api_call()
   - WorkspaceOperations/TableOperations/RecordOperations/FieldOperations/MemberOperations/CommentOperations/ViewOperations
   - ResponseFormatter.filter_*()
     ↓                                          ↓
-SmartSuite API                           Save to ~/.smartsuite_mcp_stats.json
-    ↓
-Response Filtering (token optimization)
+SmartSuite API                           Save to ~/.smartsuite_mcp_cache.db
+    ↓                                    (both cache + API stats)
+Response Filtering (plain text, no truncation)
     ↓
 JSON-RPC Response (stdout)
 ```
@@ -236,13 +257,49 @@ Each solution includes:
 
 ### Record Listing Behavior
 
-**list_records** respects explicit limit parameters:
-- If `limit` is specified: Uses the specified value (e.g., `limit: 100` returns up to 100 records)
-- If `limit` is not specified: Uses default of 5 records
-- The `fields` parameter is always required (or `summary_only: true`) to prevent excessive token usage
-- Example: `list_records(table_id, 100, fields: ['title'])` will return up to 100 records
+**list_records** uses cache-first strategy with required fields parameter:
 
-**Important**: Previous behavior that capped limits at 2 without filters has been removed. The server now respects all explicit limit values.
+**Parameters:**
+- `table_id` (required): Table identifier
+- `limit` (default: 10): Maximum records to return
+- `offset` (default: 0): Pagination offset
+- `filter` (optional): SmartSuite filter criteria (only used when cache disabled/bypassed)
+- `sort` (optional): Sort criteria (only used when cache disabled/bypassed)
+- `fields` (required): Array of field slugs to return (e.g., `['status', 'priority']`)
+- `hydrated` (default: true): Fetch human-readable values for linked records, users, etc.
+- `bypass_cache` (default: false): Force direct API call even if cache enabled
+
+**Behavior:**
+- **Cache enabled** (default):
+  - Check if cache valid (not expired)
+  - If invalid: Fetch ALL records (paginated at 1000/batch), cache them, then query
+  - If valid: Query cached records directly
+  - Apply limit/offset to cached results
+  - Return plain text format showing "X of Y total records"
+
+- **Cache disabled or bypass_cache: true**:
+  - Make direct API call with SmartSuite filters
+  - Apply limit/offset at API level
+  - Return plain text format
+
+**Important Notes:**
+- **Fields parameter is REQUIRED** - returns error if not specified
+- **No value truncation** - returns full field values (control tokens by specifying only needed fields)
+- **SmartSuite filters ignored when using cache** - all filtering done locally on cached data
+- **Cache never invalidated on mutations** - expires naturally by TTL (default 4 hours)
+- **Always shows total vs filtered counts** - helps AI make informed pagination decisions
+
+**Example:**
+```ruby
+# Correct usage - specify fields
+list_records('tbl_123', 10, 0, fields: ['status', 'priority', 'assigned_to'])
+
+# Returns error - missing fields
+list_records('tbl_123', 10, 0)  # ERROR
+
+# Bypass cache for fresh data
+list_records('tbl_123', 10, 0, fields: ['status'], bypass_cache: true)
+```
 
 ### Available Prompt Templates
 The PromptRegistry provides 8 example prompts demonstrating common filter patterns:
@@ -259,6 +316,8 @@ The PromptRegistry provides 8 example prompts demonstrating common filter patter
 Each prompt generates a complete example with the correct filter structure, operators, and value format for that field type.
 
 ### SmartSuite Filter Syntax
+
+**Note:** SmartSuite API filters are only used when cache is disabled or `bypass_cache: true`. When using cache (default), all filtering is done locally on cached records via SQL queries.
 
 #### Filter Operators by Field Type
 
@@ -339,9 +398,14 @@ Each prompt generates a complete example with the correct filter structure, oper
 - Formula and Lookup fields inherit operators from their return types
 
 ### Response Filtering in ResponseFormatter
-The `filter_field_structure` method (`lib/smartsuite/formatters/response_formatter.rb:21`) aggressively removes non-essential data:
+The `filter_field_structure` method aggressively removes non-essential data:
 - Keeps: slug, label, field_type, required, unique, primary, choices (minimal), linked_application, entries_allowed
 - Removes: display_format, help_doc, default_value, width, column_widths, visible_fields, choice colors/icons, etc.
+
+The `truncate_value` method **does NOT truncate values** (per user request):
+- Returns all field values in full without truncation
+- Users must specify only needed fields via `fields` parameter to control token usage
+- Encourages fetching minimal fields rather than truncating large values
 
 ## Testing Approach
 
@@ -461,15 +525,15 @@ Comments use SmartSuite's rich text format (TipTap/ProseMirror). Plain text is a
 
 ## Logging and Metrics
 
-Two separate log files:
-- `~/.smartsuite_mcp_stats.json`: API usage statistics (persistent)
-- `~/.smartsuite_mcp_metrics.log`: Tool calls and token usage (append-only)
+**Database File:**
+- `~/.smartsuite_mcp_cache.db`: SQLite database containing:
+  - Cached table records (one SQL table per SmartSuite table)
+  - API call logs with session tracking
+  - API statistics summaries
+  - Cache metadata (TTL config, table schemas)
 
-Metrics are logged for every API call showing:
-- Tool name
-- Result summary
-- Token estimate
-- Running total
+**Metrics Log:**
+- `~/.smartsuite_mcp_metrics.log`: Tool calls and token usage (append-only)
 
 ## SmartSuite API Rate Limits
 

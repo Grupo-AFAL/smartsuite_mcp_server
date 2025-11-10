@@ -62,8 +62,8 @@ def fetch_and_cache_records(table_id)
   # Get table-specific TTL configuration
   ttl = get_table_ttl(table_id)
 
-  # Fetch ALL records from SmartSuite
-  records = fetch_all_records_paginated(table_id)
+  # Fetch ALL records from SmartSuite (using 1000 record batches)
+  records = fetch_all_records_paginated(table_id, limit: 1000)
 
   # Calculate expiration time (same for all records)
   expires_at = Time.now.to_i + ttl
@@ -186,39 +186,50 @@ end
 
 ---
 
-## Cache Invalidation
+## Cache Expiration Strategy
 
-### Manual Invalidation (After Mutations)
+### Natural TTL Expiration (No Manual Invalidation)
 
-When we create/update/delete a record via the MCP server:
+The cache uses **natural expiration only** - we do NOT invalidate cache on mutations (create/update/delete operations).
 
+**Rationale:**
+- User tolerance for slightly stale data (up to TTL duration)
+- Avoids expensive re-fetching on every mutation
+- Simplifies implementation and reduces API calls
+- Mutations are often batched, making per-mutation invalidation wasteful
+
+**How it works:**
 ```ruby
 def create_record(table_id, record_data)
   # Create record via SmartSuite API
   result = api_request(:post, "applications/#{table_id}/records/", body: record_data)
 
-  # Invalidate the entire table cache
-  invalidate_table_cache(table_id)
+  # NO cache invalidation - cache will expire naturally by TTL
 
   result
 end
 
-def invalidate_table_cache(table_id)
-  sql_table_name = "cache_records_#{sanitize_table_name(table_id)}"
+def update_record(table_id, record_id, record_data)
+  # Update record via SmartSuite API
+  result = api_request(:patch, "applications/#{table_id}/records/#{record_id}/", body: record_data)
 
-  # Option 1: Delete all records (forces re-fetch)
-  db.execute("DELETE FROM #{sql_table_name}")
+  # NO cache invalidation - cache will expire naturally by TTL
 
-  # Option 2: Set expires_at to past (forces re-fetch on next query)
-  db.execute(
-    "UPDATE #{sql_table_name} SET expires_at = 0"
-  )
+  result
 end
 ```
 
-### Auto-Refresh on Expiration
+**Auto-Refresh on Expiration:**
+- Cache expires based on TTL (default: 4 hours)
+- Next query after expiration triggers automatic re-fetch
+- All records updated in one bulk operation
 
-No special invalidation needed - just let TTL expire naturally and re-fetch on next query.
+**Trade-off:**
+- **Benefit**: Fewer API calls, simpler code, better performance for write-heavy workloads
+- **Cost**: Data may be stale by up to TTL duration (acceptable for most use cases)
+
+**Manual refresh (if needed):**
+Users can manually trigger a cache refresh by calling `bypass_cache: true` parameter on list_records, which forces an API call and cache update.
 
 ---
 
@@ -280,33 +291,20 @@ Expose cache management via MCP tools:
     }
   ]
 }
-
-{
-  "name": "invalidate_table_cache",
-  "description": "Force invalidation of table cache (re-fetch on next query)",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "table_id": {
-        "type": "string",
-        "description": "Table ID to invalidate"
-      }
-    },
-    "required": ["table_id"]
-  }
-}
 ```
+
+**Note:** There is NO `invalidate_table_cache` tool since we don't manually invalidate on mutations. Use `bypass_cache: true` parameter with `list_records` to force a fresh fetch if needed.
 
 ---
 
 ## Benefits of Table-Based TTL
 
 1. ✅ **Simpler logic** - all records expire together
-2. ✅ **Efficient re-fetching** - one bulk fetch instead of individual records
+2. ✅ **Efficient re-fetching** - one bulk fetch (1000 record batches) instead of individual records
 3. ✅ **Consistent state** - all records are from the same point in time
-4. ✅ **Easy invalidation** - delete/expire entire table cache after mutations
-5. ✅ **Predictable** - know exactly when cache will refresh
-6. ✅ **Configurable** - adjust TTL per table based on actual mutation patterns
+4. ✅ **Predictable** - know exactly when cache will refresh
+5. ✅ **Configurable** - adjust TTL per table based on actual mutation patterns
+6. ✅ **Fewer API calls** - no cache invalidation on mutations, cache expires naturally
 
 ---
 
@@ -373,7 +371,7 @@ User: "Show me active projects"
    → Returns 14 projects (includes 2 new ones)
 ```
 
-### Manual Invalidation (After Mutation)
+### After Mutation (No Cache Invalidation)
 
 ```
 User: "Create a new project"
@@ -382,15 +380,25 @@ User: "Create a new project"
    POST /api/v1/applications/abc123/records/
    → Record created
 
-2. Invalidate cache:
-   UPDATE cache_records_abc123 SET expires_at = 0;
-   (or DELETE FROM cache_records_abc123;)
+2. NO cache invalidation occurs
+   → Cache remains valid until TTL expires
+   → Newly created project will NOT appear in queries until cache expires
 
-3. Next query will trigger re-fetch:
-   User: "Show me all projects"
-   → Cache expired (expires_at = 0)
+User: "Show me all projects" (within TTL window)
+   → Cache still valid (expires_at = 1704934400 > now = 1704922000)
+   → Returns cached data (does NOT include newly created project)
+   → This is acceptable - data is at most TTL duration stale
+
+4 hours later (after TTL expires)...
+User: "Show me all projects"
+   → Cache expired
    → Re-fetch all records
-   → Includes the newly created project
+   → Now includes the newly created project
+
+Alternative: Force refresh if needed
+User: list_records(table_id, limit: 100, fields: ['name'], bypass_cache: true)
+   → Forces API call even with valid cache
+   → Returns fresh data including newly created project
 ```
 
 ---
@@ -401,9 +409,10 @@ User: "Create a new project"
 
 1. **TTL is per-table, not per-field** - all records from a table share the same expiration
 2. **Configurable per table** - set different TTLs based on mutation frequency
-3. **Simple invalidation** - expire/delete entire table cache after mutations
-4. **Efficient** - one bulk fetch, many cached queries
+3. **Natural expiration only** - NO manual invalidation on mutations, cache expires by TTL
+4. **Efficient bulk fetching** - one bulk fetch (1000 record batches), many cached queries
 5. **Default: 4 hours** - reasonable balance between freshness and API reduction
+6. **Stale data tolerance** - data may be up to TTL duration stale, acceptable trade-off for fewer API calls
 
 ### Default Configuration
 

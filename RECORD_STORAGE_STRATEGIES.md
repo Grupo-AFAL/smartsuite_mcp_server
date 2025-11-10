@@ -22,9 +22,9 @@ Since we're adopting an **aggressive fetch strategy** (fetch all records from a 
 ```ruby
 # Fetch ALL records from a SmartSuite table, no filters
 def cache_table_records(table_id)
-  # Fetch all records in batches
+  # Fetch all records in batches (using 1000 to minimize API calls)
   offset = 0
-  limit = 100
+  limit = 1000
 
   loop do
     records = api_request(
