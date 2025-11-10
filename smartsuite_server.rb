@@ -199,8 +199,8 @@ class SmartSuiteServer
         filter: arguments['filter'],
         sort: arguments['sort'],
         fields: arguments['fields'],
-        summary_only: arguments['summary_only'],
-        full_content: arguments['full_content']
+        hydrated: arguments['hydrated'],
+        bypass_cache: arguments['bypass_cache']
       )
     when 'get_record'
       @client.get_record(arguments['table_id'], arguments['record_id'])

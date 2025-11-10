@@ -500,23 +500,29 @@ Creates a new table (application) in a SmartSuite solution.
 
 ### list_records
 
-Lists records from a specific table with optional filtering and sorting.
+Lists records from a specific table using **CACHE-FIRST strategy**. When cache is enabled (default), fetches ALL records once (in 1000 record batches), caches them locally (TTL: 4 hours), then queries cache for subsequent requests.
 
-**⚡ ULTRA-MINIMAL CONTEXT USAGE:**
-- **REQUIRED**: You MUST specify either `fields` parameter OR `summary_only: true`
-- **Automatic limit**: Without a filter, limit is automatically capped at 2 records (prevents excessive token usage)
-- **Plain text format**: Responses are returned as plain text (saves 30-50% tokens vs JSON)
-- **Summary mode**: Get statistics without record data (minimal context)
+**🚀 CACHE-FIRST STRATEGY:**
+- **First call**: Fetches ALL records from table → caches locally (TTL: 4 hours) → returns requested records
+- **Subsequent calls**: Queries cache directly (NO API call) → returns requested records
+- **SmartSuite filters**: ONLY used when cache disabled or `bypass_cache: true`; otherwise ignored (all filtering done locally)
+- **Stale data tolerance**: Updates/creates/deletes won't appear until cache expires OR you use `bypass_cache: true`
+
+**⚡ TOKEN OPTIMIZATION:**
+- **REQUIRED**: You MUST specify `fields` parameter to control token usage
+- **Plain text format**: Responses are plain text (saves 30-50% tokens vs JSON)
+- **NO truncation**: Field values returned in FULL - specify only needed fields to control tokens
+- **Total counts**: Shows "X of Y total records" to help understand data scope
 
 **Parameters:**
 - `table_id` (required): The ID of the table
-- `limit` (optional): Number of records to return (default: **5**). Without a filter, automatically reduced to 2.
-- `offset` (optional): Number of records to skip (for pagination)
-- `filter` (optional): Filter criteria with operator and fields array
-- `sort` (optional): Sort criteria as array of field-direction pairs
-- `fields` (REQUIRED unless using summary_only): Array of specific field slugs to return (includes id + title automatically)
-- `summary_only` (optional): Boolean. If true, returns statistics instead of records (no fields parameter needed)
-- `full_content` (optional): Boolean. If true, returns full field content without truncation. Default (false) truncates strings to 500 chars. **Use this when you need complete field values** (like full descriptions) to avoid making multiple `get_record` calls.
+- `fields` (required): Array of specific field slugs to return (e.g., `["status", "priority"]`). Field values returned in full without truncation, so only request fields you need.
+- `limit` (optional): Number of records to return (default: **10**)
+- `offset` (optional): Number of records to skip for pagination (default: 0)
+- `filter` (optional): SmartSuite API filter criteria - **ONLY used when cache disabled or bypass_cache=true**. When using cache (default), ignored.
+- `sort` (optional): SmartSuite API sort criteria - **ONLY used when cache disabled or bypass_cache=true**. When using cache, ignored.
+- `hydrated` (optional): If true (default), fetches human-readable values for linked records, users, etc. If false, returns raw IDs.
+- `bypass_cache` (optional): If true, forces direct API call even with valid cache and updates cache with fresh data. Use when you need guaranteed fresh data after mutations. Default: false.
 
 **Filter Structure:**
 
@@ -571,7 +577,7 @@ Date fields require a special date value object format instead of a simple strin
 ```
 Returns (plain text):
 ```
-Found 2 records (total: 50)
+Showing 10 of 50 total records
 
 Record 1:
   id: rec_123
@@ -582,8 +588,10 @@ Record 2:
   id: rec_456
   title: Second Record
   status: pending
+
+[... 8 more records ...]
 ```
-Note: Without a filter, limit is automatically capped at 2 records.
+Note: Default limit is 10 records. Specify `limit` parameter to control how many records are returned.
 
 **Example with Filter:**
 ```json
@@ -666,38 +674,29 @@ Returns: Plain text with records where due_date is in 2025
 ```
 Returns: Plain text with filtered, sorted records
 
-**Example with Summary Only (Ultra-Minimal Context):**
+**Example: Force Fresh Data After Mutation:**
 ```json
 {
   "table_id": "abc123",
-  "summary_only": true
+  "fields": ["status", "priority"],
+  "bypass_cache": true
 }
 ```
-Returns:
-```json
-{
-  "summary": "Found 5 records (total: 50)\n  status: active (3), pending (2)\n  priority: high (2), low (3)",
-  "count": 5,
-  "total_count": 50
-}
-```
+Use `bypass_cache: true` when you need guaranteed fresh data immediately after creating/updating/deleting records. Otherwise, changes won't appear until cache expires (4 hours).
 
-**Response Optimization:**
+**Response Format:**
 
 - **Plain text format**: All responses are in plain text (saves 30-50% tokens vs JSON)
-- **Field selection**: Only requested fields + id/title are returned
-- **Summary mode**: Returns statistics only, no record data (minimal tokens)
-- **Automatic limiting**: Without filter, maximum 2 records (prevents excessive usage)
-- **Smart truncation**:
-  - Default: Strings truncated to 500 chars (reasonable safety net)
-  - Rich text fields: Preview kept at ~500 chars
-  - Arrays: First 10 items
-  - With `full_content: true`: No truncation - get complete field values
+- **Required field selection**: Only explicitly requested fields + id/title are returned
+- **NO truncation**: Field values returned in FULL without truncation
+- **Total counts shown**: Always shows "X of Y total records" to help understand data scope
+- **Cache-first by default**: Subsequent queries use cached data (no API calls)
 
-**When to use `full_content: true`:**
-- When you need complete descriptions, long text fields, or full rich text content
-- Prevents needing multiple `get_record` calls for individual records
-- Example: Getting full descriptions from filtered records
+**Token Control Best Practices:**
+- Specify ONLY the fields you actually need (values not truncated)
+- Use `limit` parameter to control number of records returned
+- First call fetches all records once, subsequent calls query cache instantly
+- Example: Requesting `["status"]` uses far fewer tokens than `["description", "notes", "comments"]`
 
 ### get_record
 
