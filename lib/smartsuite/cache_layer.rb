@@ -41,7 +41,7 @@ module SmartSuite
       setup_metadata_tables
     end
 
-    # Set up metadata tables for cache management
+    # Set up metadata tables for cache management and API stats tracking
     def setup_metadata_tables
       @db.execute_batch <<-SQL
         -- Track dynamically-created cache tables
@@ -76,6 +76,32 @@ module SmartSuite
 
         CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON cache_stats(timestamp);
         CREATE INDEX IF NOT EXISTS idx_stats_category ON cache_stats(category);
+
+        -- API call tracking (shared with ApiStatsTracker)
+        CREATE TABLE IF NOT EXISTS api_call_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_hash TEXT NOT NULL,
+          session_id TEXT NOT NULL,
+          method TEXT NOT NULL,
+          endpoint TEXT NOT NULL,
+          solution_id TEXT,
+          table_id TEXT,
+          timestamp INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_api_call_log_user ON api_call_log(user_hash);
+        CREATE INDEX IF NOT EXISTS idx_api_call_log_session ON api_call_log(session_id);
+        CREATE INDEX IF NOT EXISTS idx_api_call_log_timestamp ON api_call_log(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_api_call_log_solution ON api_call_log(solution_id);
+        CREATE INDEX IF NOT EXISTS idx_api_call_log_table ON api_call_log(table_id);
+
+        -- API statistics summary (shared with ApiStatsTracker)
+        CREATE TABLE IF NOT EXISTS api_stats_summary (
+          user_hash TEXT PRIMARY KEY,
+          total_calls INTEGER DEFAULT 0,
+          first_call INTEGER,
+          last_call INTEGER
+        );
       SQL
     end
 
