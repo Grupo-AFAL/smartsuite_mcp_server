@@ -61,6 +61,7 @@ class ApiStatsTracker
           'total_calls' => 0,
           'first_call' => nil,
           'last_call' => nil,
+          'unique_users' => 0,
           'unique_solutions' => 0,
           'unique_tables' => 0
         },
@@ -76,7 +77,7 @@ class ApiStatsTracker
         'total_calls' => summary['total_calls'],
         'first_call' => summary['first_call'] ? Time.at(summary['first_call']).iso8601 : nil,
         'last_call' => summary['last_call'] ? Time.at(summary['last_call']).iso8601 : nil,
-        'unique_users' => 1,  # Currently tracking single user
+        'unique_users' => get_unique_count('user_hash'),
         'unique_solutions' => get_unique_count('solution_id'),
         'unique_tables' => get_unique_count('table_id')
       },

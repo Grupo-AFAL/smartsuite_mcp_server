@@ -237,33 +237,15 @@ module SmartSuite
         result
       end
 
-      # Truncates field values to prevent excessive token usage.
+      # Returns field value without truncation.
       #
-      # Applies different truncation strategies by value type:
-      # - Strings: 500 char limit
-      # - Rich text (hashes): Extract preview only
-      # - Arrays: First 10 items
+      # Previously truncated values, but per user request we now return full values.
+      # AI should be encouraged to only fetch needed fields to control token usage.
       #
-      # @param value [Object] Field value to truncate
-      # @return [Object] Truncated value
+      # @param value [Object] Field value
+      # @return [Object] The value as-is
       def truncate_value(value)
-        case value
-        when String
-          value.length > 500 ? value[0...500] + '... [truncated]' : value
-        when Hash
-          # For nested hashes (like description), truncate aggressively
-          if value['html'] || value['data'] || value['yjsData']
-            # This is likely a rich text field - just keep preview
-            value['preview'] ? value['preview'][0...500] : '[Rich text content]'
-          else
-            value
-          end
-        when Array
-          # Truncate arrays to first 10 items
-          value.length > 10 ? value[0...10] + ['... [truncated]'] : value
-        else
-          value
-        end
+        value
       end
     end
   end
