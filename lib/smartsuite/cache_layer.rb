@@ -139,13 +139,7 @@ module SmartSuite
         "INSERT OR REPLACE INTO cached_table_schemas
          (table_id, sql_table_name, table_name, structure, field_mapping, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)",
-        table_id,
-        sql_table_name,
-        table_name,
-        structure.to_json,
-        field_mapping.to_json,
-        Time.now.to_i,
-        Time.now.to_i
+        [table_id, sql_table_name, table_name, structure.to_json, field_mapping.to_json, Time.now.to_i, Time.now.to_i]
       )
 
       record_stat('table_creation', 'create', sql_table_name, {table_id: table_id, field_count: fields.size})
@@ -398,7 +392,7 @@ module SmartSuite
     def get_cached_table_schema(table_id)
       result = @db.execute(
         "SELECT * FROM cached_table_schemas WHERE table_id = ?",
-        table_id
+        [table_id]
       ).first
 
       return nil unless result
@@ -450,10 +444,7 @@ module SmartSuite
         "UPDATE cached_table_schemas
          SET structure = ?, field_mapping = ?, updated_at = ?
          WHERE table_id = ?",
-        new_structure.to_json,
-        field_mapping.to_json,
-        Time.now.to_i,
-        table_id
+        [new_structure.to_json, field_mapping.to_json, Time.now.to_i, table_id]
       )
 
       record_stat('schema_evolution', 'add_fields', sql_table_name,
@@ -523,7 +514,7 @@ module SmartSuite
       sql = "INSERT OR REPLACE INTO #{sql_table_name} (#{columns.join(', ')})
              VALUES (#{placeholders.join(', ')})"
 
-      @db.execute(sql, *values)
+      @db.execute(sql, values)
     end
 
     # Extract value(s) for a field (handles multi-column fields)
@@ -643,7 +634,7 @@ module SmartSuite
     def get_table_ttl(table_id)
       result = @db.execute(
         "SELECT ttl_seconds FROM cache_ttl_config WHERE table_id = ?",
-        table_id
+        [table_id]
       ).first
 
       result ? result['ttl_seconds'] : DEFAULT_TTL
@@ -660,7 +651,7 @@ module SmartSuite
         "INSERT OR REPLACE INTO cache_ttl_config
          (table_id, ttl_seconds, mutation_level, notes, updated_at)
          VALUES (?, ?, ?, ?, ?)",
-        table_id, ttl_seconds, mutation_level, notes, Time.now.to_i
+        [table_id, ttl_seconds, mutation_level, notes, Time.now.to_i]
       )
 
       record_stat('ttl_config', 'set', table_id,
@@ -695,7 +686,7 @@ module SmartSuite
       # Check if any record exists and is not expired
       result = @db.execute(
         "SELECT COUNT(*) as count FROM #{sql_table_name} WHERE expires_at > ?",
-        Time.now.to_i
+        [Time.now.to_i]
       ).first
 
       result && result['count'] > 0
@@ -745,7 +736,7 @@ module SmartSuite
       @db.execute(
         "INSERT INTO cache_stats (category, operation, key, timestamp, metadata)
          VALUES (?, ?, ?, ?, ?)",
-        category, operation, key, Time.now.to_i, metadata.to_json
+        [category, operation, key, Time.now.to_i, metadata.to_json]
       )
     rescue => e
       # Silent failure - stats are nice-to-have

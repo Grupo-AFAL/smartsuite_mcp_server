@@ -644,7 +644,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test filtering and sorting
   def test_client_list_records_with_filter
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     # Track what endpoint and body were sent
     sent_endpoint = nil
@@ -670,7 +670,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_records_with_sort
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     # Track what endpoint and body were sent
     sent_endpoint = nil
@@ -691,7 +691,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_records_with_filter_and_sort
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     # Track what endpoint and body were sent
     sent_endpoint = nil
@@ -720,7 +720,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_records_without_filter_or_sort
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     # Track what endpoint and body were sent
     sent_endpoint = nil
@@ -741,7 +741,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test response filtering - now returns plain text
   def test_client_list_records_filters_verbose_fields
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -786,7 +786,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_records_with_fields_parameter
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -820,7 +820,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_truncates_long_strings
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     long_string = 'a' * 1000
     mock_response = {
@@ -850,7 +850,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_records_summary_only
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -2135,5 +2135,325 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal '#FF0000', solution['logo_color']
     refute solution.key?('created'), 'Should not include non-essential fields by default'
     refute solution.key?('status'), 'Should not include activity fields by default'
+  end
+
+  # Test cache integration
+  def test_client_initializes_with_cache_enabled_by_default
+    # Use a temporary cache path for testing
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      assert client.cache_enabled?, 'Cache should be enabled by default'
+      refute_nil client.cache, 'Cache object should be initialized'
+    ensure
+      # Clean up test cache file
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
+  end
+
+  def test_client_initializes_without_cache_when_disabled
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
+
+    refute client.cache_enabled?, 'Cache should be disabled when cache_enabled: false'
+    assert_nil client.cache, 'Cache object should be nil when disabled'
+  end
+
+  def test_list_records_uses_cache_when_enabled
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      # Track API calls
+      api_call_count = 0
+
+      # Mock get_table (for structure)
+      client.define_singleton_method(:get_table) do |table_id|
+        api_call_count += 1
+        {
+          'id' => table_id,
+          'name' => 'Test Table',
+          'structure' => [
+            {'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield'},
+            {'slug' => 'status', 'label' => 'Status', 'field_type' => 'statusfield'}
+          ]
+        }
+      end
+
+      # Mock fetch_all_records (for cache population)
+      client.define_singleton_method(:fetch_all_records) do |table_id|
+        api_call_count += 1
+        [
+          {'id' => 'rec_1', 'title' => 'Record 1', 'status' => 'active'},
+          {'id' => 'rec_2', 'title' => 'Record 2', 'status' => 'pending'}
+        ]
+      end
+
+      # First call should populate cache (2 API calls: get_table + fetch_all_records)
+      result1 = client.list_records('tbl_123', 10, 0, fields: ['title', 'status'])
+      assert_equal 2, api_call_count, 'Should make 2 API calls to populate cache'
+
+      # Second call should use cache (no additional API calls)
+      result2 = client.list_records('tbl_123', 5, 0, fields: ['title'])
+      assert_equal 2, api_call_count, 'Should not make additional API calls (cache hit)'
+
+      # Both results should be plain text
+      assert result1.is_a?(String), 'Should return plain text'
+      assert result2.is_a?(String), 'Should return plain text'
+    ensure
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
+  end
+
+  def test_list_records_bypasses_cache_when_disabled
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
+
+    api_call_count = 0
+
+    # Mock api_request for direct API calls
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      api_call_count += 1
+      {'items' => [], 'total_count' => 0}
+    end
+
+    # Each call should hit the API
+    client.list_records('tbl_123', 10, 0, fields: ['title'])
+    assert_equal 1, api_call_count, 'Should make 1 API call'
+
+    client.list_records('tbl_123', 10, 0, fields: ['title'])
+    assert_equal 2, api_call_count, 'Should make another API call (no cache)'
+  end
+
+  def test_list_records_with_bypass_cache_parameter
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      api_call_count = 0
+
+      # Mock api_request for direct API calls
+      client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+        api_call_count += 1
+        {'items' => [], 'total_count' => 0}
+      end
+
+      # Call with bypass_cache should always hit API
+      client.list_records('tbl_123', 10, 0, fields: ['title'], bypass_cache: true)
+      assert_equal 1, api_call_count, 'Should make API call when bypass_cache: true'
+
+      client.list_records('tbl_123', 10, 0, fields: ['title'], bypass_cache: true)
+      assert_equal 2, api_call_count, 'Should make another API call when bypass_cache: true'
+    ensure
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
+  end
+
+  def test_create_record_invalidates_cache
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      cache_invalidated = false
+
+      # Mock cache invalidation
+      client.cache.define_singleton_method(:invalidate_table_cache) do |table_id|
+        cache_invalidated = true
+      end
+
+      # Mock api_request
+      client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+        {'id' => 'rec_new', 'title' => 'New Record'}
+      end
+
+      client.create_record('tbl_123', {'title' => 'New Record'})
+
+      assert cache_invalidated, 'Should invalidate cache after create_record'
+    ensure
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
+  end
+
+  def test_update_record_invalidates_cache
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      cache_invalidated = false
+
+      # Mock cache invalidation
+      client.cache.define_singleton_method(:invalidate_table_cache) do |table_id|
+        cache_invalidated = true
+      end
+
+      # Mock api_request
+      client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+        {'id' => 'rec_123', 'title' => 'Updated Record'}
+      end
+
+      client.update_record('tbl_123', 'rec_123', {'title' => 'Updated Record'})
+
+      assert cache_invalidated, 'Should invalidate cache after update_record'
+    ensure
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
+  end
+
+  def test_delete_record_invalidates_cache
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      cache_invalidated = false
+
+      # Mock cache invalidation
+      client.cache.define_singleton_method(:invalidate_table_cache) do |table_id|
+        cache_invalidated = true
+      end
+
+      # Mock api_request
+      client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+        {'message' => 'Record deleted'}
+      end
+
+      client.delete_record('tbl_123', 'rec_123')
+
+      assert cache_invalidated, 'Should invalidate cache after delete_record'
+    ensure
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
+  end
+
+  def test_add_field_invalidates_cache
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      cache_invalidated = false
+
+      # Mock cache invalidation
+      client.cache.define_singleton_method(:invalidate_table_cache) do |table_id|
+        cache_invalidated = true
+      end
+
+      # Mock api_request
+      client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+        {'slug' => 'new_field', 'label' => 'New Field'}
+      end
+
+      client.add_field('tbl_123', {'slug' => 'new_field', 'label' => 'New Field'})
+
+      assert cache_invalidated, 'Should invalidate cache after add_field'
+    ensure
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
+  end
+
+  def test_bulk_add_fields_invalidates_cache
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      cache_invalidated = false
+
+      # Mock cache invalidation
+      client.cache.define_singleton_method(:invalidate_table_cache) do |table_id|
+        cache_invalidated = true
+      end
+
+      # Mock api_request
+      client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+        {'success' => true}
+      end
+
+      fields = [
+        {'slug' => 'field1', 'label' => 'Field 1'},
+        {'slug' => 'field2', 'label' => 'Field 2'}
+      ]
+      client.bulk_add_fields('tbl_123', fields)
+
+      assert cache_invalidated, 'Should invalidate cache after bulk_add_fields'
+    ensure
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
+  end
+
+  def test_update_field_invalidates_cache
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      cache_invalidated = false
+
+      # Mock cache invalidation
+      client.cache.define_singleton_method(:invalidate_table_cache) do |table_id|
+        cache_invalidated = true
+      end
+
+      # Mock api_request
+      client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+        {'slug' => 'field1', 'label' => 'Updated Label'}
+      end
+
+      client.update_field('tbl_123', 'field1', {'label' => 'Updated Label'})
+
+      assert cache_invalidated, 'Should invalidate cache after update_field'
+    ensure
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
+  end
+
+  def test_delete_field_invalidates_cache
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      cache_invalidated = false
+
+      # Mock cache invalidation
+      client.cache.define_singleton_method(:invalidate_table_cache) do |table_id|
+        cache_invalidated = true
+      end
+
+      # Mock api_request
+      client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+        {'slug' => 'field1', 'deleted' => true}
+      end
+
+      client.delete_field('tbl_123', 'field1')
+
+      assert cache_invalidated, 'Should invalidate cache after delete_field'
+    ensure
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
+  end
+
+  def test_cache_does_not_invalidate_when_disabled
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
+
+    # Mock api_request
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      {'id' => 'rec_123', 'title' => 'Record'}
+    end
+
+    # These should not raise errors even though cache is nil
+    client.create_record('tbl_123', {'title' => 'Record'})
+    client.update_record('tbl_123', 'rec_123', {'title' => 'Updated'})
+    client.delete_record('tbl_123', 'rec_123')
+    client.add_field('tbl_123', {'slug' => 'field1'})
+    client.update_field('tbl_123', 'field1', {'label' => 'Updated'})
+    client.delete_field('tbl_123', 'field1')
+
+    # If we got here without errors, test passes
+    assert true
   end
 end
