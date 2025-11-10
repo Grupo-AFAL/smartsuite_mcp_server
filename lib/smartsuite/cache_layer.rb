@@ -81,19 +81,12 @@ module SmartSuite
         CREATE TABLE IF NOT EXISTS api_call_log (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           user_hash TEXT NOT NULL,
-          session_id TEXT NOT NULL,
           method TEXT NOT NULL,
           endpoint TEXT NOT NULL,
           solution_id TEXT,
           table_id TEXT,
           timestamp INTEGER NOT NULL
         );
-
-        CREATE INDEX IF NOT EXISTS idx_api_call_log_user ON api_call_log(user_hash);
-        CREATE INDEX IF NOT EXISTS idx_api_call_log_session ON api_call_log(session_id);
-        CREATE INDEX IF NOT EXISTS idx_api_call_log_timestamp ON api_call_log(timestamp);
-        CREATE INDEX IF NOT EXISTS idx_api_call_log_solution ON api_call_log(solution_id);
-        CREATE INDEX IF NOT EXISTS idx_api_call_log_table ON api_call_log(table_id);
 
         -- API statistics summary (shared with ApiStatsTracker)
         CREATE TABLE IF NOT EXISTS api_stats_summary (
@@ -103,6 +96,28 @@ module SmartSuite
           last_call INTEGER
         );
       SQL
+
+      # Handle schema migration for session_id column
+      migrate_api_call_log_schema
+
+      # Create indexes after ensuring schema is up to date
+      @db.execute_batch <<-SQL
+        CREATE INDEX IF NOT EXISTS idx_api_call_log_user ON api_call_log(user_hash);
+        CREATE INDEX IF NOT EXISTS idx_api_call_log_session ON api_call_log(session_id);
+        CREATE INDEX IF NOT EXISTS idx_api_call_log_timestamp ON api_call_log(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_api_call_log_solution ON api_call_log(solution_id);
+        CREATE INDEX IF NOT EXISTS idx_api_call_log_table ON api_call_log(table_id);
+      SQL
+    end
+
+    # Migrate api_call_log schema to add session_id column if it doesn't exist
+    def migrate_api_call_log_schema
+      columns = @db.execute("PRAGMA table_info(api_call_log)")
+      has_session_id = columns.any? { |col| col['name'] == 'session_id' }
+
+      unless has_session_id
+        @db.execute("ALTER TABLE api_call_log ADD COLUMN session_id TEXT DEFAULT 'legacy'")
+      end
     end
 
     # Get or create a cache table for a SmartSuite table
