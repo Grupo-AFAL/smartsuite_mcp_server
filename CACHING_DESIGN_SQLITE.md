@@ -200,17 +200,19 @@ CREATE INDEX idx_stats_operation ON cache_stats(operation);
 
 ### TTL Values by Data Type
 
-| Data Type | TTL | Rationale | Invalidation Triggers |
-|-----------|-----|-----------|----------------------|
-| **Solutions (base)** | 24 hours | Rarely renamed/deleted | Manual refresh or create/delete |
-| **Solutions (with activity)** | 2 hours | `last_access` changes | After record operations |
-| **Table structures** | 12 hours | Fields added infrequently | add_field, update_field, delete_field |
-| **Table list** | 12 hours | Very stable | create_table, delete_table |
-| **Teams** | 12 hours | Planned changes | Manual refresh |
-| **Members (all)** | 6 hours | Batch updates | Manual refresh |
-| **Members (filtered)** | 4 hours | More dynamic | Manual refresh |
-| **Records (filtered)** | 5 minutes | High mutation rate | create/update/delete_record |
-| **Comments** | 2 minutes | Real-time additions | add_comment |
+**Note**: The implemented design uses **natural TTL expiration only** - NO automatic invalidation on mutations.
+
+| Data Type | TTL | Rationale |
+|-----------|-----|-----------|
+| **Solutions (base)** | 24 hours | Rarely renamed/deleted |
+| **Solutions (with activity)** | 2 hours | `last_access` changes frequently |
+| **Table structures** | 12 hours | Fields added infrequently |
+| **Table list** | 12 hours | Very stable |
+| **Teams** | 12 hours | Planned changes |
+| **Members (all)** | 6 hours | Batch updates |
+| **Members (filtered)** | 4 hours | More dynamic |
+| **Records (cached table)** | 4 hours | Default table-based TTL (configurable) |
+| **Comments** | Not cached | Use direct API calls |
 
 ### TTL Implementation
 
@@ -249,61 +251,38 @@ end
 
 ---
 
-## Cache Invalidation Strategy
+## Cache Expiration Strategy
 
-### Automatic Invalidation Triggers
+### Natural TTL Expiration (No Automatic Invalidation)
 
+**Implemented Design**: The cache uses **natural TTL expiration only** - mutations do NOT trigger cache invalidation.
+
+**Rationale**:
+- User tolerance for slightly stale data (up to TTL duration)
+- Avoids expensive re-fetching on every mutation
+- Simplifies implementation and reduces API calls
+- Mutations are often batched, making per-mutation invalidation wasteful
+
+**How Records Work**:
 ```ruby
-# Invalidation mapping
-INVALIDATION_MAP = {
-  # Table structure changes
-  'add_field' => ['table:#{table_id}:structure'],
-  'update_field' => ['table:#{table_id}:structure'],
-  'delete_field' => ['table:#{table_id}:structure', 'fields:table:#{table_id}'],
-  'bulk_add_fields' => ['table:#{table_id}:structure'],
+# When cache enabled and records requested:
+# 1. Check if cache valid (not expired)
+# 2. If invalid/expired: Fetch ALL records (1000 record batches) and cache
+# 3. Query cached records with local filtering
+# 4. Cache expires naturally after TTL (default: 4 hours)
 
-  # Table changes
-  'create_table' => ['solutions', 'tables:list:*', 'tables:solution:#{solution_id}'],
-  'delete_table' => ['solutions', 'tables:list:*', 'tables:solution:#{solution_id}'],
-
-  # Record changes (invalidate filtered record caches)
-  'create_record' => ['records:#{table_id}:*'],
-  'update_record' => ['records:#{table_id}:*', 'record:#{table_id}:#{record_id}'],
-  'delete_record' => ['records:#{table_id}:*', 'record:#{table_id}:#{record_id}'],
-
-  # Comment changes
-  'add_comment' => ['comments:#{record_id}']
-}
+# Mutations do NOT invalidate cache:
+def create_record(table_id, data)
+  api_request(:post, "/applications/#{table_id}/records/", data)
+  # NO cache invalidation - cache expires naturally by TTL
+end
 ```
 
-### Invalidation Implementation
-
+**Manual Refresh Option**:
 ```ruby
-def invalidate(pattern)
-  if pattern.include?('*')
-    # Wildcard invalidation: Delete all matching keys
-    db.execute("DELETE FROM cache_entries WHERE key LIKE ?", pattern.gsub('*', '%'))
-    db.execute("INSERT INTO cache_stats (category, operation, key, timestamp, metadata)
-                VALUES (?, 'invalidation', ?, ?, ?)",
-                extract_category(pattern), pattern, Time.now.to_i, {'type' => 'wildcard'}.to_json)
-  else
-    # Exact key invalidation
-    db.execute("DELETE FROM cache_entries WHERE key = ?", pattern)
-    db.execute("INSERT INTO cache_stats (category, operation, key, timestamp, metadata)
-                VALUES (?, 'invalidation', ?, ?, ?)",
-                extract_category(pattern), pattern, Time.now.to_i, {'type' => 'exact'}.to_json)
-  end
-
-  # Also invalidate related normalized tables
-  case pattern
-  when /^table:(.+):structure$/
-    table_id = $1
-    db.execute("DELETE FROM tables WHERE id = ?", table_id)
-    db.execute("DELETE FROM fields WHERE table_id = ?", table_id)
-  when /^solutions/
-    db.execute("DELETE FROM solutions WHERE expires_at < ?", Time.now.to_i)
-  end
-end
+# If user needs fresh data immediately after mutation:
+list_records(table_id, limit: 100, fields: ['name'], bypass_cache: true)
+# Forces API call and cache refresh
 ```
 
 ### Manual Cache Management
@@ -615,7 +594,7 @@ def get_table(table_id)
 end
 ```
 
-### 4. Add Invalidation Hooks
+### 4. Mutation Operations (No Cache Invalidation)
 
 ```ruby
 # lib/smartsuite/api/field_operations.rb
@@ -623,11 +602,8 @@ end
 def add_field(table_id, field_data, field_position: {}, auto_fill_structure_layout: true)
   result = api_request(:post, "applications/#{table_id}/add_field/", ...)
 
-  # Invalidate cache
-  if @cache
-    @cache.invalidate("table:#{table_id}:structure")
-    log_metric("→ Cache INVALIDATED: table:#{table_id}:structure")
-  end
+  # NO cache invalidation - cache expires naturally by TTL
+  # Users can use bypass_cache: true if immediate refresh needed
 
   result
 end
@@ -635,12 +611,21 @@ end
 def update_field(table_id, field_data)
   result = api_request(:put, "applications/#{table_id}/change_field/", ...)
 
-  # Invalidate cache
-  if @cache
-    @cache.invalidate("table:#{table_id}:structure")
-  end
+  # NO cache invalidation
 
   result
+end
+
+# lib/smartsuite/api/record_operations.rb
+
+def create_record(table_id, data)
+  api_request(:post, "/applications/#{table_id}/records/", data)
+  # NO cache invalidation
+end
+
+def update_record(table_id, record_id, data)
+  api_request(:patch, "/applications/#{table_id}/records/#{record_id}/", data)
+  # NO cache invalidation
 end
 ```
 
@@ -910,15 +895,20 @@ def test_list_solutions_caching
   assert_equal(result1, result2)
 end
 
-def test_cache_invalidation_on_mutation
+def test_cache_natural_expiration_on_mutation
   # Get table structure (cache it)
   table = call_tool('get_table', {table_id: 'abc123'})
 
-  # Add a field (should invalidate cache)
+  # Add a field (does NOT invalidate cache)
   call_tool('add_field', {table_id: 'abc123', field_data: {...}})
 
-  # Next get should fetch fresh data
-  # (verify by checking cache miss in logs)
+  # Next get should return cached data (even though structure changed)
+  result = call_tool('get_table', {table_id: 'abc123'})
+  assert_includes(@stderr_output, 'Using cached')  # Cache still valid
+
+  # To get fresh data, use bypass_cache:
+  fresh = call_tool('list_records', {table_id: 'abc123', fields: ['name'], bypass_cache: true})
+  assert_includes(@stderr_output, 'Cache MISS')
 end
 ```
 
