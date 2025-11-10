@@ -3,6 +3,7 @@ require 'json'
 require 'time'
 require 'digest'
 require_relative 'cache_query'
+require_relative '../query_logger'
 
 module SmartSuite
   # CacheLayer provides persistent SQLite-based caching for SmartSuite data.
@@ -118,6 +119,25 @@ module SmartSuite
       unless has_session_id
         @db.execute("ALTER TABLE api_call_log ADD COLUMN session_id TEXT DEFAULT 'legacy'")
       end
+    end
+
+    # Execute a SQL query with logging
+    # @param sql [String] SQL query
+    # @param params [Array] Query parameters
+    # @return [Array] Query results
+    def db_execute(sql, *params)
+      start_time = Time.now
+      QueryLogger.log_db_query(sql, params)
+
+      result = @db.execute(sql, *params)
+
+      duration = Time.now - start_time
+      QueryLogger.log_db_result(result.length, duration)
+
+      result
+    rescue StandardError => e
+      QueryLogger.log_error("DB Query", e)
+      raise
     end
 
     # Get or create a cache table for a SmartSuite table

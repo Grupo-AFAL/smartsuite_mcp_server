@@ -1,3 +1,5 @@
+require_relative '../query_logger'
+
 module SmartSuite
   # CacheQuery provides a chainable query builder for cached records.
   #
@@ -122,8 +124,19 @@ module SmartSuite
       sql += " #{@limit_clause}" if @limit_clause
       sql += " #{@offset_clause}" if @offset_clause
 
-      # Execute and return results
-      @cache.db.execute(sql, @params)
+      # Log and execute query
+      start_time = Time.now
+      QueryLogger.log_db_query(sql, @params)
+
+      result = @cache.db.execute(sql, @params)
+
+      duration = Time.now - start_time
+      QueryLogger.log_db_result(result.length, duration)
+
+      result
+    rescue StandardError => e
+      QueryLogger.log_error("Cache Query Execute", e)
+      raise
     end
 
     # Count results without fetching them
@@ -143,8 +156,20 @@ module SmartSuite
         sql += " WHERE #{@where_clauses.join(' AND ')}"
       end
 
+      # Log and execute query
+      start_time = Time.now
+      QueryLogger.log_db_query(sql, @params)
+
       result = @cache.db.execute(sql, @params).first
-      result ? result['count'] : 0
+
+      duration = Time.now - start_time
+      count = result ? result['count'] : 0
+      QueryLogger.log_db_result(1, duration)  # COUNT always returns 1 row
+
+      count
+    rescue StandardError => e
+      QueryLogger.log_error("Cache Query Count", e)
+      raise
     end
 
     private
