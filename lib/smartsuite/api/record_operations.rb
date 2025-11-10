@@ -49,7 +49,7 @@ module SmartSuite
 
         # Try cache-first strategy if enabled
         if cache_enabled? && !bypass_cache
-          return list_records_from_cache(table_id, limit, offset, fields, hydrated)
+          return list_records_from_cache(table_id, limit, offset, filter, fields, hydrated)
         end
 
         # Fallback to direct API call (cache disabled or bypassed)
@@ -59,27 +59,96 @@ module SmartSuite
       private
 
       # List records using cache (aggressive fetch strategy)
-      def list_records_from_cache(table_id, limit, offset, fields, hydrated)
+      def list_records_from_cache(table_id, limit, offset, filter, fields, hydrated)
         # Ensure cache is populated
         ensure_records_cached(table_id)
 
-        # Get total record count
-        total_count = @cache.query(table_id).count
-
-        # Query cache with limit and offset
+        # Build query with filters
         query = @cache.query(table_id)
+
+        # Apply filters if provided
+        if filter && filter['fields'] && filter['fields'].any?
+          query = apply_filters_to_query(query, filter)
+        end
+
+        # Get total record count (before limit/offset)
+        total_count = query.count
+
+        # Apply limit and offset
         query = query.limit(limit) if limit
         query = query.offset(offset) if offset
         results = query.execute
 
+        # Get grand total (all records in table, unfiltered)
+        grand_total = @cache.query(table_id).count
+
         # Format results similar to API response
         response = {
           'items' => results,
-          'total_count' => total_count
+          'total_count' => grand_total,
+          'filtered_count' => total_count
         }
 
         # Apply filtering and formatting with counts
         filter_records_response(response, fields, plain_text: true, hydrated: hydrated)
+      end
+
+      # Apply SmartSuite filter criteria to cache query
+      def apply_filters_to_query(query, filter)
+        return query unless filter && filter['fields']
+
+        filter['fields'].each do |field_filter|
+          field_slug = field_filter['field']
+          comparison = field_filter['comparison']
+          value = field_filter['value']
+
+          # Convert SmartSuite comparison operators to cache query format
+          condition = case comparison
+          when 'is', 'is_equal_to'
+            value
+          when 'is_not', 'is_not_equal_to'
+            { ne: value }
+          when 'is_greater_than'
+            { gt: value }
+          when 'is_less_than'
+            { lt: value }
+          when 'is_equal_or_greater_than'
+            { gte: value }
+          when 'is_equal_or_less_than'
+            { lte: value }
+          when 'contains'
+            { contains: value }
+          when 'not_contains', 'does_not_contain'
+            { not_contains: value }
+          when 'is_empty'
+            nil
+          when 'is_not_empty'
+            { not_null: true }
+          when 'has_any_of'
+            { has_any_of: value }
+          when 'has_all_of'
+            { has_all_of: value }
+          when 'is_exactly'
+            { is_exactly: value }
+          when 'has_none_of'
+            { has_none_of: value }
+          when 'is_before'
+            { lt: value }
+          when 'is_after'
+            { gt: value }
+          when 'is_on_or_before'
+            { lte: value }
+          when 'is_on_or_after'
+            { gte: value }
+          else
+            value  # Default to equality
+          end
+
+          # Apply filter to query
+          query = query.where(field_slug.to_sym => condition)
+        end
+
+        query
       end
 
       # Direct API call (original behavior, used when cache disabled/bypassed)
