@@ -156,7 +156,7 @@ module SmartSuite
       RECORD_TOOLS = [
         {
           'name' => 'list_records',
-          'description' => 'List records from a SmartSuite table using CACHE-FIRST strategy. IMPORTANT: When cache enabled (default), fetches ALL records once (using 1000 record batches), caches them locally (TTL: 4 hours), then queries cache for subsequent requests. SmartSuite API filters (filter/sort params) are ONLY used when cache disabled or bypass_cache=true; otherwise all filtering done locally on cached data. Returns plain text format with full field values (no truncation) and shows "X of Y total records" to help you understand data scope. REQUIRED: Must specify fields parameter to control token usage.',
+          'description' => 'List records from a SmartSuite table using CACHE-FIRST strategy with LOCAL SQL FILTERING. ⚠️ CRITICAL FOR EFFICIENCY: (1) ALWAYS use filter parameter to request only relevant records - do NOT fetch all records and filter manually! (2) ALWAYS specify MINIMAL fields - only request fields you actually need. Field values are NOT truncated, so requesting unnecessary fields wastes tokens. (3) Use small limit values (5-10) initially to preview data, then increase if needed. FILTERING: When cache enabled (default), all records are cached locally and filter parameter applies SQL WHERE clauses on cached data for instant filtering at zero API cost. Returns plain text format showing "X of Y filtered records (Z total)" to help you understand the data. REQUIRED: Must specify fields parameter.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -166,7 +166,7 @@ module SmartSuite
               },
               'limit' => {
                 'type' => 'number',
-                'description' => 'Maximum number of records to return (default: 10). Applied to cached results when using cache, or to API results when bypassing cache.'
+                'description' => 'Maximum number of records to return (default: 10). ⚠️ START SMALL: Use 5-10 initially to preview data efficiently, only increase if more records are needed after reviewing results. Applied after filtering.'
               },
               'offset' => {
                 'type' => 'number',
@@ -174,7 +174,7 @@ module SmartSuite
               },
               'filter' => {
                 'type' => 'object',
-                'description' => 'SmartSuite API filter criteria - ONLY used when cache disabled or bypass_cache=true. When using cache (default), all records are cached locally and filtering is done via SQL, making this parameter ignored. STRUCTURE: {"operator": "and|or", "fields": [{"field": "field_slug", "comparison": "operator", "value": "value"}]}. EXAMPLES: 1) Single filter: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}]}. 2) Multiple filters: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}, {"field": "priority", "comparison": "is_greater_than", "value": 3}]}. 3) Date filter: {"operator": "and", "fields": [{"field": "due_date", "comparison": "is_after", "value": {"date_mode": "exact_date", "date_mode_value": "2025-01-01"}}]}. OPERATORS: is, is_not, contains, is_greater_than, is_less_than, is_empty, is_not_empty, is_before, is_after. NOTE: Date fields require value as object with date_mode and date_mode_value.'
+                'description' => '⚠️ STRONGLY RECOMMENDED: Filter criteria to request only relevant records. When cache enabled (default), filters are applied as SQL WHERE clauses on cached data for instant, zero-cost filtering - ALWAYS use this instead of fetching all records! STRUCTURE: {"operator": "and|or", "fields": [{"field": "field_slug", "comparison": "operator", "value": "value"}]}. EXAMPLES: 1) Status filter: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}]}. 2) Multiple conditions: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}, {"field": "priority", "comparison": "is_greater_than", "value": 3}]}. 3) Date range: {"operator": "and", "fields": [{"field": "due_date", "comparison": "is_after", "value": {"date_mode": "exact_date", "date_mode_value": "2025-01-01"}}]}. OPERATORS: is, is_not, contains, is_greater_than, is_less_than, is_equal_or_greater_than, is_equal_or_less_than, is_empty, is_not_empty, has_any_of, has_all_of, is_exactly, is_before, is_after. NOTE: Date fields require value as object with date_mode and date_mode_value.'
               },
               'sort' => {
                 'type' => 'array',
@@ -196,7 +196,7 @@ module SmartSuite
               },
               'fields' => {
                 'type' => 'array',
-                'description' => 'REQUIRED: Array of field slugs to return (e.g., ["status", "priority", "assigned_to"]). You MUST specify which fields to fetch to control token usage. Field values are returned in FULL without truncation, so only request fields you actually need. Example: fields: ["title", "status"] returns only those two fields for each record.',
+                'description' => 'REQUIRED: Array of field slugs to return (e.g., ["status", "priority"]). ⚠️ CRITICAL: Specify ONLY the minimum fields needed - values are NOT truncated, so requesting unnecessary fields (especially long text, descriptions, notes) wastes many tokens. Start with 2-3 key fields to understand the data, then request additional fields only if actually needed. Example: ["status", "priority"] is much more efficient than ["title", "status", "priority", "description", "notes", "comments"].',
                 'items' => {
                   'type' => 'string'
                 }

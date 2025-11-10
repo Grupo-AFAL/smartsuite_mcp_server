@@ -83,11 +83,16 @@ module SmartSuite
 
         # Format as plain text to save ~40% tokens vs JSON
         if plain_text
-          result_text = format_as_plain_text(filtered_items, response['total_count'])
+          filtered_count = response['filtered_count'] || response['total_count']
+          result_text = format_as_plain_text(filtered_items, response['total_count'], filtered_count)
           tokens = estimate_tokens(result_text)
           reduction_percent = ((original_tokens - tokens).to_f / original_tokens * 100).round(1)
 
-          log_metric("✓ Found #{filtered_items.size} of #{response['total_count']} total records (plain text)")
+          if filtered_count && filtered_count < response['total_count']
+            log_metric("✓ Found #{filtered_items.size} records (#{filtered_count} matching filter from #{response['total_count']} total)")
+          else
+            log_metric("✓ Found #{filtered_items.size} of #{response['total_count']} total records (plain text)")
+          end
           log_metric("📊 #{original_tokens} → #{tokens} tokens (saved #{reduction_percent}%)")
           log_token_usage(tokens)
 
@@ -190,13 +195,26 @@ module SmartSuite
       # compared to JSON representation.
       #
       # @param records [Array<Hash>] Filtered record data
-      # @param total_count [Integer, nil] Total record count for header
+      # @param total_count [Integer, nil] Total record count (all records in table)
+      # @param filtered_count [Integer, nil] Count after filtering (before limit/offset)
       # @return [String] Plain text formatted records
-      def format_as_plain_text(records, total_count)
-        return "No records found (0 of #{total_count || 0} total)." if records.empty?
+      def format_as_plain_text(records, total_count, filtered_count = nil)
+        filtered_count ||= total_count
+
+        if records.empty?
+          if filtered_count && filtered_count < total_count
+            return "No records found in displayed page (0 shown from #{filtered_count} matching filter, #{total_count} total)."
+          else
+            return "No records found (0 of #{total_count || 0} total)."
+          end
+        end
 
         lines = []
-        lines << "=== #{records.size} of #{total_count || records.size} total records ==="
+        if filtered_count && filtered_count < total_count
+          lines << "=== Showing #{records.size} of #{filtered_count} filtered records (#{total_count} total) ==="
+        else
+          lines << "=== Showing #{records.size} of #{total_count || records.size} total records ==="
+        end
         lines << ""
 
         records.each_with_index do |record, index|
