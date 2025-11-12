@@ -107,21 +107,21 @@ module SmartSuite
           description TEXT,
           status TEXT,
           hidden INTEGER,
-          last_access INTEGER,
-          updated INTEGER,
-          created INTEGER,
+          last_access TEXT,
+          updated TEXT,
+          created TEXT,
           created_by TEXT,
           records_count INTEGER,
           members_count INTEGER,
           applications_count INTEGER,
           automation_count INTEGER,
           has_demo_data INTEGER,
-          delete_date INTEGER,
+          delete_date TEXT,
           deleted_by TEXT,
           updated_by TEXT,
           permissions TEXT,
-          cached_at INTEGER NOT NULL,
-          expires_at INTEGER NOT NULL
+          cached_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL
         );
 
         -- Cache for tables list
@@ -132,15 +132,15 @@ module SmartSuite
           solution_id TEXT,
           description TEXT,
           structure TEXT,
-          created INTEGER,
-          updated INTEGER,
+          created TEXT,
+          updated TEXT,
           created_by TEXT,
           updated_by TEXT,
-          deleted_date INTEGER,
+          deleted_date TEXT,
           deleted_by TEXT,
           record_count INTEGER,
-          cached_at INTEGER NOT NULL,
-          expires_at INTEGER NOT NULL
+          cached_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL
         );
 
         CREATE INDEX IF NOT EXISTS idx_cached_tables_solution ON cached_tables(solution_id);
@@ -174,16 +174,21 @@ module SmartSuite
       end
     end
 
-    # Migrate cache tables to new schema with fixed columns
+    # Migrate cache tables to new schema with fixed columns and TEXT datetimes
     def migrate_cache_tables_schema
-      # Check if cached_solutions has old schema (missing slug column)
+      # Check if cached_solutions has old schema (missing slug column or INTEGER datetimes)
       solutions_columns = @db.execute("PRAGMA table_info(cached_solutions)")
+      solutions_expires_col = solutions_columns.find { |col| col['name'] == 'expires_at' }
       has_old_solutions_schema = solutions_columns.any? { |col| col['name'] == 'data' } ||
-                                   !solutions_columns.any? { |col| col['name'] == 'slug' }
+                                   !solutions_columns.any? { |col| col['name'] == 'slug' } ||
+                                   (solutions_expires_col && solutions_expires_col['type'] == 'INTEGER')
 
-      # Check if cached_tables exists and has old schema (missing slug column)
+      # Check if cached_tables exists and has old schema (missing slug column or INTEGER datetimes)
       tables_columns = @db.execute("PRAGMA table_info(cached_tables)")
-      has_old_tables_schema = tables_columns.empty? || !tables_columns.any? { |col| col['name'] == 'slug' }
+      tables_expires_col = tables_columns.find { |col| col['name'] == 'expires_at' }
+      has_old_tables_schema = tables_columns.empty? ||
+                               !tables_columns.any? { |col| col['name'] == 'slug' } ||
+                               (tables_expires_col && tables_expires_col['type'] == 'INTEGER')
 
       if has_old_solutions_schema || has_old_tables_schema
         # Drop old tables and let them be recreated with new schema
@@ -203,21 +208,21 @@ module SmartSuite
             description TEXT,
             status TEXT,
             hidden INTEGER,
-            last_access INTEGER,
-            updated INTEGER,
-            created INTEGER,
+            last_access TEXT,
+            updated TEXT,
+            created TEXT,
             created_by TEXT,
             records_count INTEGER,
             members_count INTEGER,
             applications_count INTEGER,
             automation_count INTEGER,
             has_demo_data INTEGER,
-            delete_date INTEGER,
+            delete_date TEXT,
             deleted_by TEXT,
             updated_by TEXT,
             permissions TEXT,
-            cached_at INTEGER NOT NULL,
-            expires_at INTEGER NOT NULL
+            cached_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL
           );
 
           CREATE TABLE IF NOT EXISTS cached_tables (
@@ -227,15 +232,15 @@ module SmartSuite
             solution_id TEXT,
             description TEXT,
             structure TEXT,
-            created INTEGER,
-            updated INTEGER,
+            created TEXT,
+            updated TEXT,
             created_by TEXT,
             updated_by TEXT,
-            deleted_date INTEGER,
+            deleted_date TEXT,
             deleted_by TEXT,
             record_count INTEGER,
-            cached_at INTEGER NOT NULL,
-            expires_at INTEGER NOT NULL
+            cached_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL
           );
         SQL
       end
@@ -345,35 +350,35 @@ module SmartSuite
       case field_type
       when 'firstcreated'
         {
-          'created_on' => 'INTEGER',
+          'created_on' => 'TEXT',
           'created_by' => 'TEXT'
         }
       when 'lastupdated'
         {
-          'updated_on' => 'INTEGER',
+          'updated_on' => 'TEXT',
           'updated_by' => 'TEXT'
         }
       when 'deleted_date'
         {
-          'deleted_on' => 'INTEGER',
+          'deleted_on' => 'TEXT',
           'deleted_by' => 'TEXT'
         }
       when 'daterangefield'
         {
-          "#{col_name}_from" => 'INTEGER',
-          "#{col_name}_to" => 'INTEGER'
+          "#{col_name}_from" => 'TEXT',
+          "#{col_name}_to" => 'TEXT'
         }
       when 'duedatefield'
         {
-          "#{col_name}_from" => 'INTEGER',
-          "#{col_name}_to" => 'INTEGER',
+          "#{col_name}_from" => 'TEXT',
+          "#{col_name}_to" => 'TEXT',
           "#{col_name}_is_overdue" => 'INTEGER',
           "#{col_name}_is_completed" => 'INTEGER'
         }
       when 'statusfield'
         {
           col_name => 'TEXT',
-          "#{col_name}_updated_on" => 'INTEGER'
+          "#{col_name}_updated_on" => 'TEXT'
         }
       when 'addressfield'
         {
@@ -436,7 +441,7 @@ module SmartSuite
 
       # Date fields
       when 'datefield'
-        'INTEGER'  # Unix timestamp
+        'TEXT'  # ISO 8601 string
       when 'durationfield'
         'REAL'  # Seconds
       when 'timefield'
@@ -647,7 +652,7 @@ module SmartSuite
     def cache_table_records(table_id, structure, records, ttl: nil)
       sql_table_name = get_or_create_cache_table(table_id, structure)
       ttl_seconds = ttl || get_table_ttl(table_id)
-      expires_at = Time.now.to_i + ttl_seconds
+      expires_at = (Time.now + ttl_seconds).utc.iso8601
 
       # Clear existing records (re-fetch strategy)
       @db.execute("DELETE FROM #{sql_table_name}")
@@ -669,7 +674,7 @@ module SmartSuite
     # @param table_id [String] SmartSuite table ID
     # @param structure [Hash] Table structure
     # @param record [Hash] Record data
-    # @param expires_at [Integer] Expiration timestamp
+    # @param expires_at [String] Expiration timestamp (ISO 8601)
     def insert_record(sql_table_name, table_id, structure, record, expires_at)
       schema = get_cached_table_schema(table_id)
       field_mapping = schema['field_mapping']
@@ -677,7 +682,7 @@ module SmartSuite
 
       # Build INSERT statement
       columns = ['id', 'cached_at', 'expires_at']
-      values = [record['id'], Time.now.to_i, expires_at]
+      values = [record['id'], Time.now.utc.iso8601, expires_at]
       placeholders = ['?', '?', '?']
 
       # Extract values for each field
@@ -802,13 +807,15 @@ module SmartSuite
       end
     end
 
-    # Parse ISO timestamp to Unix timestamp
+    # Parse and validate ISO 8601 timestamp
     #
     # @param timestamp_str [String] ISO 8601 timestamp
-    # @return [Integer] Unix timestamp
+    # @return [String, nil] ISO 8601 timestamp or nil if invalid
     def parse_timestamp(timestamp_str)
       return nil if timestamp_str.nil?
-      Time.parse(timestamp_str).to_i
+      # Validate by parsing, then return original
+      Time.parse(timestamp_str)
+      timestamp_str
     rescue ArgumentError
       nil
     end
@@ -872,7 +879,7 @@ module SmartSuite
       # Check if any record exists and is not expired
       result = @db.execute(
         "SELECT COUNT(*) as count FROM #{sql_table_name} WHERE expires_at > ?",
-        [Time.now.to_i]
+        [Time.now.utc.iso8601]
       ).first
 
       result && result['count'] > 0
@@ -952,8 +959,8 @@ module SmartSuite
     # @param ttl [Integer] Time-to-live in seconds (default: 24 hours)
     # @return [Integer] Number of solutions cached
     def cache_solutions(solutions, ttl: 24 * 3600)
-      expires_at = Time.now.to_i + ttl
-      cached_at = Time.now.to_i
+      expires_at = (Time.now + ttl).utc.iso8601
+      cached_at = Time.now.utc.iso8601
 
       # Clear existing cached solutions
       db_execute("DELETE FROM cached_solutions")
@@ -1021,7 +1028,7 @@ module SmartSuite
       # Fetch all solutions
       results = db_execute(
         "SELECT * FROM cached_solutions WHERE expires_at > ?",
-        Time.now.to_i
+        Time.now.utc.iso8601
       )
 
       return nil if results.empty?
@@ -1040,16 +1047,16 @@ module SmartSuite
         solution['description'] = row['description'] if row['description']
         solution['status'] = row['status'] if row['status']
         solution['hidden'] = row['hidden'] == 1 if row['hidden']
-        solution['last_access'] = Time.at(row['last_access']).utc.iso8601 if row['last_access']
-        solution['updated'] = Time.at(row['updated']).utc.iso8601 if row['updated']
-        solution['created'] = Time.at(row['created']).utc.iso8601 if row['created']
+        solution['last_access'] = row['last_access'] if row['last_access']
+        solution['updated'] = row['updated'] if row['updated']
+        solution['created'] = row['created'] if row['created']
         solution['created_by'] = row['created_by'] if row['created_by']
         solution['records_count'] = row['records_count'] if row['records_count']
         solution['members_count'] = row['members_count'] if row['members_count']
         solution['applications_count'] = row['applications_count'] if row['applications_count']
         solution['automation_count'] = row['automation_count'] if row['automation_count']
         solution['has_demo_data'] = row['has_demo_data'] == 1 if row['has_demo_data']
-        solution['delete_date'] = Time.at(row['delete_date']).utc.iso8601 if row['delete_date']
+        solution['delete_date'] = row['delete_date'] if row['delete_date']
         solution['deleted_by'] = row['deleted_by'] if row['deleted_by']
         solution['updated_by'] = row['updated_by'] if row['updated_by']
         solution['permissions'] = JSON.parse(row['permissions']) if row['permissions']
@@ -1068,7 +1075,7 @@ module SmartSuite
     def solutions_cache_valid?
       result = db_execute(
         "SELECT COUNT(*) as count FROM cached_solutions WHERE expires_at > ?",
-        Time.now.to_i
+        Time.now.utc.iso8601
       ).first
 
       valid = result && result['count'] > 0
@@ -1094,8 +1101,8 @@ module SmartSuite
     # @param ttl [Integer] Time-to-live in seconds (default: 12 hours)
     # @return [Integer] Number of tables cached
     def cache_table_list(solution_id, tables, ttl: 12 * 3600)
-      expires_at = Time.now.to_i + ttl
-      cached_at = Time.now.to_i
+      expires_at = (Time.now + ttl).utc.iso8601
+      cached_at = Time.now.utc.iso8601
 
       # Delete existing tables for this solution (or all if solution_id is nil)
       if solution_id
@@ -1152,12 +1159,12 @@ module SmartSuite
       if solution_id
         results = db_execute(
           "SELECT * FROM cached_tables WHERE solution_id = ? AND expires_at > ?",
-          solution_id, Time.now.to_i
+          solution_id, Time.now.utc.iso8601
         )
       else
         results = db_execute(
           "SELECT * FROM cached_tables WHERE expires_at > ?",
-          Time.now.to_i
+          Time.now.utc.iso8601
         )
       end
 
@@ -1200,7 +1207,7 @@ module SmartSuite
       if solution_id
         result = db_execute(
           "SELECT COUNT(*) as count FROM cached_tables WHERE solution_id = ? AND expires_at > ?",
-          solution_id, Time.now.to_i
+          solution_id, Time.now.utc.iso8601
         ).first
 
         valid = result && result['count'] > 0
@@ -1209,7 +1216,7 @@ module SmartSuite
       else
         result = db_execute(
           "SELECT COUNT(*) as count FROM cached_tables WHERE expires_at > ?",
-          Time.now.to_i
+          Time.now.utc.iso8601
         ).first
 
         valid = result && result['count'] > 0
