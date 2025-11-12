@@ -100,30 +100,47 @@ module SmartSuite
         -- Cache for solutions list
         CREATE TABLE IF NOT EXISTS cached_solutions (
           id TEXT PRIMARY KEY,
-          data TEXT NOT NULL,
+          name TEXT,
+          logo_icon TEXT,
+          logo_color TEXT,
+          description TEXT,
+          status TEXT,
+          hidden INTEGER,
+          last_access INTEGER,
+          updated INTEGER,
+          created INTEGER,
+          records_count INTEGER,
+          members_count INTEGER,
+          applications_count INTEGER,
+          automation_count INTEGER,
+          has_demo_data INTEGER,
+          delete_date INTEGER,
+          deleted_by TEXT,
+          updated_by TEXT,
           cached_at INTEGER NOT NULL,
           expires_at INTEGER NOT NULL
         );
 
-        -- Cache for table lists (per solution)
-        CREATE TABLE IF NOT EXISTS cached_table_lists (
-          solution_id TEXT PRIMARY KEY,
-          data TEXT NOT NULL,
+        -- Cache for tables list
+        CREATE TABLE IF NOT EXISTS cached_tables (
+          id TEXT PRIMARY KEY,
+          name TEXT,
+          solution_id TEXT,
+          structure TEXT,
           cached_at INTEGER NOT NULL,
           expires_at INTEGER NOT NULL
         );
 
-        -- Cache for global table list (all tables, no solution filter)
-        CREATE TABLE IF NOT EXISTS cached_all_tables (
-          cache_key TEXT PRIMARY KEY DEFAULT 'all_tables',
-          data TEXT NOT NULL,
-          cached_at INTEGER NOT NULL,
-          expires_at INTEGER NOT NULL
-        );
+        CREATE INDEX IF NOT EXISTS idx_cached_tables_solution ON cached_tables(solution_id);
+        CREATE INDEX IF NOT EXISTS idx_cached_tables_expires ON cached_tables(expires_at);
+        CREATE INDEX IF NOT EXISTS idx_cached_solutions_expires ON cached_solutions(expires_at);
       SQL
 
       # Handle schema migration for session_id column
       migrate_api_call_log_schema
+
+      # Handle schema migration for cache tables
+      migrate_cache_tables_schema
 
       # Create indexes after ensuring schema is up to date
       @db.execute_batch <<-SQL
@@ -142,6 +159,55 @@ module SmartSuite
 
       unless has_session_id
         @db.execute("ALTER TABLE api_call_log ADD COLUMN session_id TEXT DEFAULT 'legacy'")
+      end
+    end
+
+    # Migrate cache tables to new schema with fixed columns
+    def migrate_cache_tables_schema
+      # Check if cached_solutions has old schema (only id, data, cached_at, expires_at)
+      solutions_columns = @db.execute("PRAGMA table_info(cached_solutions)")
+      has_old_solutions_schema = solutions_columns.any? { |col| col['name'] == 'data' }
+
+      if has_old_solutions_schema
+        # Drop old table and let it be recreated with new schema
+        @db.execute("DROP TABLE IF EXISTS cached_solutions")
+        @db.execute("DROP TABLE IF EXISTS cached_table_lists")
+        @db.execute("DROP TABLE IF EXISTS cached_all_tables")
+
+        # Recreate with new schema
+        @db.execute_batch <<-SQL
+          CREATE TABLE IF NOT EXISTS cached_solutions (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            logo_icon TEXT,
+            logo_color TEXT,
+            description TEXT,
+            status TEXT,
+            hidden INTEGER,
+            last_access INTEGER,
+            updated INTEGER,
+            created INTEGER,
+            records_count INTEGER,
+            members_count INTEGER,
+            applications_count INTEGER,
+            automation_count INTEGER,
+            has_demo_data INTEGER,
+            delete_date INTEGER,
+            deleted_by TEXT,
+            updated_by TEXT,
+            cached_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS cached_tables (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            solution_id TEXT,
+            structure TEXT,
+            cached_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL
+          );
+        SQL
       end
     end
 
@@ -857,15 +923,48 @@ module SmartSuite
     # @return [Integer] Number of solutions cached
     def cache_solutions(solutions, ttl: 24 * 3600)
       expires_at = Time.now.to_i + ttl
+      cached_at = Time.now.to_i
 
       # Clear existing cached solutions
       db_execute("DELETE FROM cached_solutions")
 
-      # Insert all solutions
+      # Insert all solutions with fixed columns
       solutions.each do |solution|
+        # Extract HTML from description if it exists
+        description_html = if solution['description'].is_a?(Hash)
+          solution['description']['html']
+        else
+          solution['description']
+        end
+
         db_execute(
-          "INSERT INTO cached_solutions (id, data, cached_at, expires_at) VALUES (?, ?, ?, ?)",
-          solution['id'], solution.to_json, Time.now.to_i, expires_at
+          "INSERT INTO cached_solutions (
+            id, name, logo_icon, logo_color, description,
+            status, hidden, last_access, updated, created,
+            records_count, members_count, applications_count, automation_count,
+            has_demo_data, delete_date, deleted_by, updated_by,
+            cached_at, expires_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          solution['id'],
+          solution['name'],
+          solution['logo_icon'],
+          solution['logo_color'],
+          description_html,
+          solution['status'],
+          solution['hidden'] ? 1 : 0,
+          solution['last_access'] ? parse_timestamp(solution['last_access']) : nil,
+          solution['updated'] ? parse_timestamp(solution['updated']) : nil,
+          solution['created'] ? parse_timestamp(solution['created']) : nil,
+          solution['records_count'],
+          solution['members_count'],
+          solution['applications_count'],
+          solution['automation_count'],
+          solution['has_demo_data'] ? 1 : 0,
+          solution['delete_date'] ? parse_timestamp(solution['delete_date']) : nil,
+          solution['deleted_by'],
+          solution['updated_by'],
+          cached_at,
+          expires_at
         )
       end
 
@@ -885,13 +984,39 @@ module SmartSuite
 
       # Fetch all solutions
       results = db_execute(
-        "SELECT data FROM cached_solutions WHERE expires_at > ?",
+        "SELECT * FROM cached_solutions WHERE expires_at > ?",
         Time.now.to_i
       )
 
       return nil if results.empty?
 
-      solutions = results.map { |row| JSON.parse(row['data']) }
+      # Reconstruct solution hashes from fixed columns
+      solutions = results.map do |row|
+        solution = {
+          'id' => row['id'],
+          'name' => row['name'],
+          'logo_icon' => row['logo_icon'],
+          'logo_color' => row['logo_color']
+        }
+
+        # Add optional fields if present
+        solution['description'] = row['description'] if row['description']
+        solution['status'] = row['status'] if row['status']
+        solution['hidden'] = row['hidden'] == 1 if row['hidden']
+        solution['last_access'] = Time.at(row['last_access']).utc.iso8601 if row['last_access']
+        solution['updated'] = Time.at(row['updated']).utc.iso8601 if row['updated']
+        solution['created'] = Time.at(row['created']).utc.iso8601 if row['created']
+        solution['records_count'] = row['records_count'] if row['records_count']
+        solution['members_count'] = row['members_count'] if row['members_count']
+        solution['applications_count'] = row['applications_count'] if row['applications_count']
+        solution['automation_count'] = row['automation_count'] if row['automation_count']
+        solution['has_demo_data'] = row['has_demo_data'] == 1 if row['has_demo_data']
+        solution['delete_date'] = Time.at(row['delete_date']).utc.iso8601 if row['delete_date']
+        solution['deleted_by'] = row['deleted_by'] if row['deleted_by']
+        solution['updated_by'] = row['updated_by'] if row['updated_by']
+
+        solution
+      end
 
       QueryLogger.log_cache_operation('hit', 'solutions', count: solutions.size)
 
@@ -931,26 +1056,34 @@ module SmartSuite
     # @return [Integer] Number of tables cached
     def cache_table_list(solution_id, tables, ttl: 12 * 3600)
       expires_at = Time.now.to_i + ttl
+      cached_at = Time.now.to_i
 
+      # Delete existing tables for this solution (or all if solution_id is nil)
       if solution_id
-        # Cache for specific solution
-        db_execute(
-          "INSERT OR REPLACE INTO cached_table_lists (solution_id, data, cached_at, expires_at) VALUES (?, ?, ?, ?)",
-          solution_id, tables.to_json, Time.now.to_i, expires_at
-        )
-
-        record_stat('table_list_cached', 'insert', solution_id, {count: tables.size, ttl: ttl})
-        QueryLogger.log_cache_operation('insert', "table_list:#{solution_id}", count: tables.size, ttl: ttl)
+        db_execute("DELETE FROM cached_tables WHERE solution_id = ?", solution_id)
       else
-        # Cache for all tables (no solution filter)
-        db_execute(
-          "INSERT OR REPLACE INTO cached_all_tables (cache_key, data, cached_at, expires_at) VALUES (?, ?, ?, ?)",
-          'all_tables', tables.to_json, Time.now.to_i, expires_at
-        )
-
-        record_stat('table_list_cached', 'insert', 'all_tables', {count: tables.size, ttl: ttl})
-        QueryLogger.log_cache_operation('insert', 'table_list:all', count: tables.size, ttl: ttl)
+        db_execute("DELETE FROM cached_tables")
       end
+
+      # Insert all tables with fixed columns
+      tables.each do |table|
+        # Convert structure to JSON if it exists
+        structure_json = table['structure'] ? table['structure'].to_json : nil
+
+        db_execute(
+          "INSERT INTO cached_tables (id, name, solution_id, structure, cached_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
+          table['id'],
+          table['name'],
+          table['solution_id'],
+          structure_json,
+          cached_at,
+          expires_at
+        )
+      end
+
+      cache_key = solution_id ? "solution:#{solution_id}" : "all_tables"
+      record_stat('table_list_cached', 'insert', cache_key, {count: tables.size, ttl: ttl})
+      QueryLogger.log_cache_operation('insert', "table_list:#{cache_key}", count: tables.size, ttl: ttl)
 
       tables.size
     end
@@ -963,31 +1096,41 @@ module SmartSuite
       # Check if cache is valid
       return nil unless table_list_cache_valid?(solution_id)
 
+      # Fetch tables from cache
       if solution_id
-        # Fetch from solution-specific cache
-        result = db_execute(
-          "SELECT data FROM cached_table_lists WHERE solution_id = ? AND expires_at > ?",
+        results = db_execute(
+          "SELECT * FROM cached_tables WHERE solution_id = ? AND expires_at > ?",
           solution_id, Time.now.to_i
-        ).first
-
-        return nil unless result
-
-        tables = JSON.parse(result['data'])
-        QueryLogger.log_cache_operation('hit', "table_list:#{solution_id}", count: tables.size)
-        tables
+        )
       else
-        # Fetch from all tables cache
-        result = db_execute(
-          "SELECT data FROM cached_all_tables WHERE cache_key = ? AND expires_at > ?",
-          'all_tables', Time.now.to_i
-        ).first
-
-        return nil unless result
-
-        tables = JSON.parse(result['data'])
-        QueryLogger.log_cache_operation('hit', 'table_list:all', count: tables.size)
-        tables
+        results = db_execute(
+          "SELECT * FROM cached_tables WHERE expires_at > ?",
+          Time.now.to_i
+        )
       end
+
+      return nil if results.empty?
+
+      # Reconstruct table hashes from fixed columns
+      tables = results.map do |row|
+        table = {
+          'id' => row['id'],
+          'name' => row['name'],
+          'solution_id' => row['solution_id']
+        }
+
+        # Add structure if present
+        if row['structure']
+          table['structure'] = JSON.parse(row['structure'])
+        end
+
+        table
+      end
+
+      cache_key = solution_id ? "solution:#{solution_id}" : "all_tables"
+      QueryLogger.log_cache_operation('hit', "table_list:#{cache_key}", count: tables.size)
+
+      tables
     end
 
     # Check if table list cache is valid (not expired)
@@ -997,21 +1140,21 @@ module SmartSuite
     def table_list_cache_valid?(solution_id)
       if solution_id
         result = db_execute(
-          "SELECT COUNT(*) as count FROM cached_table_lists WHERE solution_id = ? AND expires_at > ?",
+          "SELECT COUNT(*) as count FROM cached_tables WHERE solution_id = ? AND expires_at > ?",
           solution_id, Time.now.to_i
         ).first
 
         valid = result && result['count'] > 0
-        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', "table_list:#{solution_id}")
+        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', "table_list:solution:#{solution_id}")
         valid
       else
         result = db_execute(
-          "SELECT COUNT(*) as count FROM cached_all_tables WHERE cache_key = ? AND expires_at > ?",
-          'all_tables', Time.now.to_i
+          "SELECT COUNT(*) as count FROM cached_tables WHERE expires_at > ?",
+          Time.now.to_i
         ).first
 
         valid = result && result['count'] > 0
-        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'table_list:all')
+        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'table_list:all_tables')
         valid
       end
     end
@@ -1021,13 +1164,13 @@ module SmartSuite
     # @param solution_id [String, nil] Solution ID (nil for all tables)
     def invalidate_table_list_cache(solution_id)
       if solution_id
-        db_execute("UPDATE cached_table_lists SET expires_at = 0 WHERE solution_id = ?", solution_id)
+        db_execute("UPDATE cached_tables SET expires_at = 0 WHERE solution_id = ?", solution_id)
         record_stat('invalidation', 'table_list', solution_id)
-        QueryLogger.log_cache_operation('invalidate', "table_list:#{solution_id}")
+        QueryLogger.log_cache_operation('invalidate', "table_list:solution:#{solution_id}")
       else
-        db_execute("UPDATE cached_all_tables SET expires_at = 0 WHERE cache_key = ?", 'all_tables')
+        db_execute("UPDATE cached_tables SET expires_at = 0")
         record_stat('invalidation', 'table_list', 'all_tables')
-        QueryLogger.log_cache_operation('invalidate', 'table_list:all')
+        QueryLogger.log_cache_operation('invalidate', 'table_list:all_tables')
       end
     end
 
