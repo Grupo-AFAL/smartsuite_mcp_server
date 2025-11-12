@@ -186,6 +186,10 @@ class SmartSuiteServerTest < Minitest::Test
   # Test API statistics tracking
   def test_stats_tracker_initialization
     tracker = ApiStatsTracker.new('test_key')
+
+    # Reset stats first to ensure clean slate (previous tests may have left data)
+    tracker.reset_stats
+
     stats = tracker.get_stats
 
     assert_equal 0, stats['summary']['total_calls']
@@ -2078,7 +2082,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_list_solutions_without_fields_returns_essential_only
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
