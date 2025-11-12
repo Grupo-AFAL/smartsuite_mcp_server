@@ -257,7 +257,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions
+    result = client.list_solutions(bypass_cache: true)
 
     assert_equal 2, result['count']
     assert_equal 2, result['solutions'].length
@@ -283,7 +283,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions
+    result = client.list_solutions(bypass_cache: true)
 
     assert_equal 1, result['count']
     assert_equal 1, result['solutions'].length
@@ -308,7 +308,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_tables
+    result = client.list_tables(bypass_cache: true)
 
     assert_equal 1, result['count']
     assert_equal 'tbl_1', result['tables'][0]['id']
@@ -346,7 +346,7 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     # Test filtering by solution_id
-    result = client.list_tables(solution_id: 'sol_1')
+    result = client.list_tables(solution_id: 'sol_1', bypass_cache: true)
 
     # Verify the API was called with the solution query parameter
     assert_equal '/applications/?solution=sol_1', called_endpoint, 'Should use solution query parameter'
@@ -382,7 +382,7 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     # Test with fields parameter
-    result = client.list_tables(fields: ['name', 'id', 'structure'])
+    result = client.list_tables(fields: ['name', 'id', 'structure'], bypass_cache: true)
 
     # Verify the API was called with fields query parameters
     assert_includes called_endpoint, 'fields=name', 'Should include fields=name'

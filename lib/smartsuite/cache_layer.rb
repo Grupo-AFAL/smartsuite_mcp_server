@@ -96,6 +96,30 @@ module SmartSuite
           first_call INTEGER,
           last_call INTEGER
         );
+
+        -- Cache for solutions list
+        CREATE TABLE IF NOT EXISTS cached_solutions (
+          id TEXT PRIMARY KEY,
+          data TEXT NOT NULL,
+          cached_at INTEGER NOT NULL,
+          expires_at INTEGER NOT NULL
+        );
+
+        -- Cache for table lists (per solution)
+        CREATE TABLE IF NOT EXISTS cached_table_lists (
+          solution_id TEXT PRIMARY KEY,
+          data TEXT NOT NULL,
+          cached_at INTEGER NOT NULL,
+          expires_at INTEGER NOT NULL
+        );
+
+        -- Cache for global table list (all tables, no solution filter)
+        CREATE TABLE IF NOT EXISTS cached_all_tables (
+          cache_key TEXT PRIMARY KEY DEFAULT 'all_tables',
+          data TEXT NOT NULL,
+          cached_at INTEGER NOT NULL,
+          expires_at INTEGER NOT NULL
+        );
       SQL
 
       # Handle schema migration for session_id column
@@ -123,13 +147,18 @@ module SmartSuite
 
     # Execute a SQL query with logging
     # @param sql [String] SQL query
-    # @param params [Array] Query parameters
+    # @param params [Array] Query parameters (pass as individual args or as array)
     # @return [Array] Query results
     def db_execute(sql, *params)
       start_time = Time.now
       QueryLogger.log_db_query(sql, params)
 
-      result = @db.execute(sql, *params)
+      # SQLite3 gem expects params as array, not as splat args
+      result = if params.empty?
+        @db.execute(sql)
+      else
+        @db.execute(sql, params)
+      end
 
       duration = Time.now - start_time
       QueryLogger.log_db_result(result.length, duration)
@@ -817,6 +846,189 @@ module SmartSuite
     #     .execute
     def query(table_id)
       CacheQuery.new(self, table_id)
+    end
+
+    # ========== Solution Caching ==========
+
+    # Cache solutions list
+    #
+    # @param solutions [Array<Hash>] Array of solution hashes
+    # @param ttl [Integer] Time-to-live in seconds (default: 24 hours)
+    # @return [Integer] Number of solutions cached
+    def cache_solutions(solutions, ttl: 24 * 3600)
+      expires_at = Time.now.to_i + ttl
+
+      # Clear existing cached solutions
+      db_execute("DELETE FROM cached_solutions")
+
+      # Insert all solutions
+      solutions.each do |solution|
+        db_execute(
+          "INSERT INTO cached_solutions (id, data, cached_at, expires_at) VALUES (?, ?, ?, ?)",
+          solution['id'], solution.to_json, Time.now.to_i, expires_at
+        )
+      end
+
+      record_stat('solutions_cached', 'bulk_insert', 'solutions', {count: solutions.size, ttl: ttl})
+
+      QueryLogger.log_cache_operation('insert', 'solutions', count: solutions.size, ttl: ttl)
+
+      solutions.size
+    end
+
+    # Get cached solutions list
+    #
+    # @return [Array<Hash>, nil] Array of solutions or nil if cache invalid
+    def get_cached_solutions
+      # Check if cache is valid
+      return nil unless solutions_cache_valid?
+
+      # Fetch all solutions
+      results = db_execute(
+        "SELECT data FROM cached_solutions WHERE expires_at > ?",
+        Time.now.to_i
+      )
+
+      return nil if results.empty?
+
+      solutions = results.map { |row| JSON.parse(row['data']) }
+
+      QueryLogger.log_cache_operation('hit', 'solutions', count: solutions.size)
+
+      solutions
+    end
+
+    # Check if solutions cache is valid (not expired)
+    #
+    # @return [Boolean] true if cache is valid
+    def solutions_cache_valid?
+      result = db_execute(
+        "SELECT COUNT(*) as count FROM cached_solutions WHERE expires_at > ?",
+        Time.now.to_i
+      ).first
+
+      valid = result && result['count'] > 0
+
+      QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'solutions')
+
+      valid
+    end
+
+    # Invalidate solutions cache
+    def invalidate_solutions_cache
+      db_execute("UPDATE cached_solutions SET expires_at = 0")
+      record_stat('invalidation', 'solutions', 'solutions')
+      QueryLogger.log_cache_operation('invalidate', 'solutions')
+    end
+
+    # ========== Table List Caching ==========
+
+    # Cache table list for a solution
+    #
+    # @param solution_id [String, nil] Solution ID (nil for all tables)
+    # @param tables [Array<Hash>] Array of table hashes
+    # @param ttl [Integer] Time-to-live in seconds (default: 12 hours)
+    # @return [Integer] Number of tables cached
+    def cache_table_list(solution_id, tables, ttl: 12 * 3600)
+      expires_at = Time.now.to_i + ttl
+
+      if solution_id
+        # Cache for specific solution
+        db_execute(
+          "INSERT OR REPLACE INTO cached_table_lists (solution_id, data, cached_at, expires_at) VALUES (?, ?, ?, ?)",
+          solution_id, tables.to_json, Time.now.to_i, expires_at
+        )
+
+        record_stat('table_list_cached', 'insert', solution_id, {count: tables.size, ttl: ttl})
+        QueryLogger.log_cache_operation('insert', "table_list:#{solution_id}", count: tables.size, ttl: ttl)
+      else
+        # Cache for all tables (no solution filter)
+        db_execute(
+          "INSERT OR REPLACE INTO cached_all_tables (cache_key, data, cached_at, expires_at) VALUES (?, ?, ?, ?)",
+          'all_tables', tables.to_json, Time.now.to_i, expires_at
+        )
+
+        record_stat('table_list_cached', 'insert', 'all_tables', {count: tables.size, ttl: ttl})
+        QueryLogger.log_cache_operation('insert', 'table_list:all', count: tables.size, ttl: ttl)
+      end
+
+      tables.size
+    end
+
+    # Get cached table list for a solution
+    #
+    # @param solution_id [String, nil] Solution ID (nil for all tables)
+    # @return [Array<Hash>, nil] Array of tables or nil if cache invalid
+    def get_cached_table_list(solution_id)
+      # Check if cache is valid
+      return nil unless table_list_cache_valid?(solution_id)
+
+      if solution_id
+        # Fetch from solution-specific cache
+        result = db_execute(
+          "SELECT data FROM cached_table_lists WHERE solution_id = ? AND expires_at > ?",
+          solution_id, Time.now.to_i
+        ).first
+
+        return nil unless result
+
+        tables = JSON.parse(result['data'])
+        QueryLogger.log_cache_operation('hit', "table_list:#{solution_id}", count: tables.size)
+        tables
+      else
+        # Fetch from all tables cache
+        result = db_execute(
+          "SELECT data FROM cached_all_tables WHERE cache_key = ? AND expires_at > ?",
+          'all_tables', Time.now.to_i
+        ).first
+
+        return nil unless result
+
+        tables = JSON.parse(result['data'])
+        QueryLogger.log_cache_operation('hit', 'table_list:all', count: tables.size)
+        tables
+      end
+    end
+
+    # Check if table list cache is valid (not expired)
+    #
+    # @param solution_id [String, nil] Solution ID (nil for all tables)
+    # @return [Boolean] true if cache is valid
+    def table_list_cache_valid?(solution_id)
+      if solution_id
+        result = db_execute(
+          "SELECT COUNT(*) as count FROM cached_table_lists WHERE solution_id = ? AND expires_at > ?",
+          solution_id, Time.now.to_i
+        ).first
+
+        valid = result && result['count'] > 0
+        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', "table_list:#{solution_id}")
+        valid
+      else
+        result = db_execute(
+          "SELECT COUNT(*) as count FROM cached_all_tables WHERE cache_key = ? AND expires_at > ?",
+          'all_tables', Time.now.to_i
+        ).first
+
+        valid = result && result['count'] > 0
+        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'table_list:all')
+        valid
+      end
+    end
+
+    # Invalidate table list cache
+    #
+    # @param solution_id [String, nil] Solution ID (nil for all tables)
+    def invalidate_table_list_cache(solution_id)
+      if solution_id
+        db_execute("UPDATE cached_table_lists SET expires_at = 0 WHERE solution_id = ?", solution_id)
+        record_stat('invalidation', 'table_list', solution_id)
+        QueryLogger.log_cache_operation('invalidate', "table_list:#{solution_id}")
+      else
+        db_execute("UPDATE cached_all_tables SET expires_at = 0 WHERE cache_key = ?", 'all_tables')
+        record_stat('invalidation', 'table_list', 'all_tables')
+        QueryLogger.log_cache_operation('invalidate', 'table_list:all')
+      end
     end
 
     # Close database connection
