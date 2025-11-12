@@ -100,6 +100,7 @@ module SmartSuite
         -- Cache for solutions list
         CREATE TABLE IF NOT EXISTS cached_solutions (
           id TEXT PRIMARY KEY,
+          slug TEXT,
           name TEXT,
           logo_icon TEXT,
           logo_color TEXT,
@@ -109,6 +110,7 @@ module SmartSuite
           last_access INTEGER,
           updated INTEGER,
           created INTEGER,
+          created_by TEXT,
           records_count INTEGER,
           members_count INTEGER,
           applications_count INTEGER,
@@ -117,6 +119,7 @@ module SmartSuite
           delete_date INTEGER,
           deleted_by TEXT,
           updated_by TEXT,
+          permissions TEXT,
           cached_at INTEGER NOT NULL,
           expires_at INTEGER NOT NULL
         );
@@ -124,9 +127,18 @@ module SmartSuite
         -- Cache for tables list
         CREATE TABLE IF NOT EXISTS cached_tables (
           id TEXT PRIMARY KEY,
+          slug TEXT,
           name TEXT,
           solution_id TEXT,
+          description TEXT,
           structure TEXT,
+          created INTEGER,
+          updated INTEGER,
+          created_by TEXT,
+          updated_by TEXT,
+          deleted_date INTEGER,
+          deleted_by TEXT,
+          record_count INTEGER,
           cached_at INTEGER NOT NULL,
           expires_at INTEGER NOT NULL
         );
@@ -164,20 +176,27 @@ module SmartSuite
 
     # Migrate cache tables to new schema with fixed columns
     def migrate_cache_tables_schema
-      # Check if cached_solutions has old schema (only id, data, cached_at, expires_at)
+      # Check if cached_solutions has old schema (missing slug column)
       solutions_columns = @db.execute("PRAGMA table_info(cached_solutions)")
-      has_old_solutions_schema = solutions_columns.any? { |col| col['name'] == 'data' }
+      has_old_solutions_schema = solutions_columns.any? { |col| col['name'] == 'data' } ||
+                                   !solutions_columns.any? { |col| col['name'] == 'slug' }
 
-      if has_old_solutions_schema
-        # Drop old table and let it be recreated with new schema
+      # Check if cached_tables exists and has old schema (missing slug column)
+      tables_columns = @db.execute("PRAGMA table_info(cached_tables)")
+      has_old_tables_schema = tables_columns.empty? || !tables_columns.any? { |col| col['name'] == 'slug' }
+
+      if has_old_solutions_schema || has_old_tables_schema
+        # Drop old tables and let them be recreated with new schema
         @db.execute("DROP TABLE IF EXISTS cached_solutions")
         @db.execute("DROP TABLE IF EXISTS cached_table_lists")
         @db.execute("DROP TABLE IF EXISTS cached_all_tables")
+        @db.execute("DROP TABLE IF EXISTS cached_tables")
 
         # Recreate with new schema
         @db.execute_batch <<-SQL
           CREATE TABLE IF NOT EXISTS cached_solutions (
             id TEXT PRIMARY KEY,
+            slug TEXT,
             name TEXT,
             logo_icon TEXT,
             logo_color TEXT,
@@ -187,6 +206,7 @@ module SmartSuite
             last_access INTEGER,
             updated INTEGER,
             created INTEGER,
+            created_by TEXT,
             records_count INTEGER,
             members_count INTEGER,
             applications_count INTEGER,
@@ -195,15 +215,25 @@ module SmartSuite
             delete_date INTEGER,
             deleted_by TEXT,
             updated_by TEXT,
+            permissions TEXT,
             cached_at INTEGER NOT NULL,
             expires_at INTEGER NOT NULL
           );
 
           CREATE TABLE IF NOT EXISTS cached_tables (
             id TEXT PRIMARY KEY,
+            slug TEXT,
             name TEXT,
             solution_id TEXT,
+            description TEXT,
             structure TEXT,
+            created INTEGER,
+            updated INTEGER,
+            created_by TEXT,
+            updated_by TEXT,
+            deleted_date INTEGER,
+            deleted_by TEXT,
+            record_count INTEGER,
             cached_at INTEGER NOT NULL,
             expires_at INTEGER NOT NULL
           );
@@ -937,15 +967,19 @@ module SmartSuite
           solution['description']
         end
 
+        # Convert permissions to JSON if it exists
+        permissions_json = solution['permissions'] ? solution['permissions'].to_json : nil
+
         db_execute(
           "INSERT INTO cached_solutions (
-            id, name, logo_icon, logo_color, description,
-            status, hidden, last_access, updated, created,
+            id, slug, name, logo_icon, logo_color, description,
+            status, hidden, last_access, updated, created, created_by,
             records_count, members_count, applications_count, automation_count,
-            has_demo_data, delete_date, deleted_by, updated_by,
+            has_demo_data, delete_date, deleted_by, updated_by, permissions,
             cached_at, expires_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           solution['id'],
+          solution['slug'],
           solution['name'],
           solution['logo_icon'],
           solution['logo_color'],
@@ -955,6 +989,7 @@ module SmartSuite
           solution['last_access'] ? parse_timestamp(solution['last_access']) : nil,
           solution['updated'] ? parse_timestamp(solution['updated']) : nil,
           solution['created'] ? parse_timestamp(solution['created']) : nil,
+          solution['created_by'],
           solution['records_count'],
           solution['members_count'],
           solution['applications_count'],
@@ -963,6 +998,7 @@ module SmartSuite
           solution['delete_date'] ? parse_timestamp(solution['delete_date']) : nil,
           solution['deleted_by'],
           solution['updated_by'],
+          permissions_json,
           cached_at,
           expires_at
         )
@@ -1000,12 +1036,14 @@ module SmartSuite
         }
 
         # Add optional fields if present
+        solution['slug'] = row['slug'] if row['slug']
         solution['description'] = row['description'] if row['description']
         solution['status'] = row['status'] if row['status']
         solution['hidden'] = row['hidden'] == 1 if row['hidden']
         solution['last_access'] = Time.at(row['last_access']).utc.iso8601 if row['last_access']
         solution['updated'] = Time.at(row['updated']).utc.iso8601 if row['updated']
         solution['created'] = Time.at(row['created']).utc.iso8601 if row['created']
+        solution['created_by'] = row['created_by'] if row['created_by']
         solution['records_count'] = row['records_count'] if row['records_count']
         solution['members_count'] = row['members_count'] if row['members_count']
         solution['applications_count'] = row['applications_count'] if row['applications_count']
@@ -1014,6 +1052,7 @@ module SmartSuite
         solution['delete_date'] = Time.at(row['delete_date']).utc.iso8601 if row['delete_date']
         solution['deleted_by'] = row['deleted_by'] if row['deleted_by']
         solution['updated_by'] = row['updated_by'] if row['updated_by']
+        solution['permissions'] = JSON.parse(row['permissions']) if row['permissions']
 
         solution
       end
@@ -1071,11 +1110,24 @@ module SmartSuite
         structure_json = table['structure'] ? table['structure'].to_json : nil
 
         db_execute(
-          "INSERT INTO cached_tables (id, name, solution_id, structure, cached_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)",
+          "INSERT INTO cached_tables (
+            id, slug, name, solution_id, description, structure,
+            created, updated, created_by, updated_by, deleted_date, deleted_by, record_count,
+            cached_at, expires_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           table['id'],
+          table['slug'],
           table['name'],
           table['solution_id'],
+          table['description'],
           structure_json,
+          table['created'] ? parse_timestamp(table['created']) : nil,
+          table['updated'] ? parse_timestamp(table['updated']) : nil,
+          table['created_by'],
+          table['updated_by'],
+          table['deleted_date'] ? parse_timestamp(table['deleted_date']) : nil,
+          table['deleted_by'],
+          table['record_count'],
           cached_at,
           expires_at
         )
@@ -1119,10 +1171,17 @@ module SmartSuite
           'solution_id' => row['solution_id']
         }
 
-        # Add structure if present
-        if row['structure']
-          table['structure'] = JSON.parse(row['structure'])
-        end
+        # Add optional fields if present
+        table['slug'] = row['slug'] if row['slug']
+        table['description'] = row['description'] if row['description']
+        table['structure'] = JSON.parse(row['structure']) if row['structure']
+        table['created'] = Time.at(row['created']).utc.iso8601 if row['created']
+        table['updated'] = Time.at(row['updated']).utc.iso8601 if row['updated']
+        table['created_by'] = row['created_by'] if row['created_by']
+        table['updated_by'] = row['updated_by'] if row['updated_by']
+        table['deleted_date'] = Time.at(row['deleted_date']).utc.iso8601 if row['deleted_date']
+        table['deleted_by'] = row['deleted_by'] if row['deleted_by']
+        table['record_count'] = row['record_count'] if row['record_count']
 
         table
       end
