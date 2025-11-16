@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module SmartSuite
   module API
     # RecordOperations handles CRUD operations on table records.
@@ -33,17 +35,18 @@ module SmartSuite
       # @param hydrated [Boolean] Fetch human-readable values for linked records, users, etc. (default: true)
       # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
       # @return [String] Plain text formatted records with total/filtered counts
-      def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, hydrated: true, bypass_cache: false)
+      def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, hydrated: true,
+                       bypass_cache: false)
         # Handle nil values (when called via MCP with missing parameters)
         limit = 10 if limit.nil?
         offset ||= 0
 
         # VALIDATION: Require fields parameter to prevent excessive context usage
         if !fields || fields.empty?
-          error_msg = "ERROR: You must specify 'fields' parameter to control token usage.\n\n" +
-                      "Example:\n" +
-                      "  list_records(table_id, limit, offset, fields: ['status', 'priority'])\n\n" +
-                      "This ensures you only fetch the data you need."
+          error_msg = "ERROR: You must specify 'fields' parameter to control token usage.\n\n" \
+                      "Example:\n" \
+                      "  list_records(table_id, limit, offset, fields: ['status', 'priority'])\n\n" \
+                      'This ensures you only fetch the data you need.'
           return error_msg
         end
 
@@ -67,9 +70,7 @@ module SmartSuite
         query = @cache.query(table_id)
 
         # Apply filters if provided
-        if filter && filter['fields'] && filter['fields'].any?
-          query = apply_filters_to_query(query, filter)
-        end
+        query = apply_filters_to_query(query, filter) if filter && filter['fields']&.any?
 
         # Get total record count (before limit/offset)
         total_count = query.count
@@ -104,45 +105,45 @@ module SmartSuite
 
           # Convert SmartSuite comparison operators to cache query format
           condition = case comparison
-          when 'is', 'is_equal_to'
-            value
-          when 'is_not', 'is_not_equal_to'
-            { ne: value }
-          when 'is_greater_than'
-            { gt: value }
-          when 'is_less_than'
-            { lt: value }
-          when 'is_equal_or_greater_than'
-            { gte: value }
-          when 'is_equal_or_less_than'
-            { lte: value }
-          when 'contains'
-            { contains: value }
-          when 'not_contains', 'does_not_contain'
-            { not_contains: value }
-          when 'is_empty'
-            nil
-          when 'is_not_empty'
-            { not_null: true }
-          when 'has_any_of'
-            { has_any_of: value }
-          when 'has_all_of'
-            { has_all_of: value }
-          when 'is_exactly'
-            { is_exactly: value }
-          when 'has_none_of'
-            { has_none_of: value }
-          when 'is_before'
-            { lt: value }
-          when 'is_after'
-            { gt: value }
-          when 'is_on_or_before'
-            { lte: value }
-          when 'is_on_or_after'
-            { gte: value }
-          else
-            value  # Default to equality
-          end
+                      when 'is', 'is_equal_to'
+                        value
+                      when 'is_not', 'is_not_equal_to'
+                        { ne: value }
+                      when 'is_greater_than'
+                        { gt: value }
+                      when 'is_less_than'
+                        { lt: value }
+                      when 'is_equal_or_greater_than'
+                        { gte: value }
+                      when 'is_equal_or_less_than'
+                        { lte: value }
+                      when 'contains'
+                        { contains: value }
+                      when 'not_contains', 'does_not_contain'
+                        { not_contains: value }
+                      when 'is_empty'
+                        nil
+                      when 'is_not_empty'
+                        { not_null: true }
+                      when 'has_any_of'
+                        { has_any_of: value }
+                      when 'has_all_of'
+                        { has_all_of: value }
+                      when 'is_exactly'
+                        { is_exactly: value }
+                      when 'has_none_of'
+                        { has_none_of: value }
+                      when 'is_before'
+                        { lt: value }
+                      when 'is_after'
+                        { gt: value }
+                      when 'is_on_or_before'
+                        { lte: value }
+                      when 'is_on_or_after'
+                        { gte: value }
+                      else
+                        value # Default to equality
+                      end
 
           # Apply filter to query
           query = query.where(field_slug.to_sym => condition)
@@ -163,7 +164,8 @@ module SmartSuite
         body[:sort] = sort if sort
 
         # Make request with query params and body
-        response = api_request(:post, "/applications/#{table_id}/records/list/#{query_params}", body.empty? ? nil : body)
+        response = api_request(:post, "/applications/#{table_id}/records/list/#{query_params}",
+                               body.empty? ? nil : body)
 
         # Apply aggressive filtering to reduce response size
         # Returns plain text format to save ~40% tokens vs JSON
@@ -206,7 +208,7 @@ module SmartSuite
       def fetch_all_records(table_id)
         all_records = []
         offset = 0
-        limit = 1000  # Batch size (use 1000 to minimize API calls)
+        limit = 1000 # Batch size (use 1000 to minimize API calls)
 
         loop do
           # Use hydrated=true to get full data (linked records, users, etc.)

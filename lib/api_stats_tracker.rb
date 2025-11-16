@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'digest'
 require 'time'
 require 'sqlite3'
@@ -16,13 +18,13 @@ class ApiStatsTracker
     @db = db
     @owns_db = db.nil?
 
-    if @owns_db
-      # Create our own database if none provided
-      db_path = File.join(Dir.home, '.smartsuite_mcp_cache.db')
-      @db = SQLite3::Database.new(db_path)
-      @db.results_as_hash = true
-      # Tables will be created by CacheLayer setup_metadata_tables
-    end
+    return unless @owns_db
+
+    # Create our own database if none provided
+    db_path = File.join(Dir.home, '.smartsuite_mcp_cache.db')
+    @db = SQLite3::Database.new(db_path)
+    @db.results_as_hash = true
+    # Tables will be created by CacheLayer setup_metadata_tables
   end
 
   def generate_session_id
@@ -47,22 +49,20 @@ class ApiStatsTracker
 
     # Update aggregated stats
     update_aggregated_stats(method_name, endpoint, solution_id, table_id)
-  rescue => e
+  rescue StandardError => e
     # Silently fail - stats tracking should never interrupt user work
     warn "Stats tracking failed: #{e.message}" if ENV['DEBUG']
   end
 
   def get_stats(time_range: 'all')
     # Validate time_range parameter
-    valid_ranges = ['session', '7d', 'all']
-    unless valid_ranges.include?(time_range)
-      time_range = 'all'
-    end
+    valid_ranges = %w[session 7d all]
+    time_range = 'all' unless valid_ranges.include?(time_range)
 
     # Build time filter SQL
     time_filter = build_time_filter(time_range)
 
-    summary = @db.execute("SELECT * FROM api_stats_summary WHERE user_hash = ?", [@user_hash]).first
+    summary = @db.execute('SELECT * FROM api_stats_summary WHERE user_hash = ?', [@user_hash]).first
 
     unless summary
       return {
@@ -102,14 +102,14 @@ class ApiStatsTracker
   end
 
   def reset_stats
-    @db.execute("DELETE FROM api_call_log WHERE user_hash = ?", [@user_hash])
-    @db.execute("DELETE FROM api_stats_summary WHERE user_hash = ?", [@user_hash])
+    @db.execute('DELETE FROM api_call_log WHERE user_hash = ?', [@user_hash])
+    @db.execute('DELETE FROM api_stats_summary WHERE user_hash = ?', [@user_hash])
 
     {
       'status' => 'success',
       'message' => 'API statistics have been reset'
     }
-  rescue => e
+  rescue StandardError => e
     {
       'status' => 'error',
       'message' => "Failed to reset stats: #{e.message}"
@@ -122,7 +122,7 @@ class ApiStatsTracker
 
   private
 
-  def update_aggregated_stats(method_name, endpoint, solution_id, table_id)
+  def update_aggregated_stats(_method_name, _endpoint, _solution_id, _table_id)
     timestamp = Time.now.utc.iso8601
 
     # Upsert summary stats
@@ -145,7 +145,7 @@ class ApiStatsTracker
       seven_days_ago = (Time.now.utc - (7 * 24 * 60 * 60)).iso8601
       "AND timestamp >= '#{seven_days_ago}'"
     else # 'all'
-      ""
+      ''
     end
   end
 
@@ -160,7 +160,7 @@ class ApiStatsTracker
     result ? result['count'] : 0
   end
 
-  def get_unique_count(column, time_filter = "")
+  def get_unique_count(column, time_filter = '')
     return 0 if column.nil?
 
     result = @db.execute(
@@ -173,7 +173,7 @@ class ApiStatsTracker
     result ? result['count'] : 0
   end
 
-  def get_breakdown_by(column, time_filter = "")
+  def get_breakdown_by(column, time_filter = '')
     results = @db.execute(
       "SELECT #{column}, COUNT(*) as count
        FROM api_call_log
@@ -191,7 +191,7 @@ class ApiStatsTracker
   def get_cache_stats(time_filter)
     # Query cache_performance table for all tables
     perf_results = @db.execute(
-      "SELECT * FROM cache_performance ORDER BY table_id"
+      'SELECT * FROM cache_performance ORDER BY table_id'
     )
 
     return empty_cache_stats if perf_results.empty?
@@ -211,8 +211,8 @@ class ApiStatsTracker
     api_calls_without_cache = api_calls_made + api_calls_saved
 
     # Calculate hit rate and efficiency ratio
-    hit_rate = total_operations > 0 ? (total_hits.to_f / total_operations * 100).round(2) : 0.0
-    efficiency_ratio = api_calls_without_cache > 0 ? (api_calls_saved.to_f / api_calls_without_cache * 100).round(2) : 0.0
+    hit_rate = total_operations.positive? ? (total_hits.to_f / total_operations * 100).round(2) : 0.0
+    efficiency_ratio = api_calls_without_cache.positive? ? (api_calls_saved.to_f / api_calls_without_cache * 100).round(2) : 0.0
 
     # Estimate token savings
     # Conservative: each cache hit saves ~500 tokens (vs API call + response parsing)
@@ -221,7 +221,7 @@ class ApiStatsTracker
     # Build per-table breakdown
     by_table = perf_results.map do |row|
       table_total = (row['hit_count'] || 0) + (row['miss_count'] || 0)
-      table_hit_rate = table_total > 0 ? ((row['hit_count'] || 0).to_f / table_total * 100).round(2) : 0.0
+      table_hit_rate = table_total.positive? ? ((row['hit_count'] || 0).to_f / table_total * 100).round(2) : 0.0
 
       {
         'table_id' => row['table_id'],
@@ -269,11 +269,10 @@ class ApiStatsTracker
   end
 
   def extract_solution_id(endpoint)
-    endpoint =~ %r{/solutions/([^/?]+)} ? $1 : nil
+    endpoint =~ %r{/solutions/([^/?]+)} ? ::Regexp.last_match(1) : nil
   end
 
   def extract_table_id(endpoint)
-    endpoint =~ %r{/applications/([^/?]+)} ? $1 : nil
+    endpoint =~ %r{/applications/([^/?]+)} ? ::Regexp.last_match(1) : nil
   end
 end
-

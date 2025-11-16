@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'minitest/autorun'
 require 'json'
 require 'net/http'
@@ -21,7 +23,7 @@ class TestCommentOperations < Minitest::Test
             'content' => [
               {
                 'type' => 'paragraph',
-                'content' => [{'type' => 'text', 'text' => 'First comment'}]
+                'content' => [{ 'type' => 'text', 'text' => 'First comment' }]
               }
             ]
           }
@@ -37,7 +39,7 @@ class TestCommentOperations < Minitest::Test
             'content' => [
               {
                 'type' => 'paragraph',
-                'content' => [{'type' => 'text', 'text' => 'Second comment'}]
+                'content' => [{ 'type' => 'text', 'text' => 'Second comment' }]
               }
             ]
           }
@@ -48,7 +50,7 @@ class TestCommentOperations < Minitest::Test
     ]
 
     # Mock api_request method
-    @client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    @client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       expected_response
     end
 
@@ -61,11 +63,11 @@ class TestCommentOperations < Minitest::Test
   end
 
   def test_list_comments_missing_record_id
-    assert_raises(ArgumentError, "record_id is required") do
+    assert_raises(ArgumentError, 'record_id is required') do
       @client.list_comments(nil)
     end
 
-    assert_raises(ArgumentError, "record_id is required") do
+    assert_raises(ArgumentError, 'record_id is required') do
       @client.list_comments('')
     end
   end
@@ -83,7 +85,7 @@ class TestCommentOperations < Minitest::Test
           'content' => [
             {
               'type' => 'paragraph',
-              'content' => [{'type' => 'text', 'text' => message}]
+              'content' => [{ 'type' => 'text', 'text' => message }]
             }
           ]
         }
@@ -95,7 +97,7 @@ class TestCommentOperations < Minitest::Test
     }
 
     # Mock api_request method
-    @client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    @client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       expected_response
     end
 
@@ -121,7 +123,7 @@ class TestCommentOperations < Minitest::Test
           'content' => [
             {
               'type' => 'paragraph',
-              'content' => [{'type' => 'text', 'text' => message}]
+              'content' => [{ 'type' => 'text', 'text' => message }]
             }
           ]
         }
@@ -133,7 +135,7 @@ class TestCommentOperations < Minitest::Test
     }
 
     # Mock api_request method
-    @client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    @client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       expected_response
     end
 
@@ -144,31 +146,31 @@ class TestCommentOperations < Minitest::Test
   end
 
   def test_add_comment_missing_table_id
-    assert_raises(ArgumentError, "table_id is required") do
+    assert_raises(ArgumentError, 'table_id is required') do
       @client.add_comment(nil, 'rec123', 'message')
     end
 
-    assert_raises(ArgumentError, "table_id is required") do
+    assert_raises(ArgumentError, 'table_id is required') do
       @client.add_comment('', 'rec123', 'message')
     end
   end
 
   def test_add_comment_missing_record_id
-    assert_raises(ArgumentError, "record_id is required") do
+    assert_raises(ArgumentError, 'record_id is required') do
       @client.add_comment('app123', nil, 'message')
     end
 
-    assert_raises(ArgumentError, "record_id is required") do
+    assert_raises(ArgumentError, 'record_id is required') do
       @client.add_comment('app123', '', 'message')
     end
   end
 
   def test_add_comment_missing_message
-    assert_raises(ArgumentError, "message is required") do
+    assert_raises(ArgumentError, 'message is required') do
       @client.add_comment('app123', 'rec456', nil)
     end
 
-    assert_raises(ArgumentError, "message is required") do
+    assert_raises(ArgumentError, 'message is required') do
       @client.add_comment('app123', 'rec456', '')
     end
   end
@@ -195,7 +197,7 @@ class TestCommentOperations < Minitest::Test
     endpoint_called = nil
     method_called = nil
 
-    @client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    @client.define_singleton_method(:api_request) do |method, endpoint, _body = nil|
       endpoint_called = endpoint
       method_called = method
       []
@@ -221,7 +223,7 @@ class TestCommentOperations < Minitest::Test
       endpoint_called = endpoint
       method_called = method
       body_sent = body
-      {'id' => 'new_comment'}
+      { 'id' => 'new_comment' }
     end
 
     @client.add_comment(table_id, record_id, message)

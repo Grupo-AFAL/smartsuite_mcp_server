@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module SmartSuite
   module API
     # ViewOperations handles API calls for view (report) management.
@@ -77,9 +79,7 @@ module SmartSuite
 
         response = api_request(:post, '/reports/', body)
 
-        if response.is_a?(Hash)
-          log_metric("✓ Created view: #{response['label']} (#{response['id']})")
-        end
+        log_metric("✓ Created view: #{response['label']} (#{response['id']})") if response.is_a?(Hash)
 
         response
       end

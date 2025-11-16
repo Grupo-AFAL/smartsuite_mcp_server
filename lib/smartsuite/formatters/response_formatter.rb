@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module SmartSuite
   module Formatters
     # ResponseFormatter handles aggressive response filtering to minimize token usage.
@@ -39,7 +41,7 @@ module SmartSuite
         # For choice fields (status, single select, multi select), strip down choices to only label and value
         if field['params']['choices']
           params['choices'] = field['params']['choices'].map do |choice|
-            {'label' => choice['label'], 'value' => choice['value']}
+            { 'label' => choice['label'], 'value' => choice['value'] }
           end
         end
 
@@ -73,11 +75,11 @@ module SmartSuite
         filtered_items = response['items'].map do |record|
           if fields && !fields.empty?
             # If specific fields requested, only return those + id/title
-            requested_fields = (fields + ['id', 'title']).uniq
+            requested_fields = (fields + %w[id title]).uniq
             filter_record_fields(record, requested_fields)
           else
             # Default: only id and title (minimal context usage)
-            filter_record_fields(record, ['id', 'title'])
+            filter_record_fields(record, %w[id title])
           end
         end
 
@@ -151,7 +153,7 @@ module SmartSuite
 
         items.each do |record|
           record.each do |key, value|
-            next if ['id', 'application_id', 'first_created', 'last_updated', 'autonumber'].include?(key)
+            next if %w[id application_id first_created last_updated autonumber].include?(key)
 
             field_stats[key] ||= {}
 
@@ -167,7 +169,7 @@ module SmartSuite
 
         field_stats.each do |field, values|
           if values.size <= 10
-            value_summary = values.map { |v, count| "#{v} (#{count})" }.join(", ")
+            value_summary = values.map { |v, count| "#{v} (#{count})" }.join(', ')
             summary_lines << "  #{field}: #{value_summary}"
           else
             summary_lines << "  #{field}: #{values.size} unique values"
@@ -183,7 +185,7 @@ module SmartSuite
 
         tokens = estimate_tokens(JSON.generate(result))
         log_metric("✓ Summary: #{items.size} records analyzed")
-        log_metric("📊 Minimal context (summary mode)")
+        log_metric('📊 Minimal context (summary mode)')
         log_token_usage(tokens)
 
         result
@@ -204,34 +206,35 @@ module SmartSuite
         if records.empty?
           if filtered_count && filtered_count < total_count
             return "No records found in displayed page (0 shown from #{filtered_count} matching filter, #{total_count} total)."
-          else
-            return "No records found (0 of #{total_count || 0} total)."
           end
+
+          return "No records found (0 of #{total_count || 0} total)."
+
         end
 
         lines = []
-        if filtered_count && filtered_count < total_count
-          lines << "=== Showing #{records.size} of #{filtered_count} filtered records (#{total_count} total) ==="
-        else
-          lines << "=== Showing #{records.size} of #{total_count || records.size} total records ==="
-        end
-        lines << ""
+        lines << if filtered_count && filtered_count < total_count
+                   "=== Showing #{records.size} of #{filtered_count} filtered records (#{total_count} total) ==="
+                 else
+                   "=== Showing #{records.size} of #{total_count || records.size} total records ==="
+                 end
+        lines << ''
 
         records.each_with_index do |record, index|
           lines << "Record #{index + 1}:"
           record.each do |key, value|
             # Format value appropriately - values are already truncated by truncate_value
             formatted_value = case value
-            when Hash
-              value.inspect
-            when Array
-              value.join(", ")
-            else
-              value.to_s
-            end
+                              when Hash
+                                value.inspect
+                              when Array
+                                value.join(', ')
+                              else
+                                value.to_s
+                              end
             lines << "  #{key}: #{formatted_value}"
           end
-          lines << ""
+          lines << ''
         end
 
         lines.join("\n")
