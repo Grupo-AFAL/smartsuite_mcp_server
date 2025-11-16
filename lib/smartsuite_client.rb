@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require_relative 'api_stats_tracker'
 require_relative 'smartsuite/api/http_client'
 require_relative 'smartsuite/api/workspace_operations'
 require_relative 'smartsuite/api/table_operations'
