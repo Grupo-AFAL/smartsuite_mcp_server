@@ -29,6 +29,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `all`: All-time statistics (default)
   - Time-filtered API call statistics (summary, by_method, by_solution, by_table, by_endpoint)
   - Helps users understand cache effectiveness and optimize performance
+- **Improved dynamic table and column naming** (v1.6):
+  - SQL cache tables now use human-readable names: `cache_records_{sanitized_name}_{table_id}`
+    - Example: `cache_records_customers_tbl_abc123` instead of `cache_records_tbl_abc123`
+  - Columns now use field labels instead of cryptic slugs
+    - Example: `status` instead of `s7e8c12e98`
+    - Falls back to slug if label is missing or invalid
+  - Automatic deduplication for duplicate column names (appends `_2`, `_3`, etc.)
+  - Applies to new cache tables only (no migration required)
+  - Stored in `cache_table_registry` for mapping
+  - Makes SQL cache more readable and debuggable
 - **New `get_cache_status` tool** (v1.6):
   - MCP tool to inspect cache state for solutions, tables, and records
   - Shows: cached_at, expires_at, time_remaining_seconds, record_count, is_valid
