@@ -88,10 +88,12 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - Add time range filter: `session`, `7d`, `all`
   - Show efficiency ratio: API calls saved vs actual calls
 
-- [ ] **Item 5: Add `get_cache_status` tool** (related to Item 5)
-  - Show status for solutions, tables, records (per table)
-  - Display: cached_at, expires_at, time_remaining, record_count
-  - Help users understand cache state
+- [x] **Item 5: Add `get_cache_status` tool** ✅ COMPLETED
+  - ✅ Shows status for solutions, tables, records (per table)
+  - ✅ Display: cached_at, expires_at, time_remaining_seconds, record_count, is_valid
+  - ✅ Optional table_id parameter for filtering
+  - ✅ Added as MCP tool with complete schema
+  - Helps users understand cache state and plan refreshes
 
 #### Phase 3: UX Improvements (Week 3)
 
@@ -412,7 +414,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | ------- | -------------- | ----------- | ---------- |
 | v1.0    | ✅ Released    | Nov 2025    | 100%       |
 | v1.5    | ✅ Released    | Nov 2025    | 100%       |
-| v1.6    | 🚧 In Progress | Dec 2025    | 15%        |
+| v1.6    | 🚧 In Progress | Dec 2025    | 35%        |
 | v2.0    | 📋 Planned     | Q1 2026     | 0%         |
 | v2.1    | 📋 Planned     | Q2 2026     | 0%         |
 | v2.2    | 📋 Planned     | Q2 2026     | 0%         |
