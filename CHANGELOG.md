@@ -9,12 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Comprehensive test coverage for core modules** (v1.8 - Testing):
+  - Added 44 tests for Cache Layer (`test/test_cache_layer.rb`)
+  - Added 23 tests for Prompt Registry (`test/test_prompt_registry.rb`)
+  - Added 32 tests for Response Formatter (`test/test_response_formatter.rb`)
+  - Coverage improved from 68.38% to 82.93% (+14.55 percentage points)
+  - Total test suite: 404 tests, 1,419 assertions, all passing
+  - Remaining gap to 90% target: 7.07%
 - **Comprehensive CI/CD workflows** for quality assurance:
   - Security scanning with Bundler Audit (weekly + on PR)
   - Code quality checks with Reek
   - Documentation quality with Markdown linting and YARD coverage
   - CHANGELOG enforcement on PRs (auto-skips for Dependabot)
-  - Test coverage tracking with SimpleCov (baseline: 59.65%, goal: 90%)
+  - Test coverage tracking with SimpleCov (baseline: 68.38% → current: 82.93%, goal: 90%)
 - **Dependabot configuration** for automated dependency updates (weekly)
 - **New development dependencies**:
   - `simplecov` - Code coverage tracking with detailed reports
