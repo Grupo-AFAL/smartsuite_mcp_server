@@ -1,8 +1,8 @@
 # SmartSuite MCP Server - Product Roadmap
 
-**Last Updated:** November 15, 2025
-**Current Version:** 1.6.0
-**Next Release:** 1.7.0 (Q1 2026)
+**Last Updated:** January 15, 2026
+**Current Version:** 1.7.0
+**Next Release:** 1.8.0 (Q1 2026)
 **Decision Log:** See ROADMAP_DECISIONS.md for detailed analysis and decisions
 
 ## Vision
@@ -35,230 +35,113 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 - ✅ Session-based API tracking in SQLite
 - ✅ `bypass_cache` parameter for fresh data
 
+### v1.6 - Cache Optimization (Completed - Dec 2025)
+
+- ✅ Cache performance tracking with `cache_performance` table
+- ✅ Extended `get_api_stats` with cache metrics (hit rates, token savings)
+- ✅ New cache management tools: `get_cache_status`, `refresh_cache`, `warm_cache`
+- ✅ Human-readable SQL table and column names
+- ✅ Increased cache TTL values (solutions/tables: 7 days, records: 12h)
+- ✅ Removed old migration code, migrated to ISO 8601 timestamps
+- ✅ Renamed `cached_table_schemas` → `cache_table_registry`
+- ✅ Added 4 new filter example prompts
+- ✅ Optimized to use `list_records` exclusively for cache population
+
+### v1.7 - Code Quality & Documentation (Completed - Jan 2026)
+
+- ✅ Split `cache_layer.rb` into focused modules following Ruby conventions:
+  - Organized in `lib/smartsuite/cache/` directory
+  - Properly namespaced under `SmartSuite::Cache` module
+  - `SmartSuite::Cache::Layer` (923 lines) - Core caching interface
+  - `SmartSuite::Cache::Metadata` (459 lines) - Table registry, schema management, TTL config
+  - `SmartSuite::Cache::Performance` (131 lines) - Hit/miss tracking, statistics
+  - `SmartSuite::Cache::Migrations` (241 lines) - Schema migrations
+  - `SmartSuite::Cache::Query` (272 lines) - Chainable query builder
+- ✅ Follows Ruby file/folder naming conventions (file in `cache/` → module `Cache`)
+- ✅ Improved code organization and maintainability
+- ✅ All tests passing (84 runs, 401 assertions, backward compatibility maintained)
+- ✅ Updated documentation (CHANGELOG, ROADMAP)
+- ✅ No user-facing changes - internal refactoring only
+
 ---
 
 ## Current Focus 🎯
 
-### v1.6 - Cache Optimization (In Progress)
+### v1.8 - Developer Experience & Quality (Q1 2026)
 
-**Goal:** Improve cache performance and observability
+**Goal:** Improve developer experience and code quality based on v1.7 learnings
 
-**Note:** Solo developer project - all decisions prioritize immediate value over multi-user migration support
+**Note:** This release focuses on practical improvements deferred from v1.7
 
-#### Phase 1: Foundation (Week 1)
+#### Code Quality
 
-- [x] **Item 7: Remove old cache format migration code** ⚡ Quick win ✅ COMPLETED
+- [ ] **Extract filter building into dedicated FilterBuilder module**
+  - Current: Filter logic mixed into RecordOperations
+  - Proposed: `lib/smartsuite/filter_builder.rb` for SmartSuite filter construction
+  - Benefits: Reusable across operations, easier to test, clearer API
+  - Estimated effort: 1-2 days
 
-  - ✅ Deleted migration methods from `cache_layer.rb` (~79 lines): `migrate_cache_tables_schema`, `migrate_api_call_log_schema`
-  - ✅ Migrated all INTEGER timestamps to TEXT (ISO 8601)
-  - ✅ Added `session_id` column to api_call_log CREATE TABLE statement
-  - ✅ Documented in CHANGELOG as breaking change for pre-v1.5 users
-  - ✅ All tests passing (84 runs, 401 assertions)
-  - **Rationale:** Solo project, no migration compatibility needed
+- [ ] **Refactor API module structure for consistency**
+  - Review and consolidate API operation modules
+  - Extract common error handling patterns
+  - Improve separation between HTTP, caching, and business logic
+  - Consider: Extract cache coordination logic from individual operations
+  - Estimated effort: 3-5 days
 
-- [x] **Item 1: Rename `cached_table_schemas` → `cache_table_registry`** ✅ COMPLETED
+#### Documentation
 
-  - ✅ Updated all code references in `cache_layer.rb`
-  - ✅ ALTER TABLE migration (no data migration, instant rename)
-  - ✅ Updated CHANGELOG with documentation
-  - **Purpose:** Internal registry for dynamic SQL cache tables, not SmartSuite API cache
+- [ ] **Create comprehensive troubleshooting guide**
+  - Common error messages and solutions
+  - Cache debugging techniques (using get_cache_status, refresh_cache)
+  - API rate limit handling strategies
+  - FAQ section with real user questions
+  - Location: `docs/troubleshooting/README.md`
+  - Estimated effort: 2-3 days
 
-- [x] **Item 5: Increase cache TTL values** ✅ COMPLETED (partial)
+- [ ] **Improve YARD documentation coverage**
+  - Add YARD tags to all public methods
+  - Document all parameters, return types, exceptions
+  - Generate HTML documentation for developers
+  - Target: 100% coverage of public APIs
+  - Estimated effort: 2-3 days
 
-  - ✅ Solutions: 24h → 7 days
-  - ✅ Tables: 12h → 7 days
-  - ✅ Records: 4h → 12h (configurable per table)
-  - ✅ Add explicit cache invalidation on structure changes (`add_field`, `update_field`, `delete_field`, `bulk_add_fields`)
-  - ⏳ Members: None → 7 days (not yet implemented - no member caching exists)
-  - [ ] Add `get_cache_status` tool to show TTL and expiration times (separate task below)
+#### Developer Experience
 
-- [ ] **Item 2: Review cache schema** ✅ Approved as-is
-  - Keep current 9-table structure (all serve distinct purposes)
-  - No indexes needed at current scale
-  - Document schema decisions in architecture docs
+- [ ] **Add input validation for all MCP tool parameters**
+  - Validate required parameters before processing
+  - Type checking with helpful error messages
+  - Include examples in error messages
+  - Validate enum values (e.g., resource types, time ranges)
+  - Estimated effort: 2-3 days
 
-#### Phase 2: Observability (Week 2) ✅ COMPLETED
+- [ ] **Standardize response formats across all tools**
+  - Consistent error response structure (code, message, details)
+  - Consistent success response structure
+  - Consistent metadata fields (timestamps, counts, etc.)
+  - Document response format standards
+  - Estimated effort: 1-2 days
 
-- [x] **Item 8: Add `cache_performance` table** ✅ COMPLETED
+#### Testing
 
-  - ✅ Created table: `table_id`, `hit_count`, `miss_count`, `last_access_time`, `record_count`, `cache_size_bytes`
-  - ✅ In-memory counters with periodic flush (every 100 ops or 5 min)
-  - ✅ Batch database writes for performance
-  - ✅ Tracks: hit/miss counts, last access, record counts, cache size
-  - ✅ Integrated into record operations with track_cache_hit/miss methods
+- [ ] **Add integration tests with real SmartSuite API (optional)**
+  - Test suite that validates API contract assumptions
+  - Requires test account/workspace setup
+  - Can be run manually or in CI with proper credentials
+  - Documents real API behavior vs assumptions
+  - Estimated effort: 3-4 days
 
-- [x] **Item 11: Extend `get_api_stats` with cache metrics** ✅ COMPLETED
+- [ ] **Improve test coverage for edge cases**
+  - Focus on error handling paths
+  - Cache invalidation scenarios
+  - Schema evolution edge cases
+  - Target: Maintain >95% coverage
+  - Estimated effort: 2-3 days
 
-  - ✅ Added `cache_stats` section to existing response
-  - ✅ Includes: hit/miss counts, hit rates, token savings estimate, per-table breakdown
-  - ✅ Added time range filter: `session`, `7d`, `all`
-  - ✅ Shows efficiency ratio: API calls saved vs actual calls
-  - ✅ Estimated token savings calculation (500 tokens per hit)
-
-- [x] **Item 5: Add `get_cache_status` tool** ✅ COMPLETED
-  - ✅ Shows status for solutions, tables, records (per table)
-  - ✅ Display: cached_at, expires_at, time_remaining_seconds, record_count, is_valid
-  - ✅ Optional table_id parameter for filtering
-  - ✅ Added as MCP tool with complete schema
-  - Helps users understand cache state and plan refreshes
-
-#### Phase 3: UX Improvements (Week 3) ✅ COMPLETED (ALL ITEMS)
-
-- [x] **Item 4: Improve dynamic table and column naming** ✅ COMPLETED
-
-  - ✅ SQL tables: `cache_records_{sanitized_name}_{table_id}` (e.g., `cache_records_customers_tbl_abc123`)
-  - ✅ Columns: Use field labels with slug fallback (e.g., `status` instead of `s7e8c12e98`)
-  - ✅ Apply to new caches only (no migration required)
-  - ✅ Store mapping in `cache_table_registry`
-
-- [x] **Item 9: Improve prompt and tool registry** ✅ COMPLETED
-
-  - ⏳ Better categorization: Group by workspace/table/record operations (deferred)
-  - ⏳ Enhanced descriptions: Add prescriptive guidance and usage hints (deferred)
-  - ⏳ Add common patterns and anti-patterns to tool definitions (deferred)
-  - ✅ Add 4 new filter examples: empty fields, recent updates, complex AND/OR conditions, overdue tasks
-  - ✅ Make AI context more helpful
-
-- [x] **Item 6: Add user-triggered cache refresh** ✅ COMPLETED
-
-  - ✅ New MCP tool: `refresh_cache` (resource, table_id, solution_id)
-  - ✅ Behavior: Invalidate only (not refetch) - refetch on next access
-  - ✅ Supports three resource types: 'solutions', 'tables', 'records'
-  - ✅ Track refresh history in `cache_stats` via existing invalidation tracking
-  - ⏳ Favorite tables configuration deferred (can be added later if needed)
-
-- [x] **Item 10: Implement manual cache warming** ✅ COMPLETED
-  - ✅ New MCP tool: `warm_cache` (tables array or 'auto' for top N)
-  - ✅ Auto mode: Selects top N most accessed tables from cache_performance
-  - ✅ Manual mode: Explicit list of table IDs
-  - ✅ Progress tracking with summary (total, warmed, skipped, errors)
-  - ✅ Per-table status reporting
-  - ✅ Skips tables with valid cache (implicit locking via cache_valid? check)
-
-#### Phase 4: Refactoring (Week 4) ⏸️ PARTIALLY COMPLETE
-
-- [ ] **Item 12: Split `cache_layer.rb` into focused modules** ⏸️ DEFERRED to v1.7
-
-  - File has grown to 1646 lines (from original 1248)
-  - Proposed split: cache_layer.rb, cache_metadata.rb, cache_performance.rb, cache_migrations.rb
-  - **Decision:** Defer to v1.7 - Current code is well-organized and maintainable
-  - All methods well-documented with clear section headers (=========)
-  - No user-facing benefits, significant refactoring risk
-  - Focus v1.6 on user-facing features and optimizations
-
-- [x] **Item 12: Extract common API patterns** ✅ REVIEWED - Current implementation preferred
-
-  - **Analysis:** Examined cache-check-fetch-cache patterns across workspace, table, record operations
-  - **Finding:** While similar, each has enough unique logic to justify explicit implementation
-  - **Unique aspects:** Query params, caching conditions, response formats, logging context
-  - **Decision:** Keep current explicit implementations - clearer and more maintainable
-  - Prototyped CachedApiOperation module, decided against using it
-
-- [ ] **Item 12: Strategy pattern for response formatters** ⏸️ DEFERRED to v1.7
-
-  - Refactor `response_formatter.rb` to use strategy pattern
-  - Extract field-type-specific formatters into separate classes
-  - **Decision:** Defer to v1.7 - Current code works well, no pressing need
-  - Consider as part of v2.0 TOON format migration
-
-- [x] **Item 3: Optimize to use `list_records` exclusively** ✅ COMPLETED
-  - ✅ Finding confirmed: `list_records(hydrated: true)` returns full data (only missing `deleted_by` field)
-  - ✅ Updated `fetch_all_records` to use `hydrated=true` parameter
-  - ✅ Eliminated need for separate `get_record` calls in cache population
-  - ✅ Documented that `get_record` tool remains for direct user queries
-  - ✅ Simpler code, fewer API calls, lower rate limit usage
+**Total estimated effort:** 16-25 days (3-5 weeks)
 
 ---
 
 ## Upcoming Releases 📅
-
-### v1.7 - Code Quality & Documentation (Q1 2026)
-
-**Goal:** Improve code maintainability and developer experience
-
-**Note:** This is a refactoring and polish release with no user-facing changes
-
-#### Code Refactoring
-
-- [ ] **Split `cache_layer.rb` into focused modules** (Deferred from v1.6)
-  - Current: Single 1646-line file with all cache logic
-  - Proposed split:
-    - `cache_layer.rb` - Core caching interface (200-300 lines)
-    - `cache_metadata.rb` - Table registry, TTL config, schema management (300-400 lines)
-    - `cache_performance.rb` - Hit/miss tracking, statistics (200-300 lines)
-    - `cache_migrations.rb` - Schema migrations, data migration helpers (200-300 lines)
-    - `cache_query.rb` - Already separated (chainable query builder)
-  - Benefits: Easier to navigate, test, and maintain
-  - Risk: Must preserve backward compatibility in SmartSuiteClient interface
-
-- [ ] **Refactor ResponseFormatter to use strategy pattern** (Deferred from v1.6)
-  - Current: Single file with case statements for each field type
-  - Proposed: Strategy pattern with field-type-specific formatter classes
-  - Extract formatters: TextFormatter, DateFormatter, LinkedRecordFormatter, etc.
-  - Benefits: Easier to add new field types, better separation of concerns
-  - Consider: Part of v2.0 TOON format migration preparation
-
-- [ ] **Extract filter building into dedicated module**
-  - Current: Filter logic mixed into RecordOperations
-  - Proposed: `FilterBuilder` module for SmartSuite filter construction
-  - Benefits: Reusable across operations, easier to test, clearer API
-
-- [ ] **Refactor API module structure**
-  - Review and consolidate API operation modules for consistency
-  - Extract common patterns where appropriate (reconsidered from v1.6)
-  - Improve separation of concerns between HTTP, caching, and business logic
-  - Consider extracting cache coordination logic from individual operations
-  - Benefits: Easier to maintain, test, and extend API operations
-
-#### Documentation Improvements
-
-- [ ] **Create docs/ directory structure**
-  - Implement structure from DOCUMENTATION_PROPOSAL.md
-  - Split README.md into focused guides
-  - Consolidate caching documentation
-  - Add architecture diagrams
-
-- [ ] **Improve code documentation with YARD**
-  - Add YARD tags to all public methods
-  - Generate HTML documentation
-  - Document all parameters, return types, exceptions
-
-- [ ] **Create troubleshooting guide**
-  - Common error messages and solutions
-  - Cache debugging techniques
-  - API rate limit handling
-  - FAQ section
-
-#### Developer Experience
-
-- [ ] **Add input validation for all tool parameters**
-  - Validate required parameters
-  - Type checking for parameters
-  - Helpful error messages with examples
-
-- [ ] **Standardize response formats across all tools**
-  - Consistent error response structure
-  - Consistent success response structure
-  - Consistent metadata fields
-
-- [ ] **Add performance benchmarks**
-  - Benchmark cache hit/miss performance
-  - Benchmark filter query performance
-  - Track token usage across releases
-
-#### Testing Improvements
-
-- [ ] **Add integration tests with real SmartSuite API**
-  - Optional test suite that hits real API
-  - Requires test account/workspace
-  - Validates API contract assumptions
-
-- [ ] **Improve test coverage**
-  - Target: >90% code coverage
-  - Focus on edge cases and error handling
-  - Add tests for cache invalidation scenarios
-
----
 
 ### v2.0 - Performance & Scalability (Q2 2026)
 
@@ -490,16 +373,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 
 ## Roadmap Status
 
-| Version | Status         | Target Date | Completion |
-| ------- | -------------- | ----------- | ---------- |
-| v1.0    | ✅ Released    | Nov 2025    | 100%       |
-| v1.5    | ✅ Released    | Nov 2025    | 100%       |
-| v1.6    | ✅ Complete    | Dec 2025    | 100%       |
-| v1.7    | 📋 Planned     | Q1 2026     | 0%         |
-| v2.0    | 📋 Planned     | Q2 2026     | 0%         |
-| v2.1    | 📋 Planned     | Q3 2026     | 0%         |
-| v2.2    | 📋 Planned     | Q3 2026     | 0%         |
-| v3.0    | 💭 Ideation    | Q4 2026     | 0%         |
+| Version | Status       | Target Date | Completion |
+| ------- | ------------ | ----------- | ---------- |
+| v1.0    | ✅ Released  | Nov 2025    | 100%       |
+| v1.5    | ✅ Released  | Nov 2025    | 100%       |
+| v1.6    | ✅ Released  | Dec 2025    | 100%       |
+| v1.7    | ✅ Released  | Jan 2026    | 100%       |
+| v1.8    | 🚧 Current   | Q1 2026     | 0%         |
+| v2.0    | 📋 Planned   | Q2 2026     | 0%         |
+| v2.1    | 📋 Planned   | Q3 2026     | 0%         |
+| v2.2    | 📋 Planned   | Q3 2026     | 0%         |
+| v3.0    | 💭 Ideation  | Q4 2026     | 0%         |
 
 ---
 
