@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../filter_builder'
+
 module SmartSuite
   module API
     # RecordOperations handles CRUD operations on table records.
@@ -93,61 +95,15 @@ module SmartSuite
       end
 
       # Apply SmartSuite filter criteria to cache query
+      #
+      # Delegates to FilterBuilder for conversion from SmartSuite filter format
+      # to cache query conditions.
+      #
+      # @param query [SmartSuite::Cache::Query] Cache query builder instance
+      # @param filter [Hash] SmartSuite filter hash
+      # @return [SmartSuite::Cache::Query] Query with filters applied
       def apply_filters_to_query(query, filter)
-        return query unless filter && filter['fields']
-
-        filter['fields'].each do |field_filter|
-          field_slug = field_filter['field']
-          comparison = field_filter['comparison']
-          value = field_filter['value']
-
-          # Convert SmartSuite comparison operators to cache query format
-          condition = case comparison
-                      when 'is', 'is_equal_to'
-                        value
-                      when 'is_not', 'is_not_equal_to'
-                        { ne: value }
-                      when 'is_greater_than'
-                        { gt: value }
-                      when 'is_less_than'
-                        { lt: value }
-                      when 'is_equal_or_greater_than'
-                        { gte: value }
-                      when 'is_equal_or_less_than'
-                        { lte: value }
-                      when 'contains'
-                        { contains: value }
-                      when 'not_contains', 'does_not_contain'
-                        { not_contains: value }
-                      when 'is_empty'
-                        nil
-                      when 'is_not_empty'
-                        { not_null: true }
-                      when 'has_any_of'
-                        { has_any_of: value }
-                      when 'has_all_of'
-                        { has_all_of: value }
-                      when 'is_exactly'
-                        { is_exactly: value }
-                      when 'has_none_of'
-                        { has_none_of: value }
-                      when 'is_before'
-                        { lt: value }
-                      when 'is_after'
-                        { gt: value }
-                      when 'is_on_or_before'
-                        { lte: value }
-                      when 'is_on_or_after'
-                        { gte: value }
-                      else
-                        value # Default to equality
-                      end
-
-          # Apply filter to query
-          query = query.where(field_slug.to_sym => condition)
-        end
-
-        query
+        SmartSuite::FilterBuilder.apply_to_query(query, filter)
       end
 
       # Direct API call (original behavior, used when cache disabled/bypassed)
