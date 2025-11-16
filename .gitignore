@@ -14,6 +14,8 @@ InstalledFiles
 lib/bundler/man
 pkg
 rdoc
+doc
+.yardoc
 spec/reports
 test/tmp
 test/version_tmp
