@@ -1,0 +1,47 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  markdown-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Lint markdown files
+        uses: DavidAnson/markdownlint-cli2-action@v15
+        with:
+          globs: '**/*.md'
+
+  yard-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Check YARD documentation coverage
+        run: |
+          bundle exec yard stats --list-undoc
+
+          # Get undocumented count
+          UNDOC_COUNT=$(bundle exec yard stats --list-undoc | grep -c "is not documented" || true)
+
+          echo "📊 Undocumented items: $UNDOC_COUNT"
+
+          # Warning only - don't fail the build
+          if [ "$UNDOC_COUNT" -gt 0 ]; then
+            echo "⚠️  Consider adding documentation to improve code quality"
+          else
+            echo "✅ All public APIs are documented!"
+          fi
