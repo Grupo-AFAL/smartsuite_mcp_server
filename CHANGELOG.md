@@ -82,6 +82,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Useful for pre-loading frequently accessed data during off-peak hours
 
 ### Changed
+- **Optimized cache population to use `list_records` exclusively** (v1.6):
+  - `fetch_all_records` now uses `hydrated=true` parameter
+  - Returns complete data including linked records, users, and reference fields
+  - Eliminates need for separate `get_record` API calls
+  - Same data as individual record fetches (only missing `deleted_by` field)
+  - Simpler code, fewer API calls, lower rate limit usage
+  - Documented that `get_record` tool remains available for direct user queries
 - **Increased cache TTL values** for better performance (v1.6):
   - Solutions: 24 hours → **7 days** (rarely change)
   - Tables: 12 hours → **7 days** (schema stable)
