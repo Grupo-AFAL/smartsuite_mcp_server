@@ -259,6 +259,12 @@ class SmartSuiteServer
       @client.stats_tracker.get_stats
     when 'reset_api_stats'
       @client.stats_tracker.reset_stats
+    when 'get_cache_status'
+      if @client.cache_enabled?
+        @client.cache.get_cache_status(table_id: arguments['table_id'])
+      else
+        {'error' => 'Cache is disabled'}
+      end
     else
       return {
         'jsonrpc' => '2.0',

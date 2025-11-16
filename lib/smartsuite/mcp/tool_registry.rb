@@ -455,7 +455,7 @@ module SmartSuite
       ].freeze
 
       # Statistics tools for API usage monitoring
-      # Includes: get_api_stats, reset_api_stats
+      # Includes: get_api_stats, reset_api_stats, get_cache_status
       STATS_TOOLS = [
         {
           'name' => 'get_api_stats',
@@ -472,6 +472,20 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {},
+            'required' => []
+          }
+        },
+        {
+          'name' => 'get_cache_status',
+          'description' => 'Get cache status for solutions, tables, and records. Shows cached_at, expires_at, time_remaining, record_count, and validity. Helps understand cache state and plan refreshes.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => {
+                'type' => 'string',
+                'description' => 'Optional: Specific table ID to show status for. If not provided, shows status for all cached tables.'
+              }
+            },
             'required' => []
           }
         }

@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **New `get_cache_status` tool** (v1.6):
+  - MCP tool to inspect cache state for solutions, tables, and records
+  - Shows: cached_at, expires_at, time_remaining_seconds, record_count, is_valid
+  - Optional `table_id` parameter to filter status for specific table
+  - Helps users understand cache state and plan refreshes
+  - Returns structured data for all cached resources or specific table
 - **Automatic cache invalidation on structure changes** (v1.6):
   - Field operations now automatically invalidate table cache:
     - `add_field` - Invalidates table structure and records after adding field
