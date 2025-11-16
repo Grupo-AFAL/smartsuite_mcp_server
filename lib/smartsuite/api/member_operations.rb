@@ -40,9 +40,7 @@ module SmartSuite
           end
 
           # Add members from permissions.owners (array of IDs)
-          if solution['permissions'] && solution['permissions']['owners']
-            solution_member_ids += solution['permissions']['owners']
-          end
+          solution_member_ids += solution['permissions']['owners'] if solution['permissions'] && solution['permissions']['owners']
 
           # Add members from teams
           if solution['permissions'] && solution['permissions']['teams']
