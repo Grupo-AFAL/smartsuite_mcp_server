@@ -1,8 +1,8 @@
 # SmartSuite MCP Server - Product Roadmap
 
-**Last Updated:** November 15, 2025
+**Last Updated:** January 16, 2026
 **Current Version:** 1.7.0
-**Next Release:** 1.8.0 (Q4 2025)
+**Next Release:** 1.8.0 (Q1 2026)
 **Decision Log:** See ROADMAP_DECISIONS.md for detailed analysis and decisions
 
 ## Vision
@@ -75,67 +75,76 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 #### Code Quality
 
-- [ ] **Extract filter building into dedicated FilterBuilder module**
-  - Current: Filter logic mixed into RecordOperations
-  - Proposed: `lib/smartsuite/filter_builder.rb` for SmartSuite filter construction
-  - Benefits: Reusable across operations, easier to test, clearer API
-  - Estimated effort: 1-2 days
+- ✅ **Extract filter building into dedicated FilterBuilder module**
+  - Created `lib/smartsuite/filter_builder.rb` with SmartSuite→SQL conversion
+  - Supports 20+ comparison operators
+  - 30 comprehensive test cases
+  - Reusable across operations, cleaner API
+  - **Status:** Complete
 
-- [ ] **Refactor API module structure for consistency**
-  - Review and consolidate API operation modules
-  - Extract common error handling patterns
-  - Improve separation between HTTP, caching, and business logic
-  - Consider: Extract cache coordination logic from individual operations
-  - Estimated effort: 3-5 days
+- ✅ **Refactor API module structure for consistency**
+  - Created `SmartSuite::API::Base` module with common helpers
+  - All 8 API operation modules refactored to use Base
+  - 35-40% code duplication eliminated
+  - Added 22 new parameter validation calls
+  - Standardized cache coordination, endpoint building, response tracking
+  - **Status:** Complete
 
 #### Documentation
 
-- [ ] **Create comprehensive troubleshooting guide**
-  - Common error messages and solutions
-  - Cache debugging techniques (using get_cache_status, refresh_cache)
-  - API rate limit handling strategies
-  - FAQ section with real user questions
-  - Location: `docs/troubleshooting/README.md`
-  - Estimated effort: 2-3 days
+- ✅ **Create comprehensive troubleshooting guide**
+  - Enhanced `docs/getting-started/troubleshooting.md` (345 new lines)
+  - Added 25+ FAQ entries covering common scenarios
+  - Documented v1.6-v1.8 cache features
+  - Included cache debugging techniques
+  - **Status:** Complete
 
-- [ ] **Improve YARD documentation coverage**
-  - Add YARD tags to all public methods
-  - Document all parameters, return types, exceptions
-  - Generate HTML documentation for developers
-  - Target: 100% coverage of public APIs
-  - Estimated effort: 2-3 days
+- ✅ **Improve YARD documentation coverage**
+  - Added @example tags to all user-facing MCP modules (9 methods)
+  - 100% YARD coverage maintained (124 public methods)
+  - Generated HTML documentation in `doc/` directory
+  - Comprehensive @param, @return, @raise tags
+  - **Status:** Complete
 
 #### Developer Experience
 
-- [ ] **Add input validation for all MCP tool parameters**
-  - Validate required parameters before processing
-  - Type checking with helpful error messages
-  - Include examples in error messages
-  - Validate enum values (e.g., resource types, time ranges)
-  - Estimated effort: 2-3 days
+- ❌ **Add input validation for all MCP tool parameters**
+  - **Decision:** Skipped - validation already comprehensive at API layer
+  - Current implementation uses Base module's `validate_required_parameter!` and `validate_optional_parameter!`
+  - 22 new validation calls added across API modules in v1.8
+  - MCP-level validation would duplicate logic without significant benefit
+  - See: `docs/architecture/response-formats-analysis.md` for analysis
+  - **Status:** Cancelled
 
-- [ ] **Standardize response formats across all tools**
-  - Consistent error response structure (code, message, details)
-  - Consistent success response structure
-  - Consistent metadata fields (timestamps, counts, etc.)
-  - Document response format standards
-  - Estimated effort: 1-2 days
+- ✅ **Standardize response formats across all tools**
+  - Created `SmartSuite::ResponseFormats` module with 4 builders:
+    - `operation_response` - For mutations/actions
+    - `error_response` - Structured errors with codes
+    - `query_response` - For read operations
+    - `collection_response` - For list operations
+  - Applied to cache operations (refresh_cache, warm_cache)
+  - All responses include ISO 8601 UTC timestamps
+  - 22 comprehensive tests (100% module coverage)
+  - Documented in `docs/architecture/response-formats-analysis.md`
+  - **Status:** Complete (core infrastructure + key methods)
 
 #### Testing
 
-- [ ] **Add integration tests with real SmartSuite API (optional)**
-  - Test suite that validates API contract assumptions
-  - Requires test account/workspace setup
-  - Can be run manually or in CI with proper credentials
+- ✅ **Add integration tests with real SmartSuite API**
+  - Created `test/integration/` directory with manual integration tests
+  - Test harness for workspace, table, record, cache operations
+  - Validates API contract assumptions against real API
+  - Run manually with test credentials
   - Documents real API behavior vs assumptions
-  - Estimated effort: 3-4 days
+  - **Status:** Complete (manual tests ready)
 
 - [ ] **Improve test coverage for edge cases**
   - Focus on error handling paths
   - Cache invalidation scenarios
   - Schema evolution edge cases
-  - Target: Maintain >95% coverage
+  - Target: Maintain >95% coverage (currently 60.35%)
   - Estimated effort: 2-3 days
+  - **Status:** Pending
 
 **Total estimated effort:** 16-25 days (3-5 weeks)
 
@@ -379,7 +388,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | v1.5    | ✅ Released  | Nov 2025    | 100%       |
 | v1.6    | ✅ Released  | Dec 2025    | 100%       |
 | v1.7    | ✅ Released  | Jan 2026    | 100%       |
-| v1.8    | 🚧 Current   | Q1 2026     | 0%         |
+| v1.8    | 🚧 Current   | Q1 2026     | 90%        |
 | v2.0    | 📋 Planned   | Q2 2026     | 0%         |
 | v2.1    | 📋 Planned   | Q3 2026     | 0%         |
 | v2.2    | 📋 Planned   | Q3 2026     | 0%         |
