@@ -183,46 +183,6 @@ module SmartSuite
         result
       end
 
-      # Execute block with cache coordination.
-      #
-      # Implements the cache-first strategy pattern used across modules:
-      # 1. Check if cache should be used
-      # 2. Try cache lookup
-      # 3. On miss: execute fallback, store in cache, return result
-      #
-      # @param cache_key [String] Cache key identifier
-      # @param bypass [Boolean] Force bypass cache (default: false)
-      # @yield Cache lookup block (should return cached data or nil)
-      # @yield Fallback block to execute on cache miss
-      # @return [Object] Cached data or fresh data from fallback
-      # @example
-      #   with_cache_coordination('solutions', bypass: bypass_cache) do |on_hit, on_miss|
-      #     on_hit { @cache.get_cached_solutions }
-      #     on_miss do
-      #       solutions = api_request(:get, '/solutions/')
-      #       @cache.cache_solutions(solutions)
-      #       solutions
-      #     end
-      #   end
-      def with_cache_coordination(_cache_key, bypass: false)
-        return yield(->(&_) {}, ->(&block) { block.call }) if should_bypass_cache?(bypass)
-
-        cache_hit = nil
-        cache_miss = nil
-
-        yield(
-          ->(& block) { cache_hit = block },
-          ->(& block) { cache_miss = block }
-        )
-
-        # Try cache hit
-        cached_data = cache_hit.call if cache_hit
-        return cached_data if cached_data
-
-        # Execute fallback on cache miss
-        cache_miss&.call
-      end
-
       # Handle SmartSuite API response format.
       #
       # Validates response structure and extracts items array if present.
