@@ -82,6 +82,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Useful for pre-loading frequently accessed data during off-peak hours
 
 ### Changed
+- **Phase 4 refactoring decisions** (v1.6):
+  - **Extract common API patterns:** Reviewed and decided to keep current explicit implementations
+    - Analysis showed each operation has enough unique logic to justify separate code
+    - Current code is clear, maintainable, and well-documented
+    - Abstraction would reduce readability without significant DRY benefits
+  - **Split cache_layer.rb:** Deferred to v1.7
+    - File is well-organized with clear section headers
+    - No user-facing benefits, significant refactoring risk
+    - Current 1646-line file is manageable with good documentation
+  - **Strategy pattern for formatters:** Deferred to v1.7
+    - Current implementation works well
+    - Consider as part of v2.0 TOON format migration
 - **Optimized cache population to use `list_records` exclusively** (v1.6):
   - `fetch_all_records` now uses `hydrated=true` parameter
   - Returns complete data including linked records, users, and reference fields
