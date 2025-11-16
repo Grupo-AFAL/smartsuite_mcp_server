@@ -177,10 +177,10 @@ module SmartSuite
         end
 
         result = {
-          'summary': summary_lines.join("\n"),
-          'count': items.size,
-          'total_count': total,
-          'fields_analyzed': field_stats.keys
+          summary: summary_lines.join("\n"),
+          count: items.size,
+          total_count: total,
+          fields_analyzed: field_stats.keys
         }
 
         tokens = estimate_tokens(JSON.generate(result))

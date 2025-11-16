@@ -1,8 +1,8 @@
 # SmartSuite MCP Server - Product Roadmap
 
-**Last Updated:** January 15, 2026
+**Last Updated:** November 15, 2025
 **Current Version:** 1.7.0
-**Next Release:** 1.8.0 (Q1 2026)
+**Next Release:** 1.8.0 (Q4 2025)
 **Decision Log:** See ROADMAP_DECISIONS.md for detailed analysis and decisions
 
 ## Vision

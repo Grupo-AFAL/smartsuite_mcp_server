@@ -369,15 +369,15 @@ module SmartSuite
           "Use the list_records tool with these parameters:\n\n" \
             "table_id: #{arguments['table_id']}\n" \
             "fields: #{fields.inspect}\n" \
-            "filter: {\n" \
-            "  \"operator\": \"and\",\n" \
-            "  \"fields\": [\n" \
-            "    {\n" \
-            "      \"field\": \"#{status_field}\",\n" \
-            "      \"comparison\": \"is\",\n" \
-            "      \"value\": \"active\"\n" \
-            "    }\n" \
-            "  ]\n" \
+            "filter: {\n  " \
+            "\"operator\": \"and\",\n  " \
+            "\"fields\": [\n    " \
+            "{\n      " \
+            "\"field\": \"#{status_field}\",\n      " \
+            "\"comparison\": \"is\",\n      " \
+            "\"value\": \"active\"\n    " \
+            "}\n  " \
+            "]\n" \
             "}\n\n" \
             'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
 
@@ -390,33 +390,33 @@ module SmartSuite
           "Use the list_records tool with these parameters:\n\n" \
             "table_id: #{arguments['table_id']}\n" \
             "fields: #{fields.inspect}\n" \
-            "filter: {\n" \
-            "  \"operator\": \"and\",\n" \
-            "  \"fields\": [\n" \
-            "    {\n" \
-            "      \"field\": \"#{date_field}\",\n" \
-            "      \"comparison\": \"is_after\",\n" \
-            "      \"value\": {\n" \
-            "        \"date_mode\": \"exact_date\",\n" \
-            "        \"date_mode_value\": \"#{start_date}\"\n" \
-            "      }\n" \
-            "    },\n" \
-            "    {\n" \
-            "      \"field\": \"#{date_field}\",\n" \
-            "      \"comparison\": \"is_before\",\n" \
-            "      \"value\": {\n" \
-            "        \"date_mode\": \"exact_date\",\n" \
-            "        \"date_mode_value\": \"#{end_date}\"\n" \
-            "      }\n" \
-            "    }\n" \
-            "  ]\n" \
+            "filter: {\n  " \
+            "\"operator\": \"and\",\n  " \
+            "\"fields\": [\n    " \
+            "{\n      " \
+            "\"field\": \"#{date_field}\",\n      " \
+            "\"comparison\": \"is_after\",\n      " \
+            "\"value\": {\n        " \
+            "\"date_mode\": \"exact_date\",\n        " \
+            "\"date_mode_value\": \"#{start_date}\"\n      " \
+            "}\n    " \
+            "},\n    " \
+            "{\n      " \
+            "\"field\": \"#{date_field}\",\n      " \
+            "\"comparison\": \"is_before\",\n      " \
+            "\"value\": {\n        " \
+            "\"date_mode\": \"exact_date\",\n        " \
+            "\"date_mode_value\": \"#{end_date}\"\n      " \
+            "}\n    " \
+            "}\n  " \
+            "]\n" \
             "}\n\n" \
             'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
 
         when 'list_tables_by_solution'
           "Use the list_tables tool with this parameter:\n\n" \
-            "solution_id: #{arguments['solution_id']}\n\n" \
-            'This will return only tables from the specified solution.'
+          "solution_id: #{arguments['solution_id']}\n\n" \
+          'This will return only tables from the specified solution.'
 
         when 'filter_records_contains_text'
           field_slug = arguments['field_slug']
@@ -426,15 +426,15 @@ module SmartSuite
           "Use the list_records tool with these parameters:\n\n" \
             "table_id: #{arguments['table_id']}\n" \
             "fields: #{fields.inspect}\n" \
-            "filter: {\n" \
-            "  \"operator\": \"and\",\n" \
-            "  \"fields\": [\n" \
-            "    {\n" \
-            "      \"field\": \"#{field_slug}\",\n" \
-            "      \"comparison\": \"contains\",\n" \
-            "      \"value\": \"#{search_text}\"\n" \
-            "    }\n" \
-            "  ]\n" \
+            "filter: {\n  " \
+            "\"operator\": \"and\",\n  " \
+            "\"fields\": [\n    " \
+            "{\n      " \
+            "\"field\": \"#{field_slug}\",\n      " \
+            "\"comparison\": \"contains\",\n      " \
+            "\"value\": \"#{search_text}\"\n    " \
+            "}\n  " \
+            "]\n" \
             "}\n\n" \
             'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
 
@@ -446,15 +446,15 @@ module SmartSuite
           "Use the list_records tool with these parameters:\n\n" \
             "table_id: #{arguments['table_id']}\n" \
             "fields: #{fields.inspect}\n" \
-            "filter: {\n" \
-            "  \"operator\": \"and\",\n" \
-            "  \"fields\": [\n" \
-            "    {\n" \
-            "      \"field\": \"#{linked_field}\",\n" \
-            "      \"comparison\": \"has_any_of\",\n" \
-            "      \"value\": #{record_ids.inspect}\n" \
-            "    }\n" \
-            "  ]\n" \
+            "filter: {\n  " \
+            "\"operator\": \"and\",\n  " \
+            "\"fields\": [\n    " \
+            "{\n      " \
+            "\"field\": \"#{linked_field}\",\n      " \
+            "\"comparison\": \"has_any_of\",\n      " \
+            "\"value\": #{record_ids.inspect}\n    " \
+            "}\n  " \
+            "]\n" \
             "}\n\n" \
             "Note: Linked record fields require 'has_any_of' comparison (not 'is') with an array of record IDs.\n\n" \
             'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
@@ -467,31 +467,31 @@ module SmartSuite
 
           filter_conditions = []
           if min_value
-            filter_conditions << "    {\n" \
-                                 "      \"field\": \"#{numeric_field}\",\n" \
-                                 "      \"comparison\": \"is_equal_or_greater_than\",\n" \
-                                 "      \"value\": #{min_value}\n" \
-                                 '    }'
+            filter_conditions << "    {\n      " \
+                                 "\"field\": \"#{numeric_field}\",\n      " \
+                                 "\"comparison\": \"is_equal_or_greater_than\",\n      " \
+                                 "\"value\": #{min_value}\n    " \
+                                 '}'
           end
           if max_value
-            filter_conditions << "    {\n" \
-                                 "      \"field\": \"#{numeric_field}\",\n" \
-                                 "      \"comparison\": \"is_equal_or_less_than\",\n" \
-                                 "      \"value\": #{max_value}\n" \
-                                 '    }'
+            filter_conditions << "    {\n      " \
+                                 "\"field\": \"#{numeric_field}\",\n      " \
+                                 "\"comparison\": \"is_equal_or_less_than\",\n      " \
+                                 "\"value\": #{max_value}\n    " \
+                                 '}'
           end
 
           "Use the list_records tool with these parameters:\n\n" \
-            "table_id: #{arguments['table_id']}\n" \
-            "fields: #{fields.inspect}\n" \
-            "filter: {\n" \
-            "  \"operator\": \"and\",\n" \
-            "  \"fields\": [\n" +
-            filter_conditions.join(",\n") + "\n" \
-            "  ]\n" \
-            "}\n\n" \
-            "Note: Numeric fields support: is_equal_to, is_not_equal_to, is_greater_than, is_less_than, is_equal_or_greater_than, is_equal_or_less_than\n\n" \
-            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
+          "table_id: #{arguments['table_id']}\n" \
+          "fields: #{fields.inspect}\n" \
+          "filter: {\n  " \
+          "\"operator\": \"and\",\n  " \
+          "\"fields\": [\n" +
+            filter_conditions.join(",\n") + "\n  " \
+                                            "]\n" \
+                                            "}\n\n" \
+                                            "Note: Numeric fields support: is_equal_to, is_not_equal_to, is_greater_than, is_less_than, is_equal_or_greater_than, is_equal_or_less_than\n\n" \
+                                            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
 
         when 'filter_by_multiple_select'
           multiselect_field = arguments['multiselect_field_slug']
@@ -509,15 +509,15 @@ module SmartSuite
           "Use the list_records tool with these parameters:\n\n" \
             "table_id: #{arguments['table_id']}\n" \
             "fields: #{fields.inspect}\n" \
-            "filter: {\n" \
-            "  \"operator\": \"and\",\n" \
-            "  \"fields\": [\n" \
-            "    {\n" \
-            "      \"field\": \"#{multiselect_field}\",\n" \
-            "      \"comparison\": \"#{comparison}\",\n" \
-            "      \"value\": #{values.inspect}\n" \
-            "    }\n" \
-            "  ]\n" \
+            "filter: {\n  " \
+            "\"operator\": \"and\",\n  " \
+            "\"fields\": [\n    " \
+            "{\n      " \
+            "\"field\": \"#{multiselect_field}\",\n      " \
+            "\"comparison\": \"#{comparison}\",\n      " \
+            "\"value\": #{values.inspect}\n    " \
+            "}\n  " \
+            "]\n" \
             "}\n\n" \
             "Note: Multiple select fields support: has_any_of (matches any), has_all_of (matches all), is_exactly (exact match), has_none_of\n\n" \
             'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
@@ -530,15 +530,15 @@ module SmartSuite
           "Use the list_records tool with these parameters:\n\n" \
             "table_id: #{arguments['table_id']}\n" \
             "fields: #{fields.inspect}\n" \
-            "filter: {\n" \
-            "  \"operator\": \"and\",\n" \
-            "  \"fields\": [\n" \
-            "    {\n" \
-            "      \"field\": \"#{user_field}\",\n" \
-            "      \"comparison\": \"has_any_of\",\n" \
-            "      \"value\": #{user_ids.inspect}\n" \
-            "    }\n" \
-            "  ]\n" \
+            "filter: {\n  " \
+            "\"operator\": \"and\",\n  " \
+            "\"fields\": [\n    " \
+            "{\n      " \
+            "\"field\": \"#{user_field}\",\n      " \
+            "\"comparison\": \"has_any_of\",\n      " \
+            "\"value\": #{user_ids.inspect}\n    " \
+            "}\n  " \
+            "]\n" \
             "}\n\n" \
             "Note: User fields require 'has_any_of' comparison with an array of user IDs. Use list_members to get user IDs.\n\n" \
             'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
@@ -552,15 +552,15 @@ module SmartSuite
           "Use the list_records tool with these parameters:\n\n" \
             "table_id: #{arguments['table_id']}\n" \
             "fields: #{fields.inspect}\n" \
-            "filter: {\n" \
-            "  \"operator\": \"and\",\n" \
-            "  \"fields\": [\n" \
-            "    {\n" \
-            "      \"field\": \"#{field_slug}\",\n" \
-            "      \"comparison\": \"#{comparison}\",\n" \
-            "      \"value\": null\n" \
-            "    }\n" \
-            "  ]\n" \
+            "filter: {\n  " \
+            "\"operator\": \"and\",\n  " \
+            "\"fields\": [\n    " \
+            "{\n      " \
+            "\"field\": \"#{field_slug}\",\n      " \
+            "\"comparison\": \"#{comparison}\",\n      " \
+            "\"value\": null\n    " \
+            "}\n  " \
+            "]\n" \
             "}\n\n" \
             "Note: Empty field checks use 'is_empty' or 'is_not_empty' operators with null value. Works for all field types.\n\n" \
             'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
@@ -573,18 +573,18 @@ module SmartSuite
           "Use the list_records tool with these parameters:\n\n" \
             "table_id: #{arguments['table_id']}\n" \
             "fields: #{fields.inspect}\n" \
-            "filter: {\n" \
-            "  \"operator\": \"and\",\n" \
-            "  \"fields\": [\n" \
-            "    {\n" \
-            "      \"field\": \"s5b629ed5f\",\n" \
-            "      \"comparison\": \"is_on_or_after\",\n" \
-            "      \"value\": {\n" \
-            "        \"date_mode\": \"exact_date\",\n" \
-            "        \"date_mode_value\": \"#{cutoff_date}\"\n" \
-            "      }\n" \
-            "    }\n" \
-            "  ]\n" \
+            "filter: {\n  " \
+            "\"operator\": \"and\",\n  " \
+            "\"fields\": [\n    " \
+            "{\n      " \
+            "\"field\": \"s5b629ed5f\",\n      " \
+            "\"comparison\": \"is_on_or_after\",\n      " \
+            "\"value\": {\n        " \
+            "\"date_mode\": \"exact_date\",\n        " \
+            "\"date_mode_value\": \"#{cutoff_date}\"\n      " \
+            "}\n    " \
+            "}\n  " \
+            "]\n" \
             "}\n\n" \
             "Note: Uses the system 'Last Updated' field (slug: s5b629ed5f) with date comparison. For custom date fields, use their specific slugs.\n\n" \
             'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
@@ -598,20 +598,20 @@ module SmartSuite
           "Use the list_records tool with these parameters:\n\n" \
             "table_id: #{arguments['table_id']}\n" \
             "fields: #{fields.inspect}\n" \
-            "filter: {\n" \
-            "  \"operator\": \"and\",\n" \
-            "  \"fields\": [\n" \
-            "    {\n" \
-            "      \"field\": \"#{status_field}\",\n" \
-            "      \"comparison\": \"is_any_of\",\n" \
-            "      \"value\": #{status_values.inspect}\n" \
-            "    },\n" \
-            "    {\n" \
-            "      \"field\": \"#{priority_field}\",\n" \
-            "      \"comparison\": \"is\",\n" \
-            "      \"value\": \"High\"\n" \
-            "    }\n" \
-            "  ]\n" \
+            "filter: {\n  " \
+            "\"operator\": \"and\",\n  " \
+            "\"fields\": [\n    " \
+            "{\n      " \
+            "\"field\": \"#{status_field}\",\n      " \
+            "\"comparison\": \"is_any_of\",\n      " \
+            "\"value\": #{status_values.inspect}\n    " \
+            "},\n    " \
+            "{\n      " \
+            "\"field\": \"#{priority_field}\",\n      " \
+            "\"comparison\": \"is\",\n      " \
+            "\"value\": \"High\"\n    " \
+            "}\n  " \
+            "]\n" \
             "}\n\n" \
             "Note: Complex filters can combine multiple conditions with 'and' or 'or' operators. Each field condition supports different comparison operators based on field type.\n\n" \
             'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
@@ -623,15 +623,15 @@ module SmartSuite
           "Use the list_records tool with these parameters:\n\n" \
             "table_id: #{arguments['table_id']}\n" \
             "fields: #{fields.inspect}\n" \
-            "filter: {\n" \
-            "  \"operator\": \"and\",\n" \
-            "  \"fields\": [\n" \
-            "    {\n" \
-            "      \"field\": \"#{due_date_field}\",\n" \
-            "      \"comparison\": \"is_overdue\",\n" \
-            "      \"value\": null\n" \
-            "    }\n" \
-            "  ]\n" \
+            "filter: {\n  " \
+            "\"operator\": \"and\",\n  " \
+            "\"fields\": [\n    " \
+            "{\n      " \
+            "\"field\": \"#{due_date_field}\",\n      " \
+            "\"comparison\": \"is_overdue\",\n      " \
+            "\"value\": null\n    " \
+            "}\n  " \
+            "]\n" \
             "}\n\n" \
             "Note: The 'is_overdue' comparison is specifically for Due Date fields. For regular date fields, use 'is_before' with today's date.\n\n" \
             'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'

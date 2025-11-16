@@ -44,16 +44,14 @@ module SmartSuite
         # VALIDATION: Require fields parameter to prevent excessive context usage
         if !fields || fields.empty?
           error_msg = "ERROR: You must specify 'fields' parameter to control token usage.\n\n" \
-                      "Example:\n" \
-                      "  list_records(table_id, limit, offset, fields: ['status', 'priority'])\n\n" \
+                      "Example:\n  " \
+                      "list_records(table_id, limit, offset, fields: ['status', 'priority'])\n\n" \
                       'This ensures you only fetch the data you need.'
           return error_msg
         end
 
         # Try cache-first strategy if enabled
-        if cache_enabled? && !bypass_cache
-          return list_records_from_cache(table_id, limit, offset, filter, fields, hydrated)
-        end
+        return list_records_from_cache(table_id, limit, offset, filter, fields, hydrated) if cache_enabled? && !bypass_cache
 
         # Fallback to direct API call (cache disabled or bypassed)
         list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)

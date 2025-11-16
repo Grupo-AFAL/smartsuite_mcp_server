@@ -320,12 +320,8 @@ module SmartSuite
           }
         when 'duedatefield'
           {
-            "#{col_name}_from" => if value['from_date'] && value['from_date']['date']
-                                    parse_timestamp(value['from_date']['date'])
-                                  end,
-            "#{col_name}_to" => if value['to_date'] && value['to_date']['date']
-                                  parse_timestamp(value['to_date']['date'])
-                                end,
+            "#{col_name}_from" => (parse_timestamp(value['from_date']['date']) if value['from_date'] && value['from_date']['date']),
+            "#{col_name}_to" => (parse_timestamp(value['to_date']['date']) if value['to_date'] && value['to_date']['date']),
             "#{col_name}_is_overdue" => value['is_overdue'] ? 1 : 0,
             "#{col_name}_is_completed" => value['status_is_completed'] ? 1 : 0
           }

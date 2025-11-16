@@ -1,0 +1,119 @@
+# RuboCop configuration for SmartSuite MCP Server
+
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.0
+  SuggestExtensions: false
+  Exclude:
+    - 'vendor/**/*'
+    - 'tmp/**/*'
+    - 'node_modules/**/*'
+
+# Metrics - adjust for reasonable limits
+Metrics/MethodLength:
+  Max: 100
+  Exclude:
+    - 'lib/smartsuite/mcp/tool_registry.rb'
+    - 'lib/smartsuite/mcp/prompt_registry.rb'
+    - 'lib/smartsuite/cache/**/*'
+    - 'smartsuite_server.rb'
+    - 'test/**/*'
+
+Metrics/AbcSize:
+  Max: 60
+  Exclude:
+    - 'lib/smartsuite/mcp/tool_registry.rb'
+    - 'lib/smartsuite/api/member_operations.rb'
+    - 'lib/smartsuite/api/workspace_operations.rb'
+    - 'lib/smartsuite/mcp/prompt_registry.rb'
+    - 'lib/smartsuite/cache/**/*'
+    - 'smartsuite_server.rb'
+    - 'test/**/*'
+
+Metrics/CyclomaticComplexity:
+  Max: 25
+  Exclude:
+    - 'lib/smartsuite/api/member_operations.rb'
+    - 'lib/smartsuite/mcp/prompt_registry.rb'
+    - 'lib/smartsuite/cache/**/*'
+    - 'smartsuite_server.rb'
+    - 'test/**/*'
+
+Metrics/PerceivedComplexity:
+  Max: 20
+  Exclude:
+    - 'lib/smartsuite/api/member_operations.rb'
+    - 'lib/smartsuite/api/workspace_operations.rb'
+    - 'lib/smartsuite/mcp/prompt_registry.rb'
+    - 'lib/smartsuite/cache/**/*'
+    - 'test/**/*'
+
+Metrics/ClassLength:
+  Max: 300
+  Exclude:
+    - 'lib/smartsuite/cache/**/*'
+    - 'lib/smartsuite/mcp/tool_registry.rb'
+    - 'test/**/*'
+
+Metrics/ModuleLength:
+  Max: 500
+  Exclude:
+    - 'lib/smartsuite/cache/**/*'
+    - 'lib/smartsuite/mcp/**/*'
+
+Metrics/BlockLength:
+  Max: 50
+  Exclude:
+    - 'test/**/*'
+    - 'lib/smartsuite/mcp/tool_registry.rb'
+    - 'lib/smartsuite/mcp/prompt_registry.rb'
+    - 'smartsuite_server.rb'
+
+Metrics/ParameterLists:
+  Max: 8
+  CountKeywordArgs: false
+
+# Style - prefer readability
+Style/Documentation:
+  Enabled: false
+
+Style/StringLiterals:
+  EnforcedStyle: single_quotes
+
+Style/HashSyntax:
+  EnforcedStyle: ruby19
+
+# Layout - consistent with project
+Layout/LineLength:
+  Max: 140
+  Exclude:
+    - 'lib/smartsuite/mcp/tool_registry.rb'
+    - 'lib/smartsuite/mcp/prompt_registry.rb'
+
+# Naming - allow common patterns
+Naming/VariableNumber:
+  Enabled: false
+
+Naming/MethodParameterName:
+  AllowedNames:
+    - n
+    - id
+    - db
+
+# Lint - catch real issues
+Lint/UnusedBlockArgument:
+  Exclude:
+    - 'test/**/*'
+
+Lint/UnusedMethodArgument:
+  AllowUnusedKeywordArguments: true
+
+Lint/NonAtomicFileOperation:
+  Exclude:
+    - 'test/**/*'
+
+Lint/DuplicateBranch:
+  Enabled: false
+
+Naming/AccessorMethodName:
+  Enabled: false

@@ -10,8 +10,8 @@ require_relative 'lib/smartsuite/mcp/resource_registry'
 
 class SmartSuiteServer
   def initialize
-    @api_key = ENV['SMARTSUITE_API_KEY']
-    @account_id = ENV['SMARTSUITE_ACCOUNT_ID']
+    @api_key = ENV.fetch('SMARTSUITE_API_KEY', nil)
+    @account_id = ENV.fetch('SMARTSUITE_ACCOUNT_ID', nil)
 
     raise 'SMARTSUITE_API_KEY environment variable is required' unless @api_key
     raise 'SMARTSUITE_ACCOUNT_ID environment variable is required' unless @account_id

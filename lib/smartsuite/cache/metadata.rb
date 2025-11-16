@@ -387,9 +387,9 @@ module SmartSuite
       # @param new_structure [Hash] Updated SmartSuite table structure
       # @param old_schema [Hash] Existing cached schema
       def handle_schema_evolution(table_id, new_structure, old_schema)
-        old_fields = old_schema['structure']['structure'].map { |f| f['slug'] }.to_set
+        old_fields = old_schema['structure']['structure'].to_set { |f| f['slug'] }
         new_fields_list = new_structure['structure'] || []
-        new_fields = new_fields_list.map { |f| f['slug'] }.to_set
+        new_fields = new_fields_list.to_set { |f| f['slug'] }
 
         added_fields = new_fields - old_fields
         return if added_fields.empty? # No new fields

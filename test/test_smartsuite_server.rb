@@ -20,7 +20,7 @@ class SmartSuiteServerTest < Minitest::Test
   def teardown
     # Clean up any test stats file
     stats_file = File.join(Dir.home, '.smartsuite_mcp_stats.json')
-    File.delete(stats_file) if File.exist?(stats_file)
+    FileUtils.rm_f(stats_file)
   end
 
   # Helper method to call private methods for testing
@@ -2127,7 +2127,7 @@ class SmartSuiteServerTest < Minitest::Test
       refute_nil client.cache, 'Cache object should be initialized'
     ensure
       # Clean up test cache file
-      File.delete(cache_path) if File.exist?(cache_path)
+      FileUtils.rm_f(cache_path)
     end
   end
 
@@ -2181,7 +2181,7 @@ class SmartSuiteServerTest < Minitest::Test
       assert result1.is_a?(String), 'Should return plain text'
       assert result2.is_a?(String), 'Should return plain text'
     ensure
-      File.delete(cache_path) if File.exist?(cache_path)
+      FileUtils.rm_f(cache_path)
     end
   end
 
@@ -2225,7 +2225,7 @@ class SmartSuiteServerTest < Minitest::Test
       client.list_records('tbl_123', 10, 0, fields: ['title'], bypass_cache: true)
       assert_equal 2, api_call_count, 'Should make another API call when bypass_cache: true'
     ensure
-      File.delete(cache_path) if File.exist?(cache_path)
+      FileUtils.rm_f(cache_path)
     end
   end
 end

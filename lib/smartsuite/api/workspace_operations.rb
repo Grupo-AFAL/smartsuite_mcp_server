@@ -231,9 +231,7 @@ module SmartSuite
 
           record = records_response['items'].first
           record_update = record.dig('last_updated', 'on')
-          if record_update && (most_recent_update.nil? || record_update > most_recent_update)
-            most_recent_update = record_update
-          end
+          most_recent_update = record_update if record_update && (most_recent_update.nil? || record_update > most_recent_update)
         end
 
         most_recent_update
