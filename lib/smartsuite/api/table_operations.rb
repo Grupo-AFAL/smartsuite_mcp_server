@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'base'
+
 module SmartSuite
   module API
     # TableOperations handles API calls for table (application) management.
@@ -10,7 +12,9 @@ module SmartSuite
     # - Creating new tables
     #
     # All methods implement aggressive response filtering to minimize token usage.
+    # Uses Base module for common API patterns (validation, endpoint building, cache coordination).
     module TableOperations
+      include Base
       # Lists tables (applications) in the workspace.
       #
       # Optionally filters by solution_id and/or specific fields.
@@ -21,43 +25,42 @@ module SmartSuite
       # @param fields [Array<String>, nil] Optional array of field slugs to include in response
       # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
       # @return [Hash] Tables with count and filtered data
+      # @example List all tables
+      #   list_tables
+      #
+      # @example List tables in a solution
+      #   list_tables(solution_id: "sol_123")
+      #
+      # @example List with specific fields
+      #   list_tables(fields: ["id", "name", "structure"])
       def list_tables(solution_id: nil, fields: nil, bypass_cache: false)
+        validate_optional_parameter!('fields', fields, Array) if fields
+
         # Try cache first if enabled and no custom fields specified
-        if cache_enabled? && !bypass_cache && (fields.nil? || fields.empty?)
+        unless should_bypass_cache?(bypass_cache) || fields&.any?
           cached_tables = @cache.get_cached_table_list(solution_id)
           cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
+
           if cached_tables
-            log_metric("✓ Cache hit: #{cached_tables.size} tables (#{cache_key})")
+            log_cache_hit('tables', cached_tables.size, cache_key)
             return format_tables_response(cached_tables, fields)
           else
-            log_metric("→ Cache miss for #{cache_key}, fetching from API...")
+            log_cache_miss('tables', cache_key)
           end
         end
 
-        # Build endpoint with query parameters
-        query_params = []
+        # Log filtering info
+        log_metric("→ Filtering tables by solution: #{solution_id}") if solution_id
+        log_metric("→ Requesting specific fields: #{fields.join(', ')}") if fields&.any?
 
-        if solution_id
-          query_params << "solution=#{solution_id}"
-          log_metric("→ Filtering tables by solution: #{solution_id}")
-        end
-
-        # Add fields parameters (can be repeated)
-        if fields && !fields.empty?
-          fields.each do |field|
-            query_params << "fields=#{field}"
-          end
-          log_metric("→ Requesting specific fields: #{fields.join(', ')}")
-        end
-
-        endpoint = '/applications/'
-        endpoint += "?#{query_params.join('&')}" unless query_params.empty?
+        # Build endpoint with query parameters using Base helper
+        endpoint = build_endpoint('/applications/', solution: solution_id, fields: fields)
 
         response = api_request(:get, endpoint)
 
         # Cache the response if cache enabled and no custom fields
-        if cache_enabled? && (fields.nil? || fields.empty?)
-          tables_list = response.is_a?(Hash) && response['items'] ? response['items'] : response
+        if cache_enabled? && !bypass_cache && fields.nil?
+          tables_list = extract_items_from_response(response)
           @cache.cache_table_list(solution_id, tables_list)
           cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
           log_metric("✓ Cached #{tables_list.size} tables (#{cache_key})")
@@ -75,7 +78,7 @@ module SmartSuite
       # @return [Hash] Formatted tables with count
       def format_tables_response(response, fields)
         # Handle both API response format and cached array format
-        tables_list = response.is_a?(Hash) && response['items'] ? response['items'] : response
+        tables_list = extract_items_from_response(response) || response
 
         # When fields are specified, return full response from API
         # When no fields specified, filter to essential fields only (client-side optimization)
@@ -93,11 +96,8 @@ module SmartSuite
                    end
                  end
 
-        result = { 'tables' => tables, 'count' => tables.size }
-        tokens = estimate_tokens(JSON.generate(result))
-        log_metric("✓ Found #{tables.size} tables")
-        log_token_usage(tokens)
-        result
+        result = build_collection_response(tables, :tables)
+        track_response_size(result, "Found #{tables.size} tables")
       end
 
       public
@@ -110,7 +110,12 @@ module SmartSuite
       #
       # @param table_id [String] Table identifier
       # @return [Hash] Table with filtered structure
+      # @raise [ArgumentError] If table_id is missing
+      # @example
+      #   get_table("tbl_123")
       def get_table(table_id)
+        validate_required_parameter!('table_id', table_id)
+
         log_metric("→ Getting table structure: #{table_id}")
         response = api_request(:get, "/applications/#{table_id}/")
 
@@ -149,7 +154,21 @@ module SmartSuite
       # @param description [String, nil] Optional description for the table
       # @param structure [Array, nil] Optional array of field definitions for the table
       # @return [Hash] Created table details
+      # @raise [ArgumentError] If required parameters are missing
+      # @example Basic table
+      #   create_table("sol_123", "Customers")
+      #
+      # @example Table with description and structure
+      #   create_table("sol_123", "Tasks",
+      #                description: "Project tasks tracker",
+      #                structure: [
+      #                  {"slug" => "title", "label" => "Title", "field_type" => "textfield"}
+      #                ])
       def create_table(solution_id, name, description: nil, structure: nil)
+        validate_required_parameter!('solution_id', solution_id)
+        validate_required_parameter!('name', name)
+        validate_optional_parameter!('structure', structure, Array) if structure
+
         log_metric("→ Creating table: #{name} in solution: #{solution_id}")
 
         body = {
