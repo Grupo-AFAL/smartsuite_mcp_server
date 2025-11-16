@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require 'minitest/autorun'
-require 'json'
+require_relative 'test_helper'
 require 'net/http'
 require_relative '../lib/smartsuite_client'
 

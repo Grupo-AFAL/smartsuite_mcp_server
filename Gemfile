@@ -16,10 +16,13 @@ gem 'sqlite3'
 # - digest (stdlib)
 
 group :development do
+  gem 'reek', require: false
   gem 'rubocop', require: false
+  gem 'yard', require: false
 end
 
 group :test do
   gem 'minitest'
   gem 'rake'
+  gem 'simplecov', require: false
 end
