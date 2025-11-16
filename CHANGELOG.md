@@ -21,10 +21,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `reek` - Code smell detection
   - `yard` - Documentation coverage checking
 - **Test helper** (`test/test_helper.rb`) for centralized test configuration
+- **API::Base module** (`lib/smartsuite/api/base.rb`) - Common helper module for all API operations:
+  - Pagination constants (DEFAULT_LIMIT, FETCH_ALL_LIMIT, MAX_LIMIT, DEFAULT_OFFSET)
+  - Parameter validation helpers (validate_required_parameter!, validate_optional_parameter!)
+  - Endpoint building with URL encoding (build_endpoint)
+  - Cache coordination helpers (should_bypass_cache?, log_cache_hit, log_cache_miss)
+  - Response building and tracking (build_collection_response, track_response_size, extract_items_from_response)
+  - Logging helpers (format_timestamp)
+- **FilterBuilder module** (`lib/smartsuite/filter_builder.rb`) - Reusable filter conversion logic:
+  - Converts SmartSuite API filter format to cache query conditions
+  - Supports 20+ comparison operators (is, is_not, contains, is_greater_than, etc.)
+  - 30 test cases with comprehensive edge case coverage
 
 ### Changed
 
+- **Modular API operation architecture** (v1.8 - Code Quality):
+  - All 8 API operation modules refactored to use Base module:
+    - `WorkspaceOperations` - 37 lines reduced, 3 validations added, 2 endpoint simplifications
+    - `TableOperations` - 18 lines reduced (33% reduction), 4 validations added
+    - `RecordOperations` - 6 validations added, 2 endpoint simplifications
+    - `MemberOperations` - 12 lines reduced, 2 validations added, 4 response simplifications
+    - `FieldOperations` - Standardized validation with type checking
+    - `ViewOperations` - Standardized validation and endpoint building
+    - `CommentOperations` - Proof-of-concept implementation
+  - Benefits:
+    - 35-40% code duplication eliminated across modules
+    - Type-safe parameter validation with helpful error messages
+    - Consistent cache coordination logic
+    - URL-safe endpoint building (proper encoding)
+    - Standardized response structure and token tracking
+    - Comprehensive YARD documentation (@raise, @example tags)
+  - All modules now follow consistent patterns for:
+    - Parameter validation (22 new validation calls)
+    - Query parameter building (eliminates manual URL construction)
+    - Cache coordination (standardized bypass logic)
+    - Response building and token tracking
+- **Breaking API change**:
+  - `should_bypass_cache?` signature changed from optional parameter to keyword argument
+  - Before: `should_bypass_cache?(bypass = false)`
+  - After: `should_bypass_cache?(bypass: false)`
+  - Reason: RuboCop Style/OptionalBooleanParameter compliance
+  - Impact: Internal helper method only, no user-facing changes
+
 ### Fixed
+
+- **Array response handling** in WorkspaceOperations:
+  - Fixed `extract_items_from_response` fallback for array responses
+  - Proper handling: `response.is_a?(Array) ? response : extract_items_from_response(response)`
+  - Important: Empty arrays are truthy in Ruby, so `[] || response` returns []
+  - Applied fix in 3 locations to handle both array and hash responses
+- **RuboCop compliance** (23 auto-corrections + 2 manual fixes):
+  - Added empty lines after module inclusion (6 files)
+  - Used modifier if/unless for single-line conditionals (4 locations)
+  - Aligned multi-line method arguments (4 locations)
+  - Removed redundant parentheses (2 locations)
+  - Split long lines (analyze_solution_usage message: 153 → 85 chars)
+  - Used safe navigation (&.) in with_cache_coordination
+- **YARD documentation** fixes in Migrations module:
+  - Removed 7 incorrect @param db tags from instance methods
+  - Methods use @db instance variable, not a parameter
+- **.gitignore** additions:
+  - Added `.yardoc` (YARD cache directory)
+  - Added `doc` (YARD HTML output directory)
 
 ## [1.7.0] - 2025-01-15
 
