@@ -2,6 +2,7 @@ require 'sqlite3'
 require 'json'
 require 'time'
 require 'digest'
+require 'set'
 require_relative 'cache_query'
 require_relative '../query_logger'
 
@@ -22,13 +23,13 @@ module SmartSuite
   class CacheLayer
     attr_reader :db, :db_path
 
-    # Default TTL values in seconds
-    DEFAULT_TTL = 4 * 3600  # 4 hours
+    # Default TTL values in seconds (updated in v1.6)
+    DEFAULT_TTL = 12 * 3600  # 12 hours (for records)
     TTL_PRESETS = {
-      high_mutation: 1 * 3600,      # 1 hour
-      medium_mutation: 4 * 3600,    # 4 hours (default)
-      low_mutation: 12 * 3600,      # 12 hours
-      very_low_mutation: 24 * 3600  # 24 hours
+      high_mutation: 1 * 3600,          # 1 hour (frequently changing data)
+      medium_mutation: 12 * 3600,       # 12 hours (default for records)
+      low_mutation: 7 * 24 * 3600,      # 7 days (solutions, tables, members)
+      very_low_mutation: 30 * 24 * 3600 # 30 days (static reference data)
     }.freeze
 
     def initialize(db_path: nil)
@@ -39,14 +40,23 @@ module SmartSuite
       # Set file permissions (owner read/write only)
       File.chmod(0600, @db_path) if File.exist?(@db_path)
 
+      # In-memory performance counters (v1.6+)
+      @perf_counters = Hash.new { |h, k| h[k] = {hits: 0, misses: 0} }
+      @perf_operations_since_flush = 0
+      @perf_last_flush = Time.now.utc
+
       setup_metadata_tables
     end
 
     # Set up metadata tables for cache management and API stats tracking
     def setup_metadata_tables
+      # Migrate old table name first if it exists
+      migrate_table_rename_if_needed
+
       @db.execute_batch <<-SQL
-        -- Track dynamically-created cache tables
-        CREATE TABLE IF NOT EXISTS cached_table_schemas (
+        -- Internal registry for dynamically-created SQL cache tables
+        -- (not to be confused with SmartSuite table schema caching)
+        CREATE TABLE IF NOT EXISTS cache_table_registry (
           table_id TEXT PRIMARY KEY,
           sql_table_name TEXT NOT NULL UNIQUE,
           table_name TEXT,
@@ -77,6 +87,17 @@ module SmartSuite
 
         CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON cache_stats(timestamp);
         CREATE INDEX IF NOT EXISTS idx_stats_category ON cache_stats(category);
+
+        -- Cache performance tracking (v1.6+)
+        CREATE TABLE IF NOT EXISTS cache_performance (
+          table_id TEXT PRIMARY KEY,
+          hit_count INTEGER DEFAULT 0,
+          miss_count INTEGER DEFAULT 0,
+          last_access_time TEXT,
+          record_count INTEGER DEFAULT 0,
+          cache_size_bytes INTEGER DEFAULT 0,
+          updated_at TEXT NOT NULL
+        );
 
         -- API call tracking (shared with ApiStatsTracker)
         CREATE TABLE IF NOT EXISTS api_call_log (
@@ -162,15 +183,40 @@ module SmartSuite
       SQL
     end
 
+    # Migrate old table name cached_table_schemas to cache_table_registry
+    def migrate_table_rename_if_needed
+      # Check if old table name exists
+      old_table_exists = @db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='cached_table_schemas'"
+      ).first
+
+      # Check if new table name already exists
+      new_table_exists = @db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='cache_table_registry'"
+      ).first
+
+      # Only rename if old exists and new doesn't exist
+      if old_table_exists && !new_table_exists
+        # Rename table using ALTER TABLE (instant, no data copy)
+        @db.execute("ALTER TABLE cached_table_schemas RENAME TO cache_table_registry")
+        log_metric("→ Migrated table: cached_table_schemas → cache_table_registry")
+      elsif old_table_exists && new_table_exists
+        # Both tables exist (shouldn't happen, but handle gracefully)
+        # Drop the old table to clean up
+        @db.execute("DROP TABLE cached_table_schemas")
+        log_metric("→ Cleaned up duplicate table: cached_table_schemas (cache_table_registry already exists)")
+      end
+    end
+
     # Migrate INTEGER timestamp columns to TEXT (ISO 8601) across all metadata tables
     def migrate_integer_timestamps_to_text
       # Check if any metadata tables have INTEGER timestamps (old format)
       tables_to_migrate = []
 
-      # Check cached_table_schemas
-      cols = @db.execute("PRAGMA table_info(cached_table_schemas)")
+      # Check cache_table_registry
+      cols = @db.execute("PRAGMA table_info(cache_table_registry)")
       created_col = cols.find { |c| c['name'] == 'created_at' }
-      tables_to_migrate << 'cached_table_schemas' if created_col && created_col['type'] == 'INTEGER'
+      tables_to_migrate << 'cache_table_registry' if created_col && created_col['type'] == 'INTEGER'
 
       # Check cache_ttl_config
       cols = @db.execute("PRAGMA table_info(cache_ttl_config)")
@@ -197,8 +243,8 @@ module SmartSuite
       # Perform migration for each table
       tables_to_migrate.each do |table|
         case table
-        when 'cached_table_schemas'
-          migrate_cached_table_schemas_timestamps
+        when 'cache_table_registry'
+          migrate_cache_table_registry_timestamps
         when 'cache_ttl_config'
           migrate_cache_ttl_config_timestamps
         when 'cache_stats'
@@ -211,10 +257,10 @@ module SmartSuite
       end
     end
 
-    def migrate_cached_table_schemas_timestamps
+    def migrate_cache_table_registry_timestamps
       # Create temp table with TEXT timestamps
       @db.execute_batch <<-SQL
-        CREATE TABLE cached_table_schemas_new (
+        CREATE TABLE cache_table_registry_new (
           table_id TEXT PRIMARY KEY,
           sql_table_name TEXT NOT NULL UNIQUE,
           table_name TEXT,
@@ -224,14 +270,14 @@ module SmartSuite
           updated_at TEXT NOT NULL
         );
 
-        INSERT INTO cached_table_schemas_new
+        INSERT INTO cache_table_registry_new
         SELECT table_id, sql_table_name, table_name, structure, field_mapping,
                datetime(created_at, 'unixepoch'),
                datetime(updated_at, 'unixepoch')
-        FROM cached_table_schemas;
+        FROM cache_table_registry;
 
-        DROP TABLE cached_table_schemas;
-        ALTER TABLE cached_table_schemas_new RENAME TO cached_table_schemas;
+        DROP TABLE cache_table_registry;
+        ALTER TABLE cache_table_registry_new RENAME TO cache_table_registry;
       SQL
     end
 
@@ -373,13 +419,20 @@ module SmartSuite
     # @param structure [Hash] SmartSuite table structure
     # @return [String] SQL table name
     def create_cache_table(table_id, structure)
-      sql_table_name = "cache_records_#{sanitize_table_name(table_id)}"
       table_name = structure['name']
+
+      # Generate human-readable SQL table name: cache_records_{sanitized_name}_{table_id}
+      # Example: cache_records_customers_tbl_abc123 (v1.6+)
+      sanitized_name = sanitize_table_name(table_name || 'table')
+      sanitized_id = sanitize_table_name(table_id)
+      sql_table_name = "cache_records_#{sanitized_name}_#{sanitized_id}"
+
       fields = structure['structure'] || []
 
-      # Build column definitions
+      # Build column definitions with label-based names (v1.6+)
       columns = ['id TEXT PRIMARY KEY']
       field_mapping = {}
+      used_column_names = Set.new(['id'])  # Track to avoid duplicates
 
       fields.each do |field|
         field_slug = field['slug']
@@ -387,9 +440,13 @@ module SmartSuite
 
         field_columns = get_field_columns(field)
         field_columns.each do |col_name, col_type|
-          columns << "#{col_name} #{col_type}"
+          # Handle duplicate column names by appending suffix
+          unique_col_name = deduplicate_column_name(col_name, used_column_names)
+          used_column_names.add(unique_col_name)
+
+          columns << "#{unique_col_name} #{col_type}"
           field_mapping[field_slug] ||= {}
-          field_mapping[field_slug][col_name] = col_type
+          field_mapping[field_slug][unique_col_name] = col_type
         end
       end
 
@@ -405,7 +462,7 @@ module SmartSuite
 
       # Store schema metadata
       @db.execute(
-        "INSERT OR REPLACE INTO cached_table_schemas
+        "INSERT OR REPLACE INTO cache_table_registry
          (table_id, sql_table_name, table_name, structure, field_mapping, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)",
         [table_id, sql_table_name, table_name, structure.to_json, field_mapping.to_json, Time.now.utc.iso8601, Time.now.utc.iso8601]
@@ -418,12 +475,22 @@ module SmartSuite
 
     # Get column definitions for a field (handles multi-column fields)
     #
+    # Uses field labels for column names (v1.6+) with slug as fallback
+    #
     # @param field [Hash] SmartSuite field definition
     # @return [Hash] Column name => SQL type mapping
     def get_field_columns(field)
       field_slug = field['slug']
+      field_label = field['label']
       field_type = field['field_type'].downcase
-      col_name = sanitize_column_name(field_slug)
+
+      # Use field label for column name, fallback to slug (v1.6+)
+      # Example: "Status" → "status" instead of "s7e8c12e98"
+      col_name = if field_label && !field_label.empty?
+        sanitize_column_name(field_label)
+      else
+        sanitize_column_name(field_slug)
+      end
 
       case field_type
       when 'firstcreated'
@@ -654,13 +721,30 @@ module SmartSuite
       sanitized
     end
 
+    # Deduplicate column name by appending suffix if needed (v1.6+)
+    #
+    # @param col_name [String] Proposed column name
+    # @param used_names [Set] Set of already-used column names
+    # @return [String] Unique column name
+    def deduplicate_column_name(col_name, used_names)
+      return col_name unless used_names.include?(col_name)
+
+      # Append incrementing suffix until unique
+      counter = 2
+      loop do
+        candidate = "#{col_name}_#{counter}"
+        return candidate unless used_names.include?(candidate)
+        counter += 1
+      end
+    end
+
     # Get cached table schema
     #
     # @param table_id [String] SmartSuite table ID
     # @return [Hash, nil] Schema metadata or nil if not cached
     def get_cached_table_schema(table_id)
       result = @db.execute(
-        "SELECT * FROM cached_table_schemas WHERE table_id = ?",
+        "SELECT * FROM cache_table_registry WHERE table_id = ?",
         [table_id]
       ).first
 
@@ -710,7 +794,7 @@ module SmartSuite
 
       # Update schema metadata
       @db.execute(
-        "UPDATE cached_table_schemas
+        "UPDATE cache_table_registry
          SET structure = ?, field_mapping = ?, updated_at = ?
          WHERE table_id = ?",
         [new_structure.to_json, field_mapping.to_json, Time.now.utc.iso8601, table_id]
@@ -931,17 +1015,27 @@ module SmartSuite
 
     # Invalidate cache for a table (force re-fetch on next query)
     #
+    # Invalidates both the cached records AND the table structure metadata.
+    # Use this when the table structure changes (fields added/updated/deleted).
+    #
     # @param table_id [String] SmartSuite table ID
-    def invalidate_table_cache(table_id)
+    # @param structure_changed [Boolean] Also invalidate table metadata (default: true)
+    def invalidate_table_cache(table_id, structure_changed: true)
       schema = get_cached_table_schema(table_id)
-      return unless schema
 
-      sql_table_name = schema['sql_table_name']
+      if schema
+        sql_table_name = schema['sql_table_name']
+        # Set expires_at to 0 to force re-fetch of cached records
+        @db.execute("UPDATE #{sql_table_name} SET expires_at = 0")
+        record_stat('invalidation', 'table_records', table_id)
+      end
 
-      # Set expires_at to 0 to force re-fetch
-      @db.execute("UPDATE #{sql_table_name} SET expires_at = 0")
-
-      record_stat('invalidation', 'table', table_id)
+      # Also invalidate table structure metadata if structure changed
+      if structure_changed
+        db_execute("UPDATE cached_tables SET expires_at = 0 WHERE id = ?", table_id)
+        record_stat('invalidation', 'table_structure', table_id)
+        QueryLogger.log_cache_operation('invalidate', "table_structure:#{table_id}")
+      end
     end
 
     # Check if cached records are valid (not expired)
@@ -961,40 +1055,6 @@ module SmartSuite
       ).first
 
       result && result['count'] > 0
-    end
-
-    # Get cache status for a table
-    #
-    # @param table_id [String] SmartSuite table ID
-    # @return [Hash] Cache status information
-    def get_cache_status(table_id)
-      schema = get_cached_table_schema(table_id)
-      return {status: 'not_cached', table_id: table_id} unless schema
-
-      sql_table_name = schema['sql_table_name']
-
-      # Get record count and expiration
-      result = @db.execute(
-        "SELECT COUNT(*) as count, MIN(cached_at) as cached_at, MIN(expires_at) as expires_at
-         FROM #{sql_table_name}"
-      ).first
-
-      return {status: 'empty', table_id: table_id} unless result && result['count'] > 0
-
-      now = Time.now.utc.iso8601
-      expires_at = result['expires_at']
-      time_remaining = Time.parse(expires_at) - Time.parse(now)
-
-      {
-        table_id: table_id,
-        table_name: schema['table_name'],
-        record_count: result['count'],
-        cached_at: result['cached_at'],
-        expires_at: expires_at,
-        ttl_seconds: get_table_ttl(table_id),
-        status: time_remaining > 0 ? 'valid' : 'expired',
-        time_remaining_seconds: [time_remaining, 0].max
-      }
     end
 
     # Record cache statistics
@@ -1034,9 +1094,9 @@ module SmartSuite
     # Cache solutions list
     #
     # @param solutions [Array<Hash>] Array of solution hashes
-    # @param ttl [Integer] Time-to-live in seconds (default: 24 hours)
+    # @param ttl [Integer] Time-to-live in seconds (default: 7 days as of v1.6)
     # @return [Integer] Number of solutions cached
-    def cache_solutions(solutions, ttl: 24 * 3600)
+    def cache_solutions(solutions, ttl: 7 * 24 * 3600)
       expires_at = (Time.now + ttl).utc.iso8601
       cached_at = Time.now.utc.iso8601
 
@@ -1176,9 +1236,9 @@ module SmartSuite
     #
     # @param solution_id [String, nil] Solution ID (nil for all tables)
     # @param tables [Array<Hash>] Array of table hashes
-    # @param ttl [Integer] Time-to-live in seconds (default: 12 hours)
+    # @param ttl [Integer] Time-to-live in seconds (default: 7 days as of v1.6)
     # @return [Integer] Number of tables cached
-    def cache_table_list(solution_id, tables, ttl: 12 * 3600)
+    def cache_table_list(solution_id, tables, ttl: 7 * 24 * 3600)
       expires_at = (Time.now + ttl).utc.iso8601
       cached_at = Time.now.utc.iso8601
 
@@ -1318,8 +1378,268 @@ module SmartSuite
       end
     end
 
+    # Refresh (invalidate) cache for specific resources
+    #
+    # Invalidates cache without refetching - data will be refreshed on next access.
+    # Useful for forcing fresh data when you know it has changed.
+    #
+    # @param resource [String] Resource type: 'solutions', 'tables', or 'records'
+    # @param table_id [String, nil] Table ID (required for 'records' resource)
+    # @param solution_id [String, nil] Solution ID (optional for 'tables' resource)
+    # @return [Hash] Refresh result with invalidated resource info
+    def refresh_cache(resource, table_id: nil, solution_id: nil)
+      case resource
+      when 'solutions'
+        invalidate_solutions_cache
+        {
+          'refreshed' => 'solutions',
+          'message' => 'All solutions cache invalidated. Will refresh on next access.',
+          'timestamp' => Time.now.utc.iso8601
+        }
+      when 'tables'
+        invalidate_table_list_cache(solution_id)
+        {
+          'refreshed' => 'tables',
+          'solution_id' => solution_id,
+          'message' => solution_id ? "Table list for solution #{solution_id} invalidated." : "All tables cache invalidated.",
+          'timestamp' => Time.now.utc.iso8601
+        }
+      when 'records'
+        raise ArgumentError, "table_id is required for refreshing records cache" unless table_id
+        invalidate_table_cache(table_id, structure_changed: false)
+        {
+          'refreshed' => 'records',
+          'table_id' => table_id,
+          'message' => "Records cache for table #{table_id} invalidated. Will refresh on next access.",
+          'timestamp' => Time.now.utc.iso8601
+        }
+      else
+        raise ArgumentError, "Unknown resource type: #{resource}. Use 'solutions', 'tables', or 'records'"
+      end
+    end
+
+    # Get list of table IDs for cache warming
+    #
+    # Returns either a user-specified list or automatically selects top N most accessed tables
+    # based on cache performance metrics.
+    #
+    # @param tables [Array<String>, String, nil] Array of table IDs, 'auto', or nil for auto mode
+    # @param count [Integer] Number of tables to return in auto mode (default: 5)
+    # @return [Array<String>] List of table IDs to warm
+    def get_tables_to_warm(tables: nil, count: 5)
+      if tables.nil? || tables == 'auto'
+        # Auto mode: get top N most accessed tables from cache_performance
+        results = db_execute(
+          "SELECT table_id FROM cache_performance
+           ORDER BY (hit_count + miss_count) DESC
+           LIMIT ?",
+          count
+        )
+        results.map { |row| row['table_id'] }
+      elsif tables.is_a?(Array)
+        # Explicit list of table IDs
+        tables
+      elsif tables.is_a?(String)
+        # Single table ID
+        [tables]
+      else
+        []
+      end
+    end
+
+    # Get cache status for solutions, tables, and records
+    #
+    # Shows cached_at, expires_at, time_remaining, record_count for each cached resource.
+    # Helps users understand cache state and plan cache refreshes.
+    #
+    # @param table_id [String, nil] Optional table ID to show status for specific table
+    # @return [Hash] Cache status information
+    def get_cache_status(table_id: nil)
+      now = Time.now.utc
+      status = {
+        'timestamp' => now.iso8601,
+        'solutions' => get_solutions_cache_status(now),
+        'tables' => get_tables_cache_status(now),
+        'records' => get_records_cache_status(now, table_id: table_id)
+      }
+
+      status
+    end
+
+    private
+
+    # Get solutions cache status
+    def get_solutions_cache_status(now)
+      result = db_execute("SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_solutions").first
+      return nil if result['count'] == 0
+
+      first_expires = Time.parse(result['first_expires'])
+      {
+        'count' => result['count'],
+        'expires_at' => first_expires.iso8601,
+        'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
+        'is_valid' => first_expires > now
+      }
+    end
+
+    # Get tables cache status
+    def get_tables_cache_status(now)
+      result = db_execute("SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_tables").first
+      return nil if result['count'] == 0
+
+      first_expires = Time.parse(result['first_expires'])
+      {
+        'count' => result['count'],
+        'expires_at' => first_expires.iso8601,
+        'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
+        'is_valid' => first_expires > now
+      }
+    end
+
+    # Get records cache status (all tables or specific table)
+    def get_records_cache_status(now, table_id: nil)
+      # Get all cached table schemas
+      schemas = db_execute("SELECT * FROM cache_table_registry")
+
+      if table_id
+        # Filter to specific table
+        schemas = schemas.select { |s| s['table_id'] == table_id }
+      end
+
+      return [] if schemas.empty?
+
+      schemas.map do |schema|
+        sql_table_name = schema['sql_table_name']
+
+        # Get record count and expiration
+        result = db_execute(
+          "SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM #{sql_table_name}"
+        ).first
+
+        next nil if result['count'] == 0
+
+        first_expires = Time.parse(result['first_expires'])
+        {
+          'table_id' => schema['table_id'],
+          'table_name' => schema['table_name'],
+          'record_count' => result['count'],
+          'cached_at' => Time.parse(schema['updated_at']).iso8601,
+          'expires_at' => first_expires.iso8601,
+          'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
+          'is_valid' => first_expires > now
+        }
+      end.compact
+    end
+
+    public
+
+    # Track cache hit for performance monitoring
+    #
+    # @param table_id [String] SmartSuite table ID
+    def track_cache_hit(table_id)
+      @perf_counters[table_id][:hits] += 1
+      @perf_operations_since_flush += 1
+      flush_performance_counters_if_needed
+    end
+
+    # Track cache miss for performance monitoring
+    #
+    # @param table_id [String] SmartSuite table ID
+    def track_cache_miss(table_id)
+      @perf_counters[table_id][:misses] += 1
+      @perf_operations_since_flush += 1
+      flush_performance_counters_if_needed
+    end
+
+    # Flush performance counters to database if threshold reached
+    #
+    # Flushes when either:
+    # - 100 operations have occurred since last flush
+    # - 5 minutes have passed since last flush
+    def flush_performance_counters_if_needed
+      should_flush = @perf_operations_since_flush >= 100 ||
+                     (Time.now.utc - @perf_last_flush) >= 300 # 5 minutes
+
+      flush_performance_counters if should_flush
+    end
+
+    # Flush all in-memory performance counters to database
+    def flush_performance_counters
+      return if @perf_counters.empty?
+
+      now = Time.now.utc.iso8601
+
+      @perf_counters.each do |table_id, counters|
+        # Get current values from database
+        current = db_execute(
+          "SELECT hit_count, miss_count FROM cache_performance WHERE table_id = ?",
+          table_id
+        ).first
+
+        if current
+          # Update existing record
+          new_hits = current['hit_count'] + counters[:hits]
+          new_misses = current['miss_count'] + counters[:misses]
+
+          db_execute(
+            "UPDATE cache_performance
+             SET hit_count = ?, miss_count = ?, last_access_time = ?, updated_at = ?
+             WHERE table_id = ?",
+            new_hits, new_misses, now, now, table_id
+          )
+        else
+          # Insert new record
+          db_execute(
+            "INSERT INTO cache_performance
+             (table_id, hit_count, miss_count, last_access_time, updated_at)
+             VALUES (?, ?, ?, ?, ?)",
+            table_id, counters[:hits], counters[:misses], now, now
+          )
+        end
+      end
+
+      # Reset counters
+      @perf_counters.clear
+      @perf_operations_since_flush = 0
+      @perf_last_flush = Time.now.utc
+    end
+
+    # Get cache performance statistics
+    #
+    # @param table_id [String, nil] Optional table ID to filter by
+    # @return [Array<Hash>] Performance statistics
+    def get_cache_performance(table_id: nil)
+      # Flush current counters first
+      flush_performance_counters
+
+      if table_id
+        results = db_execute(
+          "SELECT * FROM cache_performance WHERE table_id = ?",
+          table_id
+        )
+      else
+        results = db_execute("SELECT * FROM cache_performance ORDER BY last_access_time DESC")
+      end
+
+      results.map do |row|
+        total = row['hit_count'] + row['miss_count']
+        {
+          'table_id' => row['table_id'],
+          'hit_count' => row['hit_count'],
+          'miss_count' => row['miss_count'],
+          'total_operations' => total,
+          'hit_rate' => total > 0 ? (row['hit_count'].to_f / total * 100).round(2) : 0.0,
+          'last_access_time' => row['last_access_time'],
+          'record_count' => row['record_count'],
+          'cache_size_bytes' => row['cache_size_bytes']
+        }
+      end
+    end
+
     # Close database connection
     def close
+      # Flush any pending performance counters
+      flush_performance_counters unless @perf_counters.empty?
       @db.close if @db
     end
   end

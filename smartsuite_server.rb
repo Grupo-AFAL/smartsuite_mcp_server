@@ -256,9 +256,30 @@ class SmartSuiteServer
         sharing: arguments['sharing']
       )
     when 'get_api_stats'
-      @client.stats_tracker.get_stats
+      @client.stats_tracker.get_stats(time_range: arguments['time_range'] || 'all')
     when 'reset_api_stats'
       @client.stats_tracker.reset_stats
+    when 'get_cache_status'
+      if @client.cache_enabled?
+        @client.cache.get_cache_status(table_id: arguments['table_id'])
+      else
+        {'error' => 'Cache is disabled'}
+      end
+    when 'refresh_cache'
+      if @client.cache_enabled?
+        @client.cache.refresh_cache(
+          arguments['resource'],
+          table_id: arguments['table_id'],
+          solution_id: arguments['solution_id']
+        )
+      else
+        {'error' => 'Cache is disabled'}
+      end
+    when 'warm_cache'
+      @client.warm_cache(
+        tables: arguments['tables'],
+        count: arguments['count'] || 5
+      )
     else
       return {
         'jsonrpc' => '2.0',
