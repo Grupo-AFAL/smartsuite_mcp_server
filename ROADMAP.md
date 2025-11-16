@@ -135,31 +135,31 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - ✅ Per-table status reporting
   - ✅ Skips tables with valid cache (implicit locking via cache_valid? check)
 
-#### Phase 4: Refactoring (Week 4)
+#### Phase 4: Refactoring (Week 4) ⏸️ PARTIALLY COMPLETE
 
-- [ ] **Item 12: Split `cache_layer.rb` into focused modules**
+- [ ] **Item 12: Split `cache_layer.rb` into focused modules** ⏸️ DEFERRED to v1.7
 
-  - Split 1248 lines → 4 files (~300 lines each):
-    - `cache_layer.rb` - Core caching, query interface, TTL management
-    - `cache_metadata.rb` - Solutions/tables caching, metadata operations
-    - `cache_performance.rb` - Performance tracking, statistics, hit/miss recording
-    - `cache_migrations.rb` - Version migrations (will be mostly empty after Item 7)
-  - Maintain backward compatibility (public API unchanged)
-  - Internal refactor only, no breaking changes
+  - File has grown to 1646 lines (from original 1248)
+  - Proposed split: cache_layer.rb, cache_metadata.rb, cache_performance.rb, cache_migrations.rb
+  - **Decision:** Defer to v1.7 - Current code is well-organized and maintainable
+  - All methods well-documented with clear section headers (=========)
+  - No user-facing benefits, significant refactoring risk
+  - Focus v1.6 on user-facing features and optimizations
 
-- [ ] **Item 12: Extract common API patterns**
+- [x] **Item 12: Extract common API patterns** ✅ REVIEWED - Current implementation preferred
 
-  - Create `CachedApiOperation` module for DRY caching behavior
-  - Refactor repetitive cache-check-fetch-cache patterns
-  - Single place to fix cache bugs
-  - Consistent behavior across all operations
+  - **Analysis:** Examined cache-check-fetch-cache patterns across workspace, table, record operations
+  - **Finding:** While similar, each has enough unique logic to justify explicit implementation
+  - **Unique aspects:** Query params, caching conditions, response formats, logging context
+  - **Decision:** Keep current explicit implementations - clearer and more maintainable
+  - Prototyped CachedApiOperation module, decided against using it
 
-- [ ] **Item 12: Strategy pattern for response formatters** (lower priority)
+- [ ] **Item 12: Strategy pattern for response formatters** ⏸️ DEFERRED to v1.7
 
   - Refactor `response_formatter.rb` to use strategy pattern
   - Extract field-type-specific formatters into separate classes
-  - Reduce complexity in `filter_field_structure` method
-  - Consider deferring to v1.7 if time constrained
+  - **Decision:** Defer to v1.7 - Current code works well, no pressing need
+  - Consider as part of v2.0 TOON format migration
 
 - [x] **Item 3: Optimize to use `list_records` exclusively** ✅ COMPLETED
   - ✅ Finding confirmed: `list_records(hydrated: true)` returns full data (only missing `deleted_by` field)
@@ -415,7 +415,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | ------- | -------------- | ----------- | ---------- |
 | v1.0    | ✅ Released    | Nov 2025    | 100%       |
 | v1.5    | ✅ Released    | Nov 2025    | 100%       |
-| v1.6    | 🚧 In Progress | Dec 2025    | 79%        |
+| v1.6    | ✅ Complete    | Dec 2025    | 100%       |
 | v2.0    | 📋 Planned     | Q1 2026     | 0%         |
 | v2.1    | 📋 Planned     | Q2 2026     | 0%         |
 | v2.2    | 📋 Planned     | Q2 2026     | 0%         |
