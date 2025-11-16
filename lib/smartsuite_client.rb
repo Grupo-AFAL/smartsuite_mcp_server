@@ -57,4 +57,79 @@ class SmartSuiteClient
   def cache_enabled?
     !@cache.nil?
   end
+
+  # Warm cache for specified tables or auto-select top accessed tables
+  #
+  # Proactively fetches and caches records for tables to improve subsequent query performance.
+  # Supports explicit table list or automatic selection based on access patterns.
+  #
+  # @param tables [Array<String>, String, nil] Table IDs to warm, 'auto', or nil for auto mode
+  # @param count [Integer] Number of tables in auto mode (default: 5)
+  # @return [Hash] Warming results with progress and statistics
+  def warm_cache(tables: nil, count: 5)
+    return {'error' => 'Cache is disabled'} unless cache_enabled?
+
+    # Get list of tables to warm
+    table_ids = @cache.get_tables_to_warm(tables: tables, count: count)
+
+    if table_ids.empty?
+      return {
+        'status' => 'no_tables',
+        'message' => 'No tables to warm. Either no tables specified or no access history found.',
+        'timestamp' => Time.now.utc.iso8601
+      }
+    end
+
+    # Warm each table's cache
+    results = []
+    warmed_count = 0
+    skipped_count = 0
+    error_count = 0
+
+    table_ids.each do |table_id|
+      begin
+        # Check if cache is already valid
+        if @cache.cache_valid?(table_id)
+          results << {
+            'table_id' => table_id,
+            'status' => 'skipped',
+            'reason' => 'Cache already valid'
+          }
+          skipped_count += 1
+          next
+        end
+
+        # Warm cache by triggering list_records with minimal fields
+        # This will call ensure_records_cached which fetches and caches all records
+        list_records(table_id, 1, 0, fields: ['id'], bypass_cache: false)
+
+        results << {
+          'table_id' => table_id,
+          'status' => 'warmed',
+          'message' => 'Cache populated successfully'
+        }
+        warmed_count += 1
+
+      rescue => e
+        results << {
+          'table_id' => table_id,
+          'status' => 'error',
+          'error' => e.message
+        }
+        error_count += 1
+      end
+    end
+
+    {
+      'status' => 'completed',
+      'summary' => {
+        'total_tables' => table_ids.size,
+        'warmed' => warmed_count,
+        'skipped' => skipped_count,
+        'errors' => error_count
+      },
+      'results' => results,
+      'timestamp' => Time.now.utc.iso8601
+    }
+  end
 end
