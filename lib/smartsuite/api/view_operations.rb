@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'base'
+
 module SmartSuite
   module API
     # ViewOperations handles API calls for view (report) management.
@@ -9,7 +11,9 @@ module SmartSuite
     # - Getting records for a specific view with applied filters
     #
     # Note: In SmartSuite's API, views are also referred to as "reports"
+    # Uses Base module for common API patterns (validation, endpoint building).
     module ViewOperations
+      include Base
       # Gets records for a specified view with the view's filters applied.
       #
       # This method retrieves records that match the view's configured filters,
@@ -19,12 +23,19 @@ module SmartSuite
       # @param view_id [String] View (report) identifier
       # @param with_empty_values [Boolean] Whether to include empty field values (default: false)
       # @return [Hash] Records array with view configuration
+      # @raise [ArgumentError] If required parameters are missing
+      # @example
+      #   get_view_records("tbl_123", "view_456")
+      #   get_view_records("tbl_123", "view_456", with_empty_values: true)
       def get_view_records(table_id, view_id, with_empty_values: false)
+        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!('view_id', view_id)
+
         log_metric("→ Getting records for view: #{view_id} in table: #{table_id}")
 
-        # Build endpoint with query parameters
-        endpoint = "/applications/#{table_id}/records-for-report/?report=#{view_id}"
-        endpoint += "&with_empty_values=#{with_empty_values}" if with_empty_values
+        # Build endpoint with query parameters using Base helper
+        base_path = "/applications/#{table_id}/records-for-report/"
+        endpoint = build_endpoint(base_path, report: view_id, with_empty_values: (with_empty_values || nil))
 
         response = api_request(:get, endpoint)
 
@@ -56,7 +67,19 @@ module SmartSuite
       # @option options [Hash] :map_state Map configuration for map views
       # @option options [Hash] :sharing Sharing settings
       # @return [Hash] Created view details
+      # @raise [ArgumentError] If required parameters are missing
+      # @example Basic grid view
+      #   create_view("tbl_123", "sol_456", "My View", "grid")
+      #
+      # @example Map view with state
+      #   create_view("tbl_123", "sol_456", "Location Map", "map",
+      #               state: {filter: {...}}, map_state: {center: [...]})
       def create_view(application, solution, label, view_mode, **options)
+        validate_required_parameter!('application', application)
+        validate_required_parameter!('solution', solution)
+        validate_required_parameter!('label', label)
+        validate_required_parameter!('view_mode', view_mode)
+
         log_metric("→ Creating view: #{label} in application: #{application}")
 
         body = {
