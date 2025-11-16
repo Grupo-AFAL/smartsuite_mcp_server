@@ -15,11 +15,8 @@ class SmartSuiteServer
     raise "SMARTSUITE_API_KEY environment variable is required" unless @api_key
     raise "SMARTSUITE_ACCOUNT_ID environment variable is required" unless @account_id
 
-    # Initialize API statistics tracker
-    @stats_tracker = ApiStatsTracker.new(@api_key)
-
-    # Initialize SmartSuite API client with stats tracker
-    @client = SmartSuiteClient.new(@api_key, @account_id, stats_tracker: @stats_tracker)
+    # Initialize SmartSuite API client (creates its own stats tracker with shared cache database)
+    @client = SmartSuiteClient.new(@api_key, @account_id)
 
     # Open metrics log file
     @metrics_log = File.open(File.join(Dir.home, '.smartsuite_mcp_metrics.log'), 'a')
@@ -259,9 +256,9 @@ class SmartSuiteServer
         sharing: arguments['sharing']
       )
     when 'get_api_stats'
-      @stats_tracker.get_stats
+      @client.stats_tracker.get_stats
     when 'reset_api_stats'
-      @stats_tracker.reset_stats
+      @client.stats_tracker.reset_stats
     else
       return {
         'jsonrpc' => '2.0',

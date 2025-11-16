@@ -21,7 +21,7 @@ class SmartSuiteClient
   include SmartSuite::API::ViewOperations
   include SmartSuite::Formatters::ResponseFormatter
 
-  attr_reader :cache
+  attr_reader :cache, :stats_tracker
 
   def initialize(api_key, account_id, stats_tracker: nil, cache_enabled: true, cache_path: nil, session_id: nil)
     @api_key = api_key

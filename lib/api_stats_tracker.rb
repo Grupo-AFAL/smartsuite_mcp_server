@@ -32,7 +32,7 @@ class ApiStatsTracker
 
   def track_api_call(method, endpoint)
     method_name = method.to_s.upcase
-    timestamp = Time.now.to_i
+    timestamp = Time.now.utc.iso8601
 
     # Extract IDs from endpoint
     solution_id = extract_solution_id(endpoint)
@@ -75,8 +75,8 @@ class ApiStatsTracker
     {
       'summary' => {
         'total_calls' => summary['total_calls'],
-        'first_call' => summary['first_call'] ? Time.at(summary['first_call']).iso8601 : nil,
-        'last_call' => summary['last_call'] ? Time.at(summary['last_call']).iso8601 : nil,
+        'first_call' => summary['first_call'],
+        'last_call' => summary['last_call'],
         'unique_users' => get_unique_count('user_hash'),
         'unique_solutions' => get_unique_count('solution_id'),
         'unique_tables' => get_unique_count('table_id')
@@ -110,7 +110,7 @@ class ApiStatsTracker
   private
 
   def update_aggregated_stats(method_name, endpoint, solution_id, table_id)
-    timestamp = Time.now.to_i
+    timestamp = Time.now.utc.iso8601
 
     # Upsert summary stats
     @db.execute(
