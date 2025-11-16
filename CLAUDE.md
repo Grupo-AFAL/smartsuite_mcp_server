@@ -6,6 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Model Context Protocol (MCP) server for SmartSuite, written in Ruby. It enables AI assistants to interact with SmartSuite workspaces through the MCP protocol via stdin/stdout communication.
 
+## 📚 Full Documentation
+
+For comprehensive documentation, see the `docs/` directory:
+
+- **[Documentation Index](docs/README.md)** - Complete documentation map
+- **[Getting Started](docs/getting-started/)** - Installation, quick start, troubleshooting
+- **[Guides](docs/guides/)** - User guide, caching, filtering, performance
+- **[API Reference](docs/api/)** - Complete API documentation by module
+- **[Architecture](docs/architecture/)** - System design and implementation details
+- **[Examples](examples/)** - Practical usage patterns
+
+This CLAUDE.md file contains essential information for Claude Code. For detailed documentation, always refer to the `docs/` directory.
+
 ## Essential Commands
 
 ### Testing
