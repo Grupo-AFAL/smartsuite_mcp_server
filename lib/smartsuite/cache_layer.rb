@@ -52,8 +52,8 @@ module SmartSuite
           table_name TEXT,
           structure TEXT NOT NULL,
           field_mapping TEXT NOT NULL,
-          created_at INTEGER NOT NULL,
-          updated_at INTEGER NOT NULL
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
         );
 
         -- TTL configuration per table
@@ -62,7 +62,7 @@ module SmartSuite
           ttl_seconds INTEGER NOT NULL DEFAULT #{DEFAULT_TTL},
           mutation_level TEXT,
           notes TEXT,
-          updated_at INTEGER NOT NULL
+          updated_at TEXT NOT NULL
         );
 
         -- Cache statistics
@@ -71,7 +71,7 @@ module SmartSuite
           category TEXT NOT NULL,
           operation TEXT NOT NULL,
           key TEXT,
-          timestamp INTEGER NOT NULL,
+          timestamp TEXT NOT NULL,
           metadata TEXT
         );
 
@@ -86,15 +86,16 @@ module SmartSuite
           endpoint TEXT NOT NULL,
           solution_id TEXT,
           table_id TEXT,
-          timestamp INTEGER NOT NULL
+          timestamp TEXT NOT NULL,
+          session_id TEXT DEFAULT 'legacy'
         );
 
         -- API statistics summary (shared with ApiStatsTracker)
         CREATE TABLE IF NOT EXISTS api_stats_summary (
           user_hash TEXT PRIMARY KEY,
           total_calls INTEGER DEFAULT 0,
-          first_call INTEGER,
-          last_call INTEGER
+          first_call TEXT,
+          last_call TEXT
         );
 
         -- Cache for solutions list
@@ -148,11 +149,8 @@ module SmartSuite
         CREATE INDEX IF NOT EXISTS idx_cached_solutions_expires ON cached_solutions(expires_at);
       SQL
 
-      # Handle schema migration for session_id column
-      migrate_api_call_log_schema
-
-      # Handle schema migration for cache tables
-      migrate_cache_tables_schema
+      # Migrate INTEGER timestamps to TEXT (ISO 8601)
+      migrate_integer_timestamps_to_text
 
       # Create indexes after ensuring schema is up to date
       @db.execute_batch <<-SQL
@@ -164,86 +162,166 @@ module SmartSuite
       SQL
     end
 
-    # Migrate api_call_log schema to add session_id column if it doesn't exist
-    def migrate_api_call_log_schema
-      columns = @db.execute("PRAGMA table_info(api_call_log)")
-      has_session_id = columns.any? { |col| col['name'] == 'session_id' }
+    # Migrate INTEGER timestamp columns to TEXT (ISO 8601) across all metadata tables
+    def migrate_integer_timestamps_to_text
+      # Check if any metadata tables have INTEGER timestamps (old format)
+      tables_to_migrate = []
 
-      unless has_session_id
-        @db.execute("ALTER TABLE api_call_log ADD COLUMN session_id TEXT DEFAULT 'legacy'")
+      # Check cached_table_schemas
+      cols = @db.execute("PRAGMA table_info(cached_table_schemas)")
+      created_col = cols.find { |c| c['name'] == 'created_at' }
+      tables_to_migrate << 'cached_table_schemas' if created_col && created_col['type'] == 'INTEGER'
+
+      # Check cache_ttl_config
+      cols = @db.execute("PRAGMA table_info(cache_ttl_config)")
+      updated_col = cols.find { |c| c['name'] == 'updated_at' }
+      tables_to_migrate << 'cache_ttl_config' if updated_col && updated_col['type'] == 'INTEGER'
+
+      # Check cache_stats
+      cols = @db.execute("PRAGMA table_info(cache_stats)")
+      ts_col = cols.find { |c| c['name'] == 'timestamp' }
+      tables_to_migrate << 'cache_stats' if ts_col && ts_col['type'] == 'INTEGER'
+
+      # Check api_call_log
+      cols = @db.execute("PRAGMA table_info(api_call_log)")
+      ts_col = cols.find { |c| c['name'] == 'timestamp' }
+      tables_to_migrate << 'api_call_log' if ts_col && ts_col['type'] == 'INTEGER'
+
+      # Check api_stats_summary
+      cols = @db.execute("PRAGMA table_info(api_stats_summary)")
+      first_col = cols.find { |c| c['name'] == 'first_call' }
+      tables_to_migrate << 'api_stats_summary' if first_col && first_col['type'] == 'INTEGER'
+
+      return if tables_to_migrate.empty?
+
+      # Perform migration for each table
+      tables_to_migrate.each do |table|
+        case table
+        when 'cached_table_schemas'
+          migrate_cached_table_schemas_timestamps
+        when 'cache_ttl_config'
+          migrate_cache_ttl_config_timestamps
+        when 'cache_stats'
+          migrate_cache_stats_timestamps
+        when 'api_call_log'
+          migrate_api_call_log_timestamps
+        when 'api_stats_summary'
+          migrate_api_stats_summary_timestamps
+        end
       end
     end
 
-    # Migrate cache tables to new schema with fixed columns and TEXT datetimes
-    def migrate_cache_tables_schema
-      # Check if cached_solutions has old schema (missing slug column or INTEGER datetimes)
-      solutions_columns = @db.execute("PRAGMA table_info(cached_solutions)")
-      solutions_expires_col = solutions_columns.find { |col| col['name'] == 'expires_at' }
-      has_old_solutions_schema = solutions_columns.any? { |col| col['name'] == 'data' } ||
-                                   !solutions_columns.any? { |col| col['name'] == 'slug' } ||
-                                   (solutions_expires_col && solutions_expires_col['type'] == 'INTEGER')
+    def migrate_cached_table_schemas_timestamps
+      # Create temp table with TEXT timestamps
+      @db.execute_batch <<-SQL
+        CREATE TABLE cached_table_schemas_new (
+          table_id TEXT PRIMARY KEY,
+          sql_table_name TEXT NOT NULL UNIQUE,
+          table_name TEXT,
+          structure TEXT NOT NULL,
+          field_mapping TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
 
-      # Check if cached_tables exists and has old schema (missing slug column or INTEGER datetimes)
-      tables_columns = @db.execute("PRAGMA table_info(cached_tables)")
-      tables_expires_col = tables_columns.find { |col| col['name'] == 'expires_at' }
-      has_old_tables_schema = tables_columns.empty? ||
-                               !tables_columns.any? { |col| col['name'] == 'slug' } ||
-                               (tables_expires_col && tables_expires_col['type'] == 'INTEGER')
+        INSERT INTO cached_table_schemas_new
+        SELECT table_id, sql_table_name, table_name, structure, field_mapping,
+               datetime(created_at, 'unixepoch'),
+               datetime(updated_at, 'unixepoch')
+        FROM cached_table_schemas;
 
-      if has_old_solutions_schema || has_old_tables_schema
-        # Drop old tables and let them be recreated with new schema
-        @db.execute("DROP TABLE IF EXISTS cached_solutions")
-        @db.execute("DROP TABLE IF EXISTS cached_table_lists")
-        @db.execute("DROP TABLE IF EXISTS cached_all_tables")
-        @db.execute("DROP TABLE IF EXISTS cached_tables")
+        DROP TABLE cached_table_schemas;
+        ALTER TABLE cached_table_schemas_new RENAME TO cached_table_schemas;
+      SQL
+    end
 
-        # Recreate with new schema
-        @db.execute_batch <<-SQL
-          CREATE TABLE IF NOT EXISTS cached_solutions (
-            id TEXT PRIMARY KEY,
-            slug TEXT,
-            name TEXT,
-            logo_icon TEXT,
-            logo_color TEXT,
-            description TEXT,
-            status TEXT,
-            hidden INTEGER,
-            last_access TEXT,
-            updated TEXT,
-            created TEXT,
-            created_by TEXT,
-            records_count INTEGER,
-            members_count INTEGER,
-            applications_count INTEGER,
-            automation_count INTEGER,
-            has_demo_data INTEGER,
-            delete_date TEXT,
-            deleted_by TEXT,
-            updated_by TEXT,
-            permissions TEXT,
-            cached_at TEXT NOT NULL,
-            expires_at TEXT NOT NULL
-          );
+    def migrate_cache_ttl_config_timestamps
+      @db.execute_batch <<-SQL
+        CREATE TABLE cache_ttl_config_new (
+          table_id TEXT PRIMARY KEY,
+          ttl_seconds INTEGER NOT NULL DEFAULT #{DEFAULT_TTL},
+          mutation_level TEXT,
+          notes TEXT,
+          updated_at TEXT NOT NULL
+        );
 
-          CREATE TABLE IF NOT EXISTS cached_tables (
-            id TEXT PRIMARY KEY,
-            slug TEXT,
-            name TEXT,
-            solution_id TEXT,
-            description TEXT,
-            structure TEXT,
-            created TEXT,
-            updated TEXT,
-            created_by TEXT,
-            updated_by TEXT,
-            deleted_date TEXT,
-            deleted_by TEXT,
-            record_count INTEGER,
-            cached_at TEXT NOT NULL,
-            expires_at TEXT NOT NULL
-          );
-        SQL
-      end
+        INSERT INTO cache_ttl_config_new
+        SELECT table_id, ttl_seconds, mutation_level, notes,
+               datetime(updated_at, 'unixepoch')
+        FROM cache_ttl_config;
+
+        DROP TABLE cache_ttl_config;
+        ALTER TABLE cache_ttl_config_new RENAME TO cache_ttl_config;
+      SQL
+    end
+
+    def migrate_cache_stats_timestamps
+      @db.execute_batch <<-SQL
+        CREATE TABLE cache_stats_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          category TEXT NOT NULL,
+          operation TEXT NOT NULL,
+          key TEXT,
+          timestamp TEXT NOT NULL,
+          metadata TEXT
+        );
+
+        INSERT INTO cache_stats_new (id, category, operation, key, timestamp, metadata)
+        SELECT id, category, operation, key,
+               datetime(timestamp, 'unixepoch'),
+               metadata
+        FROM cache_stats;
+
+        DROP TABLE cache_stats;
+        ALTER TABLE cache_stats_new RENAME TO cache_stats;
+
+        CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON cache_stats(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_stats_category ON cache_stats(category);
+      SQL
+    end
+
+    def migrate_api_call_log_timestamps
+      @db.execute_batch <<-SQL
+        CREATE TABLE api_call_log_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_hash TEXT NOT NULL,
+          method TEXT NOT NULL,
+          endpoint TEXT NOT NULL,
+          solution_id TEXT,
+          table_id TEXT,
+          timestamp TEXT NOT NULL,
+          session_id TEXT DEFAULT 'legacy'
+        );
+
+        INSERT INTO api_call_log_new (id, user_hash, method, endpoint, solution_id, table_id, timestamp, session_id)
+        SELECT id, user_hash, method, endpoint, solution_id, table_id,
+               datetime(timestamp, 'unixepoch'),
+               session_id
+        FROM api_call_log;
+
+        DROP TABLE api_call_log;
+        ALTER TABLE api_call_log_new RENAME TO api_call_log;
+      SQL
+    end
+
+    def migrate_api_stats_summary_timestamps
+      @db.execute_batch <<-SQL
+        CREATE TABLE api_stats_summary_new (
+          user_hash TEXT PRIMARY KEY,
+          total_calls INTEGER DEFAULT 0,
+          first_call TEXT,
+          last_call TEXT
+        );
+
+        INSERT INTO api_stats_summary_new
+        SELECT user_hash, total_calls,
+               datetime(first_call, 'unixepoch'),
+               datetime(last_call, 'unixepoch')
+        FROM api_stats_summary;
+
+        DROP TABLE api_stats_summary;
+        ALTER TABLE api_stats_summary_new RENAME TO api_stats_summary;
+      SQL
     end
 
     # Execute a SQL query with logging
@@ -330,7 +408,7 @@ module SmartSuite
         "INSERT OR REPLACE INTO cached_table_schemas
          (table_id, sql_table_name, table_name, structure, field_mapping, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [table_id, sql_table_name, table_name, structure.to_json, field_mapping.to_json, Time.now.to_i, Time.now.to_i]
+        [table_id, sql_table_name, table_name, structure.to_json, field_mapping.to_json, Time.now.utc.iso8601, Time.now.utc.iso8601]
       )
 
       record_stat('table_creation', 'create', sql_table_name, {table_id: table_id, field_count: fields.size})
@@ -635,7 +713,7 @@ module SmartSuite
         "UPDATE cached_table_schemas
          SET structure = ?, field_mapping = ?, updated_at = ?
          WHERE table_id = ?",
-        [new_structure.to_json, field_mapping.to_json, Time.now.to_i, table_id]
+        [new_structure.to_json, field_mapping.to_json, Time.now.utc.iso8601, table_id]
       )
 
       record_stat('schema_evolution', 'add_fields', sql_table_name,
@@ -844,7 +922,7 @@ module SmartSuite
         "INSERT OR REPLACE INTO cache_ttl_config
          (table_id, ttl_seconds, mutation_level, notes, updated_at)
          VALUES (?, ?, ?, ?, ?)",
-        [table_id, ttl_seconds, mutation_level, notes, Time.now.to_i]
+        [table_id, ttl_seconds, mutation_level, notes, Time.now.utc.iso8601]
       )
 
       record_stat('ttl_config', 'set', table_id,
@@ -903,16 +981,16 @@ module SmartSuite
 
       return {status: 'empty', table_id: table_id} unless result && result['count'] > 0
 
-      now = Time.now.to_i
+      now = Time.now.utc.iso8601
       expires_at = result['expires_at']
-      time_remaining = expires_at - now
+      time_remaining = Time.parse(expires_at) - Time.parse(now)
 
       {
         table_id: table_id,
         table_name: schema['table_name'],
         record_count: result['count'],
-        cached_at: Time.at(result['cached_at']).utc.iso8601,
-        expires_at: Time.at(expires_at).utc.iso8601,
+        cached_at: result['cached_at'],
+        expires_at: expires_at,
         ttl_seconds: get_table_ttl(table_id),
         status: time_remaining > 0 ? 'valid' : 'expired',
         time_remaining_seconds: [time_remaining, 0].max
@@ -929,7 +1007,7 @@ module SmartSuite
       @db.execute(
         "INSERT INTO cache_stats (category, operation, key, timestamp, metadata)
          VALUES (?, ?, ?, ?, ?)",
-        [category, operation, key, Time.now.to_i, metadata.to_json]
+        [category, operation, key, Time.now.utc.iso8601, metadata.to_json]
       )
     rescue => e
       # Silent failure - stats are nice-to-have

@@ -854,7 +854,7 @@ class SmartSuiteServerTest < Minitest::Test
   # Test tool call handling
   def test_handle_tool_call_get_api_stats
     # First track a call so stats aren't empty
-    @server.instance_variable_get(:@stats_tracker).track_api_call(:get, '/test/')
+    @server.instance_variable_get(:@client).stats_tracker.track_api_call(:get, '/test/')
 
     request = {
       'id' => 5,
