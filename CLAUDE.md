@@ -95,11 +95,14 @@ Implements token optimization:
 
 - **ResponseFormatter** (`response_formatter.rb`): Response filtering, plain text formatting (no truncation per user request)
 
-### 5. Cache Layer (`lib/smartsuite/`)
-SQLite-based persistent caching for SmartSuite data:
+### 5. Cache Layer (`lib/smartsuite/cache/`)
+SQLite-based persistent caching for SmartSuite data (v1.7+: modular architecture):
 
-- **CacheLayer** (`cache_layer.rb`): Dynamic table creation, TTL management, schema evolution
-- **CacheQuery** (`cache_query.rb`): Chainable query builder for flexible multi-criteria queries
+- **Cache::Layer** (`cache/layer.rb`): Core caching interface, dynamic table creation
+- **Cache::Metadata** (`cache/metadata.rb`): Table registry, schema management, TTL config
+- **Cache::Performance** (`cache/performance.rb`): Hit/miss tracking, statistics
+- **Cache::Migrations** (`cache/migrations.rb`): Schema migrations, data migration helpers
+- **Cache::Query** (`cache/query.rb`): Chainable query builder for flexible multi-criteria queries
 - **Database**: `~/.smartsuite_mcp_cache.db` (single file, includes both cache and API stats)
 
 ### 6. Supporting Components
@@ -144,8 +147,8 @@ ToolRegistry/PromptRegistry (MCP layer)
 SmartSuiteServer.handle_tool_call()
     ↓
 SmartSuiteClient (includes modules):
-  - CacheLayer (check cache validity)
-      ├─ Cache HIT → Query SQLite → Return results
+  - Cache::Layer (check cache validity via Cache::Metadata, Cache::Performance)
+      ├─ Cache HIT → Cache::Query SQLite → Return results
       └─ Cache MISS → Fetch ALL records → Cache → Query → Return
   - HttpClient.api_request()  ←  ApiStatsTracker.track_api_call()
   - WorkspaceOperations/TableOperations/RecordOperations/FieldOperations/MemberOperations/CommentOperations/ViewOperations

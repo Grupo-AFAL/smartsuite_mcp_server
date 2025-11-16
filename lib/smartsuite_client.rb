@@ -8,7 +8,7 @@ require_relative 'smartsuite/api/member_operations'
 require_relative 'smartsuite/api/comment_operations'
 require_relative 'smartsuite/api/view_operations'
 require_relative 'smartsuite/formatters/response_formatter'
-require_relative 'smartsuite/cache_layer'
+require_relative 'smartsuite/cache/layer'
 
 class SmartSuiteClient
   include SmartSuite::API::HttpClient
@@ -40,7 +40,7 @@ class SmartSuiteClient
 
     # Initialize cache layer
     if cache_enabled
-      @cache = SmartSuite::CacheLayer.new(db_path: cache_path)
+      @cache = SmartSuite::Cache::Layer.new(db_path: cache_path)
       log_metric("✓ Cache layer initialized: #{@cache.db_path}")
       log_metric("✓ Session ID: #{@session_id}")
 

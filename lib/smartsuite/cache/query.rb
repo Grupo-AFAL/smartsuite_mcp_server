@@ -1,18 +1,19 @@
-require_relative '../query_logger'
+require_relative '../../query_logger'
 
 module SmartSuite
-  # CacheQuery provides a chainable query builder for cached records.
-  #
-  # Supports multi-criteria filtering, ordering, and limiting.
-  #
-  # Usage:
-  #   cache.query('table_123')
-  #     .where(status: 'Active')
-  #     .where(revenue: {gte: 50000})
-  #     .order('due_date', 'ASC')
-  #     .limit(10)
-  #     .execute
-  class CacheQuery
+  module Cache
+    # Query provides a chainable query builder for cached records.
+    #
+    # Supports multi-criteria filtering, ordering, and limiting.
+    #
+    # Usage:
+    #   cache.query('table_123')
+    #     .where(status: 'Active')
+    #     .where(revenue: {gte: 50000})
+    #     .order('due_date', 'ASC')
+    #     .limit(10)
+    #     .execute
+    class Query
     attr_reader :cache, :table_id
 
     def initialize(cache, table_id)
@@ -267,6 +268,7 @@ module SmartSuite
         # Fallback: treat as equality
         ["#{col_name} = ?", [value]]
       end
+    end
     end
   end
 end
