@@ -20,16 +20,34 @@ You need a SmartSuite account with:
 - At least one table with some records
 - API access enabled
 
-### 2. Environment Variables
+⚠️ **IMPORTANT:** Use a TEST/DEVELOPMENT workspace only! Never use production credentials!
 
-Set your test credentials:
+### 2. Test Credentials Configuration
 
-```bash
-export SMARTSUITE_API_KEY="your_api_key_here"
-export SMARTSUITE_ACCOUNT_ID="your_account_id_here"
-```
+Integration tests load credentials ONLY from the local `.env` file to prevent accidentally using production credentials.
 
-**Security Note:** These are YOUR credentials. Never commit them to git!
+**Setup Steps:**
+
+1. Copy the example file:
+   ```bash
+   cp test/integration/.env.example test/integration/.env
+   ```
+
+2. Edit `test/integration/.env` with your TEST credentials:
+   ```bash
+   SMARTSUITE_API_KEY=your_test_api_key_here
+   SMARTSUITE_ACCOUNT_ID=your_test_account_id_here
+   ```
+
+3. The `.env` file is git-ignored for security
+
+**Security Features:**
+- Tests NEVER use `ENV['SMARTSUITE_API_KEY']` from your shell environment
+- Credentials are loaded exclusively from the local `.env` file
+- Built-in safeguards prevent running with placeholder values
+- `.env` file is in `.gitignore` to prevent accidental commits
+
+**Security Note:** Always use TEST credentials, never production!
 
 ### 3. Test Data Setup (Optional)
 
