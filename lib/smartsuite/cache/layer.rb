@@ -859,6 +859,9 @@ module SmartSuite
         result = db_execute('SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_solutions').first
         return nil if result['count'].zero?
 
+        # Handle invalid/missing timestamp gracefully
+        return nil if result['first_expires'].nil? || result['first_expires'] == '0' || result['first_expires'].empty?
+
         first_expires = Time.parse(result['first_expires'])
         {
           'count' => result['count'],
@@ -866,6 +869,10 @@ module SmartSuite
           'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
           'is_valid' => first_expires > now
         }
+      rescue ArgumentError => e
+        # If time parsing fails, return nil (invalid cache state)
+        warn "Warning: Invalid timestamp in cached_solutions: #{result['first_expires']} - #{e.message}"
+        nil
       end
 
       # Get tables cache status
@@ -873,6 +880,9 @@ module SmartSuite
         result = db_execute('SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_tables').first
         return nil if result['count'].zero?
 
+        # Handle invalid/missing timestamp gracefully
+        return nil if result['first_expires'].nil? || result['first_expires'] == '0' || result['first_expires'].empty?
+
         first_expires = Time.parse(result['first_expires'])
         {
           'count' => result['count'],
@@ -880,6 +890,10 @@ module SmartSuite
           'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
           'is_valid' => first_expires > now
         }
+      rescue ArgumentError => e
+        # If time parsing fails, return nil (invalid cache state)
+        warn "Warning: Invalid timestamp in cached_tables: #{result['first_expires']} - #{e.message}"
+        nil
       end
 
       # Get records cache status (all tables or specific table)
