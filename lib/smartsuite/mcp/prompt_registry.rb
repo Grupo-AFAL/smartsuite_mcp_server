@@ -213,6 +213,100 @@ module SmartSuite
               'required' => true
             }
           ]
+        },
+        {
+          'name' => 'filter_by_empty_fields',
+          'description' => 'Example: Filter records where a field is empty or not empty (v1.6+)',
+          'arguments' => [
+            {
+              'name' => 'table_id',
+              'description' => 'The table ID to query',
+              'required' => true
+            },
+            {
+              'name' => 'field_slug',
+              'description' => 'The field slug to check',
+              'required' => true
+            },
+            {
+              'name' => 'check_empty',
+              'description' => 'true to find empty fields, false to find non-empty fields',
+              'required' => true
+            },
+            {
+              'name' => 'fields',
+              'description' => 'Comma-separated list of field slugs to return',
+              'required' => true
+            }
+          ]
+        },
+        {
+          'name' => 'filter_by_recent_updates',
+          'description' => 'Example: Filter records updated within last N days (v1.6+)',
+          'arguments' => [
+            {
+              'name' => 'table_id',
+              'description' => 'The table ID to query',
+              'required' => true
+            },
+            {
+              'name' => 'days',
+              'description' => 'Number of days to look back (e.g., 7 for last week)',
+              'required' => true
+            },
+            {
+              'name' => 'fields',
+              'description' => 'Comma-separated list of field slugs to return',
+              'required' => true
+            }
+          ]
+        },
+        {
+          'name' => 'filter_complex_and_or',
+          'description' => 'Example: Complex filter with AND/OR conditions (v1.6+)',
+          'arguments' => [
+            {
+              'name' => 'table_id',
+              'description' => 'The table ID to query',
+              'required' => true
+            },
+            {
+              'name' => 'operator',
+              'description' => 'Logical operator: "and" or "or"',
+              'required' => true
+            },
+            {
+              'name' => 'conditions',
+              'description' => 'JSON string of filter conditions array',
+              'required' => true
+            },
+            {
+              'name' => 'fields',
+              'description' => 'Comma-separated list of field slugs to return',
+              'required' => true
+            }
+          ]
+        },
+        {
+          'name' => 'filter_overdue_tasks',
+          'description' => 'Example: Filter overdue tasks using due date field (v1.6+)',
+          'arguments' => [
+            {
+              'name' => 'table_id',
+              'description' => 'The table ID to query',
+              'required' => true
+            },
+            {
+              'name' => 'due_date_field',
+              'description' => 'The due date field slug (default: "due_date")',
+              'required' => false
+            },
+            {
+              'name' => 'fields',
+              'description' => 'Comma-separated list of field slugs to return',
+              'required' => true
+            }
+          ]
         }
       ].freeze
 
@@ -443,6 +537,99 @@ module SmartSuite
           "  ]\n" +
           "}\n\n" +
           "Note: User fields require 'has_any_of' comparison with an array of user IDs. Use list_members to get user IDs.\n\n" +
+          "NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set."
+
+        when 'filter_by_empty_fields'
+          field_slug = arguments['field_slug']
+          check_type = arguments['check_type'] || 'empty'
+          fields = arguments['fields']&.split(',')&.map(&:strip) || []
+          comparison = check_type == 'empty' ? 'is_empty' : 'is_not_empty'
+
+          "Use the list_records tool with these parameters:\n\n" +
+          "table_id: #{arguments['table_id']}\n" +
+          "fields: #{fields.inspect}\n" +
+          "filter: {\n" +
+          "  \"operator\": \"and\",\n" +
+          "  \"fields\": [\n" +
+          "    {\n" +
+          "      \"field\": \"#{field_slug}\",\n" +
+          "      \"comparison\": \"#{comparison}\",\n" +
+          "      \"value\": null\n" +
+          "    }\n" +
+          "  ]\n" +
+          "}\n\n" +
+          "Note: Empty field checks use 'is_empty' or 'is_not_empty' operators with null value. Works for all field types.\n\n" +
+          "NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set."
+
+        when 'filter_by_recent_updates'
+          days_ago = arguments['days_ago'] || '7'
+          fields = arguments['fields']&.split(',')&.map(&:strip) || []
+          cutoff_date = (Time.now.utc - (days_ago.to_i * 24 * 60 * 60)).strftime('%Y-%m-%d')
+
+          "Use the list_records tool with these parameters:\n\n" +
+          "table_id: #{arguments['table_id']}\n" +
+          "fields: #{fields.inspect}\n" +
+          "filter: {\n" +
+          "  \"operator\": \"and\",\n" +
+          "  \"fields\": [\n" +
+          "    {\n" +
+          "      \"field\": \"s5b629ed5f\",\n" +
+          "      \"comparison\": \"is_on_or_after\",\n" +
+          "      \"value\": {\n" +
+          "        \"date_mode\": \"exact_date\",\n" +
+          "        \"date_mode_value\": \"#{cutoff_date}\"\n" +
+          "      }\n" +
+          "    }\n" +
+          "  ]\n" +
+          "}\n\n" +
+          "Note: Uses the system 'Last Updated' field (slug: s5b629ed5f) with date comparison. For custom date fields, use their specific slugs.\n\n" +
+          "NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set."
+
+        when 'filter_complex_and_or'
+          status_field = arguments['status_field_slug']
+          priority_field = arguments['priority_field_slug']
+          status_values = arguments['status_values']&.split(',')&.map(&:strip) || []
+          fields = arguments['fields']&.split(',')&.map(&:strip) || []
+
+          "Use the list_records tool with these parameters:\n\n" +
+          "table_id: #{arguments['table_id']}\n" +
+          "fields: #{fields.inspect}\n" +
+          "filter: {\n" +
+          "  \"operator\": \"and\",\n" +
+          "  \"fields\": [\n" +
+          "    {\n" +
+          "      \"field\": \"#{status_field}\",\n" +
+          "      \"comparison\": \"is_any_of\",\n" +
+          "      \"value\": #{status_values.inspect}\n" +
+          "    },\n" +
+          "    {\n" +
+          "      \"field\": \"#{priority_field}\",\n" +
+          "      \"comparison\": \"is\",\n" +
+          "      \"value\": \"High\"\n" +
+          "    }\n" +
+          "  ]\n" +
+          "}\n\n" +
+          "Note: Complex filters can combine multiple conditions with 'and' or 'or' operators. Each field condition supports different comparison operators based on field type.\n\n" +
+          "NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set."
+
+        when 'filter_overdue_tasks'
+          due_date_field = arguments['due_date_field_slug']
+          fields = arguments['fields']&.split(',')&.map(&:strip) || []
+
+          "Use the list_records tool with these parameters:\n\n" +
+          "table_id: #{arguments['table_id']}\n" +
+          "fields: #{fields.inspect}\n" +
+          "filter: {\n" +
+          "  \"operator\": \"and\",\n" +
+          "  \"fields\": [\n" +
+          "    {\n" +
+          "      \"field\": \"#{due_date_field}\",\n" +
+          "      \"comparison\": \"is_overdue\",\n" +
+          "      \"value\": null\n" +
+          "    }\n" +
+          "  ]\n" +
+          "}\n\n" +
+          "Note: The 'is_overdue' comparison is specifically for Due Date fields. For regular date fields, use 'is_before' with today's date.\n\n" +
           "NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set."
 
         else

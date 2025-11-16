@@ -97,20 +97,20 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - ✅ Added as MCP tool with complete schema
   - Helps users understand cache state and plan refreshes
 
-#### Phase 3: UX Improvements (Week 3)
+#### Phase 3: UX Improvements (Week 3) ✅ COMPLETED
 
-- [ ] **Item 4: Improve dynamic table and column naming**
-  - SQL tables: `cache_records_{sanitized_name}_{table_id}` (e.g., `cache_records_customers_tbl_abc123`)
-  - Columns: Use field labels with slug fallback (e.g., `status` instead of `s7e8c12e98`)
-  - Apply to new caches only (no migration required)
-  - Store mapping in `cache_table_registry`
+- [x] **Item 4: Improve dynamic table and column naming** ✅ COMPLETED
+  - ✅ SQL tables: `cache_records_{sanitized_name}_{table_id}` (e.g., `cache_records_customers_tbl_abc123`)
+  - ✅ Columns: Use field labels with slug fallback (e.g., `status` instead of `s7e8c12e98`)
+  - ✅ Apply to new caches only (no migration required)
+  - ✅ Store mapping in `cache_table_registry`
 
-- [ ] **Item 9: Improve prompt and tool registry**
-  - Better categorization: Group by workspace/table/record operations
-  - Enhanced descriptions: Add prescriptive guidance and usage hints
-  - Add common patterns and anti-patterns to tool definitions
-  - Add 4 new filter examples: empty fields, recent updates, complex AND/OR conditions
-  - Make AI context more helpful
+- [x] **Item 9: Improve prompt and tool registry** ✅ COMPLETED
+  - ⏳ Better categorization: Group by workspace/table/record operations (deferred)
+  - ⏳ Enhanced descriptions: Add prescriptive guidance and usage hints (deferred)
+  - ⏳ Add common patterns and anti-patterns to tool definitions (deferred)
+  - ✅ Add 4 new filter examples: empty fields, recent updates, complex AND/OR conditions, overdue tasks
+  - ✅ Make AI context more helpful
 
 - [ ] **Item 6: Add user-triggered cache refresh**
   - New MCP tool: `refresh_cache` (resource, table_id, solution_id)
@@ -416,7 +416,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | ------- | -------------- | ----------- | ---------- |
 | v1.0    | ✅ Released    | Nov 2025    | 100%       |
 | v1.5    | ✅ Released    | Nov 2025    | 100%       |
-| v1.6    | 🚧 In Progress | Dec 2025    | 55%        |
+| v1.6    | 🚧 In Progress | Dec 2025    | 57%        |
 | v2.0    | 📋 Planned     | Q1 2026     | 0%         |
 | v2.1    | 📋 Planned     | Q2 2026     | 0%         |
 | v2.2    | 📋 Planned     | Q2 2026     | 0%         |
