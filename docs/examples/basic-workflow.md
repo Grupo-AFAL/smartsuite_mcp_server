@@ -370,6 +370,12 @@ due_date: 2025-01-20
 
 ## Part 4: Understanding Cache Behavior
 
+> **Note (v1.6+):** Default TTL values have been increased for better performance:
+> - Solutions/Tables/Members: 7 days (was 4 hours)
+> - Records: 12 hours (was 4 hours, configurable per table)
+>
+> Examples below use the old 4-hour values for illustration. The concepts remain the same.
+
 ### Cache Hit vs Cache Miss
 
 **Scenario 1: Cache Hit (Fast)**
