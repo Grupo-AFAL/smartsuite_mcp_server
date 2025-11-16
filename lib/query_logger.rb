@@ -18,9 +18,18 @@ require 'fileutils'
 #   tail -f ~/.smartsuite_mcp_queries.log | grep "DB"
 #
 class QueryLogger
+  # Path to the query log file
+  #
+  # @return [String] absolute path to ~/.smartsuite_mcp_queries.log
   LOG_FILE = File.expand_path('~/.smartsuite_mcp_queries.log')
 
   class << self
+    # Get the shared Logger instance
+    #
+    # Creates a daily rotating logger if not already initialized.
+    # Logs are written to ~/.smartsuite_mcp_queries.log with DEBUG level.
+    #
+    # @return [Logger] configured logger instance
     def logger
       @logger ||= begin
         FileUtils.mkdir_p(File.dirname(LOG_FILE))

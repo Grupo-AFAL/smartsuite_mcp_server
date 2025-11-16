@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 module SmartSuite
+  # Model Context Protocol (MCP) module
+  #
+  # Contains registries for MCP protocol components including tools, prompts, and resources.
+  # Handles JSON-RPC 2.0 responses for MCP server communication.
   module MCP
     # ResourceRegistry manages MCP resources (currently empty).
     #

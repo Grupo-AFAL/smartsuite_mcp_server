@@ -27,11 +27,31 @@ class ApiStatsTracker
     # Tables will be created by CacheLayer setup_metadata_tables
   end
 
+  # Generate a unique session identifier
+  #
+  # Creates a session ID combining timestamp and random string for tracking
+  # API calls within a single session.
+  #
+  # @return [String] session ID in format "YYYYMMDD_HHMMSS_random"
+  # @example
+  #   generate_session_id #=> "20250116_143022_8x4k2p"
   def generate_session_id
     # Generate a unique session ID: timestamp + random string
     "#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{rand(36**6).to_s(36)}"
   end
 
+  # Track an API call to SmartSuite
+  #
+  # Records individual API call details and updates aggregated statistics.
+  # Automatically extracts solution and table IDs from the endpoint URL.
+  #
+  # @param method [Symbol, String] HTTP method (GET, POST, PUT, DELETE)
+  # @param endpoint [String] API endpoint URL
+  # @return [void]
+  # @note Failures are silently logged to avoid interrupting user operations
+  # @example
+  #   track_api_call(:get, '/api/v1/solutions/')
+  #   track_api_call(:post, '/api/v1/applications/tbl_123/records/list/')
   def track_api_call(method, endpoint)
     method_name = method.to_s.upcase
     timestamp = Time.now.utc.iso8601
@@ -54,6 +74,17 @@ class ApiStatsTracker
     warn "Stats tracking failed: #{e.message}" if ENV['DEBUG']
   end
 
+  # Get API usage statistics
+  #
+  # Returns comprehensive statistics including total calls, breakdowns by method,
+  # solution, table, endpoint, and cache performance metrics.
+  #
+  # @param time_range [String] time filter: 'session' (current session), '7d' (last 7 days), 'all' (all time)
+  # @return [Hash] statistics hash with summary and breakdowns
+  # @example
+  #   stats = get_stats(time_range: 'session')
+  #   puts stats['summary']['total_calls'] #=> 42
+  #   puts stats['cache_stats']['hit_rate'] #=> 85.5
   def get_stats(time_range: 'all')
     # Validate time_range parameter
     valid_ranges = %w[session 7d all]
@@ -101,6 +132,16 @@ class ApiStatsTracker
     }
   end
 
+  # Reset all API statistics for the current user
+  #
+  # Deletes all API call logs and aggregated statistics for this user.
+  # Useful for clearing historical data or starting fresh tracking.
+  #
+  # @return [Hash] status hash with 'status' and 'message' keys
+  # @example Success response
+  #   reset_stats #=> {"status" => "success", "message" => "API statistics have been reset"}
+  # @example Error response
+  #   reset_stats #=> {"status" => "error", "message" => "Failed to reset stats: ..."}
   def reset_stats
     @db.execute('DELETE FROM api_call_log WHERE user_hash = ?', [@user_hash])
     @db.execute('DELETE FROM api_stats_summary WHERE user_hash = ?', [@user_hash])
@@ -116,6 +157,15 @@ class ApiStatsTracker
     }
   end
 
+  # Close the database connection
+  #
+  # Safely closes the SQLite database connection if this instance owns it.
+  # Only closes connections created by this tracker, not shared connections.
+  #
+  # @return [void]
+  # @note Call this when shutting down to ensure proper resource cleanup
+  # @example
+  #   tracker.close  # Closes database if owned by this instance
   def close
     @db.close if @owns_db && @db
   end
