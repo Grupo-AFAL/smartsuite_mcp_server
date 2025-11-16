@@ -43,6 +43,13 @@ Understanding how it works:
 - **[MCP Protocol](architecture/mcp-protocol.md)** - MCP implementation details
 - **[Data Flow](architecture/data-flow.md)** - Request/response flow
 - **[Design Decisions](architecture/design-decisions.md)** - Architectural choices explained
+- **[Security](architecture/security.md)** - Security audit and analysis
+
+### 📚 Reference
+
+Technical reference materials:
+
+- **[Field Types](reference/field-types.md)** - Complete SmartSuite to SQLite field type mapping
 
 ## 💡 Examples
 
