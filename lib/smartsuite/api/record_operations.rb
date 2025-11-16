@@ -16,6 +16,7 @@ module SmartSuite
     # Uses Base module for common API patterns (validation, endpoint building, cache coordination).
     module RecordOperations
       include Base
+
       # Lists records from a table with filtering, sorting, and field selection.
       #
       # When cache is enabled:
@@ -61,9 +62,7 @@ module SmartSuite
         end
 
         # Try cache-first strategy if enabled
-        unless should_bypass_cache?(bypass_cache)
-          return list_records_from_cache(table_id, limit, offset, filter, fields, hydrated)
-        end
+        return list_records_from_cache(table_id, limit, offset, filter, fields, hydrated) unless should_bypass_cache?(bypass: bypass_cache)
 
         # Fallback to direct API call (cache disabled or bypassed)
         list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
@@ -120,7 +119,7 @@ module SmartSuite
       def list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
         # Build endpoint with query parameters using Base helper
         base_path = "/applications/#{table_id}/records/list/"
-        endpoint = build_endpoint(base_path, limit: limit, offset: offset, hydrated: (hydrated || nil))
+        endpoint = build_endpoint(base_path, limit: limit, offset: offset, hydrated: hydrated || nil)
 
         # Build body with filter and sort (if provided)
         body = {}

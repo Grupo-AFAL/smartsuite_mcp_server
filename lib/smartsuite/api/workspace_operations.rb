@@ -15,6 +15,7 @@ module SmartSuite
     # Uses Base module for common API patterns (validation, endpoint building, cache coordination, response tracking).
     module WorkspaceOperations
       include Base
+
       # Lists all solutions in the workspace.
       #
       # Filters response to only include essential fields (id, name, logo) by default.
@@ -37,7 +38,7 @@ module SmartSuite
       def list_solutions(include_activity_data: false, fields: nil, bypass_cache: false)
         # Try cache first if enabled and no custom fields specified
         # (custom fields parameter doesn't work with API, so we fetch full data either way)
-        unless should_bypass_cache?(bypass_cache) || fields
+        unless should_bypass_cache?(bypass: bypass_cache) || fields
           cached_solutions = @cache.get_cached_solutions
           if cached_solutions
             log_cache_hit('solutions', cached_solutions.size)
@@ -347,7 +348,9 @@ module SmartSuite
           'active_solutions_count' => active.size
         }
 
-        track_response_size(result, "Analysis complete: #{inactive.size} inactive, #{potentially_unused.size} potentially unused, #{active.size} active")
+        message = "Analysis complete: #{inactive.size} inactive, " \
+                  "#{potentially_unused.size} potentially unused, #{active.size} active"
+        track_response_size(result, message)
       end
     end
   end

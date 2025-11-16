@@ -57,13 +57,9 @@ module SmartSuite
       #   validate_required_parameter!('table_id', table_id)
       #   validate_required_parameter!('fields', fields, Array)
       def validate_required_parameter!(name, value, type = nil)
-        if value.nil? || (value.respond_to?(:empty?) && value.empty?)
-          raise ArgumentError, "#{name} is required and cannot be nil or empty"
-        end
+        raise ArgumentError, "#{name} is required and cannot be nil or empty" if value.nil? || (value.respond_to?(:empty?) && value.empty?)
 
-        if type && !value.is_a?(type)
-          raise ArgumentError, "#{name} must be a #{type}, got #{value.class}"
-        end
+        raise ArgumentError, "#{name} must be a #{type}, got #{value.class}" if type && !value.is_a?(type)
 
         value
       end
@@ -81,9 +77,7 @@ module SmartSuite
       def validate_optional_parameter!(name, value, type)
         return if value.nil?
 
-        unless value.is_a?(type)
-          raise ArgumentError, "#{name} must be a #{type}, got #{value.class}"
-        end
+        raise ArgumentError, "#{name} must be a #{type}, got #{value.class}" unless value.is_a?(type)
 
         value
       end
@@ -136,8 +130,8 @@ module SmartSuite
       # @param bypass [Boolean] Whether to bypass cache (default: false)
       # @return [Boolean] true if cache should be used
       # @example
-      #   return fetch_from_api if should_bypass_cache?(bypass_cache)
-      def should_bypass_cache?(bypass = false)
+      #   return fetch_from_api if should_bypass_cache?(bypass: bypass_cache)
+      def should_bypass_cache?(bypass: false)
         !cache_enabled? || bypass
       end
 
@@ -210,8 +204,8 @@ module SmartSuite
       #       solutions
       #     end
       #   end
-      def with_cache_coordination(cache_key, bypass: false)
-        return yield(->(&_) {}, ->&block { block.call }) if should_bypass_cache?(bypass)
+      def with_cache_coordination(_cache_key, bypass: false)
+        return yield(->(&_) {}, ->(&block) { block.call }) if should_bypass_cache?(bypass)
 
         cache_hit = nil
         cache_miss = nil
@@ -226,7 +220,7 @@ module SmartSuite
         return cached_data if cached_data
 
         # Execute fallback on cache miss
-        cache_miss.call if cache_miss
+        cache_miss&.call
       end
 
       # Handle SmartSuite API response format.

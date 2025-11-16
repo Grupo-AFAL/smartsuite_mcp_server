@@ -156,17 +156,17 @@ class TestApiBase < Minitest::Test
   # Test should_bypass_cache?
   def test_should_bypass_cache_when_cache_disabled
     @test_obj.cache_enabled = false
-    assert @test_obj.should_bypass_cache?(false)
+    assert @test_obj.should_bypass_cache?(bypass: false)
   end
 
   def test_should_bypass_cache_when_bypass_true
     @test_obj.cache_enabled = true
-    assert @test_obj.should_bypass_cache?(true)
+    assert @test_obj.should_bypass_cache?(bypass: true)
   end
 
   def test_should_not_bypass_cache_when_enabled_and_not_bypassed
     @test_obj.cache_enabled = true
-    refute @test_obj.should_bypass_cache?(false)
+    refute @test_obj.should_bypass_cache?(bypass: false)
   end
 
   # Test track_response_size
