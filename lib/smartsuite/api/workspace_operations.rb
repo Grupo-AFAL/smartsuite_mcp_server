@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'time'
-require 'uri'
+require_relative 'base'
 
 module SmartSuite
   module API
@@ -12,7 +12,9 @@ module SmartSuite
     # - Analyzing solution usage patterns
     #
     # All methods implement aggressive response filtering to minimize token usage.
+    # Uses Base module for common API patterns (validation, endpoint building, cache coordination, response tracking).
     module WorkspaceOperations
+      include Base
       # Lists all solutions in the workspace.
       #
       # Filters response to only include essential fields (id, name, logo) by default.
@@ -24,33 +26,37 @@ module SmartSuite
       # @param fields [Array<String>] Specific fields to request from API (optional)
       # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
       # @return [Hash] Solutions with count and filtered data
+      # @example List all solutions
+      #   list_solutions
+      #
+      # @example List with activity data
+      #   list_solutions(include_activity_data: true)
+      #
+      # @example List with specific fields
+      #   list_solutions(fields: ['id', 'name', 'permissions'])
       def list_solutions(include_activity_data: false, fields: nil, bypass_cache: false)
         # Try cache first if enabled and no custom fields specified
         # (custom fields parameter doesn't work with API, so we fetch full data either way)
-        if cache_enabled? && !bypass_cache && fields.nil?
+        unless should_bypass_cache?(bypass_cache) || fields
           cached_solutions = @cache.get_cached_solutions
           if cached_solutions
-            log_metric("✓ Cache hit: #{cached_solutions.size} solutions")
+            log_cache_hit('solutions', cached_solutions.size)
             return format_solutions_response(cached_solutions, include_activity_data, fields)
           else
-            log_metric('→ Cache miss for solutions, fetching from API...')
+            log_cache_miss('solutions')
           end
         end
 
-        # Build query parameters
-        query_params = []
-        fields.each { |field| query_params << "fields=#{URI.encode_www_form_component(field)}" } if fields.is_a?(Array)
-
-        endpoint = '/solutions/'
-        endpoint += "?#{query_params.join('&')}" unless query_params.empty?
+        # Build endpoint with query parameters using Base helper
+        endpoint = build_endpoint('/solutions/', fields: fields)
 
         log_metric("→ Requesting endpoint: #{endpoint}") if fields && !fields.empty?
 
         response = api_request(:get, endpoint)
 
         # Cache the full response if cache enabled and no custom fields
-        if cache_enabled? && fields.nil?
-          solutions_list = response.is_a?(Hash) && response['items'] ? response['items'] : response
+        if cache_enabled? && !bypass_cache && fields.nil?
+          solutions_list = response.is_a?(Array) ? response : extract_items_from_response(response)
           @cache.cache_solutions(solutions_list)
           log_metric("✓ Cached #{solutions_list.size} solutions")
         end
@@ -68,7 +74,11 @@ module SmartSuite
       # @return [Hash] Formatted solutions with count
       def format_solutions_response(response, include_activity_data, fields)
         # Handle both API response format and cached array format
-        solutions_list = response.is_a?(Hash) && response['items'] ? response['items'] : response
+        solutions_list = if response.is_a?(Array)
+                           response
+                         else
+                           extract_items_from_response(response)
+                         end
 
         # Debug: log what fields we got back
         if fields && !fields.empty? && solutions_list.is_a?(Array) && solutions_list.first
@@ -87,11 +97,8 @@ module SmartSuite
             filtered
           end
 
-          result = { 'solutions' => filtered_solutions, 'count' => filtered_solutions.size }
-          tokens = estimate_tokens(JSON.generate(result))
-          log_metric("✓ Found #{filtered_solutions.size} solutions with custom fields (client-side filtered)")
-          log_token_usage(tokens)
-          return result
+          result = build_collection_response(filtered_solutions, :solutions)
+          return track_response_size(result, "Found #{filtered_solutions.size} solutions with custom fields (client-side filtered)")
         end
 
         # Extract only essential fields to reduce response size (client-side filtering)
@@ -125,11 +132,8 @@ module SmartSuite
           base_fields
         end
 
-        result = { 'solutions' => solutions, 'count' => solutions.size }
-        tokens = estimate_tokens(JSON.generate(result))
-        log_metric("✓ Found #{solutions.size} solutions")
-        log_token_usage(tokens)
-        result
+        result = build_collection_response(solutions, :solutions)
+        track_response_size(result, "Found #{solutions.size} solutions")
       end
 
       public
@@ -138,7 +142,12 @@ module SmartSuite
       #
       # @param solution_id [String] Solution identifier
       # @return [Hash] Full solution details
+      # @raise [ArgumentError] If solution_id is missing
+      # @example
+      #   get_solution('sol_123')
       def get_solution(solution_id)
+        validate_required_parameter!('solution_id', solution_id)
+
         log_metric("→ Getting solution details: #{solution_id}")
         api_request(:get, "/solutions/#{solution_id}/")
       end
@@ -151,14 +160,19 @@ module SmartSuite
       # @param owner_id [String] User ID of the solution owner
       # @param include_activity_data [Boolean] Include activity/usage metrics (default: false)
       # @return [Hash] Solutions owned by the specified user with count
+      # @raise [ArgumentError] If owner_id is missing
+      # @example
+      #   list_solutions_by_owner('user_abc')
+      #   list_solutions_by_owner('user_abc', include_activity_data: true)
       def list_solutions_by_owner(owner_id, include_activity_data: false)
+        validate_required_parameter!('owner_id', owner_id)
+
         log_metric("→ Listing solutions owned by user: #{owner_id}")
 
         # Fetch all solutions (this gets full data including permissions)
-        endpoint = '/solutions/'
-        response = api_request(:get, endpoint)
+        response = api_request(:get, '/solutions/')
 
-        solutions_list = response.is_a?(Hash) && response['items'] ? response['items'] : response
+        solutions_list = response.is_a?(Array) ? response : extract_items_from_response(response)
 
         # Filter solutions where the user is in the owners array
         owned_solutions = solutions_list.select do |solution|
@@ -195,11 +209,8 @@ module SmartSuite
           base_fields
         end
 
-        result = { 'solutions' => filtered_solutions, 'count' => filtered_solutions.size }
-        tokens = estimate_tokens(JSON.generate(result))
-        log_metric("✓ Found #{filtered_solutions.size} solutions owned by user #{owner_id}")
-        log_token_usage(tokens)
-        result
+        result = build_collection_response(filtered_solutions, :solutions)
+        track_response_size(result, "Found #{filtered_solutions.size} solutions owned by user #{owner_id}")
       end
 
       # Gets the most recent record update timestamp across all tables in a solution.
@@ -209,7 +220,12 @@ module SmartSuite
       #
       # @param solution_id [String] Solution identifier
       # @return [String, nil] ISO8601 timestamp of most recent record update, or nil if no records
+      # @raise [ArgumentError] If solution_id is missing
+      # @example
+      #   get_solution_most_recent_record_update('sol_123')
       def get_solution_most_recent_record_update(solution_id)
+        validate_required_parameter!('solution_id', solution_id)
+
         # Get all tables for this solution
         tables_response = list_tables(solution_id: solution_id)
 
@@ -219,12 +235,13 @@ module SmartSuite
 
         tables_response['tables'].each do |table|
           # Call API directly to get raw JSON response (list_records returns plain text by default)
-          query_params = '?limit=1&offset=0'
+          base_path = "/applications/#{table['id']}/records/list/"
+          endpoint = build_endpoint(base_path, limit: 1, offset: 0)
           body = {
             sort: [{ 'field' => 'last_updated', 'direction' => 'desc' }]
           }
 
-          records_response = api_request(:post, "/applications/#{table['id']}/records/list/#{query_params}", body)
+          records_response = api_request(:post, endpoint, body)
 
           # Records are in items array, last_updated date is at last_updated.on
           next unless records_response['items']&.first
@@ -245,6 +262,9 @@ module SmartSuite
       # @param days_inactive [Integer] Days since last access to consider inactive (default: 90)
       # @param min_records [Integer] Minimum records to not be considered empty (default: 10)
       # @return [Hash] Solutions categorized by usage with analysis
+      # @example
+      #   analyze_solution_usage
+      #   analyze_solution_usage(days_inactive: 60, min_records: 5)
       def analyze_solution_usage(days_inactive: 90, min_records: 10)
         log_metric("→ Analyzing solution usage (inactive: #{days_inactive} days, min_records: #{min_records})")
 
@@ -327,10 +347,7 @@ module SmartSuite
           'active_solutions_count' => active.size
         }
 
-        tokens = estimate_tokens(JSON.generate(result))
-        log_metric("✓ Analysis complete: #{inactive.size} inactive, #{potentially_unused.size} potentially unused, #{active.size} active")
-        log_token_usage(tokens)
-        result
+        track_response_size(result, "Analysis complete: #{inactive.size} inactive, #{potentially_unused.size} potentially unused, #{active.size} active")
       end
     end
   end
