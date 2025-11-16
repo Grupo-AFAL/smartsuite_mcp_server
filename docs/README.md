@@ -10,7 +10,6 @@ New to SmartSuite MCP Server? Start here:
 
 - **[Installation Guide](getting-started/installation.md)** - Detailed setup instructions
 - **[Quick Start Tutorial](getting-started/quick-start.md)** - 5-minute walkthrough
-- **[Configuration](getting-started/configuration.md)** - Environment variables and settings
 - **[Troubleshooting](getting-started/troubleshooting.md)** - Common issues and solutions
 
 ### 📘 Guides
@@ -21,7 +20,6 @@ In-depth guides for common tasks:
 - **[Caching Guide](guides/caching-guide.md)** - Understanding and using the cache
 - **[Filtering Guide](guides/filtering-guide.md)** - Master SmartSuite filters
 - **[Performance Guide](guides/performance-guide.md)** - Optimization tips and best practices
-- **[Migration Guide](guides/migration-guide.md)** - Upgrading between versions
 
 ### 🔧 API Reference
 
@@ -46,51 +44,20 @@ Understanding how it works:
 - **[Data Flow](architecture/data-flow.md)** - Request/response flow
 - **[Design Decisions](architecture/design-decisions.md)** - Architectural choices explained
 
-### 📚 Reference
-
-Quick lookup references:
-
-- **[Field Types](reference/field-types.md)** - All SmartSuite field types and mappings
-- **[Filter Operators](reference/filter-operators.md)** - Complete filter operator reference
-- **[Error Codes](reference/error-codes.md)** - Error messages and solutions
-- **[Configuration Options](reference/configuration.md)** - All configuration parameters
-- **[CLI Commands](reference/cli.md)** - Command-line tools
-
-### 🤝 Contributing
-
-Want to contribute? Read these first:
-
-- **[How to Contribute](contributing/README.md)** - Contribution guidelines
-- **[Code Style](contributing/code-style.md)** - Coding standards
-- **[Testing](contributing/testing.md)** - Test guidelines
-- **[Documentation](contributing/documentation.md)** - How to write docs
-- **[Pull Requests](contributing/pull-requests.md)** - PR process
-
-### 🔬 Internals
-
-Deep dives for core contributors:
-
-- **[Cache Implementation](internals/cache-implementation.md)** - SQLite cache deep dive
-- **[SQLite Schema](internals/sqlite-schema.md)** - Database schema details
-- **[TTL Strategy](internals/ttl-strategy.md)** - Time-to-live implementation
-- **[Token Optimization](internals/token-optimization.md)** - Token saving strategies
-- **[Security](internals/security.md)** - Security considerations
-
 ## 💡 Examples
 
-Practical examples and patterns:
+Practical tutorials and patterns:
 
-- **[Basic Workflow](../examples/basic-workflow.md)** - Common tasks
-- **[Advanced Filtering](../examples/advanced-filtering.md)** - Complex filter examples
-- **[Bulk Operations](../examples/bulk-operations.md)** - Batch processing
-- **[Integration Patterns](../examples/integration-patterns.md)** - Using with other tools
+- **[Basic Workflow](examples/basic-workflow.md)** - Step-by-step beginner tutorial
+- **[Advanced Filtering](examples/advanced-filtering.md)** - Complex query patterns
 
 ## 🎯 Quick Links
 
 **Most Popular Pages:**
 - [Quick Start Tutorial](getting-started/quick-start.md)
+- [User Guide](guides/user-guide.md)
 - [Caching Guide](guides/caching-guide.md)
-- [Filter Operators Reference](reference/filter-operators.md)
+- [Filtering Guide](guides/filtering-guide.md)
 - [Troubleshooting](getting-started/troubleshooting.md)
 
 **For AI Assistants (Claude Code):**

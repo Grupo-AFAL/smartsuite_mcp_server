@@ -47,16 +47,16 @@ The server uses an aggressive SQLite-based caching strategy to:
 
 ## Cache Duration (TTL)
 
-Default time-to-live (TTL) varies by resource type:
+Default time-to-live (TTL) is **4 hours** for all resource types:
 
 | Resource Type | Default TTL | Rationale |
 |--------------|-------------|-----------|
 | **Solutions** | 4 hours | Rarely change |
 | **Tables** | 4 hours | Schema stable |
 | **Members** | 4 hours | User list stable |
-| **Records** | 4 hours | Configurable per table |
+| **Records** | 4 hours | Balance freshness vs performance |
 
-Cache expires automatically after TTL. Next request will refresh.
+Cache expires automatically after 4 hours. Next request will refresh.
 
 ## Cache Behavior by Operation
 
@@ -343,8 +343,8 @@ rm ~/.smartsuite_mcp_cache.db
 
 - **[Performance Guide](performance-guide.md)** - Optimize your queries
 - **[Filtering Guide](filtering-guide.md)** - Master local filtering
-- **[Architecture: Caching System](../architecture/caching-system.md)** - Deep dive into design
-- **[Internals: Cache Implementation](../internals/cache-implementation.md)** - SQLite details
+- **[Architecture: Caching System](../architecture/caching-system.md)** - Deep dive into cache design
+- **[Architecture: Data Flow](../architecture/data-flow.md)** - See cache in action
 
 ## Need Help?
 
