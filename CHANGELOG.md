@@ -8,8 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Renamed** `cached_table_schemas` table to `cache_table_registry` for clarity
+  - This table is an internal registry for dynamically-created SQL cache tables, not a cache of SmartSuite table schemas
+  - Database will automatically rename table on first run via ALTER TABLE statement
+  - No data migration required, only table rename
 - **BREAKING**: Timestamp columns now use ISO 8601 TEXT format instead of Unix INTEGER timestamps
-  - Affects all internal metadata tables: `cached_table_schemas`, `cache_ttl_config`, `cache_stats`, `api_call_log`, `api_stats_summary`
+  - Affects all internal metadata tables: `cache_table_registry` (formerly `cached_table_schemas`), `cache_ttl_config`, `cache_stats`, `api_call_log`, `api_stats_summary`
   - Database will automatically migrate INTEGER timestamps to TEXT on first run
   - New timestamps written as `2025-11-16T00:58:39Z` (ISO 8601 with UTC)
   - Old migrated timestamps remain as `2025-11-10 20:01:14` (SQLite datetime format, also ISO 8601 compatible)

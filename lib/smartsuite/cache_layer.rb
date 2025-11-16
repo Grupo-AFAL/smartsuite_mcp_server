@@ -44,9 +44,13 @@ module SmartSuite
 
     # Set up metadata tables for cache management and API stats tracking
     def setup_metadata_tables
+      # Migrate old table name first if it exists
+      migrate_table_rename_if_needed
+
       @db.execute_batch <<-SQL
-        -- Track dynamically-created cache tables
-        CREATE TABLE IF NOT EXISTS cached_table_schemas (
+        -- Internal registry for dynamically-created SQL cache tables
+        -- (not to be confused with SmartSuite table schema caching)
+        CREATE TABLE IF NOT EXISTS cache_table_registry (
           table_id TEXT PRIMARY KEY,
           sql_table_name TEXT NOT NULL UNIQUE,
           table_name TEXT,
@@ -162,15 +166,40 @@ module SmartSuite
       SQL
     end
 
+    # Migrate old table name cached_table_schemas to cache_table_registry
+    def migrate_table_rename_if_needed
+      # Check if old table name exists
+      old_table_exists = @db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='cached_table_schemas'"
+      ).first
+
+      # Check if new table name already exists
+      new_table_exists = @db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='cache_table_registry'"
+      ).first
+
+      # Only rename if old exists and new doesn't exist
+      if old_table_exists && !new_table_exists
+        # Rename table using ALTER TABLE (instant, no data copy)
+        @db.execute("ALTER TABLE cached_table_schemas RENAME TO cache_table_registry")
+        log_metric("→ Migrated table: cached_table_schemas → cache_table_registry")
+      elsif old_table_exists && new_table_exists
+        # Both tables exist (shouldn't happen, but handle gracefully)
+        # Drop the old table to clean up
+        @db.execute("DROP TABLE cached_table_schemas")
+        log_metric("→ Cleaned up duplicate table: cached_table_schemas (cache_table_registry already exists)")
+      end
+    end
+
     # Migrate INTEGER timestamp columns to TEXT (ISO 8601) across all metadata tables
     def migrate_integer_timestamps_to_text
       # Check if any metadata tables have INTEGER timestamps (old format)
       tables_to_migrate = []
 
-      # Check cached_table_schemas
-      cols = @db.execute("PRAGMA table_info(cached_table_schemas)")
+      # Check cache_table_registry
+      cols = @db.execute("PRAGMA table_info(cache_table_registry)")
       created_col = cols.find { |c| c['name'] == 'created_at' }
-      tables_to_migrate << 'cached_table_schemas' if created_col && created_col['type'] == 'INTEGER'
+      tables_to_migrate << 'cache_table_registry' if created_col && created_col['type'] == 'INTEGER'
 
       # Check cache_ttl_config
       cols = @db.execute("PRAGMA table_info(cache_ttl_config)")
@@ -197,8 +226,8 @@ module SmartSuite
       # Perform migration for each table
       tables_to_migrate.each do |table|
         case table
-        when 'cached_table_schemas'
-          migrate_cached_table_schemas_timestamps
+        when 'cache_table_registry'
+          migrate_cache_table_registry_timestamps
         when 'cache_ttl_config'
           migrate_cache_ttl_config_timestamps
         when 'cache_stats'
@@ -211,10 +240,10 @@ module SmartSuite
       end
     end
 
-    def migrate_cached_table_schemas_timestamps
+    def migrate_cache_table_registry_timestamps
       # Create temp table with TEXT timestamps
       @db.execute_batch <<-SQL
-        CREATE TABLE cached_table_schemas_new (
+        CREATE TABLE cache_table_registry_new (
           table_id TEXT PRIMARY KEY,
           sql_table_name TEXT NOT NULL UNIQUE,
           table_name TEXT,
@@ -224,14 +253,14 @@ module SmartSuite
           updated_at TEXT NOT NULL
         );
 
-        INSERT INTO cached_table_schemas_new
+        INSERT INTO cache_table_registry_new
         SELECT table_id, sql_table_name, table_name, structure, field_mapping,
                datetime(created_at, 'unixepoch'),
                datetime(updated_at, 'unixepoch')
-        FROM cached_table_schemas;
+        FROM cache_table_registry;
 
-        DROP TABLE cached_table_schemas;
-        ALTER TABLE cached_table_schemas_new RENAME TO cached_table_schemas;
+        DROP TABLE cache_table_registry;
+        ALTER TABLE cache_table_registry_new RENAME TO cache_table_registry;
       SQL
     end
 
@@ -405,7 +434,7 @@ module SmartSuite
 
       # Store schema metadata
       @db.execute(
-        "INSERT OR REPLACE INTO cached_table_schemas
+        "INSERT OR REPLACE INTO cache_table_registry
          (table_id, sql_table_name, table_name, structure, field_mapping, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)",
         [table_id, sql_table_name, table_name, structure.to_json, field_mapping.to_json, Time.now.utc.iso8601, Time.now.utc.iso8601]
@@ -660,7 +689,7 @@ module SmartSuite
     # @return [Hash, nil] Schema metadata or nil if not cached
     def get_cached_table_schema(table_id)
       result = @db.execute(
-        "SELECT * FROM cached_table_schemas WHERE table_id = ?",
+        "SELECT * FROM cache_table_registry WHERE table_id = ?",
         [table_id]
       ).first
 
@@ -710,7 +739,7 @@ module SmartSuite
 
       # Update schema metadata
       @db.execute(
-        "UPDATE cached_table_schemas
+        "UPDATE cache_table_registry
          SET structure = ?, field_mapping = ?, updated_at = ?
          WHERE table_id = ?",
         [new_structure.to_json, field_mapping.to_json, Time.now.utc.iso8601, table_id]
