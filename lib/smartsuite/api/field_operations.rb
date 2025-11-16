@@ -29,6 +29,9 @@ module SmartSuite
 
         if response.is_a?(Hash)
           log_metric("✓ Field added successfully: #{field_data['label']}")
+
+          # Invalidate cache since table structure changed
+          @cache&.invalidate_table_cache(table_id, structure_changed: true)
         end
 
         response
@@ -56,6 +59,9 @@ module SmartSuite
 
         log_metric("✓ Successfully added #{fields.size} fields")
 
+        # Invalidate cache since table structure changed
+        @cache&.invalidate_table_cache(table_id, structure_changed: true)
+
         response
       end
 
@@ -77,6 +83,9 @@ module SmartSuite
 
         if response.is_a?(Hash)
           log_metric("✓ Field updated successfully: #{slug}")
+
+          # Invalidate cache since table structure changed
+          @cache&.invalidate_table_cache(table_id, structure_changed: true)
         end
 
         response
@@ -100,6 +109,9 @@ module SmartSuite
 
         if response.is_a?(Hash)
           log_metric("✓ Field deleted successfully: #{slug}")
+
+          # Invalidate cache since table structure changed
+          @cache&.invalidate_table_cache(table_id, structure_changed: true)
         end
 
         response
