@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module SmartSuite
   module API
     # MemberOperations handles workspace user and team management.
@@ -38,9 +40,7 @@ module SmartSuite
           end
 
           # Add members from permissions.owners (array of IDs)
-          if solution['permissions'] && solution['permissions']['owners']
-            solution_member_ids += solution['permissions']['owners']
-          end
+          solution_member_ids += solution['permissions']['owners'] if solution['permissions'] && solution['permissions']['owners']
 
           # Add members from teams
           if solution['permissions'] && solution['permissions']['teams']
@@ -48,27 +48,25 @@ module SmartSuite
             log_metric("→ Found #{team_ids.size} team(s), fetching team members...")
 
             team_ids.each do |team_id|
-              begin
-                team = get_team(team_id)
-                if team && team['members'] && team['members'].is_a?(Array)
-                  solution_member_ids += team['members']
-                  log_metric("  Team #{team['name'] || team_id}: added #{team['members'].size} member(s)")
-                end
-              rescue => e
-                log_metric("  ⚠️  Failed to fetch team #{team_id}: #{e.message}")
+              team = get_team(team_id)
+              if team && team['members'] && team['members'].is_a?(Array)
+                solution_member_ids += team['members']
+                log_metric("  Team #{team['name'] || team_id}: added #{team['members'].size} member(s)")
               end
+            rescue StandardError => e
+              log_metric("  ⚠️  Failed to fetch team #{team_id}: #{e.message}")
             end
           end
 
           solution_member_ids.uniq!
 
           if solution_member_ids.empty?
-            log_metric("⚠️  Solution has no members")
+            log_metric('⚠️  Solution has no members')
             return { 'members' => [], 'count' => 0, 'total_count' => 0, 'filtered_by_solution' => solution_id }
           end
 
           # Get all members (with high limit to ensure we get all)
-          query_params = "?limit=1000&offset=0"
+          query_params = '?limit=1000&offset=0'
 
           response = api_request(:post, "/members/list/#{query_params}", nil)
 
@@ -112,7 +110,7 @@ module SmartSuite
             response
           end
         else
-          log_metric("→ Listing workspace members")
+          log_metric('→ Listing workspace members')
 
           query_params = "?limit=#{limit}&offset=#{offset}"
 
@@ -164,7 +162,7 @@ module SmartSuite
         log_metric("→ Searching members with query: #{query}")
 
         # Get all members
-        query_params = "?limit=1000&offset=0"
+        query_params = '?limit=1000&offset=0'
         response = api_request(:post, "/members/list/#{query_params}", nil)
 
         if response.is_a?(Hash) && response['items'].is_a?(Array)
@@ -187,8 +185,8 @@ module SmartSuite
               full_name = member['full_name']['sys_root'].to_s
 
               name_match = first_name.downcase.include?(query_lower) ||
-                          last_name.downcase.include?(query_lower) ||
-                          full_name.downcase.include?(query_lower)
+                           last_name.downcase.include?(query_lower) ||
+                           full_name.downcase.include?(query_lower)
             end
 
             email_match || name_match
@@ -238,8 +236,8 @@ module SmartSuite
       #
       # @return [Array<Hash>] Array of team objects
       def list_teams
-        log_metric("→ Listing teams")
-        query_params = "?limit=1000&offset=0"
+        log_metric('→ Listing teams')
+        query_params = '?limit=1000&offset=0'
         response = api_request(:post, "/teams/list/#{query_params}", nil)
 
         # Cache teams for efficient lookup
@@ -273,7 +271,7 @@ module SmartSuite
 
         # Otherwise, fetch all teams and cache them
         log_metric("→ Fetching team from teams list: #{team_id}")
-        list_teams  # This populates @teams_cache
+        list_teams # This populates @teams_cache
         @teams_cache[team_id]
       end
     end

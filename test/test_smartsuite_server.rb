@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'minitest/autorun'
 require 'json'
 require 'stringio'
@@ -18,7 +20,7 @@ class SmartSuiteServerTest < Minitest::Test
   def teardown
     # Clean up any test stats file
     stats_file = File.join(Dir.home, '.smartsuite_mcp_stats.json')
-    File.delete(stats_file) if File.exist?(stats_file)
+    FileUtils.rm_f(stats_file)
   end
 
   # Helper method to call private methods for testing
@@ -115,7 +117,7 @@ class SmartSuiteServerTest < Minitest::Test
 
     # Should now return prompts for common filtering patterns
     prompts = response['result']['prompts']
-    assert prompts.length > 0, 'Should return at least one prompt'
+    assert prompts.length.positive?, 'Should return at least one prompt'
 
     # Check that filter_active_records prompt exists
     active_prompt = prompts.find { |p| p['name'] == 'filter_active_records' }
@@ -179,7 +181,7 @@ class SmartSuiteServerTest < Minitest::Test
 
     assert_equal '2.0', response['jsonrpc']
     assert_equal 4, response['id']
-    assert_equal(-32601, response['error']['code'])
+    assert_equal(-32_601, response['error']['code'])
     assert_match(/Method not found/, response['error']['message'])
   end
 
@@ -224,7 +226,7 @@ class SmartSuiteServerTest < Minitest::Test
     tracker.track_api_call(:get, '/solutions/')
 
     # Verify stats exist
-    assert tracker.get_stats['summary']['total_calls'] > 0
+    assert tracker.get_stats['summary']['total_calls'].positive?
 
     # Reset stats
     result = tracker.reset_stats
@@ -257,7 +259,7 @@ class SmartSuiteServerTest < Minitest::Test
     }
 
     # Mock the api_request method
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -283,7 +285,7 @@ class SmartSuiteServerTest < Minitest::Test
     ]
 
     # Mock the api_request method
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -308,7 +310,7 @@ class SmartSuiteServerTest < Minitest::Test
     }
 
     # Mock the api_request method
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -344,7 +346,7 @@ class SmartSuiteServerTest < Minitest::Test
     }
 
     # Mock the api_request method to track endpoint
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, endpoint, _body = nil|
       called_endpoint = endpoint
       mock_response
     end
@@ -373,20 +375,20 @@ class SmartSuiteServerTest < Minitest::Test
         {
           'id' => 'tbl_1',
           'name' => 'Table 1',
-          'structure' => [{'slug' => 'field1', 'label' => 'Field 1'}],
+          'structure' => [{ 'slug' => 'field1', 'label' => 'Field 1' }],
           'solution_id' => 'sol_1'
         }
       ]
     }
 
     # Mock the api_request method to track endpoint
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, endpoint, _body = nil|
       called_endpoint = endpoint
       mock_response
     end
 
     # Test with fields parameter
-    result = client.list_tables(fields: ['name', 'id', 'structure'], bypass_cache: true)
+    result = client.list_tables(fields: %w[name id structure], bypass_cache: true)
 
     # Verify the API was called with fields query parameters
     assert_includes called_endpoint, 'fields=name', 'Should include fields=name'
@@ -403,15 +405,15 @@ class SmartSuiteServerTest < Minitest::Test
     client = SmartSuiteClient.new('test_key', 'test_account')
 
     called_endpoint = nil
-    mock_response = {'items' => []}
+    mock_response = { 'items' => [] }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, endpoint, _body = nil|
       called_endpoint = endpoint
       mock_response
     end
 
     # Test with both solution_id and fields
-    client.list_tables(solution_id: 'sol_123', fields: ['name', 'id'])
+    client.list_tables(solution_id: 'sol_123', fields: %w[name id])
 
     # Verify both parameters are in the endpoint
     assert_includes called_endpoint, 'solution=sol_123', 'Should include solution parameter'
@@ -427,15 +429,15 @@ class SmartSuiteServerTest < Minitest::Test
       'name' => 'Test Solution',
       'permissions' => {
         'members' => [
-          {'access' => 'full_access', 'entity' => 'usr_1'},
-          {'access' => 'assignee', 'entity' => 'usr_2'}
+          { 'access' => 'full_access', 'entity' => 'usr_1' },
+          { 'access' => 'assignee', 'entity' => 'usr_2' }
         ],
         'owners' => ['usr_3']
       }
     }
 
     # Mock the api_request method
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -482,7 +484,7 @@ class SmartSuiteServerTest < Minitest::Test
     }
 
     # Mock the api_request method
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -510,11 +512,11 @@ class SmartSuiteServerTest < Minitest::Test
       'name' => 'Test Solution',
       'permissions' => {
         'members' => [
-          {'access' => 'full_access', 'entity' => 'usr_123'}
+          { 'access' => 'full_access', 'entity' => 'usr_123' }
         ],
         'owners' => ['usr_789'],
         'teams' => [
-          {'access' => 'full_access', 'entity' => 'team_001'}
+          { 'access' => 'full_access', 'entity' => 'team_001' }
         ]
       }
     }
@@ -523,7 +525,7 @@ class SmartSuiteServerTest < Minitest::Test
     mock_team = {
       'id' => 'team_001',
       'name' => 'Test Team',
-      'members' => ['usr_456', 'usr_999']
+      'members' => %w[usr_456 usr_999]
     }
 
     # Mock members response (has 5 members total)
@@ -583,7 +585,7 @@ class SmartSuiteServerTest < Minitest::Test
     mock_teams_list = [mock_team]
 
     # Mock the api_request method to return different data based on endpoint
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, endpoint, _body = nil|
       if endpoint.include?('/solutions/')
         mock_solution
       elsif endpoint.include?('/teams/list/')
@@ -631,7 +633,7 @@ class SmartSuiteServerTest < Minitest::Test
     }
 
     # Mock the api_request method
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -653,16 +655,16 @@ class SmartSuiteServerTest < Minitest::Test
     # Track what endpoint and body were sent
     sent_endpoint = nil
     sent_body = nil
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, endpoint, body = nil|
       sent_endpoint = endpoint
       sent_body = body
-      {'items' => [], 'total_count' => 0}
+      { 'items' => [], 'total_count' => 0 }
     end
 
     filter = {
       'operator' => 'and',
       'fields' => [
-        {'field' => 'status', 'comparison' => 'is', 'value' => 'active'}
+        { 'field' => 'status', 'comparison' => 'is', 'value' => 'active' }
       ]
     }
     client.list_records('tbl_123', 10, 0, filter: filter, fields: ['status'])
@@ -679,13 +681,13 @@ class SmartSuiteServerTest < Minitest::Test
     # Track what endpoint and body were sent
     sent_endpoint = nil
     sent_body = nil
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, endpoint, body = nil|
       sent_endpoint = endpoint
       sent_body = body
-      {'items' => [], 'total_count' => 0}
+      { 'items' => [], 'total_count' => 0 }
     end
 
-    sort = [{'field' => 'created_on', 'direction' => 'desc'}]
+    sort = [{ 'field' => 'created_on', 'direction' => 'desc' }]
     client.list_records('tbl_123', 10, 0, sort: sort, fields: ['status'])
 
     # Sort should be in body
@@ -700,21 +702,21 @@ class SmartSuiteServerTest < Minitest::Test
     # Track what endpoint and body were sent
     sent_endpoint = nil
     sent_body = nil
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, endpoint, body = nil|
       sent_endpoint = endpoint
       sent_body = body
-      {'items' => [], 'total_count' => 0}
+      { 'items' => [], 'total_count' => 0 }
     end
 
     filter = {
       'operator' => 'and',
       'fields' => [
-        {'field' => 'status', 'comparison' => 'is', 'value' => 'active'},
-        {'field' => 'priority', 'comparison' => 'is_greater_than', 'value' => 3}
+        { 'field' => 'status', 'comparison' => 'is', 'value' => 'active' },
+        { 'field' => 'priority', 'comparison' => 'is_greater_than', 'value' => 3 }
       ]
     }
-    sort = [{'field' => 'created_on', 'direction' => 'desc'}, {'field' => 'title', 'direction' => 'asc'}]
-    client.list_records('tbl_123', 20, 10, filter: filter, sort: sort, fields: ['status', 'priority'])
+    sort = [{ 'field' => 'created_on', 'direction' => 'desc' }, { 'field' => 'title', 'direction' => 'asc' }]
+    client.list_records('tbl_123', 20, 10, filter: filter, sort: sort, fields: %w[status priority])
 
     # Filter and sort should be in body
     assert_equal filter, sent_body[:filter]
@@ -729,10 +731,10 @@ class SmartSuiteServerTest < Minitest::Test
     # Track what endpoint and body were sent
     sent_endpoint = nil
     sent_body = nil
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, endpoint, body = nil|
       sent_endpoint = endpoint
       sent_body = body
-      {'items' => [], 'total_count' => 0}
+      { 'items' => [], 'total_count' => 0 }
     end
 
     client.list_records('tbl_123', 50, 0, fields: ['status'])
@@ -753,23 +755,23 @@ class SmartSuiteServerTest < Minitest::Test
           'id' => 'rec_123',
           'title' => 'Test Record',
           'application_id' => 'app_123',
-          'first_created' => {'on' => '2025-01-01', 'by' => 'user1'},
-          'last_updated' => {'on' => '2025-01-02', 'by' => 'user2'},
+          'first_created' => { 'on' => '2025-01-01', 'by' => 'user1' },
+          'last_updated' => { 'on' => '2025-01-02', 'by' => 'user2' },
           'description' => {
-            'data' => {'huge' => 'nested structure'},
+            'data' => { 'huge' => 'nested structure' },
             'html' => '<p>Very long HTML content...</p>',
             'yjsData' => 'base64encodeddata...',
             'preview' => 'Short preview'
           },
           'comments_count' => 5,
-          'ranking' => {'default' => 'abc123'},
+          'ranking' => { 'default' => 'abc123' },
           'custom_field' => 'Important data'
         }
       ],
       'total_count' => 1
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -806,11 +808,11 @@ class SmartSuiteServerTest < Minitest::Test
       'total_count' => 1
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
-    result = client.list_records('tbl_123', 10, 0, fields: ['status', 'priority'])
+    result = client.list_records('tbl_123', 10, 0, fields: %w[status priority])
 
     # Result is now plain text string
     assert result.is_a?(String), 'Should return plain text string'
@@ -838,7 +840,7 @@ class SmartSuiteServerTest < Minitest::Test
       'total_count' => 1
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -912,7 +914,7 @@ class SmartSuiteServerTest < Minitest::Test
 
     assert_equal '2.0', response['jsonrpc']
     assert_equal 7, response['id']
-    assert_equal(-32602, response['error']['code'])
+    assert_equal(-32_602, response['error']['code'])
     assert_match(/Unknown tool/, response['error']['message'])
   end
 
@@ -922,12 +924,12 @@ class SmartSuiteServerTest < Minitest::Test
 
     list_members_called = false
 
-    client.define_singleton_method(:list_members) do |limit, offset, solution_id: nil|
+    client.define_singleton_method(:list_members) do |_limit, _offset, solution_id: nil|
       list_members_called = true
       {
         'members' => [
-          {'id' => 'usr_1', 'title' => 'User One', 'email' => 'user1@example.com'},
-          {'id' => 'usr_2', 'title' => 'User Two', 'email' => 'user2@example.com'}
+          { 'id' => 'usr_1', 'title' => 'User One', 'email' => 'user1@example.com' },
+          { 'id' => 'usr_2', 'title' => 'User Two', 'email' => 'user2@example.com' }
         ],
         'count' => 2,
         'total_count' => 2
@@ -960,11 +962,11 @@ class SmartSuiteServerTest < Minitest::Test
 
     solution_id_param = nil
 
-    client.define_singleton_method(:list_members) do |limit, offset, solution_id: nil|
+    client.define_singleton_method(:list_members) do |_limit, _offset, solution_id: nil|
       solution_id_param = solution_id
       {
         'members' => [
-          {'id' => 'usr_1', 'title' => 'User One', 'email' => 'user1@example.com'}
+          { 'id' => 'usr_1', 'title' => 'User One', 'email' => 'user1@example.com' }
         ],
         'count' => 1,
         'total_count' => 1,
@@ -1001,9 +1003,9 @@ class SmartSuiteServerTest < Minitest::Test
     # Track what API call was made
     api_method = nil
     api_endpoint = nil
-    mock_response = {'message' => 'Record deleted successfully'}
+    mock_response = { 'message' => 'Record deleted successfully' }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |method, endpoint, _body = nil|
       api_method = method
       api_endpoint = endpoint
       mock_response
@@ -1028,7 +1030,7 @@ class SmartSuiteServerTest < Minitest::Test
       delete_called = true
       table_id_param = table_id
       record_id_param = record_id
-      {'message' => 'Record deleted', 'id' => record_id}
+      { 'message' => 'Record deleted', 'id' => record_id }
     end
 
     request = {
@@ -1121,7 +1123,7 @@ class SmartSuiteServerTest < Minitest::Test
       add_field_called = true
       table_id_param = table_id
       field_data_param = field_data
-      {'slug' => field_data['slug'], 'label' => field_data['label']}
+      { 'slug' => field_data['slug'], 'label' => field_data['label'] }
     end
 
     request = {
@@ -1155,7 +1157,7 @@ class SmartSuiteServerTest < Minitest::Test
     api_method = nil
     api_endpoint = nil
     api_body = nil
-    mock_response = {'success' => true}
+    mock_response = { 'success' => true }
 
     client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
       api_method = method
@@ -1165,8 +1167,8 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     fields = [
-      {'slug' => 'field1', 'label' => 'Field 1', 'field_type' => 'textfield', 'is_new' => true},
-      {'slug' => 'field2', 'label' => 'Field 2', 'field_type' => 'numberfield', 'is_new' => true}
+      { 'slug' => 'field1', 'label' => 'Field 1', 'field_type' => 'textfield', 'is_new' => true },
+      { 'slug' => 'field2', 'label' => 'Field 2', 'field_type' => 'numberfield', 'is_new' => true }
     ]
 
     result = client.bulk_add_fields('tbl_123', fields)
@@ -1188,7 +1190,7 @@ class SmartSuiteServerTest < Minitest::Test
       bulk_add_called = true
       table_id_param = table_id
       fields_param = fields
-      {'success' => true, 'count' => fields.length}
+      { 'success' => true, 'count' => fields.length }
     end
 
     request = {
@@ -1199,8 +1201,8 @@ class SmartSuiteServerTest < Minitest::Test
         'arguments' => {
           'table_id' => 'tbl_test',
           'fields' => [
-            {'slug' => 'f1', 'label' => 'Field 1'},
-            {'slug' => 'f2', 'label' => 'Field 2'}
+            { 'slug' => 'f1', 'label' => 'Field 1' },
+            { 'slug' => 'f2', 'label' => 'Field 2' }
           ]
         }
       }
@@ -1221,7 +1223,7 @@ class SmartSuiteServerTest < Minitest::Test
     api_method = nil
     api_endpoint = nil
     api_body = nil
-    mock_response = {'slug' => 'test_field', 'label' => 'Updated Label'}
+    mock_response = { 'slug' => 'test_field', 'label' => 'Updated Label' }
 
     client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
       api_method = method
@@ -1230,7 +1232,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    field_data = {'label' => 'Updated Label', 'field_type' => 'textfield'}
+    field_data = { 'label' => 'Updated Label', 'field_type' => 'textfield' }
     result = client.update_field('tbl_123', 'test_field', field_data)
 
     assert_equal :put, api_method, 'Should use PUT method'
@@ -1253,7 +1255,7 @@ class SmartSuiteServerTest < Minitest::Test
       table_id_param = table_id
       slug_param = slug
       field_data_param = field_data
-      {'slug' => slug, 'label' => field_data['label']}
+      { 'slug' => slug, 'label' => field_data['label'] }
     end
 
     request = {
@@ -1264,7 +1266,7 @@ class SmartSuiteServerTest < Minitest::Test
         'arguments' => {
           'table_id' => 'tbl_test',
           'slug' => 'field_slug',
-          'field_data' => {'label' => 'New Label'}
+          'field_data' => { 'label' => 'New Label' }
         }
       }
     }
@@ -1285,7 +1287,7 @@ class SmartSuiteServerTest < Minitest::Test
     api_method = nil
     api_endpoint = nil
     api_body = nil
-    mock_response = {'slug' => 'deleted_field', 'label' => 'Deleted Field'}
+    mock_response = { 'slug' => 'deleted_field', 'label' => 'Deleted Field' }
 
     client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
       api_method = method
@@ -1313,7 +1315,7 @@ class SmartSuiteServerTest < Minitest::Test
       delete_called = true
       table_id_param = table_id
       slug_param = slug
-      {'slug' => slug, 'deleted' => true}
+      { 'slug' => slug, 'deleted' => true }
     end
 
     request = {
@@ -1345,14 +1347,14 @@ class SmartSuiteServerTest < Minitest::Test
     api_endpoint = nil
     mock_response = {
       'records' => [
-        {'id' => 'rec_1', 'title' => 'Record 1', 'status' => 'approved'},
-        {'id' => 'rec_2', 'title' => 'Record 2', 'status' => 'approved'}
+        { 'id' => 'rec_1', 'title' => 'Record 1', 'status' => 'approved' },
+        { 'id' => 'rec_2', 'title' => 'Record 2', 'status' => 'approved' }
       ],
       'total_records_count' => 2,
-      'filter' => {'operator' => 'and', 'fields' => []}
+      'filter' => { 'operator' => 'and', 'fields' => [] }
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |method, endpoint, _body = nil|
       api_method = method
       api_endpoint = endpoint
       mock_response
@@ -1370,9 +1372,9 @@ class SmartSuiteServerTest < Minitest::Test
     client = SmartSuiteClient.new('test_key', 'test_account')
 
     api_endpoint = nil
-    mock_response = {'records' => [], 'total_records_count' => 0}
+    mock_response = { 'records' => [], 'total_records_count' => 0 }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, endpoint, _body = nil|
       api_endpoint = endpoint
       mock_response
     end
@@ -1395,7 +1397,7 @@ class SmartSuiteServerTest < Minitest::Test
       view_id_param = view_id
       {
         'records' => [
-          {'id' => 'rec_1', 'title' => 'Test Record'}
+          { 'id' => 'rec_1', 'title' => 'Test Record' }
         ],
         'total_records_count' => 1
       }
@@ -1475,9 +1477,9 @@ class SmartSuiteServerTest < Minitest::Test
     client = SmartSuiteClient.new('test_key', 'test_account')
 
     api_body = nil
-    mock_response = {'id' => 'view_123', 'label' => 'Filtered View'}
+    mock_response = { 'id' => 'view_123', 'label' => 'Filtered View' }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, body = nil|
       api_body = body
       mock_response
     end
@@ -1488,7 +1490,7 @@ class SmartSuiteServerTest < Minitest::Test
         'filter' => {
           'operator' => 'and',
           'fields' => [
-            {'field' => 'status', 'comparison' => 'is', 'value' => 'approved'}
+            { 'field' => 'status', 'comparison' => 'is', 'value' => 'approved' }
           ]
         }
       }
@@ -1547,7 +1549,7 @@ class SmartSuiteServerTest < Minitest::Test
               'filter' => {
                 'operator' => 'and',
                 'fields' => [
-                  {'field' => 'priority', 'comparison' => 'is', 'value' => 'high'}
+                  { 'field' => 'priority', 'comparison' => 'is', 'value' => 'high' }
                 ]
               }
             }
@@ -1595,7 +1597,7 @@ class SmartSuiteServerTest < Minitest::Test
           'logo_icon' => 'star',
           'logo_color' => '#FF0000',
           'permissions' => {
-            'owners' => ['user_123', 'user_456']
+            'owners' => %w[user_123 user_456]
           }
         },
         {
@@ -1619,7 +1621,7 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -1654,7 +1656,7 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -1683,7 +1685,7 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -1718,8 +1720,8 @@ class SmartSuiteServerTest < Minitest::Test
     # Mock responses
     mock_tables_response = {
       'tables' => [
-        {'id' => 'tbl_1', 'name' => 'Table 1'},
-        {'id' => 'tbl_2', 'name' => 'Table 2'}
+        { 'id' => 'tbl_1', 'name' => 'Table 1' },
+        { 'id' => 'tbl_2', 'name' => 'Table 2' }
       ],
       'count' => 2
     }
@@ -1749,12 +1751,12 @@ class SmartSuiteServerTest < Minitest::Test
       mock_tables_response
     end
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, endpoint, _body = nil|
       # Extract table_id from endpoint like "/applications/tbl_1/records/list/?limit=1&offset=0"
-      if endpoint.include?('/records/list/')
-        table_id = endpoint.match(/applications\/([^\/]+)\/records/)[1]
-        mock_records_responses[table_id]
-      end
+      return unless endpoint.include?('/records/list/')
+
+      table_id = endpoint.match(%r{applications/([^/]+)/records})[1]
+      mock_records_responses[table_id]
     end
 
     result = client.get_solution_most_recent_record_update('sol_123')
@@ -1767,7 +1769,7 @@ class SmartSuiteServerTest < Minitest::Test
 
     mock_tables_response = {
       'tables' => [
-        {'id' => 'tbl_1', 'name' => 'Table 1'}
+        { 'id' => 'tbl_1', 'name' => 'Table 1' }
       ],
       'count' => 1
     }
@@ -1776,8 +1778,8 @@ class SmartSuiteServerTest < Minitest::Test
       mock_tables_response
     end
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
-      {'items' => []}
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      { 'items' => [] }
     end
 
     result = client.get_solution_most_recent_record_update('sol_123')
@@ -1789,7 +1791,7 @@ class SmartSuiteServerTest < Minitest::Test
     client = SmartSuiteClient.new('test_key', 'test_account')
 
     client.define_singleton_method(:list_tables) do |solution_id: nil|
-      {'tables' => [], 'count' => 0}
+      { 'tables' => [], 'count' => 0 }
     end
 
     result = client.get_solution_most_recent_record_update('sol_123')
@@ -1828,7 +1830,7 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -1870,7 +1872,7 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -1900,7 +1902,7 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -1930,7 +1932,7 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -1959,7 +1961,7 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -1988,7 +1990,7 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -2019,7 +2021,7 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -2066,11 +2068,11 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
-    result = client.list_solutions(fields: ['id', 'name', 'created'])
+    result = client.list_solutions(fields: %w[id name created])
 
     assert_equal 1, result['count']
     solution = result['solutions'][0]
@@ -2097,7 +2099,7 @@ class SmartSuiteServerTest < Minitest::Test
       ]
     }
 
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       mock_response
     end
 
@@ -2125,7 +2127,7 @@ class SmartSuiteServerTest < Minitest::Test
       refute_nil client.cache, 'Cache object should be initialized'
     ensure
       # Clean up test cache file
-      File.delete(cache_path) if File.exist?(cache_path)
+      FileUtils.rm_f(cache_path)
     end
   end
 
@@ -2152,23 +2154,23 @@ class SmartSuiteServerTest < Minitest::Test
           'id' => table_id,
           'name' => 'Test Table',
           'structure' => [
-            {'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield'},
-            {'slug' => 'status', 'label' => 'Status', 'field_type' => 'statusfield'}
+            { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+            { 'slug' => 'status', 'label' => 'Status', 'field_type' => 'statusfield' }
           ]
         }
       end
 
       # Mock fetch_all_records (for cache population)
-      client.define_singleton_method(:fetch_all_records) do |table_id|
+      client.define_singleton_method(:fetch_all_records) do |_table_id|
         api_call_count += 1
         [
-          {'id' => 'rec_1', 'title' => 'Record 1', 'status' => 'active'},
-          {'id' => 'rec_2', 'title' => 'Record 2', 'status' => 'pending'}
+          { 'id' => 'rec_1', 'title' => 'Record 1', 'status' => 'active' },
+          { 'id' => 'rec_2', 'title' => 'Record 2', 'status' => 'pending' }
         ]
       end
 
       # First call should populate cache (2 API calls: get_table + fetch_all_records)
-      result1 = client.list_records('tbl_123', 10, 0, fields: ['title', 'status'])
+      result1 = client.list_records('tbl_123', 10, 0, fields: %w[title status])
       assert_equal 2, api_call_count, 'Should make 2 API calls to populate cache'
 
       # Second call should use cache (no additional API calls)
@@ -2179,7 +2181,7 @@ class SmartSuiteServerTest < Minitest::Test
       assert result1.is_a?(String), 'Should return plain text'
       assert result2.is_a?(String), 'Should return plain text'
     ensure
-      File.delete(cache_path) if File.exist?(cache_path)
+      FileUtils.rm_f(cache_path)
     end
   end
 
@@ -2189,9 +2191,9 @@ class SmartSuiteServerTest < Minitest::Test
     api_call_count = 0
 
     # Mock api_request for direct API calls
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       api_call_count += 1
-      {'items' => [], 'total_count' => 0}
+      { 'items' => [], 'total_count' => 0 }
     end
 
     # Each call should hit the API
@@ -2211,9 +2213,9 @@ class SmartSuiteServerTest < Minitest::Test
       api_call_count = 0
 
       # Mock api_request for direct API calls
-      client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
         api_call_count += 1
-        {'items' => [], 'total_count' => 0}
+        { 'items' => [], 'total_count' => 0 }
       end
 
       # Call with bypass_cache should always hit API
@@ -2223,7 +2225,7 @@ class SmartSuiteServerTest < Minitest::Test
       client.list_records('tbl_123', 10, 0, fields: ['title'], bypass_cache: true)
       assert_equal 2, api_call_count, 'Should make another API call when bypass_cache: true'
     ensure
-      File.delete(cache_path) if File.exist?(cache_path)
+      FileUtils.rm_f(cache_path)
     end
   end
 end

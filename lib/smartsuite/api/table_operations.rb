@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module SmartSuite
   module API
     # TableOperations handles API calls for table (application) management.
@@ -23,12 +25,11 @@ module SmartSuite
         # Try cache first if enabled and no custom fields specified
         if cache_enabled? && !bypass_cache && (fields.nil? || fields.empty?)
           cached_tables = @cache.get_cached_table_list(solution_id)
+          cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
           if cached_tables
-            cache_key = solution_id ? "solution:#{solution_id}" : "all tables"
             log_metric("✓ Cache hit: #{cached_tables.size} tables (#{cache_key})")
             return format_tables_response(cached_tables, fields)
           else
-            cache_key = solution_id ? "solution:#{solution_id}" : "all tables"
             log_metric("→ Cache miss for #{cache_key}, fetching from API...")
           end
         end
@@ -58,7 +59,7 @@ module SmartSuite
         if cache_enabled? && (fields.nil? || fields.empty?)
           tables_list = response.is_a?(Hash) && response['items'] ? response['items'] : response
           @cache.cache_table_list(solution_id, tables_list)
-          cache_key = solution_id ? "solution:#{solution_id}" : "all tables"
+          cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
           log_metric("✓ Cached #{tables_list.size} tables (#{cache_key})")
         end
 
@@ -78,19 +79,19 @@ module SmartSuite
 
         # When fields are specified, return full response from API
         # When no fields specified, filter to essential fields only (client-side optimization)
-        if fields && !fields.empty?
-          # User requested specific fields - return as-is
-          tables = tables_list
-        else
-          # No fields specified - apply client-side filtering for essential fields only
-          tables = tables_list.map do |table|
-            {
-              'id' => table['id'],
-              'name' => table['name'],
-              'solution_id' => table['solution_id']
-            }
-          end
-        end
+        tables = if fields && !fields.empty?
+                   # User requested specific fields - return as-is
+                   tables_list
+                 else
+                   # No fields specified - apply client-side filtering for essential fields only
+                   tables_list.map do |table|
+                     {
+                       'id' => table['id'],
+                       'name' => table['name'],
+                       'solution_id' => table['solution_id']
+                     }
+                   end
+                 end
 
         result = { 'tables' => tables, 'count' => tables.size }
         tokens = estimate_tokens(JSON.generate(result))
@@ -161,9 +162,7 @@ module SmartSuite
 
         response = api_request(:post, '/applications/', body)
 
-        if response.is_a?(Hash)
-          log_metric("✓ Created table: #{response['name']} (#{response['id']})")
-        end
+        log_metric("✓ Created table: #{response['name']} (#{response['id']})") if response.is_a?(Hash)
 
         response
       end

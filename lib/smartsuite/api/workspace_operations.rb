@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'time'
 require 'uri'
 
@@ -31,15 +33,13 @@ module SmartSuite
             log_metric("✓ Cache hit: #{cached_solutions.size} solutions")
             return format_solutions_response(cached_solutions, include_activity_data, fields)
           else
-            log_metric("→ Cache miss for solutions, fetching from API...")
+            log_metric('→ Cache miss for solutions, fetching from API...')
           end
         end
 
         # Build query parameters
         query_params = []
-        if fields && fields.is_a?(Array)
-          fields.each { |field| query_params << "fields=#{URI.encode_www_form_component(field)}" }
-        end
+        fields.each { |field| query_params << "fields=#{URI.encode_www_form_component(field)}" } if fields.is_a?(Array)
 
         endpoint = '/solutions/'
         endpoint += "?#{query_params.join('&')}" unless query_params.empty?
@@ -106,20 +106,20 @@ module SmartSuite
           # Add activity/usage fields if requested
           if include_activity_data
             base_fields.merge!({
-              'status' => solution['status'],
-              'hidden' => solution['hidden'],
-              'last_access' => solution['last_access'],
-              'updated' => solution['updated'],
-              'created' => solution['created'],
-              'records_count' => solution['records_count'],
-              'members_count' => solution['members_count'],
-              'applications_count' => solution['applications_count'],
-              'automation_count' => solution['automation_count'],
-              'has_demo_data' => solution['has_demo_data'],
-              'delete_date' => solution['delete_date'],
-              'deleted_by' => solution['deleted_by'],
-              'updated_by' => solution['updated_by']
-            })
+                                 'status' => solution['status'],
+                                 'hidden' => solution['hidden'],
+                                 'last_access' => solution['last_access'],
+                                 'updated' => solution['updated'],
+                                 'created' => solution['created'],
+                                 'records_count' => solution['records_count'],
+                                 'members_count' => solution['members_count'],
+                                 'applications_count' => solution['applications_count'],
+                                 'automation_count' => solution['automation_count'],
+                                 'has_demo_data' => solution['has_demo_data'],
+                                 'delete_date' => solution['delete_date'],
+                                 'deleted_by' => solution['deleted_by'],
+                                 'updated_by' => solution['updated_by']
+                               })
           end
 
           base_fields
@@ -179,17 +179,17 @@ module SmartSuite
           # Add activity/usage fields if requested
           if include_activity_data
             base_fields.merge!({
-              'status' => solution['status'],
-              'hidden' => solution['hidden'],
-              'last_access' => solution['last_access'],
-              'updated' => solution['updated'],
-              'created' => solution['created'],
-              'records_count' => solution['records_count'],
-              'members_count' => solution['members_count'],
-              'applications_count' => solution['applications_count'],
-              'automation_count' => solution['automation_count'],
-              'has_demo_data' => solution['has_demo_data']
-            })
+                                 'status' => solution['status'],
+                                 'hidden' => solution['hidden'],
+                                 'last_access' => solution['last_access'],
+                                 'updated' => solution['updated'],
+                                 'created' => solution['created'],
+                                 'records_count' => solution['records_count'],
+                                 'members_count' => solution['members_count'],
+                                 'applications_count' => solution['applications_count'],
+                                 'automation_count' => solution['automation_count'],
+                                 'has_demo_data' => solution['has_demo_data']
+                               })
           end
 
           base_fields
@@ -219,21 +219,19 @@ module SmartSuite
 
         tables_response['tables'].each do |table|
           # Call API directly to get raw JSON response (list_records returns plain text by default)
-          query_params = "?limit=1&offset=0"
+          query_params = '?limit=1&offset=0'
           body = {
-            sort: [{'field' => 'last_updated', 'direction' => 'desc'}]
+            sort: [{ 'field' => 'last_updated', 'direction' => 'desc' }]
           }
 
           records_response = api_request(:post, "/applications/#{table['id']}/records/list/#{query_params}", body)
 
           # Records are in items array, last_updated date is at last_updated.on
-          if records_response['items'] && records_response['items'].first
-            record = records_response['items'].first
-            record_update = record.dig('last_updated', 'on')
-            if record_update && (most_recent_update.nil? || record_update > most_recent_update)
-              most_recent_update = record_update
-            end
-          end
+          next unless records_response['items']&.first
+
+          record = records_response['items'].first
+          record_update = record.dig('last_updated', 'on')
+          most_recent_update = record_update if record_update && (most_recent_update.nil? || record_update > most_recent_update)
         end
 
         most_recent_update
@@ -268,7 +266,7 @@ module SmartSuite
 
           # Parse last_access date
           last_access_time = solution['last_access'] ? Time.parse(solution['last_access']) : nil
-          days_since_access = last_access_time ? ((current_time - last_access_time) / 86400).to_i : nil
+          days_since_access = last_access_time ? ((current_time - last_access_time) / 86_400).to_i : nil
 
           # Determine category
           category_info = {
@@ -292,14 +290,14 @@ module SmartSuite
 
           if solution['last_access'].nil? || days_since_access.nil?
             # Never accessed - highest priority for cleanup
-            if records_count < min_records && automation_count == 0
+            if records_count < min_records && automation_count.zero?
               inactive << category_info.merge('reason' => 'Never accessed, minimal records, no automations')
             else
               potentially_unused << category_info.merge('reason' => 'Never accessed but has content (may be template or abandoned)')
             end
           elsif days_since_access >= days_inactive
             # Not accessed in threshold period
-            if records_count < min_records && automation_count == 0
+            if records_count < min_records && automation_count.zero?
               inactive << category_info.merge('reason' => "Not accessed in #{days_since_access} days, minimal records")
             else
               potentially_unused << category_info.merge('reason' => "Not accessed in #{days_since_access} days but has content")
@@ -323,7 +321,9 @@ module SmartSuite
             'active_count' => active.size
           },
           'inactive_solutions' => inactive.sort_by { |s| s['days_since_access'] || Float::INFINITY }.reverse,
-          'potentially_unused_solutions' => potentially_unused.sort_by { |s| s['days_since_access'] || Float::INFINITY }.reverse,
+          'potentially_unused_solutions' => potentially_unused.sort_by do |s|
+            s['days_since_access'] || Float::INFINITY
+          end.reverse,
           'active_solutions_count' => active.size
         }
 

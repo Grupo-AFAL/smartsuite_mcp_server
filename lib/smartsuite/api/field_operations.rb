@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module SmartSuite
   module API
     # FieldOperations handles table schema management (field CRUD).
