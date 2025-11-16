@@ -46,6 +46,8 @@ Integration tests load credentials ONLY from the local `.env` file to prevent ac
 - Credentials are loaded exclusively from the local `.env` file
 - Built-in safeguards prevent running with placeholder values
 - `.env` file is in `.gitignore` to prevent accidental commits
+- Isolated test database (never touches production cache at `~/.smartsuite_mcp_cache.db`)
+- Workspace confirmation prompt before any tests run
 
 **Security Note:** Always use TEST credentials, never production!
 
@@ -68,6 +70,62 @@ For comprehensive testing, create a test solution with:
 
 Add a few test records to each table.
 
+## Safety Features
+
+Integration tests include multiple layers of protection to prevent accidental damage to production data:
+
+### 1. Workspace Confirmation
+
+Before any tests run, you'll be prompted to confirm the workspace:
+
+```
+======================================================================
+⚠️  WORKSPACE CONFIRMATION REQUIRED
+======================================================================
+
+You are about to run integration tests against:
+  Account ID: your_account_id
+  Solutions found: 5
+
+First few solutions:
+  - Test Workspace (sol_123abc)
+  - Development Environment (sol_456def)
+  - QA Testing (sol_789ghi)
+
+⚠️  WARNING: These tests will:
+  - Read data from your workspace
+  - Create test records (if write tests are enabled)
+  - Modify test records (if write tests are enabled)
+  - Use API calls (counts toward your rate limit)
+
+======================================================================
+Is this the correct TEST workspace? (yes/no):
+```
+
+**Important:**
+- Type `yes` (exactly) to proceed with tests
+- Any other response aborts all tests
+- Review the solution names carefully to ensure it's your test workspace
+- Tests will skip immediately if you don't confirm
+
+### 2. Isolated Test Database
+
+Tests use a completely separate database to prevent any interaction with your production cache:
+
+- **Production cache:** `~/.smartsuite_mcp_cache.db` (never touched by tests)
+- **Test cache:** `/tmp/smartsuite_mcp_test_cache.db` (auto-cleaned)
+- **Confirmation cache:** `/tmp/temp_confirmation.db` (auto-deleted after check)
+
+This ensures integration tests cannot corrupt or interfere with your production cache data.
+
+### 3. Credential Isolation
+
+As described in Prerequisites, credentials are:
+- Loaded only from `test/integration/.env`
+- Never from shell environment variables
+- Validated before use
+- Protected by `.gitignore`
+
 ## Running Tests
 
 ### Run All Integration Tests
@@ -75,6 +133,13 @@ Add a few test records to each table.
 ```bash
 ruby test/integration/test_integration.rb
 ```
+
+**First-time flow:**
+1. Tests load credentials from `.env`
+2. Workspace confirmation prompt appears
+3. Review workspace details carefully
+4. Type `yes` to confirm and proceed
+5. Tests run against confirmed workspace
 
 ### Run Specific Test Categories
 

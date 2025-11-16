@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'minitest/autorun'
+require 'tmpdir'
 require_relative '../../lib/smartsuite_client'
 
 # Integration tests for SmartSuite MCP Server
@@ -16,7 +17,15 @@ require_relative '../../lib/smartsuite_client'
 #
 # IMPORTANT: This test NEVER uses ENV['SMARTSUITE_API_KEY'] from your shell.
 # It only loads from the local .env file to prevent using production credentials.
+#
+# Safety Features:
+# - Uses isolated test database (never touches production cache DB)
+# - Requires workspace confirmation before running tests
+# - Loads credentials only from local .env file
 class TestIntegration < Minitest::Test
+  # Test database path - isolated from production cache
+  TEST_DB_PATH = File.join(Dir.tmpdir, 'smartsuite_mcp_test_cache.db')
+
   # Load credentials from local .env file ONLY
   # This ensures we never accidentally use production credentials
   def self.load_test_credentials
@@ -49,18 +58,91 @@ class TestIntegration < Minitest::Test
     credentials
   end
 
+  # Confirm workspace before running tests
+  # This prevents accidentally running tests against the wrong workspace
+  def self.confirm_workspace
+    return false if TEST_CREDENTIALS.empty?
+
+    # Create a temporary client to fetch workspace info
+    api_key = TEST_CREDENTIALS['SMARTSUITE_API_KEY']
+    account_id = TEST_CREDENTIALS['SMARTSUITE_ACCOUNT_ID']
+
+    begin
+      # Use a separate temp DB for the confirmation check
+      temp_client = SmartSuiteClient.new(api_key, account_id,
+                                         cache_enabled: true,
+                                         cache_path: File.join(Dir.tmpdir, 'temp_confirmation.db'))
+
+      # Fetch workspace info (first few solutions)
+      result = temp_client.list_solutions
+      temp_client.cache.close
+
+      # Clean up temp DB
+      File.delete(File.join(Dir.tmpdir, 'temp_confirmation.db')) rescue nil
+
+      if result['count'] == 0
+        warn "\n⚠️  No solutions found in this workspace!"
+        warn "   This might not be a valid test workspace.\n\n"
+        return false
+      end
+
+      # Show workspace info and ask for confirmation
+      puts "\n" + "=" * 70
+      puts "⚠️  WORKSPACE CONFIRMATION REQUIRED"
+      puts "=" * 70
+      puts "\nYou are about to run integration tests against:"
+      puts "  Account ID: #{account_id}"
+      puts "  Solutions found: #{result['count']}"
+      puts "\nFirst few solutions:"
+      result['solutions'].first(3).each do |solution|
+        puts "  - #{solution['name']} (#{solution['id']})"
+      end
+      puts "\n⚠️  WARNING: These tests will:"
+      puts "  - Read data from your workspace"
+      puts "  - Create test records (if write tests are enabled)"
+      puts "  - Modify test records (if write tests are enabled)"
+      puts "  - Use API calls (counts toward your rate limit)"
+      puts "\n" + "=" * 70
+      print "Is this the correct TEST workspace? (yes/no): "
+
+      response = $stdin.gets&.chomp&.downcase
+
+      if response == 'yes'
+        puts "\n✓ Workspace confirmed. Starting tests...\n"
+        return true
+      else
+        puts "\n❌ Workspace not confirmed. Tests aborted."
+        puts "   Please update test/integration/.env with correct TEST credentials.\n\n"
+        return false
+      end
+    rescue StandardError => e
+      warn "\n❌ Error fetching workspace info: #{e.message}"
+      warn "   Cannot confirm workspace. Tests aborted.\n\n"
+      return false
+    end
+  end
+
   # Load test credentials at class load time
   TEST_CREDENTIALS = load_test_credentials
 
+  # Confirm workspace before any tests run
+  WORKSPACE_CONFIRMED = confirm_workspace
+
   def setup
+    # Skip all tests if workspace not confirmed
+    skip "Workspace not confirmed - tests aborted" unless WORKSPACE_CONFIRMED
+
     # IMPORTANT: Only use credentials from local .env file
     # Never use ENV['SMARTSUITE_API_KEY'] from shell to prevent accidents
     @api_key = TEST_CREDENTIALS['SMARTSUITE_API_KEY']
     @account_id = TEST_CREDENTIALS['SMARTSUITE_ACCOUNT_ID']
 
     if integration_tests_enabled?
-      @client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: true)
-      puts "\n✓ Integration tests enabled (credentials loaded from test/integration/.env)"
+      # Use isolated test database - never touches production cache
+      @client = SmartSuiteClient.new(@api_key, @account_id,
+                                     cache_enabled: true,
+                                     cache_path: TEST_DB_PATH)
+      puts "\n✓ Test client initialized (using isolated DB: #{TEST_DB_PATH})"
     else
       puts "\n⚠️  Integration tests skipped (configure test/integration/.env to enable)"
     end
