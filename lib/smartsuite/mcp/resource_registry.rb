@@ -16,6 +16,10 @@ module SmartSuite
       #
       # @param request [Hash] The MCP request containing the request ID
       # @return [Hash] JSON-RPC 2.0 response with empty resources array
+      # @example Generate resources list response
+      #   request = {"jsonrpc" => "2.0", "id" => 4, "method" => "resources/list"}
+      #   response = SmartSuite::MCP::ResourceRegistry.resources_list(request)
+      #   # => {"jsonrpc" => "2.0", "id" => 4, "result" => {"resources" => []}}
       def self.resources_list(request)
         {
           'jsonrpc' => '2.0',
