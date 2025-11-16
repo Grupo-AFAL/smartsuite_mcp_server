@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `get_cache_performance(table_id:)` method to retrieve stats
   - Hit rate calculation: `(hits / total) * 100`
   - Automatic tracking integrated into record operations
+- **Extended `get_api_stats` with cache metrics** (v1.6):
+  - New `cache_stats` section in response with:
+    - Overall hit/miss counts and hit rate percentage
+    - API calls made, saved, and without cache (efficiency metrics)
+    - Efficiency ratio: percentage of API calls saved by caching
+    - Estimated tokens saved (500 tokens per cache hit)
+    - Per-table breakdown with individual hit rates and cache sizes
+  - New optional `time_range` parameter:
+    - `session`: Statistics for current session only
+    - `7d`: Statistics for last 7 days
+    - `all`: All-time statistics (default)
+  - Time-filtered API call statistics (summary, by_method, by_solution, by_table, by_endpoint)
+  - Helps users understand cache effectiveness and optimize performance
 - **New `get_cache_status` tool** (v1.6):
   - MCP tool to inspect cache state for solutions, tables, and records
   - Shows: cached_at, expires_at, time_remaining_seconds, record_count, is_valid

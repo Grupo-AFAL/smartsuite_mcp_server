@@ -256,7 +256,7 @@ class SmartSuiteServer
         sharing: arguments['sharing']
       )
     when 'get_api_stats'
-      @client.stats_tracker.get_stats
+      @client.stats_tracker.get_stats(time_range: arguments['time_range'] || 'all')
     when 'reset_api_stats'
       @client.stats_tracker.reset_stats
     when 'get_cache_status'

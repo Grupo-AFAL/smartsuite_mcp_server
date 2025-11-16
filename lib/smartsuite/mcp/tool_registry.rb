@@ -459,10 +459,16 @@ module SmartSuite
       STATS_TOOLS = [
         {
           'name' => 'get_api_stats',
-          'description' => 'Get API call statistics tracked by user, solution, table, and HTTP method',
+          'description' => 'Get API call statistics tracked by user, solution, table, and HTTP method. Includes cache performance metrics (hit/miss counts, hit rates, efficiency ratios, token savings). Supports time range filtering.',
           'inputSchema' => {
             'type' => 'object',
-            'properties' => {},
+            'properties' => {
+              'time_range' => {
+                'type' => 'string',
+                'description' => 'Time range for statistics: "session" (current session only), "7d" (last 7 days), "all" (all time). Default: "all"',
+                'enum' => ['session', '7d', 'all']
+              }
+            },
             'required' => []
           }
         },
