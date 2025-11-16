@@ -173,8 +173,14 @@ module SmartSuite
       # Ensure records are cached for a table
       def ensure_records_cached(table_id)
         # Check if cache is valid
-        return if @cache.cache_valid?(table_id)
+        if @cache.cache_valid?(table_id)
+          # Track cache hit
+          @cache.track_cache_hit(table_id)
+          return
+        end
 
+        # Track cache miss
+        @cache.track_cache_miss(table_id)
         log_metric("→ Cache miss for #{table_id}, fetching all records...")
 
         # Fetch table structure
