@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'json'
 require 'net/http'
 require 'uri'
@@ -47,25 +49,23 @@ module SmartSuite
         http.verify_mode = OpenSSL::SSL::VERIFY_NONE
 
         request = case method
-        when :get
-          Net::HTTP::Get.new(uri.request_uri)
-        when :post
-          Net::HTTP::Post.new(uri.request_uri)
-        when :put
-          Net::HTTP::Put.new(uri.request_uri)
-        when :patch
-          Net::HTTP::Patch.new(uri.request_uri)
-        when :delete
-          Net::HTTP::Delete.new(uri.request_uri)
-        end
+                  when :get
+                    Net::HTTP::Get.new(uri.request_uri)
+                  when :post
+                    Net::HTTP::Post.new(uri.request_uri)
+                  when :put
+                    Net::HTTP::Put.new(uri.request_uri)
+                  when :patch
+                    Net::HTTP::Patch.new(uri.request_uri)
+                  when :delete
+                    Net::HTTP::Delete.new(uri.request_uri)
+                  end
 
         request['Authorization'] = "Token #{@api_key}"
         request['Account-Id'] = @account_id
         request['Content-Type'] = 'application/json'
 
-        if body
-          request.body = JSON.generate(body)
-        end
+        request.body = JSON.generate(body) if body
 
         response = http.request(request)
 
@@ -85,7 +85,7 @@ module SmartSuite
 
         JSON.parse(response.body)
       rescue StandardError => e
-        QueryLogger.log_error("API Request", e)
+        QueryLogger.log_error('API Request', e)
         raise
       end
 

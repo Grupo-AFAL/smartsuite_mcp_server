@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module SmartSuite
   module MCP
     # ResourceRegistry manages MCP resources (currently empty).

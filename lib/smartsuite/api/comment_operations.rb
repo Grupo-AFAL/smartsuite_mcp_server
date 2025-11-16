@@ -13,7 +13,7 @@ module SmartSuite
       #
       # GET /api/v1/comments/?record=[Record_Id]
       def list_comments(record_id)
-        raise ArgumentError, "record_id is required" if record_id.nil? || record_id.empty?
+        raise ArgumentError, 'record_id is required' if record_id.nil? || record_id.empty?
 
         endpoint = "/comments/?record=#{record_id}"
         api_request(:get, endpoint)
@@ -34,16 +34,16 @@ module SmartSuite
       #   add_comment("app123", "rec456", "This is a comment", nil)
       #   add_comment("app123", "rec456", "Review needed", "user789")
       def add_comment(table_id, record_id, message, assigned_to = nil)
-        raise ArgumentError, "table_id is required" if table_id.nil? || table_id.empty?
-        raise ArgumentError, "record_id is required" if record_id.nil? || record_id.empty?
-        raise ArgumentError, "message is required" if message.nil? || message.empty?
+        raise ArgumentError, 'table_id is required' if table_id.nil? || table_id.empty?
+        raise ArgumentError, 'record_id is required' if record_id.nil? || record_id.empty?
+        raise ArgumentError, 'message is required' if message.nil? || message.empty?
 
-        endpoint = "/comments/"
+        endpoint = '/comments/'
         body = {
-          "assigned_to" => assigned_to,
-          "message" => format_message(message),
-          "application" => table_id,
-          "record" => record_id
+          'assigned_to' => assigned_to,
+          'message' => format_message(message),
+          'application' => table_id,
+          'record' => record_id
         }
 
         api_request(:post, endpoint, body)
@@ -58,15 +58,15 @@ module SmartSuite
       # @return [Hash] Formatted message object
       def format_message(text)
         {
-          "data" => {
-            "type" => "doc",
-            "content" => [
+          'data' => {
+            'type' => 'doc',
+            'content' => [
               {
-                "type" => "paragraph",
-                "content" => [
+                'type' => 'paragraph',
+                'content' => [
                   {
-                    "type" => "text",
-                    "text" => text
+                    'type' => 'text',
+                    'text' => text
                   }
                 ]
               }

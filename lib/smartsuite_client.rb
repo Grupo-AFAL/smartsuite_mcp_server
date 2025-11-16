@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'json'
 require_relative 'smartsuite/api/http_client'
 require_relative 'smartsuite/api/workspace_operations'
@@ -32,11 +34,11 @@ class SmartSuiteClient
 
     # Create a separate, clean log file for metrics (must be before any log_metric calls)
     @metrics_log = File.open(File.join(Dir.home, '.smartsuite_mcp_metrics.log'), 'a')
-    @metrics_log.sync = true  # Auto-flush
+    @metrics_log.sync = true # Auto-flush
 
     # Token usage tracking
     @total_tokens_used = 0
-    @context_limit = 200000  # Claude's context window
+    @context_limit = 200_000 # Claude's context window
 
     # Initialize cache layer
     if cache_enabled
@@ -46,11 +48,11 @@ class SmartSuiteClient
 
       # Initialize stats tracker to use same database as cache with session tracking
       @stats_tracker = ApiStatsTracker.new(api_key, db: @cache.db, session_id: @session_id)
-      log_metric("✓ Stats tracker sharing cache database")
+      log_metric('✓ Stats tracker sharing cache database')
     else
       @cache = nil
-      @stats_tracker = stats_tracker  # Use provided tracker or nil
-      log_metric("⚠ Cache layer disabled")
+      @stats_tracker = stats_tracker # Use provided tracker or nil
+      log_metric('⚠ Cache layer disabled')
     end
   end
 
@@ -67,7 +69,7 @@ class SmartSuiteClient
   # @param count [Integer] Number of tables in auto mode (default: 5)
   # @return [Hash] Warming results with progress and statistics
   def warm_cache(tables: nil, count: 5)
-    return {'error' => 'Cache is disabled'} unless cache_enabled?
+    return { 'error' => 'Cache is disabled' } unless cache_enabled?
 
     # Get list of tables to warm
     table_ids = @cache.get_tables_to_warm(tables: tables, count: count)
@@ -87,37 +89,34 @@ class SmartSuiteClient
     error_count = 0
 
     table_ids.each do |table_id|
-      begin
-        # Check if cache is already valid
-        if @cache.cache_valid?(table_id)
-          results << {
-            'table_id' => table_id,
-            'status' => 'skipped',
-            'reason' => 'Cache already valid'
-          }
-          skipped_count += 1
-          next
-        end
-
-        # Warm cache by triggering list_records with minimal fields
-        # This will call ensure_records_cached which fetches and caches all records
-        list_records(table_id, 1, 0, fields: ['id'], bypass_cache: false)
-
+      # Check if cache is already valid
+      if @cache.cache_valid?(table_id)
         results << {
           'table_id' => table_id,
-          'status' => 'warmed',
-          'message' => 'Cache populated successfully'
+          'status' => 'skipped',
+          'reason' => 'Cache already valid'
         }
-        warmed_count += 1
-
-      rescue => e
-        results << {
-          'table_id' => table_id,
-          'status' => 'error',
-          'error' => e.message
-        }
-        error_count += 1
+        skipped_count += 1
+        next
       end
+
+      # Warm cache by triggering list_records with minimal fields
+      # This will call ensure_records_cached which fetches and caches all records
+      list_records(table_id, 1, 0, fields: ['id'], bypass_cache: false)
+
+      results << {
+        'table_id' => table_id,
+        'status' => 'warmed',
+        'message' => 'Cache populated successfully'
+      }
+      warmed_count += 1
+    rescue StandardError => e
+      results << {
+        'table_id' => table_id,
+        'status' => 'error',
+        'error' => e.message
+      }
+      error_count += 1
     end
 
     {
