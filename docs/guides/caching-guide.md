@@ -36,7 +36,7 @@ The server uses an aggressive SQLite-based caching strategy to:
 1. Cache miss detected
 2. Fetch ALL records from SmartSuite API (paginated)
 3. Store in dynamic SQLite table
-4. Set TTL = 4 hours
+4. Set TTL = 12 hours (default for records, configurable)
 5. Return requested data
 
 **On Subsequent Requests:**
@@ -47,16 +47,16 @@ The server uses an aggressive SQLite-based caching strategy to:
 
 ## Cache Duration (TTL)
 
-Default time-to-live (TTL) is **4 hours** for all resource types:
+Cache time-to-live (TTL) varies by resource type for optimal performance (v1.6+):
 
 | Resource Type | Default TTL | Rationale |
 |--------------|-------------|-----------|
-| **Solutions** | 4 hours | Rarely change |
-| **Tables** | 4 hours | Schema stable |
-| **Members** | 4 hours | User list stable |
-| **Records** | 4 hours | Balance freshness vs performance |
+| **Solutions** | **7 days** | Rarely change (workspace structure) |
+| **Tables** | **7 days** | Schema very stable |
+| **Members** | **7 days** | User list changes infrequently |
+| **Records** | **12 hours** | Balance freshness vs performance (configurable per table) |
 
-Cache expires automatically after 4 hours. Next request will refresh.
+Cache expires automatically after TTL period. Next request will refresh.
 
 ## Cache Behavior by Operation
 
@@ -307,7 +307,8 @@ Check these:
 
 2. **TTL expired?**
    ```ruby
-   # Cache expires after 4 hours
+   # Cache expires after 12 hours (records)
+   # Solutions/tables expire after 7 days
    # Next request will refresh
    ```
 

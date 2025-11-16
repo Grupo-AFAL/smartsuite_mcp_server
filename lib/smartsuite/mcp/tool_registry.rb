@@ -455,14 +455,20 @@ module SmartSuite
       ].freeze
 
       # Statistics tools for API usage monitoring
-      # Includes: get_api_stats, reset_api_stats
+      # Includes: get_api_stats, reset_api_stats, get_cache_status, refresh_cache, warm_cache
       STATS_TOOLS = [
         {
           'name' => 'get_api_stats',
-          'description' => 'Get API call statistics tracked by user, solution, table, and HTTP method',
+          'description' => 'Get API call statistics tracked by user, solution, table, and HTTP method. Includes cache performance metrics (hit/miss counts, hit rates, efficiency ratios, token savings). Supports time range filtering.',
           'inputSchema' => {
             'type' => 'object',
-            'properties' => {},
+            'properties' => {
+              'time_range' => {
+                'type' => 'string',
+                'description' => 'Time range for statistics: "session" (current session only), "7d" (last 7 days), "all" (all time). Default: "all"',
+                'enum' => ['session', '7d', 'all']
+              }
+            },
             'required' => []
           }
         },
@@ -472,6 +478,72 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {},
+            'required' => []
+          }
+        },
+        {
+          'name' => 'get_cache_status',
+          'description' => 'Get cache status for solutions, tables, and records. Shows cached_at, expires_at, time_remaining, record_count, and validity. Helps understand cache state and plan refreshes.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => {
+                'type' => 'string',
+                'description' => 'Optional: Specific table ID to show status for. If not provided, shows status for all cached tables.'
+              }
+            },
+            'required' => []
+          }
+        },
+        {
+          'name' => 'refresh_cache',
+          'description' => 'Manually refresh (invalidate) cache for specific resources. Invalidates cache without refetching - data will be refreshed on next access. Useful for forcing fresh data when you know it has changed.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'resource' => {
+                'type' => 'string',
+                'description' => 'Resource type to refresh: "solutions" (all solutions), "tables" (table list), or "records" (table records)',
+                'enum' => ['solutions', 'tables', 'records']
+              },
+              'table_id' => {
+                'type' => 'string',
+                'description' => 'Table ID (required when resource is "records")'
+              },
+              'solution_id' => {
+                'type' => 'string',
+                'description' => 'Solution ID (optional when resource is "tables" - omit to refresh all tables)'
+              }
+            },
+            'required' => ['resource']
+          }
+        },
+        {
+          'name' => 'warm_cache',
+          'description' => 'Proactively warm (populate) cache for specified tables or auto-select top accessed tables. Fetches and caches all records to improve subsequent query performance. Skips tables that already have valid cache.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'tables' => {
+                'description' => 'Table IDs to warm. Can be: array of table IDs, single table ID string, "auto" (top N accessed), or omit for auto mode. Examples: ["tbl_123", "tbl_456"], "tbl_123", "auto"',
+                'oneOf' => [
+                  {
+                    'type' => 'array',
+                    'items' => {'type' => 'string'},
+                    'description' => 'Array of table IDs to warm'
+                  },
+                  {
+                    'type' => 'string',
+                    'description' => 'Single table ID or "auto" for automatic selection'
+                  }
+                ]
+              },
+              'count' => {
+                'type' => 'number',
+                'description' => 'Number of tables to warm in auto mode (default: 5). Only used when tables is "auto" or omitted.',
+                'default' => 5
+              }
+            },
             'required' => []
           }
         }
