@@ -1,0 +1,43 @@
+---
+### Reek configuration for SmartSuite MCP Server
+
+detectors:
+  # Disable detectors that don't apply to MCP server architecture
+  IrresponsibleModule:
+    enabled: false # Many modules don't need top-level docs
+
+  UtilityFunction:
+    enabled: false # Helper methods are fine
+
+  # Adjust thresholds for complexity
+  TooManyStatements:
+    max_statements: 20
+    exclude:
+      - SmartSuiteServer#handle_tool_call # Large switch statement for MCP tools
+      - SmartSuite::Cache::Layer#extract_field_value # Complex field mapping
+      - SmartSuite::MCP::PromptRegistry.generate_prompt_text # Template generation
+
+  TooManyInstanceVariables:
+    max_instance_variables: 10
+
+  TooManyMethods:
+    max_methods: 25
+    exclude:
+      - SmartSuite::Cache::Layer # Cache layer has many public methods
+      - SmartSuiteClient # Thin wrapper, includes many modules
+
+  LongParameterList:
+    max_params: 8
+
+  # Data clump is okay for configuration hashes
+  DataClump:
+    enabled: false
+
+  # Feature envy is expected when working with external API responses
+  FeatureEnvy:
+    enabled: false
+
+# Exclude patterns
+exclude_paths:
+  - test/**/*.rb
+  - vendor/**/*.rb

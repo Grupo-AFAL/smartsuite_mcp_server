@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-require 'minitest/autorun'
-require 'json'
-require 'stringio'
+require_relative 'test_helper'
 require_relative '../smartsuite_server'
 require_relative '../lib/smartsuite_client'
 require_relative '../lib/api_stats_tracker'

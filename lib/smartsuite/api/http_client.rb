@@ -6,7 +6,16 @@ require 'uri'
 require 'openssl'
 require_relative '../../query_logger'
 
+# SmartSuite namespace module
+#
+# Top-level module for all SmartSuite MCP server components.
+# Contains API client, cache layer, formatters, and MCP protocol modules.
 module SmartSuite
+  # API operations module
+  #
+  # Contains all modules for interacting with the SmartSuite API.
+  # Includes HTTP client, workspace operations, table operations, record operations,
+  # field operations, member operations, comment operations, and view operations.
   module API
     # HttpClient handles all HTTP communication with the SmartSuite API.
     #

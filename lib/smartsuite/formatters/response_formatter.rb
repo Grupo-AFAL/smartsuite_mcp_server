@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 module SmartSuite
+  # Response formatting module
+  #
+  # Contains formatters for optimizing API responses to minimize token usage.
+  # Implements aggressive filtering and plain text formatting strategies.
   module Formatters
     # ResponseFormatter handles aggressive response filtering to minimize token usage.
     #
