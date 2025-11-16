@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Increased cache TTL values** for better performance (v1.6):
+  - Solutions: 24 hours → **7 days** (rarely change)
+  - Tables: 12 hours → **7 days** (schema stable)
+  - Records: 4 hours → **12 hours** (configurable per table)
+  - Members: No cache → **7 days** (planned, not yet implemented)
+  - Rationale: Longer TTL reduces API calls, improves response times
 - **Renamed** `cached_table_schemas` table to `cache_table_registry` for clarity
   - This table is an internal registry for dynamically-created SQL cache tables, not a cache of SmartSuite table schemas
   - Database will automatically rename table on first run via ALTER TABLE statement
