@@ -593,7 +593,7 @@ class SmartSuiteServerTest < Minitest::Test
       end
     end
 
-    result = client.list_members(100, 0, solution_id: 'sol_123')
+    result = client.list_members(limit: 100, offset: 0, solution_id: 'sol_123')
 
     # Should return 4 members: usr_123 (direct member), usr_789 (owner), usr_456 and usr_999 (from team)
     assert_equal 4, result['count']
@@ -922,7 +922,7 @@ class SmartSuiteServerTest < Minitest::Test
 
     list_members_called = false
 
-    client.define_singleton_method(:list_members) do |_limit, _offset, solution_id: nil|
+    client.define_singleton_method(:list_members) do |limit: 100, offset: 0, solution_id: nil|
       list_members_called = true
       {
         'members' => [
@@ -960,7 +960,7 @@ class SmartSuiteServerTest < Minitest::Test
 
     solution_id_param = nil
 
-    client.define_singleton_method(:list_members) do |_limit, _offset, solution_id: nil|
+    client.define_singleton_method(:list_members) do |limit: 100, offset: 0, solution_id: nil|
       solution_id_param = solution_id
       {
         'members' => [
