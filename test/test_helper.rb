@@ -19,10 +19,11 @@ SimpleCov.start do
   # Don't fail on coverage threshold (report only)
   # Goal: gradually increase from current 59.65% to 90%
   at_exit do
-    if result = SimpleCov.result
+    result = SimpleCov.result
+    if result
       coverage = result.covered_percent
       puts "\n📊 Code Coverage: #{coverage.round(2)}%"
-      puts "🎯 Target: 90%"
+      puts '🎯 Target: 90%'
       puts "📈 Gap: #{(90 - coverage).round(2)}%"
     end
   end

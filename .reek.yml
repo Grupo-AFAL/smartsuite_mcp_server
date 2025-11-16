@@ -27,9 +27,7 @@ detectors:
       - SmartSuiteClient # Thin wrapper, includes many modules
 
   LongParameterList:
-    max_params: 6
-    overrides:
-      list_records: { max_params: 8 } # Accepts many optional params
+    max_params: 8
 
   # Data clump is okay for configuration hashes
   DataClump:

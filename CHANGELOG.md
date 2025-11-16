@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Comprehensive CI/CD workflows** for quality assurance:
+  - Security scanning with Bundler Audit (weekly + on PR)
+  - Code quality checks with Reek
+  - Documentation quality with Markdown linting and YARD coverage
+  - CHANGELOG enforcement on PRs (auto-skips for Dependabot)
+  - Test coverage tracking with SimpleCov (baseline: 59.65%, goal: 90%)
+- **Dependabot configuration** for automated dependency updates (weekly)
+- **New development dependencies**:
+  - `simplecov` - Code coverage tracking with detailed reports
+  - `reek` - Code smell detection
+  - `yard` - Documentation coverage checking
+- **Test helper** (`test/test_helper.rb`) for centralized test configuration
+
 ### Changed
 
 ### Fixed
