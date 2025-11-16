@@ -161,24 +161,12 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - Reduce complexity in `filter_field_structure` method
   - Consider deferring to v1.7 if time constrained
 
-- [ ] **Item 3: Optimize to use `list_records` exclusively** ✅ Tested
-  - Finding: `list_records(hydrated: true)` returns full data (only missing `deleted_by` field)
-  - Switch cache population to use list endpoint only
-  - Document that individual `get_record` calls not needed
-  - Simpler code, fewer API calls, lower rate limit usage
-
-#### Medium Priority
-
-- [ ] Optimize SQL queries for large cached datasets
-- [ ] Add configurable cache size limits
-- [ ] Implement cache compression for large text fields
-- [ ] Add cache export/import for backup
-
-#### Low Priority
-
-- [ ] Cache prefetching based on usage patterns
-- [ ] Smart cache invalidation (detect which records changed)
-- [ ] Multi-level caching (memory + SQLite)
+- [x] **Item 3: Optimize to use `list_records` exclusively** ✅ COMPLETED
+  - ✅ Finding confirmed: `list_records(hydrated: true)` returns full data (only missing `deleted_by` field)
+  - ✅ Updated `fetch_all_records` to use `hydrated=true` parameter
+  - ✅ Eliminated need for separate `get_record` calls in cache population
+  - ✅ Documented that `get_record` tool remains for direct user queries
+  - ✅ Simpler code, fewer API calls, lower rate limit usage
 
 ---
 
@@ -427,7 +415,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | ------- | -------------- | ----------- | ---------- |
 | v1.0    | ✅ Released    | Nov 2025    | 100%       |
 | v1.5    | ✅ Released    | Nov 2025    | 100%       |
-| v1.6    | 🚧 In Progress | Dec 2025    | 71%        |
+| v1.6    | 🚧 In Progress | Dec 2025    | 79%        |
 | v2.0    | 📋 Planned     | Q1 2026     | 0%         |
 | v2.1    | 📋 Planned     | Q2 2026     | 0%         |
 | v2.2    | 📋 Planned     | Q2 2026     | 0%         |

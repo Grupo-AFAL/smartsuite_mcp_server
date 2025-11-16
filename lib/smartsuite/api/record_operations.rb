@@ -196,13 +196,22 @@ module SmartSuite
       end
 
       # Fetch all records from a table (paginated API calls)
+      #
+      # Uses list endpoint with hydrated=true to get complete data including
+      # linked records, users, and other reference fields. This eliminates the
+      # need for separate get_record calls.
+      #
+      # @param table_id [String] Table identifier
+      # @return [Array<Hash>] Array of complete record hashes
       def fetch_all_records(table_id)
         all_records = []
         offset = 0
         limit = 1000  # Batch size (use 1000 to minimize API calls)
 
         loop do
-          query_params = "?limit=#{limit}&offset=#{offset}"
+          # Use hydrated=true to get full data (linked records, users, etc.)
+          # This returns same data as get_record endpoint (minus deleted_by field)
+          query_params = "?limit=#{limit}&offset=#{offset}&hydrated=true"
           response = api_request(:post, "/applications/#{table_id}/records/list/#{query_params}", nil)
 
           records = response['items'] || []
