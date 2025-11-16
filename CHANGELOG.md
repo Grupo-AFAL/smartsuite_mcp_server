@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+## [1.6.0] - 2025-11-15
+
+### Added
 - **Cache performance tracking** (v1.6):
   - New `cache_performance` table tracks hit/miss counts per table
   - In-memory counters with periodic flush (every 100 ops or 5 minutes)
@@ -167,6 +175,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite
 - Solution usage analysis tools
 
-[Unreleased]: https://github.com/yourusername/smartsuite_mcp/compare/v1.5.0...HEAD
-[1.5.0]: https://github.com/yourusername/smartsuite_mcp/compare/v1.0.0...v1.5.0
-[1.0.0]: https://github.com/yourusername/smartsuite_mcp/releases/tag/v1.0.0
+[Unreleased]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.0.0...v1.5.0
+[1.0.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/releases/tag/v1.0.0
