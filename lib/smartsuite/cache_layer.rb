@@ -2,6 +2,7 @@ require 'sqlite3'
 require 'json'
 require 'time'
 require 'digest'
+require 'set'
 require_relative 'cache_query'
 require_relative '../query_logger'
 
@@ -418,13 +419,20 @@ module SmartSuite
     # @param structure [Hash] SmartSuite table structure
     # @return [String] SQL table name
     def create_cache_table(table_id, structure)
-      sql_table_name = "cache_records_#{sanitize_table_name(table_id)}"
       table_name = structure['name']
+
+      # Generate human-readable SQL table name: cache_records_{sanitized_name}_{table_id}
+      # Example: cache_records_customers_tbl_abc123 (v1.6+)
+      sanitized_name = sanitize_table_name(table_name || 'table')
+      sanitized_id = sanitize_table_name(table_id)
+      sql_table_name = "cache_records_#{sanitized_name}_#{sanitized_id}"
+
       fields = structure['structure'] || []
 
-      # Build column definitions
+      # Build column definitions with label-based names (v1.6+)
       columns = ['id TEXT PRIMARY KEY']
       field_mapping = {}
+      used_column_names = Set.new(['id'])  # Track to avoid duplicates
 
       fields.each do |field|
         field_slug = field['slug']
@@ -432,9 +440,13 @@ module SmartSuite
 
         field_columns = get_field_columns(field)
         field_columns.each do |col_name, col_type|
-          columns << "#{col_name} #{col_type}"
+          # Handle duplicate column names by appending suffix
+          unique_col_name = deduplicate_column_name(col_name, used_column_names)
+          used_column_names.add(unique_col_name)
+
+          columns << "#{unique_col_name} #{col_type}"
           field_mapping[field_slug] ||= {}
-          field_mapping[field_slug][col_name] = col_type
+          field_mapping[field_slug][unique_col_name] = col_type
         end
       end
 
@@ -463,12 +475,22 @@ module SmartSuite
 
     # Get column definitions for a field (handles multi-column fields)
     #
+    # Uses field labels for column names (v1.6+) with slug as fallback
+    #
     # @param field [Hash] SmartSuite field definition
     # @return [Hash] Column name => SQL type mapping
     def get_field_columns(field)
       field_slug = field['slug']
+      field_label = field['label']
       field_type = field['field_type'].downcase
-      col_name = sanitize_column_name(field_slug)
+
+      # Use field label for column name, fallback to slug (v1.6+)
+      # Example: "Status" → "status" instead of "s7e8c12e98"
+      col_name = if field_label && !field_label.empty?
+        sanitize_column_name(field_label)
+      else
+        sanitize_column_name(field_slug)
+      end
 
       case field_type
       when 'firstcreated'
@@ -697,6 +719,23 @@ module SmartSuite
       sanitized = "field_#{sanitized}" if reserved.include?(sanitized)
 
       sanitized
+    end
+
+    # Deduplicate column name by appending suffix if needed (v1.6+)
+    #
+    # @param col_name [String] Proposed column name
+    # @param used_names [Set] Set of already-used column names
+    # @return [String] Unique column name
+    def deduplicate_column_name(col_name, used_names)
+      return col_name unless used_names.include?(col_name)
+
+      # Append incrementing suffix until unique
+      counter = 2
+      loop do
+        candidate = "#{col_name}_#{counter}"
+        return candidate unless used_names.include?(candidate)
+        counter += 1
+      end
     end
 
     # Get cached table schema
