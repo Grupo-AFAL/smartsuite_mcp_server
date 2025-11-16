@@ -358,8 +358,14 @@ class TestIntegration < Minitest::Test
     members = @client.list_members(limit: 1)
     skip "No members found to test" if members['count'].zero?
 
-    member_email = members['members'].first['email']
-    search_query = member_email.split('@').first # Search by first part of email
+    member = members['members'].first
+    member_email = member['email']
+
+    # Handle email being an array or string
+    email_string = member_email.is_a?(Array) ? member_email.first : member_email
+    skip "No valid email found to test" if email_string.nil? || email_string.empty?
+
+    search_query = email_string.split('@').first # Search by first part of email
 
     result = @client.search_member(search_query)
 

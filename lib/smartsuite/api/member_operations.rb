@@ -30,11 +30,11 @@ module SmartSuite
       # @param solution_id [String, nil] Optional solution ID to filter members
       # @return [Hash] Members with count and optional filter indication
       # @example List all members
-      #   list_members(100, 0)
+      #   list_members(limit: 100, offset: 0)
       #
       # @example List members by solution
       #   list_members(solution_id: 'sol_123')
-      def list_members(limit = Base::Pagination::DEFAULT_LIMIT, offset = Base::Pagination::DEFAULT_OFFSET, solution_id: nil)
+      def list_members(limit: Base::Pagination::DEFAULT_LIMIT, offset: Base::Pagination::DEFAULT_OFFSET, solution_id: nil)
         if solution_id
           log_metric("→ Listing members for solution: #{solution_id}")
 
