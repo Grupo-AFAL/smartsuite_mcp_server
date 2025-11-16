@@ -316,6 +316,10 @@ module SmartSuite
       #
       # @param request [Hash] The MCP request containing the request ID
       # @return [Hash] JSON-RPC 2.0 response with all available prompts
+      # @example Generate prompts list response
+      #   request = {"jsonrpc" => "2.0", "id" => 2, "method" => "prompts/list"}
+      #   response = SmartSuite::MCP::PromptRegistry.prompts_list(request)
+      #   # => {"jsonrpc" => "2.0", "id" => 2, "result" => {"prompts" => [...]}}
       def self.prompts_list(request)
         {
           'jsonrpc' => '2.0',
@@ -332,6 +336,12 @@ module SmartSuite
       #
       # @param request [Hash] The MCP request containing prompt name and arguments
       # @return [Hash] JSON-RPC 2.0 response with the generated prompt text
+      # @example Get filter_active_records prompt
+      #   request = {
+      #     "jsonrpc" => "2.0", "id" => 3, "method" => "prompts/get",
+      #     "params" => {"name" => "filter_active_records", "arguments" => {"table_id" => "tbl_123"}}
+      #   }
+      #   response = SmartSuite::MCP::PromptRegistry.prompt_get(request)
       def self.prompt_get(request)
         prompt_name = request.dig('params', 'name')
         arguments = request.dig('params', 'arguments') || {}
@@ -360,6 +370,12 @@ module SmartSuite
       # @param prompt_name [String] Name of the prompt template to use
       # @param arguments [Hash] Arguments to fill into the template
       # @return [String] Generated prompt text with instructions
+      # @example Generate filter_active_records prompt
+      #   text = SmartSuite::MCP::PromptRegistry.generate_prompt_text(
+      #     'filter_active_records',
+      #     {'table_id' => 'tbl_123', 'status_field' => 'status', 'fields' => 'id,title,status'}
+      #   )
+      #   # => "Use the list_records tool with these parameters:..."
       def self.generate_prompt_text(prompt_name, arguments)
         case prompt_name
         when 'filter_active_records'

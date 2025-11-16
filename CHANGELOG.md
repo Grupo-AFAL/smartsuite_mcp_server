@@ -33,6 +33,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports 20+ comparison operators (is, is_not, contains, is_greater_than, etc.)
   - 30 test cases with comprehensive edge case coverage
 
+### Documentation
+
+- **Enhanced YARD documentation coverage** (v1.8 - Developer Experience):
+  - Added @example tags to all user-facing MCP modules:
+    - SmartSuiteClient: Added examples to `cache`, `stats_tracker`, `initialize`, `warm_cache` methods
+    - MCP::ToolRegistry: Added example to `tools_list` method
+    - MCP::PromptRegistry: Added examples to `prompts_list`, `prompt_get`, `generate_prompt_text` methods
+    - MCP::ResourceRegistry: Added example to `resources_list` method
+  - All MCP protocol interface methods now have comprehensive documentation
+  - Generated HTML documentation available in `doc/` directory
+  - 100% YARD documentation coverage maintained across all 124 public methods
+  - Reduced missing @example tags from 87 to 79 (focused on user-facing APIs)
+
 ### Changed
 
 - **Modular API operation architecture** (v1.8 - Code Quality):

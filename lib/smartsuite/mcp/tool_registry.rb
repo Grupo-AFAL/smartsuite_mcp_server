@@ -693,6 +693,10 @@ module SmartSuite
       #
       # @param request [Hash] The MCP request containing the request ID
       # @return [Hash] JSON-RPC 2.0 response with all available tools
+      # @example Generate tools list response
+      #   request = {"jsonrpc" => "2.0", "id" => 1, "method" => "tools/list"}
+      #   response = SmartSuite::MCP::ToolRegistry.tools_list(request)
+      #   # => {"jsonrpc" => "2.0", "id" => 1, "result" => {"tools" => [...]}}
       def self.tools_list(request)
         {
           'jsonrpc' => '2.0',

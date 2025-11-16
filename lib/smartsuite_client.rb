@@ -54,6 +54,15 @@ class SmartSuiteClient
   include SmartSuite::API::ViewOperations
   include SmartSuite::Formatters::ResponseFormatter
 
+  # @!attribute [r] cache
+  #   @return [SmartSuite::Cache::Layer, nil] cache layer instance, or nil if caching disabled
+  #   @example Access cache status
+  #     client.cache.cache_valid?('tbl_123')
+  #
+  # @!attribute [r] stats_tracker
+  #   @return [ApiStatsTracker, nil] API statistics tracker instance
+  #   @example Get API stats
+  #     stats = client.stats_tracker.get_api_stats
   attr_reader :cache, :stats_tracker
 
   # Initialize a new SmartSuiteClient instance.
@@ -69,6 +78,16 @@ class SmartSuiteClient
   # @param cache_path [String, nil] Custom path for cache database (default: ~/.smartsuite_mcp_cache.db)
   # @param session_id [String, nil] Custom session ID for tracking (default: auto-generated)
   # @return [SmartSuiteClient] configured client instance
+  # @example Basic initialization
+  #   client = SmartSuiteClient.new(ENV['SMARTSUITE_API_KEY'], ENV['SMARTSUITE_ACCOUNT_ID'])
+  #
+  # @example With caching disabled
+  #   client = SmartSuiteClient.new(api_key, account_id, cache_enabled: false)
+  #
+  # @example With custom configuration
+  #   client = SmartSuiteClient.new(api_key, account_id,
+  #                                  cache_path: '/tmp/cache.db',
+  #                                  session_id: 'my_session')
   def initialize(api_key, account_id, stats_tracker: nil, cache_enabled: true, cache_path: nil, session_id: nil)
     @api_key = api_key
     @account_id = account_id
@@ -117,6 +136,15 @@ class SmartSuiteClient
   # @param tables [Array<String>, String, nil] Table IDs to warm, 'auto', or nil for auto mode
   # @param count [Integer] Number of tables in auto mode (default: 5)
   # @return [Hash] Warming results with progress and statistics
+  # @example Auto mode - warm top 5 accessed tables
+  #   result = client.warm_cache
+  #   # => {"status" => "completed", "summary" => {"total_tables" => 5, "warmed" => 3, "skipped" => 2}}
+  #
+  # @example Warm specific tables
+  #   result = client.warm_cache(tables: ['tbl_123', 'tbl_456'])
+  #
+  # @example Warm top 10 accessed tables
+  #   result = client.warm_cache(tables: 'auto', count: 10)
   def warm_cache(tables: nil, count: 5)
     return { 'error' => 'Cache is disabled' } unless cache_enabled?
 
