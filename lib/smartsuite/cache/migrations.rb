@@ -17,7 +17,6 @@ module SmartSuite
     module Migrations
       # Migrate old table name cached_table_schemas to cache_table_registry
       #
-      # @param db [SQLite3::Database] Database connection
       # @return [void]
       def migrate_table_rename_if_needed
         # Check if old table name exists
@@ -48,7 +47,6 @@ module SmartSuite
       # Checks each metadata table for INTEGER timestamp columns and migrates them
       # to TEXT format using ISO 8601 timestamps.
       #
-      # @param db [SQLite3::Database] Database connection
       # @return [void]
       def migrate_integer_timestamps_to_text
         # Check if any metadata tables have INTEGER timestamps (old format)
@@ -100,7 +98,6 @@ module SmartSuite
 
       # Migrate cache_table_registry timestamp columns from INTEGER to TEXT
       #
-      # @param db [SQLite3::Database] Database connection
       # @return [void]
       def migrate_cache_table_registry_timestamps
         # Create temp table with TEXT timestamps
@@ -128,7 +125,6 @@ module SmartSuite
 
       # Migrate cache_ttl_config timestamp columns from INTEGER to TEXT
       #
-      # @param db [SQLite3::Database] Database connection
       # @return [void]
       def migrate_cache_ttl_config_timestamps
         @db.execute_batch <<-SQL
@@ -152,7 +148,6 @@ module SmartSuite
 
       # Migrate cache_stats timestamp columns from INTEGER to TEXT
       #
-      # @param db [SQLite3::Database] Database connection
       # @return [void]
       def migrate_cache_stats_timestamps
         @db.execute_batch <<-SQL
@@ -181,7 +176,6 @@ module SmartSuite
 
       # Migrate api_call_log timestamp columns from INTEGER to TEXT
       #
-      # @param db [SQLite3::Database] Database connection
       # @return [void]
       def migrate_api_call_log_timestamps
         @db.execute_batch <<-SQL
@@ -209,7 +203,6 @@ module SmartSuite
 
       # Migrate api_stats_summary timestamp columns from INTEGER to TEXT
       #
-      # @param db [SQLite3::Database] Database connection
       # @return [void]
       def migrate_api_stats_summary_timestamps
         @db.execute_batch <<-SQL
