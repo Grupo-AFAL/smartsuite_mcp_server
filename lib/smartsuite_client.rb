@@ -12,6 +12,37 @@ require_relative 'smartsuite/api/view_operations'
 require_relative 'smartsuite/formatters/response_formatter'
 require_relative 'smartsuite/cache/layer'
 
+# SmartSuiteClient is the main client for interacting with the SmartSuite API.
+#
+# This class provides a unified interface for all SmartSuite operations by including
+# specialized operation modules. It handles authentication, caching, API statistics,
+# and response formatting.
+#
+# Key features:
+# - Workspace operations (solutions, usage analysis)
+# - Table operations (list, get, create)
+# - Record operations (CRUD)
+# - Field operations (add, update, delete fields)
+# - Member operations (list users, teams, search)
+# - Comment operations (list, add comments)
+# - View operations (get records, create views)
+# - SQLite-based caching with configurable TTL
+# - API statistics tracking with session support
+# - Token usage optimization via response filtering
+#
+# @example Basic usage
+#   client = SmartSuiteClient.new(api_key, account_id)
+#   solutions = client.list_solutions
+#   tables = client.list_tables
+#   records = client.list_records('tbl_123', 10, 0, fields: ['status', 'priority'])
+#
+# @example With caching disabled
+#   client = SmartSuiteClient.new(api_key, account_id, cache_enabled: false)
+#
+# @example With custom cache path and session ID
+#   client = SmartSuiteClient.new(api_key, account_id,
+#                                  cache_path: '/tmp/cache.db',
+#                                  session_id: 'my_session')
 class SmartSuiteClient
   include SmartSuite::API::HttpClient
   include SmartSuite::API::WorkspaceOperations
@@ -25,6 +56,19 @@ class SmartSuiteClient
 
   attr_reader :cache, :stats_tracker
 
+  # Initialize a new SmartSuiteClient instance.
+  #
+  # Creates a client with authentication credentials and optional caching.
+  # When caching is enabled, creates a SQLite database for persistent storage
+  # and shares it with the API statistics tracker.
+  #
+  # @param api_key [String] SmartSuite API key for authentication
+  # @param account_id [String] SmartSuite account ID
+  # @param stats_tracker [ApiStatsTracker, nil] Optional external stats tracker (used when cache disabled)
+  # @param cache_enabled [Boolean] Enable SQLite-based caching (default: true)
+  # @param cache_path [String, nil] Custom path for cache database (default: ~/.smartsuite_mcp_cache.db)
+  # @param session_id [String, nil] Custom session ID for tracking (default: auto-generated)
+  # @return [SmartSuiteClient] configured client instance
   def initialize(api_key, account_id, stats_tracker: nil, cache_enabled: true, cache_path: nil, session_id: nil)
     @api_key = api_key
     @account_id = account_id
@@ -56,6 +100,11 @@ class SmartSuiteClient
     end
   end
 
+  # Check if caching is enabled for this client.
+  #
+  # @return [Boolean] true if cache layer is initialized, false otherwise
+  # @example
+  #   client.cache_enabled? #=> true
   def cache_enabled?
     !@cache.nil?
   end
