@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module SmartSuite
   module MCP
     # ToolRegistry manages the MCP tool schemas for SmartSuite operations.
@@ -25,7 +27,7 @@ module SmartSuite
               },
               'fields' => {
                 'type' => 'array',
-                'items' => {'type' => 'string'},
+                'items' => { 'type' => 'string' },
                 'description' => 'Optional: Array of field names to request from API (e.g., ["id", "name", "permissions", "created_by"]). Available fields: name, slug, logo_color, logo_icon, description, permissions (with owners array), hidden, created, created_by, updated, updated_by, has_demo_data, status, automation_count, records_count, members_count, sharing_hash, sharing_password, sharing_enabled, sharing_allow_copy, applications_count, last_access, id, delete_date, deleted_by, template. When specified, only these fields are returned from API. When omitted, client-side filtering returns only essential fields (id, name, logo_icon, logo_color).'
               }
             },
@@ -99,7 +101,7 @@ module SmartSuite
               },
               'fields' => {
                 'type' => 'array',
-                'items' => {'type' => 'string'},
+                'items' => { 'type' => 'string' },
                 'description' => 'Optional: Array of field slugs to include in response (e.g., ["name", "id", "structure"]). When specified, only these fields are returned. When omitted, returns only essential fields (id, name, solution_id) for minimal token usage.'
               }
             },
@@ -146,7 +148,7 @@ module SmartSuite
                 }
               }
             },
-            'required' => ['solution_id', 'name']
+            'required' => %w[solution_id name]
           }
         }
       ].freeze
@@ -189,7 +191,7 @@ module SmartSuite
                     'direction' => {
                       'type' => 'string',
                       'description' => 'Sort direction: "asc" or "desc"',
-                      'enum' => ['asc', 'desc']
+                      'enum' => %w[asc desc]
                     }
                   }
                 }
@@ -210,7 +212,7 @@ module SmartSuite
                 'description' => 'Optional: If true, forces a direct API call even if cache is valid, and updates the cache with fresh data. Use this when you need guaranteed fresh data immediately after creating/updating/deleting records. Default: false (use cache when available).'
               }
             },
-            'required' => ['table_id', 'fields']
+            'required' => %w[table_id fields]
           }
         },
         {
@@ -228,7 +230,7 @@ module SmartSuite
                 'description' => 'The ID of the record to retrieve'
               }
             },
-            'required' => ['table_id', 'record_id']
+            'required' => %w[table_id record_id]
           }
         },
         {
@@ -246,7 +248,7 @@ module SmartSuite
                 'description' => 'The record data as key-value pairs (field_slug: value)'
               }
             },
-            'required' => ['table_id', 'data']
+            'required' => %w[table_id data]
           }
         },
         {
@@ -268,7 +270,7 @@ module SmartSuite
                 'description' => 'The record data to update as key-value pairs (field_slug: value)'
               }
             },
-            'required' => ['table_id', 'record_id', 'data']
+            'required' => %w[table_id record_id data]
           }
         },
         {
@@ -286,7 +288,7 @@ module SmartSuite
                 'description' => 'The ID of the record to delete'
               }
             },
-            'required' => ['table_id', 'record_id']
+            'required' => %w[table_id record_id]
           }
         }
       ].freeze
@@ -317,7 +319,7 @@ module SmartSuite
                 'description' => 'Optional: Enable automatic layout structure updates (default: true)'
               }
             },
-            'required' => ['table_id', 'field_data']
+            'required' => %w[table_id field_data]
           }
         },
         {
@@ -345,7 +347,7 @@ module SmartSuite
                 }
               }
             },
-            'required' => ['table_id', 'fields']
+            'required' => %w[table_id fields]
           }
         },
         {
@@ -367,7 +369,7 @@ module SmartSuite
                 'description' => 'Updated field configuration object with label, field_type, and params. Example: {"label": "Updated Label", "field_type": "textfield", "params": {"help_text": "New help text"}}'
               }
             },
-            'required' => ['table_id', 'slug', 'field_data']
+            'required' => %w[table_id slug field_data]
           }
         },
         {
@@ -385,7 +387,7 @@ module SmartSuite
                 'description' => 'The slug of the field to delete'
               }
             },
-            'required' => ['table_id', 'slug']
+            'required' => %w[table_id slug]
           }
         }
       ].freeze
@@ -466,7 +468,7 @@ module SmartSuite
               'time_range' => {
                 'type' => 'string',
                 'description' => 'Time range for statistics: "session" (current session only), "7d" (last 7 days), "all" (all time). Default: "all"',
-                'enum' => ['session', '7d', 'all']
+                'enum' => %w[session 7d all]
               }
             },
             'required' => []
@@ -504,7 +506,7 @@ module SmartSuite
               'resource' => {
                 'type' => 'string',
                 'description' => 'Resource type to refresh: "solutions" (all solutions), "tables" (table list), or "records" (table records)',
-                'enum' => ['solutions', 'tables', 'records']
+                'enum' => %w[solutions tables records]
               },
               'table_id' => {
                 'type' => 'string',
@@ -529,7 +531,7 @@ module SmartSuite
                 'oneOf' => [
                   {
                     'type' => 'array',
-                    'items' => {'type' => 'string'},
+                    'items' => { 'type' => 'string' },
                     'description' => 'Array of table IDs to warm'
                   },
                   {
@@ -589,7 +591,7 @@ module SmartSuite
                 'description' => 'Optional: User ID to assign the comment to. Use list_members to get user IDs.'
               }
             },
-            'required' => ['table_id', 'record_id', 'message']
+            'required' => %w[table_id record_id message]
           }
         }
       ].freeze
@@ -616,7 +618,7 @@ module SmartSuite
                 'description' => 'Optional: Whether to include empty field values in the response. Default: false.'
               }
             },
-            'required' => ['table_id', 'view_id']
+            'required' => %w[table_id view_id]
           }
         },
         {
@@ -678,7 +680,7 @@ module SmartSuite
                 'description' => 'Optional: Sharing settings for the view'
               }
             },
-            'required' => ['application', 'solution', 'label', 'view_mode']
+            'required' => %w[application solution label view_mode]
           }
         }
       ].freeze

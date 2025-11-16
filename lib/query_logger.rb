@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'logger'
 require 'fileutils'
 
@@ -24,7 +26,7 @@ class QueryLogger
         FileUtils.mkdir_p(File.dirname(LOG_FILE))
         logger = Logger.new(LOG_FILE, 'daily')
         logger.level = Logger::DEBUG
-        logger.formatter = proc do |severity, datetime, progname, msg|
+        logger.formatter = proc do |severity, datetime, _progname, msg|
           "[#{datetime.strftime('%Y-%m-%d %H:%M:%S.%L')}] #{severity.ljust(5)} #{msg}\n"
         end
         logger
@@ -120,6 +122,7 @@ class QueryLogger
     # Truncate JSON for logging
     def truncate_json(obj, max_length = 200)
       return nil if obj.nil?
+
       json = obj.is_a?(String) ? obj : obj.to_json
       json.length > max_length ? "#{json[0...max_length]}... (#{json.length} bytes)" : json
     end
@@ -127,6 +130,7 @@ class QueryLogger
     # Format bytes for human readability
     def format_bytes(bytes)
       return nil if bytes.nil?
+
       if bytes < 1024
         "#{bytes}B"
       elsif bytes < 1024 * 1024

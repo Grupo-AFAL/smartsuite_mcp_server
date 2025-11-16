@@ -13,6 +13,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [1.7.0] - 2025-01-15
+
+### Changed
+- **Modular cache layer architecture** (v1.7):
+  - Split `cache_layer.rb` (1646 lines) into focused modules
+  - Organized in dedicated `lib/smartsuite/cache/` directory following Ruby conventions:
+    - `SmartSuite::Cache::Layer` (923 lines) - Core caching interface
+    - `SmartSuite::Cache::Metadata` (459 lines) - Table registry, schema management, TTL config
+    - `SmartSuite::Cache::Performance` (131 lines) - Hit/miss tracking, statistics
+    - `SmartSuite::Cache::Migrations` (241 lines) - Schema migrations, data migration helpers
+    - `SmartSuite::Cache::Query` (272 lines) - Chainable query builder (previously separate)
+  - Uses Ruby module mixins for clean separation of concerns
+  - All cache classes properly namespaced under `SmartSuite::Cache` module
+  - All methods maintain backward compatibility
+  - Easier to navigate, test, and maintain
+  - No user-facing changes - internal refactoring only
+- **Deferred refactorings**:
+  - ResponseFormatter strategy pattern → v2.0 (will align with TOON format migration)
+  - FilterBuilder extraction → v1.8 (not critical for v1.7)
+  - API module refactoring → v1.8 (large task, deferred)
+  - Input validation → v1.8
+  - Integration tests → v1.8
+
+### Developer Experience
+- Improved code organization for cache layer
+- Clear module responsibilities reduce cognitive load
+- Foundation for future enhancements
+
+### Notes
+- This is a refactoring and polish release with no user-facing changes
+- All existing tests pass (84 runs, 401 assertions)
+- Cache database format remains unchanged
+- No migration required for existing installations
+
 ## [1.6.0] - 2025-11-15
 
 ### Added
@@ -175,7 +209,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite
 - Solution usage analysis tools
 
-[Unreleased]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.0.0...v1.5.0
 [1.0.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/releases/tag/v1.0.0

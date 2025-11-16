@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 source 'https://rubygems.org'
 
 ruby '>= 3.0.0'
@@ -12,6 +14,10 @@ gem 'sqlite3'
 # - time (stdlib)
 # - fileutils (stdlib)
 # - digest (stdlib)
+
+group :development do
+  gem 'rubocop', require: false
+end
 
 group :test do
   gem 'minitest'
