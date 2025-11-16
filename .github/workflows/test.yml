@@ -1,0 +1,55 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Run tests with coverage
+        run: bundle exec rake test
+
+      - name: Report coverage
+        run: |
+          if [ -f coverage/.last_run.json ]; then
+            COVERAGE=$(ruby -r json -e 'puts JSON.parse(File.read("coverage/.last_run.json"))["result"]["line"]')
+            echo "📊 Code Coverage: ${COVERAGE}%"
+            echo "🎯 Target: 90%"
+            GAP=$(echo "90 - $COVERAGE" | bc)
+            echo "📈 Gap: ${GAP}%"
+
+            # Baseline: 59.65% (current coverage)
+            # Don't fail build, just report status
+            if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
+              echo "🎉 Excellent coverage!"
+            elif (( $(echo "$COVERAGE >= 75" | bc -l) )); then
+              echo "✅ Good coverage"
+            elif (( $(echo "$COVERAGE >= 59.65" | bc -l) )); then
+              echo "⚠️  Coverage maintained at baseline"
+            else
+              echo "⚠️  Coverage dropped below baseline (59.65%)"
+            fi
+          else
+            echo "⚠️  No coverage report found"
+          fi
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/

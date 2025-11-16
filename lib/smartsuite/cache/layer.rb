@@ -11,6 +11,10 @@ require_relative 'performance'
 require_relative '../../query_logger'
 
 module SmartSuite
+  # Cache layer module
+  #
+  # Provides persistent SQLite-based caching for SmartSuite data.
+  # Includes cache layer, query builder, migrations, metadata management, and performance tracking.
   module Cache
     # Layer provides persistent SQLite-based caching for SmartSuite data.
     #
