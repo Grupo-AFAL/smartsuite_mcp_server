@@ -1,8 +1,8 @@
 # SmartSuite MCP Server - Product Roadmap
 
-**Last Updated:** January 16, 2026
-**Current Version:** 1.7.0
-**Next Release:** 1.8.0 (Q1 2026)
+**Last Updated:** November 16, 2025
+**Current Version:** 1.8.0
+**Next Release:** 2.0.0 (Q2 2026)
 **Decision Log:** See ROADMAP_DECISIONS.md for detailed analysis and decisions
 
 ## Vision
@@ -63,11 +63,38 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 - ✅ Updated documentation (CHANGELOG, ROADMAP)
 - ✅ No user-facing changes - internal refactoring only
 
+### v1.8 - Developer Experience & Quality (Completed - Nov 2025)
+
+#### Code Quality
+- ✅ FilterBuilder module extracted from cache layer
+- ✅ API::Base module with common helpers for all API operations
+- ✅ 35-40% code duplication eliminated across API modules
+- ✅ 22 new parameter validation calls added
+- ✅ Standardized response formats (ResponseFormats module)
+
+#### Testing
+- ✅ Comprehensive test coverage: 68.38% → 82.93% (+14.55%)
+- ✅ 99 new tests across 7 test files (404 total tests, 1,419 assertions)
+- ✅ Integration tests with workspace confirmation and credential isolation
+- ✅ All GitHub Actions passing (Tests, RuboCop, Security, Documentation)
+
+#### Documentation
+- ✅ Enhanced YARD documentation (100% coverage, 124 public methods)
+- ✅ Comprehensive troubleshooting guide (345 lines, 25+ FAQ entries)
+- ✅ Architecture documentation for response formats
+- ✅ Updated ROADMAP and CHANGELOG
+
+#### Developer Experience
+- ✅ Standardized response formats across all cache tools
+- ✅ Input validation comprehensive at API layer
+- ✅ CI/CD workflows for quality assurance
+- ✅ Security scanning, code quality checks, markdown linting
+
 ---
 
 ## Current Focus 🎯
 
-### v1.8 - Developer Experience & Quality (Q1 2026)
+### v2.0 - Performance & Scalability (Q2 2026)
 
 **Goal:** Improve developer experience and code quality based on v1.7 learnings
 
@@ -389,7 +416,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | v1.5    | ✅ Released  | Nov 2025    | 100%       |
 | v1.6    | ✅ Released  | Dec 2025    | 100%       |
 | v1.7    | ✅ Released  | Jan 2026    | 100%       |
-| v1.8    | 🚧 Current   | Q1 2026     | 100%       |
+| v1.8    | ✅ Released  | Nov 2025    | 100%       |
 | v2.0    | 📋 Planned   | Q2 2026     | 0%         |
 | v2.1    | 📋 Planned   | Q3 2026     | 0%         |
 | v2.2    | 📋 Planned   | Q3 2026     | 0%         |
