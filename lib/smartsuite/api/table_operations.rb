@@ -17,8 +17,22 @@ module SmartSuite
       #
       # @param solution_id [String, nil] Optional solution ID to filter tables
       # @param fields [Array<String>, nil] Optional array of field slugs to include in response
+      # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
       # @return [Hash] Tables with count and filtered data
-      def list_tables(solution_id: nil, fields: nil)
+      def list_tables(solution_id: nil, fields: nil, bypass_cache: false)
+        # Try cache first if enabled and no custom fields specified
+        if cache_enabled? && !bypass_cache && (fields.nil? || fields.empty?)
+          cached_tables = @cache.get_cached_table_list(solution_id)
+          if cached_tables
+            cache_key = solution_id ? "solution:#{solution_id}" : "all tables"
+            log_metric("✓ Cache hit: #{cached_tables.size} tables (#{cache_key})")
+            return format_tables_response(cached_tables, fields)
+          else
+            cache_key = solution_id ? "solution:#{solution_id}" : "all tables"
+            log_metric("→ Cache miss for #{cache_key}, fetching from API...")
+          end
+        end
+
         # Build endpoint with query parameters
         query_params = []
 
@@ -40,54 +54,52 @@ module SmartSuite
 
         response = api_request(:get, endpoint)
 
+        # Cache the response if cache enabled and no custom fields
+        if cache_enabled? && (fields.nil? || fields.empty?)
+          tables_list = response.is_a?(Hash) && response['items'] ? response['items'] : response
+          @cache.cache_table_list(solution_id, tables_list)
+          cache_key = solution_id ? "solution:#{solution_id}" : "all tables"
+          log_metric("✓ Cached #{tables_list.size} tables (#{cache_key})")
+        end
+
+        format_tables_response(response, fields)
+      end
+
+      private
+
+      # Format tables response with filtering
+      #
+      # @param response [Hash, Array] API response or cached tables
+      # @param fields [Array<String>] Specific fields requested
+      # @return [Hash] Formatted tables with count
+      def format_tables_response(response, fields)
+        # Handle both API response format and cached array format
+        tables_list = response.is_a?(Hash) && response['items'] ? response['items'] : response
+
         # When fields are specified, return full response from API
         # When no fields specified, filter to essential fields only (client-side optimization)
-        if response.is_a?(Hash) && response['items'].is_a?(Array)
-          if fields && !fields.empty?
-            # User requested specific fields - return as-is from API
-            tables = response['items']
-          else
-            # No fields specified - apply client-side filtering for essential fields only
-            tables = response['items'].map do |table|
-              {
-                'id' => table['id'],
-                'name' => table['name'],
-                'solution_id' => table['solution_id']
-              }
-            end
-          end
-
-          result = { 'tables' => tables, 'count' => tables.size }
-          tokens = estimate_tokens(JSON.generate(result))
-          log_metric("✓ Found #{tables.size} tables")
-          log_token_usage(tokens)
-          result
-        elsif response.is_a?(Array)
-          # If response is directly an array
-          if fields && !fields.empty?
-            # User requested specific fields - return as-is from API
-            tables = response
-          else
-            # No fields specified - apply client-side filtering for essential fields only
-            tables = response.map do |table|
-              {
-                'id' => table['id'],
-                'name' => table['name'],
-                'solution_id' => table['solution_id']
-              }
-            end
-          end
-
-          result = { 'tables' => tables, 'count' => tables.size }
-          tokens = estimate_tokens(JSON.generate(result))
-          log_metric("✓ Found #{tables.size} tables")
-          log_token_usage(tokens)
-          result
+        if fields && !fields.empty?
+          # User requested specific fields - return as-is
+          tables = tables_list
         else
-          # Return raw response if structure is unexpected
-          response
+          # No fields specified - apply client-side filtering for essential fields only
+          tables = tables_list.map do |table|
+            {
+              'id' => table['id'],
+              'name' => table['name'],
+              'solution_id' => table['solution_id']
+            }
+          end
         end
+
+        result = { 'tables' => tables, 'count' => tables.size }
+        tokens = estimate_tokens(JSON.generate(result))
+        log_metric("✓ Found #{tables.size} tables")
+        log_token_usage(tokens)
+        result
       end
+
+      public
 
       # Retrieves table structure with aggressive field filtering.
       #

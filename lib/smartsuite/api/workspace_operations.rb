@@ -20,8 +20,21 @@ module SmartSuite
       #
       # @param include_activity_data [Boolean] Include activity/usage fields (default: false)
       # @param fields [Array<String>] Specific fields to request from API (optional)
+      # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
       # @return [Hash] Solutions with count and filtered data
-      def list_solutions(include_activity_data: false, fields: nil)
+      def list_solutions(include_activity_data: false, fields: nil, bypass_cache: false)
+        # Try cache first if enabled and no custom fields specified
+        # (custom fields parameter doesn't work with API, so we fetch full data either way)
+        if cache_enabled? && !bypass_cache && fields.nil?
+          cached_solutions = @cache.get_cached_solutions
+          if cached_solutions
+            log_metric("✓ Cache hit: #{cached_solutions.size} solutions")
+            return format_solutions_response(cached_solutions, include_activity_data, fields)
+          else
+            log_metric("→ Cache miss for solutions, fetching from API...")
+          end
+        end
+
         # Build query parameters
         query_params = []
         if fields && fields.is_a?(Array)
@@ -35,18 +48,36 @@ module SmartSuite
 
         response = api_request(:get, endpoint)
 
+        # Cache the full response if cache enabled and no custom fields
+        if cache_enabled? && fields.nil?
+          solutions_list = response.is_a?(Hash) && response['items'] ? response['items'] : response
+          @cache.cache_solutions(solutions_list)
+          log_metric("✓ Cached #{solutions_list.size} solutions")
+        end
+
+        format_solutions_response(response, include_activity_data, fields)
+      end
+
+      private
+
+      # Format solutions response with filtering
+      #
+      # @param response [Hash, Array] API response or cached solutions
+      # @param include_activity_data [Boolean] Include activity/usage fields
+      # @param fields [Array<String>] Specific fields to request
+      # @return [Hash] Formatted solutions with count
+      def format_solutions_response(response, include_activity_data, fields)
+        # Handle both API response format and cached array format
+        solutions_list = response.is_a?(Hash) && response['items'] ? response['items'] : response
+
         # Debug: log what fields we got back
-        if fields && !fields.empty? && response.is_a?(Hash) && response['items'] && response['items'].first
-          log_metric("→ API returned fields: #{response['items'].first.keys.join(', ')}")
-        elsif fields && !fields.empty? && response.is_a?(Array) && response.first
-          log_metric("→ API returned fields: #{response.first.keys.join(', ')}")
+        if fields && !fields.empty? && solutions_list.is_a?(Array) && solutions_list.first
+          log_metric("→ Returned fields: #{solutions_list.first.keys.join(', ')}")
         end
 
         # If fields parameter was specified, filter response to only requested fields (client-side)
         # Note: /solutions/ endpoint doesn't respect fields parameter like /applications/ does
         if fields && !fields.empty?
-          solutions_list = response.is_a?(Hash) && response['items'] ? response['items'] : response
-
           # Filter each solution to only include requested fields
           filtered_solutions = solutions_list.map do |solution|
             filtered = {}
@@ -64,82 +95,44 @@ module SmartSuite
         end
 
         # Extract only essential fields to reduce response size (client-side filtering)
-        if response.is_a?(Hash) && response['items'].is_a?(Array)
-          solutions = response['items'].map do |solution|
-            base_fields = {
-              'id' => solution['id'],
-              'name' => solution['name'],
-              'logo_icon' => solution['logo_icon'],
-              'logo_color' => solution['logo_color']
-            }
+        solutions = solutions_list.map do |solution|
+          base_fields = {
+            'id' => solution['id'],
+            'name' => solution['name'],
+            'logo_icon' => solution['logo_icon'],
+            'logo_color' => solution['logo_color']
+          }
 
-            # Add activity/usage fields if requested
-            if include_activity_data
-              base_fields.merge!({
-                'status' => solution['status'],
-                'hidden' => solution['hidden'],
-                'last_access' => solution['last_access'],
-                'updated' => solution['updated'],
-                'created' => solution['created'],
-                'records_count' => solution['records_count'],
-                'members_count' => solution['members_count'],
-                'applications_count' => solution['applications_count'],
-                'automation_count' => solution['automation_count'],
-                'has_demo_data' => solution['has_demo_data'],
-                'delete_date' => solution['delete_date'],
-                'deleted_by' => solution['deleted_by'],
-                'updated_by' => solution['updated_by']
-              })
-            end
-
-            base_fields
+          # Add activity/usage fields if requested
+          if include_activity_data
+            base_fields.merge!({
+              'status' => solution['status'],
+              'hidden' => solution['hidden'],
+              'last_access' => solution['last_access'],
+              'updated' => solution['updated'],
+              'created' => solution['created'],
+              'records_count' => solution['records_count'],
+              'members_count' => solution['members_count'],
+              'applications_count' => solution['applications_count'],
+              'automation_count' => solution['automation_count'],
+              'has_demo_data' => solution['has_demo_data'],
+              'delete_date' => solution['delete_date'],
+              'deleted_by' => solution['deleted_by'],
+              'updated_by' => solution['updated_by']
+            })
           end
-          result = { 'solutions' => solutions, 'count' => solutions.size }
-          tokens = estimate_tokens(JSON.generate(result))
-          log_metric("✓ Found #{solutions.size} solutions")
-          log_token_usage(tokens)
-          result
-        elsif response.is_a?(Array)
-          # If response is directly an array
-          solutions = response.map do |solution|
-            base_fields = {
-              'id' => solution['id'],
-              'name' => solution['name'],
-              'logo_icon' => solution['logo_icon'],
-              'logo_color' => solution['logo_color']
-            }
 
-            # Add activity/usage fields if requested
-            if include_activity_data
-              base_fields.merge!({
-                'status' => solution['status'],
-                'hidden' => solution['hidden'],
-                'last_access' => solution['last_access'],
-                'updated' => solution['updated'],
-                'created' => solution['created'],
-                'records_count' => solution['records_count'],
-                'members_count' => solution['members_count'],
-                'applications_count' => solution['applications_count'],
-                'automation_count' => solution['automation_count'],
-                'has_demo_data' => solution['has_demo_data'],
-                'delete_date' => solution['delete_date'],
-                'deleted_by' => solution['deleted_by'],
-                'updated_by' => solution['updated_by']
-              })
-            end
-
-            base_fields
-          end
-          result = { 'solutions' => solutions, 'count' => solutions.size }
-          tokens = estimate_tokens(JSON.generate(result))
-          log_metric("✓ Found #{solutions.size} solutions")
-          log_token_usage(tokens)
-          result
-        else
-          # Return raw response if structure is unexpected
-          response
+          base_fields
         end
+
+        result = { 'solutions' => solutions, 'count' => solutions.size }
+        tokens = estimate_tokens(JSON.generate(result))
+        log_metric("✓ Found #{solutions.size} solutions")
+        log_token_usage(tokens)
+        result
       end
+
+      public
 
       # Retrieves a specific solution by ID.
       #

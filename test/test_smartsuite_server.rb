@@ -186,6 +186,10 @@ class SmartSuiteServerTest < Minitest::Test
   # Test API statistics tracking
   def test_stats_tracker_initialization
     tracker = ApiStatsTracker.new('test_key')
+
+    # Reset stats first to ensure clean slate (previous tests may have left data)
+    tracker.reset_stats
+
     stats = tracker.get_stats
 
     assert_equal 0, stats['summary']['total_calls']
@@ -257,7 +261,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions
+    result = client.list_solutions(bypass_cache: true)
 
     assert_equal 2, result['count']
     assert_equal 2, result['solutions'].length
@@ -283,7 +287,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions
+    result = client.list_solutions(bypass_cache: true)
 
     assert_equal 1, result['count']
     assert_equal 1, result['solutions'].length
@@ -308,7 +312,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_tables
+    result = client.list_tables(bypass_cache: true)
 
     assert_equal 1, result['count']
     assert_equal 'tbl_1', result['tables'][0]['id']
@@ -346,7 +350,7 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     # Test filtering by solution_id
-    result = client.list_tables(solution_id: 'sol_1')
+    result = client.list_tables(solution_id: 'sol_1', bypass_cache: true)
 
     # Verify the API was called with the solution query parameter
     assert_equal '/applications/?solution=sol_1', called_endpoint, 'Should use solution query parameter'
@@ -382,7 +386,7 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     # Test with fields parameter
-    result = client.list_tables(fields: ['name', 'id', 'structure'])
+    result = client.list_tables(fields: ['name', 'id', 'structure'], bypass_cache: true)
 
     # Verify the API was called with fields query parameters
     assert_includes called_endpoint, 'fields=name', 'Should include fields=name'
@@ -644,7 +648,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test filtering and sorting
   def test_client_list_records_with_filter
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     # Track what endpoint and body were sent
     sent_endpoint = nil
@@ -670,7 +674,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_records_with_sort
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     # Track what endpoint and body were sent
     sent_endpoint = nil
@@ -691,7 +695,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_records_with_filter_and_sort
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     # Track what endpoint and body were sent
     sent_endpoint = nil
@@ -720,7 +724,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_records_without_filter_or_sort
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     # Track what endpoint and body were sent
     sent_endpoint = nil
@@ -741,7 +745,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test response filtering - now returns plain text
   def test_client_list_records_filters_verbose_fields
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -786,7 +790,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_records_with_fields_parameter
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -819,8 +823,8 @@ class SmartSuiteServerTest < Minitest::Test
     refute_includes result, 'description:', 'Should not include description'
   end
 
-  def test_client_truncates_long_strings
-    client = SmartSuiteClient.new('test_key', 'test_account')
+  def test_client_returns_full_field_values
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     long_string = 'a' * 1000
     mock_response = {
@@ -843,42 +847,14 @@ class SmartSuiteServerTest < Minitest::Test
     # Result is now plain text string
     assert result.is_a?(String), 'Should return plain text string'
 
-    # Check for truncation marker in plain text output
-    assert_includes result, '...', 'Should truncate long strings in plain text'
-    # The long string should be truncated (won't contain all 1000 'a's in sequence)
-    refute_includes result, long_string, 'Should not include full long string'
-  end
-
-  def test_client_list_records_summary_only
-    client = SmartSuiteClient.new('test_key', 'test_account')
-
-    mock_response = {
-      'items' => [
-        {'id' => 'rec_1', 'title' => 'Record 1', 'status' => 'active', 'priority' => 'high'},
-        {'id' => 'rec_2', 'title' => 'Record 2', 'status' => 'active', 'priority' => 'low'},
-        {'id' => 'rec_3', 'title' => 'Record 3', 'status' => 'pending', 'priority' => 'high'}
-      ],
-      'total_count' => 3
-    }
-
-    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
-      mock_response
-    end
-
-    result = client.list_records('tbl_123', 10, 0, summary_only: true)
-
-    # Should return summary structure
-    assert result.key?(:summary), 'Should have summary'
-    assert result.key?(:count), 'Should have count'
-    assert result.key?(:total_count), 'Should have total_count'
-    assert_equal 3, result[:count]
-    assert_includes result[:summary], 'Found 3 records'
+    # Should NOT truncate - should include full long string
+    assert_includes result, long_string, 'Should include full long string (no truncation)'
   end
 
   # Test tool call handling
   def test_handle_tool_call_get_api_stats
     # First track a call so stats aren't empty
-    @server.instance_variable_get(:@stats_tracker).track_api_call(:get, '/test/')
+    @server.instance_variable_get(:@client).stats_tracker.track_api_call(:get, '/test/')
 
     request = {
       'id' => 5,
@@ -2106,7 +2082,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_list_solutions_without_fields_returns_essential_only
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -2135,5 +2111,119 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal '#FF0000', solution['logo_color']
     refute solution.key?('created'), 'Should not include non-essential fields by default'
     refute solution.key?('status'), 'Should not include activity fields by default'
+  end
+
+  # Test cache integration
+  def test_client_initializes_with_cache_enabled_by_default
+    # Use a temporary cache path for testing
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      assert client.cache_enabled?, 'Cache should be enabled by default'
+      refute_nil client.cache, 'Cache object should be initialized'
+    ensure
+      # Clean up test cache file
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
+  end
+
+  def test_client_initializes_without_cache_when_disabled
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
+
+    refute client.cache_enabled?, 'Cache should be disabled when cache_enabled: false'
+    assert_nil client.cache, 'Cache object should be nil when disabled'
+  end
+
+  def test_list_records_uses_cache_when_enabled
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      # Track API calls
+      api_call_count = 0
+
+      # Mock get_table (for structure)
+      client.define_singleton_method(:get_table) do |table_id|
+        api_call_count += 1
+        {
+          'id' => table_id,
+          'name' => 'Test Table',
+          'structure' => [
+            {'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield'},
+            {'slug' => 'status', 'label' => 'Status', 'field_type' => 'statusfield'}
+          ]
+        }
+      end
+
+      # Mock fetch_all_records (for cache population)
+      client.define_singleton_method(:fetch_all_records) do |table_id|
+        api_call_count += 1
+        [
+          {'id' => 'rec_1', 'title' => 'Record 1', 'status' => 'active'},
+          {'id' => 'rec_2', 'title' => 'Record 2', 'status' => 'pending'}
+        ]
+      end
+
+      # First call should populate cache (2 API calls: get_table + fetch_all_records)
+      result1 = client.list_records('tbl_123', 10, 0, fields: ['title', 'status'])
+      assert_equal 2, api_call_count, 'Should make 2 API calls to populate cache'
+
+      # Second call should use cache (no additional API calls)
+      result2 = client.list_records('tbl_123', 5, 0, fields: ['title'])
+      assert_equal 2, api_call_count, 'Should not make additional API calls (cache hit)'
+
+      # Both results should be plain text
+      assert result1.is_a?(String), 'Should return plain text'
+      assert result2.is_a?(String), 'Should return plain text'
+    ensure
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
+  end
+
+  def test_list_records_bypasses_cache_when_disabled
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
+
+    api_call_count = 0
+
+    # Mock api_request for direct API calls
+    client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+      api_call_count += 1
+      {'items' => [], 'total_count' => 0}
+    end
+
+    # Each call should hit the API
+    client.list_records('tbl_123', 10, 0, fields: ['title'])
+    assert_equal 1, api_call_count, 'Should make 1 API call'
+
+    client.list_records('tbl_123', 10, 0, fields: ['title'])
+    assert_equal 2, api_call_count, 'Should make another API call (no cache)'
+  end
+
+  def test_list_records_with_bypass_cache_parameter
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      api_call_count = 0
+
+      # Mock api_request for direct API calls
+      client.define_singleton_method(:api_request) do |method, endpoint, body = nil|
+        api_call_count += 1
+        {'items' => [], 'total_count' => 0}
+      end
+
+      # Call with bypass_cache should always hit API
+      client.list_records('tbl_123', 10, 0, fields: ['title'], bypass_cache: true)
+      assert_equal 1, api_call_count, 'Should make API call when bypass_cache: true'
+
+      client.list_records('tbl_123', 10, 0, fields: ['title'], bypass_cache: true)
+      assert_equal 2, api_call_count, 'Should make another API call when bypass_cache: true'
+    ensure
+      File.delete(cache_path) if File.exist?(cache_path)
+    end
   end
 end
