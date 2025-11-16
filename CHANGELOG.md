@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Converts SmartSuite API filter format to cache query conditions
   - Supports 20+ comparison operators (is, is_not, contains, is_greater_than, etc.)
   - 30 test cases with comprehensive edge case coverage
+- **Manual integration tests** (`test/integration/`) - Real API validation:
+  - Comprehensive integration test suite for all major operations
+  - Tests workspace, table, record, member, cache, and stats operations
+  - Validates API contract assumptions against real SmartSuite API
+  - Run manually with test credentials (not in CI)
+  - Includes detailed README with setup instructions and troubleshooting
+  - 18 test cases covering happy paths and error scenarios
 
 ### Changed
 
