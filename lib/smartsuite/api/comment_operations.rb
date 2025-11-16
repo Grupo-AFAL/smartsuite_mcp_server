@@ -1,44 +1,51 @@
 # frozen_string_literal: true
 
+require_relative 'base'
+
 module SmartSuite
   module API
-    # CommentOperations handles comment-related API calls
-    # Comments are associated with records and support rich text formatting
+    # CommentOperations handles comment-related API calls.
+    #
+    # Comments are associated with records and support rich text formatting.
+    # Uses Base module for common API patterns (validation, endpoint building).
     module CommentOperations
-      # List all comments for a specific record
+      include Base
+      # List all comments for a specific record.
       #
       # @param record_id [String] The ID of the record
       # @return [Hash] API response containing array of comment objects
+      # @raise [ArgumentError] If record_id is nil or empty
       # @raise [RuntimeError] If the API request fails
-      #
-      # GET /api/v1/comments/?record=[Record_Id]
+      # @example
+      #   list_comments("rec_abc123")
       def list_comments(record_id)
-        raise ArgumentError, 'record_id is required' if record_id.nil? || record_id.empty?
+        validate_required_parameter!('record_id', record_id)
 
-        endpoint = "/comments/?record=#{record_id}"
+        endpoint = build_endpoint('/comments/', record: record_id)
         api_request(:get, endpoint)
       end
 
-      # Add a comment to a record
+      # Add a comment to a record.
+      #
+      # Automatically converts plain text messages to SmartSuite's rich text format (TipTap/ProseMirror).
       #
       # @param table_id [String] The ID of the table/application
       # @param record_id [String] The ID of the record
       # @param message [String] The comment text (plain text will be converted to rich text format)
       # @param assigned_to [String, nil] Optional user ID to assign the comment to
       # @return [Hash] API response containing the created comment object
+      # @raise [ArgumentError] If required parameters are nil or empty
       # @raise [RuntimeError] If the API request fails
+      # @example Basic usage
+      #   add_comment("tbl_123", "rec_456", "This is a comment")
       #
-      # POST /api/v1/comments/
-      #
-      # Example:
-      #   add_comment("app123", "rec456", "This is a comment", nil)
-      #   add_comment("app123", "rec456", "Review needed", "user789")
+      # @example With assignment
+      #   add_comment("tbl_123", "rec_456", "Review needed", "user_789")
       def add_comment(table_id, record_id, message, assigned_to = nil)
-        raise ArgumentError, 'table_id is required' if table_id.nil? || table_id.empty?
-        raise ArgumentError, 'record_id is required' if record_id.nil? || record_id.empty?
-        raise ArgumentError, 'message is required' if message.nil? || message.empty?
+        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!('record_id', record_id)
+        validate_required_parameter!('message', message)
 
-        endpoint = '/comments/'
         body = {
           'assigned_to' => assigned_to,
           'message' => format_message(message),
@@ -46,7 +53,7 @@ module SmartSuite
           'record' => record_id
         }
 
-        api_request(:post, endpoint, body)
+        api_request(:post, '/comments/', body)
       end
 
       private
