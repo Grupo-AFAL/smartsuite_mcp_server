@@ -1378,6 +1378,46 @@ module SmartSuite
       end
     end
 
+    # Refresh (invalidate) cache for specific resources
+    #
+    # Invalidates cache without refetching - data will be refreshed on next access.
+    # Useful for forcing fresh data when you know it has changed.
+    #
+    # @param resource [String] Resource type: 'solutions', 'tables', or 'records'
+    # @param table_id [String, nil] Table ID (required for 'records' resource)
+    # @param solution_id [String, nil] Solution ID (optional for 'tables' resource)
+    # @return [Hash] Refresh result with invalidated resource info
+    def refresh_cache(resource, table_id: nil, solution_id: nil)
+      case resource
+      when 'solutions'
+        invalidate_solutions_cache
+        {
+          'refreshed' => 'solutions',
+          'message' => 'All solutions cache invalidated. Will refresh on next access.',
+          'timestamp' => Time.now.utc.iso8601
+        }
+      when 'tables'
+        invalidate_table_list_cache(solution_id)
+        {
+          'refreshed' => 'tables',
+          'solution_id' => solution_id,
+          'message' => solution_id ? "Table list for solution #{solution_id} invalidated." : "All tables cache invalidated.",
+          'timestamp' => Time.now.utc.iso8601
+        }
+      when 'records'
+        raise ArgumentError, "table_id is required for refreshing records cache" unless table_id
+        invalidate_table_cache(table_id, structure_changed: false)
+        {
+          'refreshed' => 'records',
+          'table_id' => table_id,
+          'message' => "Records cache for table #{table_id} invalidated. Will refresh on next access.",
+          'timestamp' => Time.now.utc.iso8601
+        }
+      else
+        raise ArgumentError, "Unknown resource type: #{resource}. Use 'solutions', 'tables', or 'records'"
+      end
+    end
+
     # Get cache status for solutions, tables, and records
     #
     # Shows cached_at, expires_at, time_remaining, record_count for each cached resource.

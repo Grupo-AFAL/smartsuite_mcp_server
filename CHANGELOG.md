@@ -61,6 +61,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `filter_overdue_tasks`: Example for filtering overdue tasks using due date fields
   - Each prompt includes complete filter syntax, operator guidance, and cache-awareness notes
   - Provides AI assistants with comprehensive examples of common filter patterns
+- **New `refresh_cache` tool** (v1.6):
+  - MCP tool to manually refresh (invalidate) cache for specific resources
+  - Supports three resource types: 'solutions', 'tables', 'records'
+  - Invalidates cache without refetching - data refreshes on next access
+  - For 'solutions': Invalidates all solutions cache
+  - For 'tables': Invalidates table list cache (optional solution_id parameter)
+  - For 'records': Invalidates table records cache (requires table_id parameter)
+  - Tracks refresh history via existing cache_stats mechanism
+  - Returns structured response with timestamp and confirmation message
+  - Useful for forcing fresh data when you know it has changed
 
 ### Changed
 - **Increased cache TTL values** for better performance (v1.6):
