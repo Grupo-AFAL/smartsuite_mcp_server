@@ -34,7 +34,7 @@ class TestHttpClient < Minitest::Test
 
   # Test successful GET request
   def test_api_request_get_success
-    stub_request(:get, "https://app.smartsuite.com/api/v1/solutions/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/solutions/')
       .with(
         headers: {
           'Authorization' => 'Token test_api_key',
@@ -50,7 +50,7 @@ class TestHttpClient < Minitest::Test
 
     result = @client.api_request(:get, '/solutions/')
 
-    assert result.is_a?(Hash), "Expected Hash response"
+    assert result.is_a?(Hash), 'Expected Hash response'
     assert result.key?('items'), "Expected 'items' key"
     assert_equal 1, result['items'].size
     assert_equal 'sol_123', result['items'][0]['id']
@@ -60,7 +60,7 @@ class TestHttpClient < Minitest::Test
   def test_api_request_post_with_body
     request_body = { filter: { operator: 'and', fields: [] } }
 
-    stub_request(:post, "https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10")
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10')
       .with(
         headers: {
           'Authorization' => 'Token test_api_key',
@@ -85,7 +85,7 @@ class TestHttpClient < Minitest::Test
   def test_api_request_put
     update_data = { label: 'Updated Label' }
 
-    stub_request(:put, "https://app.smartsuite.com/api/v1/applications/tbl_123/change_field/")
+    stub_request(:put, 'https://app.smartsuite.com/api/v1/applications/tbl_123/change_field/')
       .with(
         headers: {
           'Authorization' => 'Token test_api_key',
@@ -104,7 +104,7 @@ class TestHttpClient < Minitest::Test
   def test_api_request_patch
     patch_data = { status: 'active' }
 
-    stub_request(:patch, "https://app.smartsuite.com/api/v1/records/rec_123/")
+    stub_request(:patch, 'https://app.smartsuite.com/api/v1/records/rec_123/')
       .with(body: patch_data.to_json)
       .to_return(status: 200, body: '{"updated": true}')
 
@@ -115,7 +115,7 @@ class TestHttpClient < Minitest::Test
 
   # Test DELETE request
   def test_api_request_delete
-    stub_request(:delete, "https://app.smartsuite.com/api/v1/applications/tbl_123/delete_field/")
+    stub_request(:delete, 'https://app.smartsuite.com/api/v1/applications/tbl_123/delete_field/')
       .to_return(status: 200, body: '{"deleted": true}')
 
     result = @client.api_request(:delete, '/applications/tbl_123/delete_field/')
@@ -125,40 +125,40 @@ class TestHttpClient < Minitest::Test
 
   # Test empty response handling
   def test_api_request_empty_response
-    stub_request(:post, "https://app.smartsuite.com/api/v1/applications/tbl_123/add_field/")
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/add_field/')
       .to_return(status: 200, body: '')
 
     result = @client.api_request(:post, '/applications/tbl_123/add_field/', { field_data: {} })
 
-    assert_equal({}, result, "Empty response should return empty hash")
+    assert_equal({}, result, 'Empty response should return empty hash')
   end
 
   # Test whitespace-only response
   def test_api_request_whitespace_response
-    stub_request(:get, "https://app.smartsuite.com/api/v1/test/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/test/')
       .to_return(status: 200, body: '   ')
 
     result = @client.api_request(:get, '/test/')
 
-    assert_equal({}, result, "Whitespace response should return empty hash")
+    assert_equal({}, result, 'Whitespace response should return empty hash')
   end
 
   # Test error response (4xx)
   def test_api_request_client_error
-    stub_request(:get, "https://app.smartsuite.com/api/v1/invalid/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/invalid/')
       .to_return(status: 404, body: '{"error": "Not found"}')
 
     error = assert_raises(RuntimeError) do
       @client.api_request(:get, '/invalid/')
     end
 
-    assert_includes error.message, '404', "Error should include status code"
-    assert_includes error.message, 'API request failed', "Error should include failure message"
+    assert_includes error.message, '404', 'Error should include status code'
+    assert_includes error.message, 'API request failed', 'Error should include failure message'
   end
 
   # Test error response (5xx)
   def test_api_request_server_error
-    stub_request(:post, "https://app.smartsuite.com/api/v1/records/")
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/records/')
       .to_return(status: 500, body: 'Internal Server Error')
 
     error = assert_raises(RuntimeError) do
@@ -170,7 +170,7 @@ class TestHttpClient < Minitest::Test
 
   # Test rate limit error
   def test_api_request_rate_limit_error
-    stub_request(:get, "https://app.smartsuite.com/api/v1/solutions/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/solutions/')
       .to_return(status: 429, body: '{"error": "Rate limit exceeded"}')
 
     error = assert_raises(RuntimeError) do
@@ -182,7 +182,7 @@ class TestHttpClient < Minitest::Test
 
   # Test invalid JSON response
   def test_api_request_invalid_json
-    stub_request(:get, "https://app.smartsuite.com/api/v1/test/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/test/')
       .to_return(status: 200, body: 'not valid json{')
 
     error = assert_raises(JSON::ParserError) do
@@ -200,7 +200,7 @@ class TestHttpClient < Minitest::Test
 
     @client.stats_tracker = stats_tracker
 
-    stub_request(:get, "https://app.smartsuite.com/api/v1/solutions/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/solutions/')
       .to_return(status: 200, body: '{}')
 
     @client.api_request(:get, '/solutions/')
@@ -212,7 +212,7 @@ class TestHttpClient < Minitest::Test
   def test_api_request_without_stats_tracker
     @client.stats_tracker = nil
 
-    stub_request(:get, "https://app.smartsuite.com/api/v1/solutions/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/solutions/')
       .to_return(status: 200, body: '{}')
 
     # Should not raise error even without stats tracker
@@ -223,7 +223,7 @@ class TestHttpClient < Minitest::Test
 
   # Test headers are set correctly
   def test_api_request_headers
-    stub_request(:get, "https://app.smartsuite.com/api/v1/test/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/test/')
       .with(
         headers: {
           'Authorization' => 'Token test_api_key',
@@ -236,12 +236,12 @@ class TestHttpClient < Minitest::Test
     @client.api_request(:get, '/test/')
 
     # If headers weren't correct, WebMock would raise an error
-    assert true, "Headers were set correctly"
+    assert true, 'Headers were set correctly'
   end
 
   # Test request without body
   def test_api_request_get_without_body
-    stub_request(:get, "https://app.smartsuite.com/api/v1/test/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/test/')
       .to_return(status: 200, body: '{"result": "ok"}')
 
     result = @client.api_request(:get, '/test/')
@@ -261,7 +261,7 @@ class TestHttpClient < Minitest::Test
       'number' => 42.5
     }
 
-    stub_request(:get, "https://app.smartsuite.com/api/v1/test/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/test/')
       .to_return(status: 200, body: complex_response.to_json)
 
     result = @client.api_request(:get, '/test/')
@@ -278,8 +278,8 @@ class TestHttpClient < Minitest::Test
     @client.log_metric('Test message')
 
     output = @client.metrics_log.string
-    assert_includes output, 'Test message', "Log should contain message"
-    assert_match(/\[\d{2}:\d{2}:\d{2}\]/, output, "Log should contain timestamp")
+    assert_includes output, 'Test message', 'Log should contain message'
+    assert_match(/\[\d{2}:\d{2}:\d{2}\]/, output, 'Log should contain timestamp')
   end
 
   # Test log_token_usage
@@ -289,12 +289,12 @@ class TestHttpClient < Minitest::Test
 
     @client.log_token_usage(500)
 
-    assert_equal 1500, @client.total_tokens_used, "Should update total tokens"
+    assert_equal 1500, @client.total_tokens_used, 'Should update total tokens'
 
     output = @client.metrics_log.string
-    assert_includes output, '+500', "Should log tokens used"
-    assert_includes output, '1500', "Should log total"
-    assert_includes output, '198500', "Should log remaining (200000 - 1500)"
+    assert_includes output, '+500', 'Should log tokens used'
+    assert_includes output, '1500', 'Should log total'
+    assert_includes output, '198500', 'Should log remaining (200000 - 1500)'
   end
 
   # Test log_token_usage at context limit
@@ -312,7 +312,7 @@ class TestHttpClient < Minitest::Test
   def test_api_request_ssl_configuration
     # We can't directly test SSL settings, but we can verify the request succeeds
     # with our WebMock stub (which doesn't use real SSL)
-    stub_request(:get, "https://app.smartsuite.com/api/v1/test/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/test/')
       .to_return(status: 200, body: '{}')
 
     result = @client.api_request(:get, '/test/')
@@ -322,7 +322,7 @@ class TestHttpClient < Minitest::Test
 
   # Test network timeout/connection error handling
   def test_api_request_network_error
-    stub_request(:get, "https://app.smartsuite.com/api/v1/test/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/test/')
       .to_timeout
 
     error = assert_raises(StandardError) do
@@ -351,7 +351,7 @@ class TestHttpClient < Minitest::Test
 
   # Test that body is only sent with POST/PUT/PATCH/DELETE, not GET
   def test_api_request_get_ignores_body
-    stub_request(:get, "https://app.smartsuite.com/api/v1/test/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/test/')
       .to_return(status: 200, body: '{}')
 
     # GET with body parameter (should be ignored by HTTP spec)

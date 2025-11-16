@@ -14,7 +14,7 @@ class TestPromptRegistry < Minitest::Test
     assert_equal 1, response['id']
     assert response['result'].key?('prompts')
     assert response['result']['prompts'].is_a?(Array)
-    assert response['result']['prompts'].size >= 10, "Should have at least 10 prompts"
+    assert response['result']['prompts'].size >= 10, 'Should have at least 10 prompts'
   end
 
   def test_prompts_list_includes_filter_active_records
@@ -24,7 +24,7 @@ class TestPromptRegistry < Minitest::Test
     prompts = response['result']['prompts']
 
     prompt = prompts.find { |p| p['name'] == 'filter_active_records' }
-    assert prompt, "Should include filter_active_records prompt"
+    assert prompt, 'Should include filter_active_records prompt'
     assert_equal 'Example: Filter records where status is "active"', prompt['description']
     assert prompt['arguments'].is_a?(Array)
   end
@@ -295,7 +295,7 @@ class TestPromptRegistry < Minitest::Test
     text = SmartSuite::MCP::PromptRegistry.generate_prompt_text('filter_by_recent_updates', arguments)
 
     assert_includes text, 'tbl_123'
-    assert_includes text, 's5b629ed5f', "Should use system Last Updated field"
+    assert_includes text, 's5b629ed5f', 'Should use system Last Updated field'
     assert_includes text, 'is_on_or_after'
     assert_includes text, 'exact_date'
   end
@@ -364,6 +364,6 @@ class TestPromptRegistry < Minitest::Test
     names = SmartSuite::MCP::PromptRegistry::PROMPTS.map { |p| p['name'] }
     unique_names = names.uniq
 
-    assert_equal unique_names.size, names.size, "All prompt names should be unique"
+    assert_equal unique_names.size, names.size, 'All prompt names should be unique'
   end
 end

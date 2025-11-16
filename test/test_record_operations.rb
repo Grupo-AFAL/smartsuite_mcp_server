@@ -27,7 +27,7 @@ class TestRecordOperations < Minitest::Test
       client.list_records(nil, 10, 0, fields: ['status'])
     end
 
-    assert_includes error.message, 'table_id', "Should mention missing parameter"
+    assert_includes error.message, 'table_id', 'Should mention missing parameter'
   end
 
   # Test list_records requires fields parameter
@@ -35,9 +35,9 @@ class TestRecordOperations < Minitest::Test
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
     result = client.list_records('tbl_123', 10, 0)
 
-    assert result.is_a?(String), "Should return string error message"
-    assert_includes result, 'ERROR', "Should indicate error"
-    assert_includes result, 'fields', "Should mention missing fields parameter"
+    assert result.is_a?(String), 'Should return string error message'
+    assert_includes result, 'ERROR', 'Should indicate error'
+    assert_includes result, 'fields', 'Should mention missing fields parameter'
   end
 
   # Test list_records with bypass_cache
@@ -45,7 +45,7 @@ class TestRecordOperations < Minitest::Test
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
 
     # Stub direct API call
-    stub_request(:post, "https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true")
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true')
       .to_return(
         status: 200,
         body: { items: [{ id: 'rec_1', status: 'active' }] }.to_json
@@ -53,14 +53,14 @@ class TestRecordOperations < Minitest::Test
 
     result = client.list_records('tbl_123', 10, 0, fields: ['status'], bypass_cache: true)
 
-    assert result.is_a?(String), "Should return plain text"
+    assert result.is_a?(String), 'Should return plain text'
   end
 
   # Test list_records with sort
   def test_list_records_with_sort
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
 
-    stub_request(:post, "https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true")
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true')
       .with(
         body: hash_including(
           'sort' => [{ 'field' => 'priority', 'direction' => 'desc' }]
@@ -74,14 +74,14 @@ class TestRecordOperations < Minitest::Test
     sort = [{ 'field' => 'priority', 'direction' => 'desc' }]
     result = client.list_records('tbl_123', 10, 0, sort: sort, fields: ['priority'], bypass_cache: true)
 
-    assert result.is_a?(String), "Should return plain text"
+    assert result.is_a?(String), 'Should return plain text'
   end
 
   # Test list_records with pagination
   def test_list_records_with_pagination
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
 
-    stub_request(:post, "https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=5&offset=10&hydrated=true")
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=5&offset=10&hydrated=true')
       .to_return(
         status: 200,
         body: { items: [] }.to_json
@@ -89,14 +89,14 @@ class TestRecordOperations < Minitest::Test
 
     result = client.list_records('tbl_123', 5, 10, fields: ['status'], bypass_cache: true)
 
-    assert result.is_a?(String), "Should handle pagination"
+    assert result.is_a?(String), 'Should handle pagination'
   end
 
   # Test get_record success
   def test_get_record_success
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
 
-    stub_request(:get, "https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
       .to_return(
         status: 200,
         body: { id: 'rec_456', title: 'Test Record' }.to_json
@@ -104,7 +104,7 @@ class TestRecordOperations < Minitest::Test
 
     result = client.get_record('tbl_123', 'rec_456')
 
-    assert result.is_a?(Hash), "Should return hash"
+    assert result.is_a?(Hash), 'Should return hash'
     assert_equal 'rec_456', result['id']
     assert_equal 'Test Record', result['title']
   end
@@ -136,7 +136,7 @@ class TestRecordOperations < Minitest::Test
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
     data = { 'title' => 'New Task', 'status' => 'Active' }
 
-    stub_request(:post, "https://app.smartsuite.com/api/v1/applications/tbl_123/records/")
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/')
       .with(body: data.to_json)
       .to_return(
         status: 200,
@@ -145,7 +145,7 @@ class TestRecordOperations < Minitest::Test
 
     result = client.create_record('tbl_123', data)
 
-    assert result.is_a?(Hash), "Should return hash"
+    assert result.is_a?(Hash), 'Should return hash'
     assert_equal 'rec_new', result['id']
     assert_equal 'New Task', result['title']
   end
@@ -188,7 +188,7 @@ class TestRecordOperations < Minitest::Test
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
     data = { 'status' => 'Completed' }
 
-    stub_request(:patch, "https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/")
+    stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
       .with(body: data.to_json)
       .to_return(
         status: 200,
@@ -197,7 +197,7 @@ class TestRecordOperations < Minitest::Test
 
     result = client.update_record('tbl_123', 'rec_456', data)
 
-    assert result.is_a?(Hash), "Should return hash"
+    assert result.is_a?(Hash), 'Should return hash'
     assert_equal 'Completed', result['status']
   end
 
@@ -249,7 +249,7 @@ class TestRecordOperations < Minitest::Test
   def test_delete_record_success
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
 
-    stub_request(:delete, "https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/")
+    stub_request(:delete, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
       .to_return(
         status: 200,
         body: { deleted: true }.to_json
@@ -257,7 +257,7 @@ class TestRecordOperations < Minitest::Test
 
     result = client.delete_record('tbl_123', 'rec_456')
 
-    assert result.is_a?(Hash), "Should return hash"
+    assert result.is_a?(Hash), 'Should return hash'
     assert_equal true, result['deleted']
   end
 
@@ -287,7 +287,7 @@ class TestRecordOperations < Minitest::Test
   def test_get_record_api_error
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
 
-    stub_request(:get, "https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/")
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
       .to_return(status: 404, body: { error: 'Not found' }.to_json)
 
     error = assert_raises(RuntimeError) do
@@ -301,7 +301,7 @@ class TestRecordOperations < Minitest::Test
   def test_create_record_api_error
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
 
-    stub_request(:post, "https://app.smartsuite.com/api/v1/applications/tbl_123/records/")
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/')
       .to_return(status: 400, body: { error: 'Bad request' }.to_json)
 
     error = assert_raises(RuntimeError) do
@@ -315,7 +315,7 @@ class TestRecordOperations < Minitest::Test
   def test_update_record_api_error
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
 
-    stub_request(:patch, "https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/")
+    stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
       .to_return(status: 500, body: 'Internal Server Error')
 
     error = assert_raises(RuntimeError) do
@@ -329,7 +329,7 @@ class TestRecordOperations < Minitest::Test
   def test_delete_record_api_error
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
 
-    stub_request(:delete, "https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/")
+    stub_request(:delete, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
       .to_return(status: 403, body: { error: 'Forbidden' }.to_json)
 
     error = assert_raises(RuntimeError) do
