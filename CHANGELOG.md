@@ -57,21 +57,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All error responses now include: status='error', error code, message, timestamp
   - Benefits: Consistent structure, better error handling, timestamps aid debugging
 
-### Documentation
-
-- **Enhanced YARD documentation coverage** (v1.8 - Developer Experience):
-  - Added @example tags to all user-facing MCP modules:
-    - SmartSuiteClient: Added examples to `cache`, `stats_tracker`, `initialize`, `warm_cache` methods
-    - MCP::ToolRegistry: Added example to `tools_list` method
-    - MCP::PromptRegistry: Added examples to `prompts_list`, `prompt_get`, `generate_prompt_text` methods
-    - MCP::ResourceRegistry: Added example to `resources_list` method
-  - All MCP protocol interface methods now have comprehensive documentation
-  - Generated HTML documentation available in `doc/` directory
-  - 100% YARD documentation coverage maintained across all 124 public methods
-  - Reduced missing @example tags from 87 to 79 (focused on user-facing APIs)
-
-### Changed
-
 - **Modular API operation architecture** (v1.8 - Code Quality):
   - All 8 API operation modules refactored to use Base module:
     - `WorkspaceOperations` - 37 lines reduced, 3 validations added, 2 endpoint simplifications
@@ -99,6 +84,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - After: `should_bypass_cache?(bypass: false)`
   - Reason: RuboCop Style/OptionalBooleanParameter compliance
   - Impact: Internal helper method only, no user-facing changes
+
+### Documentation
+
+- **Enhanced YARD documentation coverage** (v1.8 - Developer Experience):
+  - Added @example tags to all user-facing MCP modules:
+    - SmartSuiteClient: Added examples to `cache`, `stats_tracker`, `initialize`, `warm_cache` methods
+    - MCP::ToolRegistry: Added example to `tools_list` method
+    - MCP::PromptRegistry: Added examples to `prompts_list`, `prompt_get`, `generate_prompt_text` methods
+    - MCP::ResourceRegistry: Added example to `resources_list` method
+  - All MCP protocol interface methods now have comprehensive documentation
+  - Generated HTML documentation available in `doc/` directory
+  - 100% YARD documentation coverage maintained across all 124 public methods
+  - Reduced missing @example tags from 87 to 79 (focused on user-facing APIs)
 
 ### Fixed
 
