@@ -15,6 +15,7 @@ module SmartSuite
     # Uses Base module for common API patterns (validation, endpoint building).
     module FieldOperations
       include Base
+
       # Adds a new field to a table.
       #
       # @param table_id [String] Table identifier

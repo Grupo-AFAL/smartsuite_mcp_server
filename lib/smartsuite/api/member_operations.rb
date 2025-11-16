@@ -15,6 +15,7 @@ module SmartSuite
     # Uses Base module for common API patterns (validation, endpoint building, response tracking).
     module MemberOperations
       include Base
+
       # Lists workspace members with optional solution filtering.
       #
       # When solution_id provided, fetches solution permissions, extracts member IDs
@@ -77,8 +78,8 @@ module SmartSuite
 
           # Get all members (with high limit to ensure we get all)
           endpoint = build_endpoint('/members/list/',
-                                     limit: Base::Pagination::FETCH_ALL_LIMIT,
-                                     offset: 0)
+                                    limit: Base::Pagination::FETCH_ALL_LIMIT,
+                                    offset: 0)
 
           response = api_request(:post, endpoint, nil)
 
@@ -109,8 +110,8 @@ module SmartSuite
             end
 
             result = build_collection_response(members, :members,
-                                                total_count: members.size,
-                                                filtered_by_solution: solution_id)
+                                               total_count: members.size,
+                                               filtered_by_solution: solution_id)
             track_response_size(result, "Found #{members.size} members (filtered from #{response['items'].size} total)")
           else
             response
@@ -172,8 +173,8 @@ module SmartSuite
 
         # Get all members
         endpoint = build_endpoint('/members/list/',
-                                   limit: Base::Pagination::FETCH_ALL_LIMIT,
-                                   offset: 0)
+                                  limit: Base::Pagination::FETCH_ALL_LIMIT,
+                                  offset: 0)
         response = api_request(:post, endpoint, nil)
 
         if response.is_a?(Hash) && response['items'].is_a?(Array)
@@ -244,8 +245,8 @@ module SmartSuite
       def list_teams
         log_metric('→ Listing teams')
         endpoint = build_endpoint('/teams/list/',
-                                   limit: Base::Pagination::FETCH_ALL_LIMIT,
-                                   offset: 0)
+                                  limit: Base::Pagination::FETCH_ALL_LIMIT,
+                                  offset: 0)
         response = api_request(:post, endpoint, nil)
 
         # Cache teams for efficient lookup

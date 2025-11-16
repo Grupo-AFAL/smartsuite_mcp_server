@@ -14,6 +14,7 @@ module SmartSuite
     # Uses Base module for common API patterns (validation, endpoint building).
     module ViewOperations
       include Base
+
       # Gets records for a specified view with the view's filters applied.
       #
       # This method retrieves records that match the view's configured filters,
@@ -35,7 +36,7 @@ module SmartSuite
 
         # Build endpoint with query parameters using Base helper
         base_path = "/applications/#{table_id}/records-for-report/"
-        endpoint = build_endpoint(base_path, report: view_id, with_empty_values: (with_empty_values || nil))
+        endpoint = build_endpoint(base_path, report: view_id, with_empty_values: with_empty_values || nil)
 
         response = api_request(:get, endpoint)
 

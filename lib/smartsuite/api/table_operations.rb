@@ -15,6 +15,7 @@ module SmartSuite
     # Uses Base module for common API patterns (validation, endpoint building, cache coordination).
     module TableOperations
       include Base
+
       # Lists tables (applications) in the workspace.
       #
       # Optionally filters by solution_id and/or specific fields.
@@ -37,7 +38,7 @@ module SmartSuite
         validate_optional_parameter!('fields', fields, Array) if fields
 
         # Try cache first if enabled and no custom fields specified
-        unless should_bypass_cache?(bypass_cache) || fields&.any?
+        unless should_bypass_cache?(bypass: bypass_cache) || fields&.any?
           cached_tables = @cache.get_cached_table_list(solution_id)
           cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
 

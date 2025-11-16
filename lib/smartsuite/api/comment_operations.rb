@@ -10,6 +10,7 @@ module SmartSuite
     # Uses Base module for common API patterns (validation, endpoint building).
     module CommentOperations
       include Base
+
       # List all comments for a specific record.
       #
       # @param record_id [String] The ID of the record
