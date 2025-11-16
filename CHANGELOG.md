@@ -54,6 +54,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ensures cached data stays consistent with table schema
   - Both table structure metadata and cached records are refreshed on next access
   - Safe-navigation operator (`&.`) ensures no errors when cache disabled
+- **Enhanced prompt registry with 4 new filter examples** (v1.6):
+  - `filter_by_empty_fields`: Example for checking if fields are empty or not empty
+  - `filter_by_recent_updates`: Example for filtering records updated within last N days
+  - `filter_complex_and_or`: Example for complex filters with multiple AND/OR conditions
+  - `filter_overdue_tasks`: Example for filtering overdue tasks using due date fields
+  - Each prompt includes complete filter syntax, operator guidance, and cache-awareness notes
+  - Provides AI assistants with comprehensive examples of common filter patterns
 
 ### Changed
 - **Increased cache TTL values** for better performance (v1.6):
