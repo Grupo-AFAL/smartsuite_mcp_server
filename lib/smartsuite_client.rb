@@ -10,6 +10,7 @@ require_relative 'smartsuite/api/member_operations'
 require_relative 'smartsuite/api/comment_operations'
 require_relative 'smartsuite/api/view_operations'
 require_relative 'smartsuite/formatters/response_formatter'
+require_relative 'smartsuite/response_formats'
 require_relative 'smartsuite/cache/layer'
 
 # SmartSuiteClient is the main client for interacting with the SmartSuite API.
@@ -53,6 +54,7 @@ class SmartSuiteClient
   include SmartSuite::API::CommentOperations
   include SmartSuite::API::ViewOperations
   include SmartSuite::Formatters::ResponseFormatter
+  include SmartSuite::ResponseFormats
 
   # @!attribute [r] cache
   #   @return [SmartSuite::Cache::Layer, nil] cache layer instance, or nil if caching disabled
@@ -146,17 +148,17 @@ class SmartSuiteClient
   # @example Warm top 10 accessed tables
   #   result = client.warm_cache(tables: 'auto', count: 10)
   def warm_cache(tables: nil, count: 5)
-    return { 'error' => 'Cache is disabled' } unless cache_enabled?
+    return error_response('cache_disabled', 'Cache is not enabled for this client') unless cache_enabled?
 
     # Get list of tables to warm
     table_ids = @cache.get_tables_to_warm(tables: tables, count: count)
 
     if table_ids.empty?
-      return {
-        'status' => 'no_tables',
-        'message' => 'No tables to warm. Either no tables specified or no access history found.',
-        'timestamp' => Time.now.utc.iso8601
-      }
+      return operation_response(
+        'warm',
+        'No tables to warm. Either no tables specified or no access history found.',
+        status: 'no_action'
+      )
     end
 
     # Warm each table's cache
@@ -196,16 +198,17 @@ class SmartSuiteClient
       error_count += 1
     end
 
-    {
-      'status' => 'completed',
-      'summary' => {
+    operation_response(
+      'warm',
+      "Cache warming #{warmed_count == table_ids.size ? 'completed' : 'partially completed'}",
+      status: 'completed',
+      summary: {
         'total_tables' => table_ids.size,
         'warmed' => warmed_count,
         'skipped' => skipped_count,
         'errors' => error_count
       },
-      'results' => results,
-      'timestamp' => Time.now.utc.iso8601
-    }
+      results: results
+    )
   end
 end

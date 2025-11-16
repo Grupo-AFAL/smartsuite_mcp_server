@@ -8,6 +8,7 @@ require_relative 'query'
 require_relative 'migrations'
 require_relative 'metadata'
 require_relative 'performance'
+require_relative '../response_formats'
 require_relative '../../query_logger'
 
 module SmartSuite
@@ -34,6 +35,7 @@ module SmartSuite
       include Migrations
       include Metadata
       include Performance
+      include ResponseFormats
 
       attr_reader :db, :db_path
 
@@ -775,29 +777,30 @@ module SmartSuite
         case resource
         when 'solutions'
           invalidate_solutions_cache
-          {
-            'refreshed' => 'solutions',
-            'message' => 'All solutions cache invalidated. Will refresh on next access.',
-            'timestamp' => Time.now.utc.iso8601
-          }
+          operation_response(
+            'refresh',
+            'All solutions cache invalidated. Will refresh on next access.',
+            resource: 'solutions'
+          )
         when 'tables'
           invalidate_table_list_cache(solution_id)
-          {
-            'refreshed' => 'tables',
-            'solution_id' => solution_id,
-            'message' => solution_id ? "Table list for solution #{solution_id} invalidated." : 'All tables cache invalidated.',
-            'timestamp' => Time.now.utc.iso8601
-          }
+          message = solution_id ? "Table list for solution #{solution_id} invalidated." : 'All tables cache invalidated.'
+          operation_response(
+            'refresh',
+            message,
+            resource: 'tables',
+            solution_id: solution_id
+          )
         when 'records'
           raise ArgumentError, 'table_id is required for refreshing records cache' unless table_id
 
           invalidate_table_cache(table_id, structure_changed: false)
-          {
-            'refreshed' => 'records',
-            'table_id' => table_id,
-            'message' => "Records cache for table #{table_id} invalidated. Will refresh on next access.",
-            'timestamp' => Time.now.utc.iso8601
-          }
+          operation_response(
+            'refresh',
+            "Records cache for table #{table_id} invalidated. Will refresh on next access.",
+            resource: 'records',
+            table_id: table_id
+          )
         else
           raise ArgumentError, "Unknown resource type: #{resource}. Use 'solutions', 'tables', or 'records'"
         end
