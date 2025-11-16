@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Cache performance tracking** (v1.6):
+  - New `cache_performance` table tracks hit/miss counts per table
+  - In-memory counters with periodic flush (every 100 ops or 5 minutes)
+  - Batch database writes for performance
+  - Tracks: hit_count, miss_count, last_access_time, record_count, cache_size_bytes
+  - `get_cache_performance(table_id:)` method to retrieve stats
+  - Hit rate calculation: `(hits / total) * 100`
+  - Automatic tracking integrated into record operations
 - **New `get_cache_status` tool** (v1.6):
   - MCP tool to inspect cache state for solutions, tables, and records
   - Shows: cached_at, expires_at, time_remaining_seconds, record_count, is_valid

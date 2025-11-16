@@ -39,6 +39,11 @@ module SmartSuite
       # Set file permissions (owner read/write only)
       File.chmod(0600, @db_path) if File.exist?(@db_path)
 
+      # In-memory performance counters (v1.6+)
+      @perf_counters = Hash.new { |h, k| h[k] = {hits: 0, misses: 0} }
+      @perf_operations_since_flush = 0
+      @perf_last_flush = Time.now.utc
+
       setup_metadata_tables
     end
 
@@ -81,6 +86,17 @@ module SmartSuite
 
         CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON cache_stats(timestamp);
         CREATE INDEX IF NOT EXISTS idx_stats_category ON cache_stats(category);
+
+        -- Cache performance tracking (v1.6+)
+        CREATE TABLE IF NOT EXISTS cache_performance (
+          table_id TEXT PRIMARY KEY,
+          hit_count INTEGER DEFAULT 0,
+          miss_count INTEGER DEFAULT 0,
+          last_access_time TEXT,
+          record_count INTEGER DEFAULT 0,
+          cache_size_bytes INTEGER DEFAULT 0,
+          updated_at TEXT NOT NULL
+        );
 
         -- API call tracking (shared with ApiStatsTracker)
         CREATE TABLE IF NOT EXISTS api_call_log (
@@ -1409,8 +1425,113 @@ module SmartSuite
 
     public
 
+    # Track cache hit for performance monitoring
+    #
+    # @param table_id [String] SmartSuite table ID
+    def track_cache_hit(table_id)
+      @perf_counters[table_id][:hits] += 1
+      @perf_operations_since_flush += 1
+      flush_performance_counters_if_needed
+    end
+
+    # Track cache miss for performance monitoring
+    #
+    # @param table_id [String] SmartSuite table ID
+    def track_cache_miss(table_id)
+      @perf_counters[table_id][:misses] += 1
+      @perf_operations_since_flush += 1
+      flush_performance_counters_if_needed
+    end
+
+    # Flush performance counters to database if threshold reached
+    #
+    # Flushes when either:
+    # - 100 operations have occurred since last flush
+    # - 5 minutes have passed since last flush
+    def flush_performance_counters_if_needed
+      should_flush = @perf_operations_since_flush >= 100 ||
+                     (Time.now.utc - @perf_last_flush) >= 300 # 5 minutes
+
+      flush_performance_counters if should_flush
+    end
+
+    # Flush all in-memory performance counters to database
+    def flush_performance_counters
+      return if @perf_counters.empty?
+
+      now = Time.now.utc.iso8601
+
+      @perf_counters.each do |table_id, counters|
+        # Get current values from database
+        current = db_execute(
+          "SELECT hit_count, miss_count FROM cache_performance WHERE table_id = ?",
+          table_id
+        ).first
+
+        if current
+          # Update existing record
+          new_hits = current['hit_count'] + counters[:hits]
+          new_misses = current['miss_count'] + counters[:misses]
+
+          db_execute(
+            "UPDATE cache_performance
+             SET hit_count = ?, miss_count = ?, last_access_time = ?, updated_at = ?
+             WHERE table_id = ?",
+            new_hits, new_misses, now, now, table_id
+          )
+        else
+          # Insert new record
+          db_execute(
+            "INSERT INTO cache_performance
+             (table_id, hit_count, miss_count, last_access_time, updated_at)
+             VALUES (?, ?, ?, ?, ?)",
+            table_id, counters[:hits], counters[:misses], now, now
+          )
+        end
+      end
+
+      # Reset counters
+      @perf_counters.clear
+      @perf_operations_since_flush = 0
+      @perf_last_flush = Time.now.utc
+    end
+
+    # Get cache performance statistics
+    #
+    # @param table_id [String, nil] Optional table ID to filter by
+    # @return [Array<Hash>] Performance statistics
+    def get_cache_performance(table_id: nil)
+      # Flush current counters first
+      flush_performance_counters
+
+      if table_id
+        results = db_execute(
+          "SELECT * FROM cache_performance WHERE table_id = ?",
+          table_id
+        )
+      else
+        results = db_execute("SELECT * FROM cache_performance ORDER BY last_access_time DESC")
+      end
+
+      results.map do |row|
+        total = row['hit_count'] + row['miss_count']
+        {
+          'table_id' => row['table_id'],
+          'hit_count' => row['hit_count'],
+          'miss_count' => row['miss_count'],
+          'total_operations' => total,
+          'hit_rate' => total > 0 ? (row['hit_count'].to_f / total * 100).round(2) : 0.0,
+          'last_access_time' => row['last_access_time'],
+          'record_count' => row['record_count'],
+          'cache_size_bytes' => row['cache_size_bytes']
+        }
+      end
+    end
+
     # Close database connection
     def close
+      # Flush any pending performance counters
+      flush_performance_counters unless @perf_counters.empty?
       @db.close if @db
     end
   end
