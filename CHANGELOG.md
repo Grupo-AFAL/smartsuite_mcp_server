@@ -33,6 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports 20+ comparison operators (is, is_not, contains, is_greater_than, etc.)
   - 30 test cases with comprehensive edge case coverage
 
+### Changed
+
+- **BREAKING: Standardized response formats** (v1.8 - Developer Experience):
+  - **refresh_cache**: Changed from `{"refreshed": "...", "message": "...", "timestamp": "..."}` to `{"status": "success", "operation": "refresh", "message": "...", "timestamp": "...", "resource": "..."}`
+  - **warm_cache**: Added `"operation": "warm"` field, changed no-tables response to use `status: "no_action"`
+  - **Error responses**: Changed from `{"error": "message"}` to `{"status": "error", "error": "code", "message": "...", "timestamp": "..."}`
+  - All operation responses now include: status, operation, message, timestamp
+  - All error responses now include: status='error', error code, message, timestamp
+  - Benefits: Consistent structure, better error handling, timestamps aid debugging
+
 ### Documentation
 
 - **Enhanced YARD documentation coverage** (v1.8 - Developer Experience):
