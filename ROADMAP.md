@@ -1,8 +1,8 @@
 # SmartSuite MCP Server - Product Roadmap
 
 **Last Updated:** November 15, 2025
-**Current Version:** 1.5.0
-**Next Release:** 1.6.0 (December 2025)
+**Current Version:** 1.6.0
+**Next Release:** 1.7.0 (Q1 2026)
 **Decision Log:** See ROADMAP_DECISIONS.md for detailed analysis and decisions
 
 ## Vision
@@ -172,7 +172,95 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 ## Upcoming Releases 📅
 
-### v2.0 - Performance & Scalability (Q1 2026)
+### v1.7 - Code Quality & Documentation (Q1 2026)
+
+**Goal:** Improve code maintainability and developer experience
+
+**Note:** This is a refactoring and polish release with no user-facing changes
+
+#### Code Refactoring
+
+- [ ] **Split `cache_layer.rb` into focused modules** (Deferred from v1.6)
+  - Current: Single 1646-line file with all cache logic
+  - Proposed split:
+    - `cache_layer.rb` - Core caching interface (200-300 lines)
+    - `cache_metadata.rb` - Table registry, TTL config, schema management (300-400 lines)
+    - `cache_performance.rb` - Hit/miss tracking, statistics (200-300 lines)
+    - `cache_migrations.rb` - Schema migrations, data migration helpers (200-300 lines)
+    - `cache_query.rb` - Already separated (chainable query builder)
+  - Benefits: Easier to navigate, test, and maintain
+  - Risk: Must preserve backward compatibility in SmartSuiteClient interface
+
+- [ ] **Refactor ResponseFormatter to use strategy pattern** (Deferred from v1.6)
+  - Current: Single file with case statements for each field type
+  - Proposed: Strategy pattern with field-type-specific formatter classes
+  - Extract formatters: TextFormatter, DateFormatter, LinkedRecordFormatter, etc.
+  - Benefits: Easier to add new field types, better separation of concerns
+  - Consider: Part of v2.0 TOON format migration preparation
+
+- [ ] **Extract filter building into dedicated module**
+  - Current: Filter logic mixed into RecordOperations
+  - Proposed: `FilterBuilder` module for SmartSuite filter construction
+  - Benefits: Reusable across operations, easier to test, clearer API
+
+- [ ] **Refactor API module structure**
+  - Review and consolidate API operation modules for consistency
+  - Extract common patterns where appropriate (reconsidered from v1.6)
+  - Improve separation of concerns between HTTP, caching, and business logic
+  - Consider extracting cache coordination logic from individual operations
+  - Benefits: Easier to maintain, test, and extend API operations
+
+#### Documentation Improvements
+
+- [ ] **Create docs/ directory structure**
+  - Implement structure from DOCUMENTATION_PROPOSAL.md
+  - Split README.md into focused guides
+  - Consolidate caching documentation
+  - Add architecture diagrams
+
+- [ ] **Improve code documentation with YARD**
+  - Add YARD tags to all public methods
+  - Generate HTML documentation
+  - Document all parameters, return types, exceptions
+
+- [ ] **Create troubleshooting guide**
+  - Common error messages and solutions
+  - Cache debugging techniques
+  - API rate limit handling
+  - FAQ section
+
+#### Developer Experience
+
+- [ ] **Add input validation for all tool parameters**
+  - Validate required parameters
+  - Type checking for parameters
+  - Helpful error messages with examples
+
+- [ ] **Standardize response formats across all tools**
+  - Consistent error response structure
+  - Consistent success response structure
+  - Consistent metadata fields
+
+- [ ] **Add performance benchmarks**
+  - Benchmark cache hit/miss performance
+  - Benchmark filter query performance
+  - Track token usage across releases
+
+#### Testing Improvements
+
+- [ ] **Add integration tests with real SmartSuite API**
+  - Optional test suite that hits real API
+  - Requires test account/workspace
+  - Validates API contract assumptions
+
+- [ ] **Improve test coverage**
+  - Target: >90% code coverage
+  - Focus on edge cases and error handling
+  - Add tests for cache invalidation scenarios
+
+---
+
+### v2.0 - Performance & Scalability (Q2 2026)
 
 **Goal:** Handle large workspaces efficiently
 
@@ -265,42 +353,33 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 ## Technical Debt & Refactoring 🔧
 
+**Note:** Code quality items moved to v1.7 release (see Upcoming Releases section)
+
 ### High Priority
 
 - [ ] Extract caching logic into separate gem/library
 - [ ] Improve error messages with actionable suggestions
-- [ ] Add input validation for all tool parameters
-- [ ] Standardize response formats across all tools
-- [ ] Add integration tests with real SmartSuite API
+- [ ] Create migration guide for breaking changes
 
 ### Medium Priority
 
-- [ ] Refactor ResponseFormatter to use strategy pattern
-- [ ] Extract filter building into dedicated module
-- [ ] Improve code documentation with YARD
-- [ ] Add performance benchmarks
-- [ ] Create migration guide for breaking changes
+- [ ] Add static type checking (Sorbet/RBS)
+- [ ] Implement design by contract (pre/post conditions)
 
 ### Low Priority
 
 - [ ] Replace manual JSON parsing with JSON schema validation
-- [ ] Add static type checking (Sorbet/RBS)
-- [ ] Implement design by contract (pre/post conditions)
 - [ ] Add mutation testing for test suite quality
 
 ---
 
 ## Documentation Improvements 📚
 
-### Immediate
-
-- [ ] Create docs/ directory structure (see DOCUMENTATION_PROPOSAL.md)
-- [ ] Split README.md into focused guides
-- [ ] Consolidate caching docs into single guide
-- [ ] Add video tutorials for common workflows
-- [ ] Create troubleshooting guide with FAQs
+**Note:** Core documentation items moved to v1.7 release (see Upcoming Releases section)
 
 ### Future
+
+- [ ] Add video tutorials for common workflows
 
 - [ ] Interactive API explorer
 - [ ] Code examples repository
@@ -416,10 +495,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | v1.0    | ✅ Released    | Nov 2025    | 100%       |
 | v1.5    | ✅ Released    | Nov 2025    | 100%       |
 | v1.6    | ✅ Complete    | Dec 2025    | 100%       |
-| v2.0    | 📋 Planned     | Q1 2026     | 0%         |
-| v2.1    | 📋 Planned     | Q2 2026     | 0%         |
-| v2.2    | 📋 Planned     | Q2 2026     | 0%         |
-| v3.0    | 💭 Ideation    | Q3 2026     | 0%         |
+| v1.7    | 📋 Planned     | Q1 2026     | 0%         |
+| v2.0    | 📋 Planned     | Q2 2026     | 0%         |
+| v2.1    | 📋 Planned     | Q3 2026     | 0%         |
+| v2.2    | 📋 Planned     | Q3 2026     | 0%         |
+| v3.0    | 💭 Ideation    | Q4 2026     | 0%         |
 
 ---
 
