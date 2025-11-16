@@ -74,19 +74,21 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - No indexes needed at current scale
   - Document schema decisions in architecture docs
 
-#### Phase 2: Observability (Week 2)
+#### Phase 2: Observability (Week 2) ✅ COMPLETED
 
-- [ ] **Item 8: Add `cache_performance` table**
-  - Create table: `table_id`, `hit_count`, `miss_count`, `last_access_time`, `record_count`, `cache_size_bytes`
-  - Use in-memory counters with periodic flush (every 100 ops or 5 min)
-  - Batch database writes for performance
-  - Track: hit/miss counts, last access, record counts, cache size
+- [x] **Item 8: Add `cache_performance` table** ✅ COMPLETED
+  - ✅ Created table: `table_id`, `hit_count`, `miss_count`, `last_access_time`, `record_count`, `cache_size_bytes`
+  - ✅ In-memory counters with periodic flush (every 100 ops or 5 min)
+  - ✅ Batch database writes for performance
+  - ✅ Tracks: hit/miss counts, last access, record counts, cache size
+  - ✅ Integrated into record operations with track_cache_hit/miss methods
 
-- [ ] **Item 11: Extend `get_api_stats` with cache metrics**
-  - Add `cache_stats` section to existing response
-  - Include: hit/miss counts, hit rates, token savings estimate, per-table breakdown
-  - Add time range filter: `session`, `7d`, `all`
-  - Show efficiency ratio: API calls saved vs actual calls
+- [x] **Item 11: Extend `get_api_stats` with cache metrics** ✅ COMPLETED
+  - ✅ Added `cache_stats` section to existing response
+  - ✅ Includes: hit/miss counts, hit rates, token savings estimate, per-table breakdown
+  - ✅ Added time range filter: `session`, `7d`, `all`
+  - ✅ Shows efficiency ratio: API calls saved vs actual calls
+  - ✅ Estimated token savings calculation (500 tokens per hit)
 
 - [x] **Item 5: Add `get_cache_status` tool** ✅ COMPLETED
   - ✅ Shows status for solutions, tables, records (per table)
@@ -414,7 +416,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | ------- | -------------- | ----------- | ---------- |
 | v1.0    | ✅ Released    | Nov 2025    | 100%       |
 | v1.5    | ✅ Released    | Nov 2025    | 100%       |
-| v1.6    | 🚧 In Progress | Dec 2025    | 35%        |
+| v1.6    | 🚧 In Progress | Dec 2025    | 55%        |
 | v2.0    | 📋 Planned     | Q1 2026     | 0%         |
 | v2.1    | 📋 Planned     | Q2 2026     | 0%         |
 | v2.2    | 📋 Planned     | Q2 2026     | 0%         |
