@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'base'
+
 module SmartSuite
   module API
     # MemberOperations handles workspace user and team management.
@@ -10,7 +12,9 @@ module SmartSuite
     #
     # Implements server-side filtering to reduce token usage when querying
     # solution-specific members.
+    # Uses Base module for common API patterns (validation, endpoint building, response tracking).
     module MemberOperations
+      include Base
       # Lists workspace members with optional solution filtering.
       #
       # When solution_id provided, fetches solution permissions, extracts member IDs
@@ -24,7 +28,12 @@ module SmartSuite
       # @param offset [Integer] Pagination offset (default: 0, ignored with solution_id)
       # @param solution_id [String, nil] Optional solution ID to filter members
       # @return [Hash] Members with count and optional filter indication
-      def list_members(limit = 100, offset = 0, solution_id: nil)
+      # @example List all members
+      #   list_members(100, 0)
+      #
+      # @example List members by solution
+      #   list_members(solution_id: 'sol_123')
+      def list_members(limit = Base::Pagination::DEFAULT_LIMIT, offset = Base::Pagination::DEFAULT_OFFSET, solution_id: nil)
         if solution_id
           log_metric("→ Listing members for solution: #{solution_id}")
 
@@ -62,13 +71,16 @@ module SmartSuite
 
           if solution_member_ids.empty?
             log_metric('⚠️  Solution has no members')
-            return { 'members' => [], 'count' => 0, 'total_count' => 0, 'filtered_by_solution' => solution_id }
+            result = build_collection_response([], :members, total_count: 0, filtered_by_solution: solution_id)
+            return result
           end
 
           # Get all members (with high limit to ensure we get all)
-          query_params = '?limit=1000&offset=0'
+          endpoint = build_endpoint('/members/list/',
+                                     limit: Base::Pagination::FETCH_ALL_LIMIT,
+                                     offset: 0)
 
-          response = api_request(:post, "/members/list/#{query_params}", nil)
+          response = api_request(:post, endpoint, nil)
 
           if response.is_a?(Hash) && response['items'].is_a?(Array)
             # Filter to only members in the solution
@@ -96,25 +108,19 @@ module SmartSuite
               result.compact # Remove nil values
             end
 
-            result = {
-              'members' => members,
-              'count' => members.size,
-              'total_count' => members.size,
-              'filtered_by_solution' => solution_id
-            }
-            tokens = estimate_tokens(JSON.generate(result))
-            log_metric("✓ Found #{members.size} members (filtered from #{response['items'].size} total)")
-            log_token_usage(tokens)
-            result
+            result = build_collection_response(members, :members,
+                                                total_count: members.size,
+                                                filtered_by_solution: solution_id)
+            track_response_size(result, "Found #{members.size} members (filtered from #{response['items'].size} total)")
           else
             response
           end
         else
           log_metric('→ Listing workspace members')
 
-          query_params = "?limit=#{limit}&offset=#{offset}"
+          endpoint = build_endpoint('/members/list/', limit: limit, offset: offset)
 
-          response = api_request(:post, "/members/list/#{query_params}", nil)
+          response = api_request(:post, endpoint, nil)
 
           # Extract only essential member information
           if response.is_a?(Hash) && response['items'].is_a?(Array)
@@ -140,11 +146,8 @@ module SmartSuite
               result.compact # Remove nil values
             end
 
-            result = { 'members' => members, 'count' => members.size, 'total_count' => response['total_count'] }
-            tokens = estimate_tokens(JSON.generate(result))
-            log_metric("✓ Found #{members.size} members")
-            log_token_usage(tokens)
-            result
+            result = build_collection_response(members, :members, total_count: response['total_count'])
+            track_response_size(result, "Found #{members.size} members")
           else
             response
           end
@@ -158,12 +161,20 @@ module SmartSuite
       #
       # @param query [String] Search query for name or email
       # @return [Hash] Matching members with count
+      # @raise [ArgumentError] If query is missing
+      # @example
+      #   search_member('john@example.com')
+      #   search_member('Smith')
       def search_member(query)
+        validate_required_parameter!('query', query)
+
         log_metric("→ Searching members with query: #{query}")
 
         # Get all members
-        query_params = '?limit=1000&offset=0'
-        response = api_request(:post, "/members/list/#{query_params}", nil)
+        endpoint = build_endpoint('/members/list/',
+                                   limit: Base::Pagination::FETCH_ALL_LIMIT,
+                                   offset: 0)
+        response = api_request(:post, endpoint, nil)
 
         if response.is_a?(Hash) && response['items'].is_a?(Array)
           # Filter members by query (case-insensitive)
@@ -215,15 +226,8 @@ module SmartSuite
             result.compact
           end
 
-          result = {
-            'members' => members,
-            'count' => members.size,
-            'query' => query
-          }
-          tokens = estimate_tokens(JSON.generate(result))
-          log_metric("✓ Found #{members.size} matching members")
-          log_token_usage(tokens)
-          result
+          result = build_collection_response(members, :members, query: query)
+          track_response_size(result, "Found #{members.size} matching members")
         else
           response
         end
@@ -235,10 +239,14 @@ module SmartSuite
       # (1000) to fetch all teams in one request.
       #
       # @return [Array<Hash>] Array of team objects
+      # @example
+      #   list_teams
       def list_teams
         log_metric('→ Listing teams')
-        query_params = '?limit=1000&offset=0'
-        response = api_request(:post, "/teams/list/#{query_params}", nil)
+        endpoint = build_endpoint('/teams/list/',
+                                   limit: Base::Pagination::FETCH_ALL_LIMIT,
+                                   offset: 0)
+        response = api_request(:post, endpoint, nil)
 
         # Cache teams for efficient lookup
         @teams_cache ||= {}
@@ -262,7 +270,11 @@ module SmartSuite
       #
       # @param team_id [String] Team identifier
       # @return [Hash, nil] Team object or nil if not found
+      # @raise [ArgumentError] If team_id is missing
+      # @example
+      #   get_team('team_abc')
       def get_team(team_id)
+        validate_required_parameter!('team_id', team_id)
         # Use cached teams if available
         if @teams_cache && @teams_cache[team_id]
           log_metric("→ Using cached team: #{team_id}")
