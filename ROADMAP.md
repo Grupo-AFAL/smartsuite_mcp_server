@@ -48,6 +48,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 #### Phase 1: Foundation (Week 1)
 
 - [x] **Item 7: Remove old cache format migration code** ⚡ Quick win ✅ COMPLETED
+
   - ✅ Deleted migration methods from `cache_layer.rb` (~79 lines): `migrate_cache_tables_schema`, `migrate_api_call_log_schema`
   - ✅ Migrated all INTEGER timestamps to TEXT (ISO 8601)
   - ✅ Added `session_id` column to api_call_log CREATE TABLE statement
@@ -56,12 +57,14 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - **Rationale:** Solo project, no migration compatibility needed
 
 - [x] **Item 1: Rename `cached_table_schemas` → `cache_table_registry`** ✅ COMPLETED
+
   - ✅ Updated all code references in `cache_layer.rb`
   - ✅ ALTER TABLE migration (no data migration, instant rename)
   - ✅ Updated CHANGELOG with documentation
   - **Purpose:** Internal registry for dynamic SQL cache tables, not SmartSuite API cache
 
 - [x] **Item 5: Increase cache TTL values** ✅ COMPLETED (partial)
+
   - ✅ Solutions: 24h → 7 days
   - ✅ Tables: 12h → 7 days
   - ✅ Records: 4h → 12h (configurable per table)
@@ -77,6 +80,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 #### Phase 2: Observability (Week 2) ✅ COMPLETED
 
 - [x] **Item 8: Add `cache_performance` table** ✅ COMPLETED
+
   - ✅ Created table: `table_id`, `hit_count`, `miss_count`, `last_access_time`, `record_count`, `cache_size_bytes`
   - ✅ In-memory counters with periodic flush (every 100 ops or 5 min)
   - ✅ Batch database writes for performance
@@ -84,6 +88,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - ✅ Integrated into record operations with track_cache_hit/miss methods
 
 - [x] **Item 11: Extend `get_api_stats` with cache metrics** ✅ COMPLETED
+
   - ✅ Added `cache_stats` section to existing response
   - ✅ Includes: hit/miss counts, hit rates, token savings estimate, per-table breakdown
   - ✅ Added time range filter: `session`, `7d`, `all`
@@ -97,15 +102,17 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - ✅ Added as MCP tool with complete schema
   - Helps users understand cache state and plan refreshes
 
-#### Phase 3: UX Improvements (Week 3) ✅ COMPLETED
+#### Phase 3: UX Improvements (Week 3) ✅ COMPLETED (ALL ITEMS)
 
 - [x] **Item 4: Improve dynamic table and column naming** ✅ COMPLETED
+
   - ✅ SQL tables: `cache_records_{sanitized_name}_{table_id}` (e.g., `cache_records_customers_tbl_abc123`)
   - ✅ Columns: Use field labels with slug fallback (e.g., `status` instead of `s7e8c12e98`)
   - ✅ Apply to new caches only (no migration required)
   - ✅ Store mapping in `cache_table_registry`
 
 - [x] **Item 9: Improve prompt and tool registry** ✅ COMPLETED
+
   - ⏳ Better categorization: Group by workspace/table/record operations (deferred)
   - ⏳ Enhanced descriptions: Add prescriptive guidance and usage hints (deferred)
   - ⏳ Add common patterns and anti-patterns to tool definitions (deferred)
@@ -113,21 +120,25 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - ✅ Make AI context more helpful
 
 - [x] **Item 6: Add user-triggered cache refresh** ✅ COMPLETED
+
   - ✅ New MCP tool: `refresh_cache` (resource, table_id, solution_id)
   - ✅ Behavior: Invalidate only (not refetch) - refetch on next access
   - ✅ Supports three resource types: 'solutions', 'tables', 'records'
   - ✅ Track refresh history in `cache_stats` via existing invalidation tracking
   - ⏳ Favorite tables configuration deferred (can be added later if needed)
 
-- [ ] **Item 10: Implement manual cache warming**
-  - New MCP tool: `warm_cache` (tables array or 'auto' for top 5)
-  - Strategies: Top N accessed tables, user-specified list
-  - Show progress during warming
-  - Add simple locking to prevent duplicate warming
+- [x] **Item 10: Implement manual cache warming** ✅ COMPLETED
+  - ✅ New MCP tool: `warm_cache` (tables array or 'auto' for top N)
+  - ✅ Auto mode: Selects top N most accessed tables from cache_performance
+  - ✅ Manual mode: Explicit list of table IDs
+  - ✅ Progress tracking with summary (total, warmed, skipped, errors)
+  - ✅ Per-table status reporting
+  - ✅ Skips tables with valid cache (implicit locking via cache_valid? check)
 
 #### Phase 4: Refactoring (Week 4)
 
 - [ ] **Item 12: Split `cache_layer.rb` into focused modules**
+
   - Split 1248 lines → 4 files (~300 lines each):
     - `cache_layer.rb` - Core caching, query interface, TTL management
     - `cache_metadata.rb` - Solutions/tables caching, metadata operations
@@ -137,12 +148,14 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - Internal refactor only, no breaking changes
 
 - [ ] **Item 12: Extract common API patterns**
+
   - Create `CachedApiOperation` module for DRY caching behavior
   - Refactor repetitive cache-check-fetch-cache patterns
   - Single place to fix cache bugs
   - Consistent behavior across all operations
 
 - [ ] **Item 12: Strategy pattern for response formatters** (lower priority)
+
   - Refactor `response_formatter.rb` to use strategy pattern
   - Extract field-type-specific formatters into separate classes
   - Reduce complexity in `filter_field_structure` method
@@ -177,8 +190,6 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 #### Core Improvements
 
-- [ ] Lazy loading for large record sets (pagination in cache layer)
-- [ ] Streaming API for large responses
 - [ ] Connection pooling for multiple concurrent requests
 - [ ] Query optimization for complex filters
 - [ ] Parallel fetching for independent API calls
@@ -416,7 +427,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | ------- | -------------- | ----------- | ---------- |
 | v1.0    | ✅ Released    | Nov 2025    | 100%       |
 | v1.5    | ✅ Released    | Nov 2025    | 100%       |
-| v1.6    | 🚧 In Progress | Dec 2025    | 64%        |
+| v1.6    | 🚧 In Progress | Dec 2025    | 71%        |
 | v2.0    | 📋 Planned     | Q1 2026     | 0%         |
 | v2.1    | 📋 Planned     | Q2 2026     | 0%         |
 | v2.2    | 📋 Planned     | Q2 2026     | 0%         |

@@ -71,6 +71,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tracks refresh history via existing cache_stats mechanism
   - Returns structured response with timestamp and confirmation message
   - Useful for forcing fresh data when you know it has changed
+- **New `warm_cache` tool** (v1.6):
+  - MCP tool to proactively warm (populate) cache for specified tables
+  - Auto mode: Automatically selects top N most accessed tables from cache_performance
+  - Manual mode: Explicit list of table IDs to warm
+  - Skips tables that already have valid cache (no redundant fetching)
+  - Fetches and caches all records for each table to improve subsequent query performance
+  - Returns progress tracking with summary (total, warmed, skipped, errors)
+  - Per-table status: 'warmed', 'skipped', or 'error' with details
+  - Useful for pre-loading frequently accessed data during off-peak hours
 
 ### Changed
 - **Increased cache TTL values** for better performance (v1.6):

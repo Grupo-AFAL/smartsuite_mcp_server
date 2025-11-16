@@ -275,6 +275,11 @@ class SmartSuiteServer
       else
         {'error' => 'Cache is disabled'}
       end
+    when 'warm_cache'
+      @client.warm_cache(
+        tables: arguments['tables'],
+        count: arguments['count'] || 5
+      )
     else
       return {
         'jsonrpc' => '2.0',

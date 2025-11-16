@@ -1418,6 +1418,35 @@ module SmartSuite
       end
     end
 
+    # Get list of table IDs for cache warming
+    #
+    # Returns either a user-specified list or automatically selects top N most accessed tables
+    # based on cache performance metrics.
+    #
+    # @param tables [Array<String>, String, nil] Array of table IDs, 'auto', or nil for auto mode
+    # @param count [Integer] Number of tables to return in auto mode (default: 5)
+    # @return [Array<String>] List of table IDs to warm
+    def get_tables_to_warm(tables: nil, count: 5)
+      if tables.nil? || tables == 'auto'
+        # Auto mode: get top N most accessed tables from cache_performance
+        results = db_execute(
+          "SELECT table_id FROM cache_performance
+           ORDER BY (hit_count + miss_count) DESC
+           LIMIT ?",
+          count
+        )
+        results.map { |row| row['table_id'] }
+      elsif tables.is_a?(Array)
+        # Explicit list of table IDs
+        tables
+      elsif tables.is_a?(String)
+        # Single table ID
+        [tables]
+      else
+        []
+      end
+    end
+
     # Get cache status for solutions, tables, and records
     #
     # Shows cached_at, expires_at, time_remaining, record_count for each cached resource.
