@@ -29,8 +29,8 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.is_a?(Array), "Should return array"
-    assert results.all? { |r| r['status'] == 'active' }, "All results should match status"
+    assert results.is_a?(Array), 'Should return array'
+    assert results.all? { |r| r['status'] == 'active' }, 'All results should match status'
   end
 
   # Test multiple where clauses (AND)
@@ -42,7 +42,7 @@ class TestCacheQuery < Minitest::Test
     results = query.execute
 
     assert results.all? { |r| r['status'] == 'active' && r['priority'] >= 3 },
-           "Should match all conditions"
+           'Should match all conditions'
   end
 
   # Test greater than operator
@@ -52,7 +52,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| r['priority'] > 2 }, "Should match greater than"
+    assert results.all? { |r| r['priority'] > 2 }, 'Should match greater than'
   end
 
   # Test greater than or equal operator
@@ -62,7 +62,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| r['priority'] >= 3 }, "Should match gte"
+    assert results.all? { |r| r['priority'] >= 3 }, 'Should match gte'
   end
 
   # Test less than operator
@@ -72,7 +72,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| r['priority'] < 3 }, "Should match less than"
+    assert results.all? { |r| r['priority'] < 3 }, 'Should match less than'
   end
 
   # Test less than or equal operator
@@ -82,7 +82,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| r['priority'] <= 2 }, "Should match lte"
+    assert results.all? { |r| r['priority'] <= 2 }, 'Should match lte'
   end
 
   # Test not equal operator
@@ -92,7 +92,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| r['status'] != 'archived' }, "Should match not equal"
+    assert results.all? { |r| r['status'] != 'archived' }, 'Should match not equal'
   end
 
   # Test contains operator
@@ -102,7 +102,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| r['name'].include?('Task') }, "Should match contains"
+    assert results.all? { |r| r['name'].include?('Task') }, 'Should match contains'
   end
 
   # Test starts_with operator
@@ -112,7 +112,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| r['name'].start_with?('Task') }, "Should match starts_with"
+    assert results.all? { |r| r['name'].start_with?('Task') }, 'Should match starts_with'
   end
 
   # Test ends_with operator
@@ -122,7 +122,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| r['name'].end_with?('1') }, "Should match ends_with"
+    assert results.all? { |r| r['name'].end_with?('1') }, 'Should match ends_with'
   end
 
   # Test in operator
@@ -132,7 +132,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| %w[active pending].include?(r['status']) }, "Should match in"
+    assert results.all? { |r| %w[active pending].include?(r['status']) }, 'Should match in'
   end
 
   # Test not_in operator
@@ -142,7 +142,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| !['archived'].include?(r['status']) }, "Should match not_in"
+    assert results.all? { |r| !['archived'].include?(r['status']) }, 'Should match not_in'
   end
 
   # Test between operator
@@ -152,7 +152,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| r['priority'] >= 2 && r['priority'] <= 4 }, "Should match between"
+    assert results.all? { |r| r['priority'].between?(2, 4) }, 'Should match between'
   end
 
   # Test is_null operator
@@ -170,8 +170,8 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.any?, "Should find records with null description"
-    assert results.all? { |r| r['description'].nil? }, "Should match is_null"
+    assert results.any?, 'Should find records with null description'
+    assert results.all? { |r| r['description'].nil? }, 'Should match is_null'
   end
 
   # Test is_not_null operator
@@ -181,7 +181,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| !r['description'].nil? }, "Should match is_not_null"
+    assert results.all? { |r| !r['description'].nil? }, 'Should match is_not_null'
   end
 
   # Test is_empty operator for text fields
@@ -199,7 +199,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.any?, "Should find records with empty description"
+    assert results.any?, 'Should find records with empty description'
   end
 
   # Test is_not_empty operator for text fields
@@ -209,7 +209,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.all? { |r| !r['name'].nil? && r['name'] != '' }, "Should match is_not_empty"
+    assert results.all? { |r| !r['name'].nil? && r['name'] != '' }, 'Should match is_not_empty'
   end
 
   # Test order by ascending
@@ -220,7 +220,7 @@ class TestCacheQuery < Minitest::Test
     results = query.execute
 
     priorities = results.map { |r| r['priority'] }
-    assert_equal priorities, priorities.sort, "Should be sorted ascending"
+    assert_equal priorities, priorities.sort, 'Should be sorted ascending'
   end
 
   # Test order by descending
@@ -231,7 +231,7 @@ class TestCacheQuery < Minitest::Test
     results = query.execute
 
     priorities = results.map { |r| r['priority'] }
-    assert_equal priorities, priorities.sort.reverse, "Should be sorted descending"
+    assert_equal priorities, priorities.sort.reverse, 'Should be sorted descending'
   end
 
   # Test limit
@@ -241,7 +241,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert_equal 2, results.size, "Should return only 2 results"
+    assert_equal 2, results.size, 'Should return only 2 results'
   end
 
   # Test offset
@@ -258,8 +258,8 @@ class TestCacheQuery < Minitest::Test
                            .execute
 
     # Should skip first result
-    assert_equal all_results[1..-1].size, offset_results.size, "Should skip first result"
-    assert_equal all_results[1]['id'], offset_results[0]['id'], "Should start from second result"
+    assert_equal all_results[1..].size, offset_results.size, 'Should skip first result'
+    assert_equal all_results[1]['id'], offset_results[0]['id'], 'Should start from second result'
   end
 
   # Test limit with offset (pagination)
@@ -271,7 +271,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert_equal 2, results.size, "Should return 2 results"
+    assert_equal 2, results.size, 'Should return 2 results'
   end
 
   # Test chaining: where + order + limit
@@ -283,21 +283,21 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.size <= 2, "Should respect limit"
-    assert results.all? { |r| r['status'] == 'active' }, "Should match where"
+    assert results.size <= 2, 'Should respect limit'
+    assert results.all? { |r| r['status'] == 'active' }, 'Should match where'
 
     # Check ordering
-    if results.size > 1
-      assert results[0]['priority'] >= results[1]['priority'], "Should be ordered descending"
-    end
+    return unless results.size > 1
+
+    assert results[0]['priority'] >= results[1]['priority'], 'Should be ordered descending'
   end
 
   # Test count without filters
   def test_count_all
     count = @cache.query('tbl_test_123').count
 
-    assert count > 0, "Should count all records"
-    assert_equal 5, count, "Should have 5 test records"
+    assert count.positive?, 'Should count all records'
+    assert_equal 5, count, 'Should have 5 test records'
   end
 
   # Test count with filters
@@ -311,7 +311,7 @@ class TestCacheQuery < Minitest::Test
                          .execute
                          .size
 
-    assert_equal active_count, count, "Count should match filtered results"
+    assert_equal active_count, count, 'Count should match filtered results'
   end
 
   # Test error handling: table not cached
@@ -322,7 +322,7 @@ class TestCacheQuery < Minitest::Test
             .execute
     end
 
-    assert_includes error.message, 'not cached', "Should raise error for uncached table"
+    assert_includes error.message, 'not cached', 'Should raise error for uncached table'
   end
 
   # Test unknown field handling
@@ -335,7 +335,7 @@ class TestCacheQuery < Minitest::Test
     results = query.execute
 
     # Should still work with valid fields
-    assert results.all? { |r| r['status'] == 'active' }, "Should process valid fields"
+    assert results.all? { |r| r['status'] == 'active' }, 'Should process valid fields'
   end
 
   # Test has_any_of operator (for JSON arrays)
@@ -353,7 +353,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.any? { |r| r['id'] == 'rec_tags' }, "Should find record with tag"
+    assert results.any? { |r| r['id'] == 'rec_tags' }, 'Should find record with tag'
   end
 
   # Test has_all_of operator (for JSON arrays)
@@ -372,7 +372,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.any? { |r| r['id'] == 'rec_multi_tags' }, "Should find record with all tags"
+    assert results.any? { |r| r['id'] == 'rec_multi_tags' }, 'Should find record with all tags'
   end
 
   # Test has_none_of operator (for JSON arrays)
@@ -390,7 +390,7 @@ class TestCacheQuery < Minitest::Test
 
     results = query.execute
 
-    assert results.any? { |r| r['id'] == 'rec_clean' }, "Should find record without specified tags"
+    assert results.any? { |r| r['id'] == 'rec_clean' }, 'Should find record without specified tags'
   end
 
   private

@@ -20,12 +20,12 @@ class TestCacheLayer < Minitest::Test
 
   # Test cache initialization
   def test_initialize_creates_database
-    assert File.exist?(@test_db_path), "Database file should be created"
+    assert File.exist?(@test_db_path), 'Database file should be created'
   end
 
   def test_initialize_sets_file_permissions
     permissions = File.stat(@test_db_path).mode & 0o777
-    assert_equal 0o600, permissions, "File should have 600 permissions"
+    assert_equal 0o600, permissions, 'File should have 600 permissions'
   end
 
   def test_initialize_creates_metadata_tables
@@ -47,7 +47,7 @@ class TestCacheLayer < Minitest::Test
 
     count = @cache.cache_table_records(table_id, structure, records)
 
-    assert_equal 3, count, "Should return number of records cached"
+    assert_equal 3, count, 'Should return number of records cached'
   end
 
   def test_cache_table_records_with_custom_ttl
@@ -90,7 +90,7 @@ class TestCacheLayer < Minitest::Test
     # Verify only new records exist
     query_results = @cache.query(table_id).execute
     assert_equal 2, query_results.size
-    assert query_results.all? { |r| r['id'].start_with?('rec_new') }
+    assert(query_results.all? { |r| r['id'].start_with?('rec_new') })
   end
 
   # Test cache validity
@@ -101,7 +101,7 @@ class TestCacheLayer < Minitest::Test
 
     @cache.cache_table_records(table_id, structure, records)
 
-    assert @cache.cache_valid?(table_id), "Cache should be valid immediately after caching"
+    assert @cache.cache_valid?(table_id), 'Cache should be valid immediately after caching'
   end
 
   def test_cache_valid_with_expired_cache
@@ -112,11 +112,11 @@ class TestCacheLayer < Minitest::Test
     # Cache with very short TTL
     @cache.cache_table_records(table_id, structure, records, ttl: -1) # Expired immediately
 
-    refute @cache.cache_valid?(table_id), "Cache should be invalid when expired"
+    refute @cache.cache_valid?(table_id), 'Cache should be invalid when expired'
   end
 
   def test_cache_valid_with_no_cache
-    refute @cache.cache_valid?('tbl_nonexistent'), "Cache should be invalid for uncached table"
+    refute @cache.cache_valid?('tbl_nonexistent'), 'Cache should be invalid for uncached table'
   end
 
   # Test invalidate_table_cache
@@ -126,11 +126,11 @@ class TestCacheLayer < Minitest::Test
     records = create_test_records
 
     @cache.cache_table_records(table_id, structure, records)
-    assert @cache.cache_valid?(table_id), "Cache should be valid before invalidation"
+    assert @cache.cache_valid?(table_id), 'Cache should be valid before invalidation'
 
     @cache.send(:invalidate_table_cache, table_id)
 
-    refute @cache.cache_valid?(table_id), "Cache should be invalid after invalidation"
+    refute @cache.cache_valid?(table_id), 'Cache should be invalid after invalidation'
   end
 
   # Test solution caching
@@ -139,7 +139,7 @@ class TestCacheLayer < Minitest::Test
 
     count = @cache.cache_solutions(solutions)
 
-    assert_equal 3, count, "Should return number of solutions cached"
+    assert_equal 3, count, 'Should return number of solutions cached'
   end
 
   def test_get_cached_solutions
@@ -148,7 +148,7 @@ class TestCacheLayer < Minitest::Test
 
     cached = @cache.get_cached_solutions
 
-    assert cached.is_a?(Array), "Should return array"
+    assert cached.is_a?(Array), 'Should return array'
     assert_equal 3, cached.size
     assert_equal 'sol_1', cached[0]['id']
     assert_equal 'Solution 1', cached[0]['name']
@@ -160,14 +160,14 @@ class TestCacheLayer < Minitest::Test
 
     cached = @cache.get_cached_solutions
 
-    assert_nil cached, "Should return nil when cache expired"
+    assert_nil cached, 'Should return nil when cache expired'
   end
 
   def test_solutions_cache_valid
     solutions = create_test_solutions
     @cache.cache_solutions(solutions)
 
-    assert @cache.send(:solutions_cache_valid?), "Solutions cache should be valid"
+    assert @cache.send(:solutions_cache_valid?), 'Solutions cache should be valid'
   end
 
   def test_invalidate_solutions_cache
@@ -176,7 +176,7 @@ class TestCacheLayer < Minitest::Test
 
     @cache.send(:invalidate_solutions_cache)
 
-    refute @cache.send(:solutions_cache_valid?), "Solutions cache should be invalid after invalidation"
+    refute @cache.send(:solutions_cache_valid?), 'Solutions cache should be invalid after invalidation'
   end
 
   # Test table list caching
@@ -186,7 +186,7 @@ class TestCacheLayer < Minitest::Test
 
     count = @cache.cache_table_list(solution_id, tables)
 
-    assert_equal 2, count, "Should return number of tables cached"
+    assert_equal 2, count, 'Should return number of tables cached'
   end
 
   def test_cache_table_list_all_tables
@@ -204,7 +204,7 @@ class TestCacheLayer < Minitest::Test
 
     cached = @cache.get_cached_table_list(solution_id)
 
-    assert cached.is_a?(Array), "Should return array"
+    assert cached.is_a?(Array), 'Should return array'
     assert_equal 2, cached.size
     assert_equal 'tbl_1', cached[0]['id']
   end
@@ -216,7 +216,7 @@ class TestCacheLayer < Minitest::Test
 
     cached = @cache.get_cached_table_list(solution_id)
 
-    assert_nil cached, "Should return nil when cache expired"
+    assert_nil cached, 'Should return nil when cache expired'
   end
 
   def test_table_list_cache_valid
@@ -224,7 +224,7 @@ class TestCacheLayer < Minitest::Test
     tables = create_test_tables(solution_id)
     @cache.cache_table_list(solution_id, tables)
 
-    assert @cache.send(:table_list_cache_valid?, solution_id), "Table list cache should be valid"
+    assert @cache.send(:table_list_cache_valid?, solution_id), 'Table list cache should be valid'
   end
 
   def test_invalidate_table_list_cache
@@ -234,7 +234,7 @@ class TestCacheLayer < Minitest::Test
 
     @cache.send(:invalidate_table_list_cache, solution_id)
 
-    refute @cache.send(:table_list_cache_valid?, solution_id), "Table list cache should be invalid"
+    refute @cache.send(:table_list_cache_valid?, solution_id), 'Table list cache should be invalid'
   end
 
   # Test refresh_cache
@@ -292,7 +292,7 @@ class TestCacheLayer < Minitest::Test
 
   # Test get_tables_to_warm
   def test_get_tables_to_warm_with_array
-    tables = ['tbl_1', 'tbl_2', 'tbl_3']
+    tables = %w[tbl_1 tbl_2 tbl_3]
 
     result = @cache.get_tables_to_warm(tables: tables)
 
@@ -323,13 +323,13 @@ class TestCacheLayer < Minitest::Test
     result = @cache.get_tables_to_warm(tables: 'auto', count: 2)
 
     assert_equal 2, result.size
-    assert_equal 'tbl_popular', result[0], "Should return most accessed table first"
+    assert_equal 'tbl_popular', result[0], 'Should return most accessed table first'
   end
 
   def test_get_tables_to_warm_nil_returns_auto
     result = @cache.get_tables_to_warm(tables: nil, count: 5)
 
-    assert result.is_a?(Array), "Should return empty array when no performance data"
+    assert result.is_a?(Array), 'Should return empty array when no performance data'
   end
 
   # Test get_cache_status
@@ -349,7 +349,7 @@ class TestCacheLayer < Minitest::Test
 
     status = @cache.get_cache_status
 
-    assert status.is_a?(Hash), "Should return hash"
+    assert status.is_a?(Hash), 'Should return hash'
     assert status.key?('timestamp')
     assert status.key?('solutions')
     assert status.key?('tables')
@@ -432,12 +432,12 @@ class TestCacheLayer < Minitest::Test
 
   def test_extract_field_value_array_field
     field_info = { 'slug' => 'tags', 'field_type' => 'multipleselectfield', 'label' => 'Tags' }
-    value = ['tag1', 'tag2', 'tag3']
+    value = %w[tag1 tag2 tag3]
 
     result = @cache.send(:extract_field_value, field_info, value)
 
-    assert result['tags'].is_a?(String), "Arrays should be converted to JSON"
-    assert_equal ['tag1', 'tag2', 'tag3'], JSON.parse(result['tags'])
+    assert result['tags'].is_a?(String), 'Arrays should be converted to JSON'
+    assert_equal %w[tag1 tag2 tag3], JSON.parse(result['tags'])
   end
 
   def test_extract_field_value_nil_returns_empty
@@ -466,7 +466,7 @@ class TestCacheLayer < Minitest::Test
   def test_parse_timestamp_invalid
     result = @cache.send(:parse_timestamp, 'invalid-timestamp')
 
-    assert_nil result, "Invalid timestamps should return nil"
+    assert_nil result, 'Invalid timestamps should return nil'
   end
 
   # Test query method
@@ -478,7 +478,7 @@ class TestCacheLayer < Minitest::Test
 
     query = @cache.query(table_id)
 
-    assert query.is_a?(SmartSuite::Cache::Query), "Should return Query instance"
+    assert query.is_a?(SmartSuite::Cache::Query), 'Should return Query instance'
   end
 
   # Test close method
@@ -489,7 +489,7 @@ class TestCacheLayer < Minitest::Test
       @cache.db.execute('SELECT 1')
     end
 
-    assert_includes error.message.downcase, 'closed', "Database should be closed"
+    assert_includes error.message.downcase, 'closed', 'Database should be closed'
   end
 
   private

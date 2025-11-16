@@ -100,7 +100,7 @@ class TestResponseFormatter < Minitest::Test
       'params' => {
         'linked_application' => 'tbl_projects',
         'entries_allowed' => 'multiple',
-        'visible_fields' => ['name', 'status'] # Should be filtered out
+        'visible_fields' => %w[name status] # Should be filtered out
       }
     }
 
