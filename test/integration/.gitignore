@@ -1,0 +1,8 @@
+# Integration test credentials
+# NEVER commit the .env file - it contains API credentials!
+.env
+
+# Test databases (if created during integration tests)
+*.db
+*.db-journal
+*.db-wal

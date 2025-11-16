@@ -6,19 +6,63 @@ require_relative '../../lib/smartsuite_client'
 # Integration tests for SmartSuite MCP Server
 #
 # These tests validate against the real SmartSuite API.
-# Requires SMARTSUITE_API_KEY and SMARTSUITE_ACCOUNT_ID environment variables.
+# Credentials are loaded ONLY from test/integration/.env file.
+# Production credentials are explicitly ignored to prevent accidents.
 #
-# Run with: ruby test/integration/test_integration.rb
+# Setup:
+#   1. Copy test/integration/.env.example to test/integration/.env
+#   2. Fill in your TEST credentials in .env
+#   3. Run: ruby test/integration/test_integration.rb
+#
+# IMPORTANT: This test NEVER uses ENV['SMARTSUITE_API_KEY'] from your shell.
+# It only loads from the local .env file to prevent using production credentials.
 class TestIntegration < Minitest::Test
+  # Load credentials from local .env file ONLY
+  # This ensures we never accidentally use production credentials
+  def self.load_test_credentials
+    env_file = File.join(__dir__, '.env')
+
+    unless File.exist?(env_file)
+      warn "\n⚠️  Integration test .env file not found!"
+      warn "   Please copy .env.example to .env and configure test credentials:"
+      warn "   cp test/integration/.env.example test/integration/.env\n\n"
+      return {}
+    end
+
+    credentials = {}
+    File.readlines(env_file).each do |line|
+      line = line.strip
+      next if line.empty? || line.start_with?('#')
+
+      key, value = line.split('=', 2)
+      credentials[key] = value if key && value
+    end
+
+    # Safety check: prevent using production credentials
+    if credentials['SMARTSUITE_API_KEY']&.include?('your_api_key_here') ||
+       credentials['SMARTSUITE_ACCOUNT_ID']&.include?('your_account_id_here')
+      warn "\n⚠️  Test credentials not configured!"
+      warn "   Please edit test/integration/.env with your TEST credentials\n\n"
+      return {}
+    end
+
+    credentials
+  end
+
+  # Load test credentials at class load time
+  TEST_CREDENTIALS = load_test_credentials
+
   def setup
-    @api_key = ENV['SMARTSUITE_API_KEY']
-    @account_id = ENV['SMARTSUITE_ACCOUNT_ID']
+    # IMPORTANT: Only use credentials from local .env file
+    # Never use ENV['SMARTSUITE_API_KEY'] from shell to prevent accidents
+    @api_key = TEST_CREDENTIALS['SMARTSUITE_API_KEY']
+    @account_id = TEST_CREDENTIALS['SMARTSUITE_ACCOUNT_ID']
 
     if integration_tests_enabled?
       @client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: true)
-      puts "\n✓ Integration tests enabled (API credentials found)"
+      puts "\n✓ Integration tests enabled (credentials loaded from test/integration/.env)"
     else
-      puts "\n⚠️  Integration tests skipped (set SMARTSUITE_API_KEY and SMARTSUITE_ACCOUNT_ID to enable)"
+      puts "\n⚠️  Integration tests skipped (configure test/integration/.env to enable)"
     end
   end
 
