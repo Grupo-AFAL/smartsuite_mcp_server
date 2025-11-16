@@ -2,6 +2,7 @@ require 'json'
 require 'net/http'
 require 'uri'
 require 'openssl'
+require_relative '../../query_logger'
 
 module SmartSuite
   module API
@@ -13,6 +14,7 @@ module SmartSuite
     # - Error handling for failed requests
     # - Metrics logging for all API calls
     # - Token usage tracking
+    # - Query logging for debugging
     module HttpClient
       # Base URL for all SmartSuite API requests
       API_BASE_URL = 'https://app.smartsuite.com/api/v1'
@@ -34,6 +36,11 @@ module SmartSuite
         log_metric("→ #{method.upcase} #{endpoint}")
 
         uri = URI.parse("#{API_BASE_URL}#{endpoint}")
+
+        # Log API request
+        QueryLogger.log_api_request(method, uri.to_s, body: body)
+
+        start_time = Time.now
 
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
@@ -62,14 +69,24 @@ module SmartSuite
 
         response = http.request(request)
 
+        duration = Time.now - start_time
+
         unless response.is_a?(Net::HTTPSuccess)
+          QueryLogger.log_api_response(response.code.to_i, duration, response.body&.length)
           raise "API request failed: #{response.code} - #{response.body}"
         end
+
+        # Log successful response
+        body_size = response.body&.length
+        QueryLogger.log_api_response(response.code.to_i, duration, body_size)
 
         # Handle empty responses (some endpoints return empty body on success)
         return {} if response.body.nil? || response.body.strip.empty?
 
         JSON.parse(response.body)
+      rescue StandardError => e
+        QueryLogger.log_error("API Request", e)
+        raise
       end
 
       # Logs a message to the metrics log file with timestamp.

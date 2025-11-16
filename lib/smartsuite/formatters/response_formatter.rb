@@ -55,15 +55,15 @@ module SmartSuite
 
       # Filters and formats record list responses for minimal token usage.
       #
-      # Applies field filtering, optionally converts to plain text format
-      # (saves ~40% tokens vs JSON), and logs token reduction metrics.
+      # Applies field filtering, converts to plain text format (saves ~40% tokens vs JSON),
+      # and logs token reduction metrics. Always includes total vs filtered record counts.
       #
       # @param response [Hash] Raw API response with 'items' array
       # @param fields [Array<String>, nil] Field slugs to include
       # @param plain_text [Boolean] Format as plain text instead of JSON (default: false)
-      # @param full_content [Boolean] Skip value truncation (default: false)
+      # @param hydrated [Boolean] Whether response includes hydrated values (informational only)
       # @return [String, Hash] Plain text string or filtered JSON hash
-      def filter_records_response(response, fields, plain_text: false, full_content: false)
+      def filter_records_response(response, fields, plain_text: false, hydrated: true)
         return response unless response.is_a?(Hash) && response['items'].is_a?(Array)
 
         # Calculate original size in tokens (approximate)
@@ -74,21 +74,25 @@ module SmartSuite
           if fields && !fields.empty?
             # If specific fields requested, only return those + id/title
             requested_fields = (fields + ['id', 'title']).uniq
-            filter_record_fields(record, requested_fields, full_content: full_content)
+            filter_record_fields(record, requested_fields)
           else
             # Default: only id and title (minimal context usage)
-            filter_record_fields(record, ['id', 'title'], full_content: full_content)
+            filter_record_fields(record, ['id', 'title'])
           end
         end
 
         # Format as plain text to save ~40% tokens vs JSON
         if plain_text
-          result_text = format_as_plain_text(filtered_items, response['total_count'], full_content: full_content)
+          filtered_count = response['filtered_count'] || response['total_count']
+          result_text = format_as_plain_text(filtered_items, response['total_count'], filtered_count)
           tokens = estimate_tokens(result_text)
           reduction_percent = ((original_tokens - tokens).to_f / original_tokens * 100).round(1)
 
-          content_mode = full_content ? "full content" : "truncated"
-          log_metric("✓ Found #{filtered_items.size} records (plain text, #{content_mode})")
+          if filtered_count && filtered_count < response['total_count']
+            log_metric("✓ Found #{filtered_items.size} records (#{filtered_count} matching filter from #{response['total_count']} total)")
+          else
+            log_metric("✓ Found #{filtered_items.size} of #{response['total_count']} total records (plain text)")
+          end
           log_metric("📊 #{original_tokens} → #{tokens} tokens (saved #{reduction_percent}%)")
           log_token_usage(tokens)
 
@@ -107,7 +111,7 @@ module SmartSuite
         filtered_tokens = estimate_tokens(filtered_json)
         reduction_percent = ((original_tokens - filtered_tokens).to_f / original_tokens * 100).round(1)
 
-        log_metric("✓ Found #{result['count']} records")
+        log_metric("✓ Found #{result['count']} of #{response['total_count']} total records")
         log_metric("📊 #{original_tokens} → #{filtered_tokens} tokens (saved #{reduction_percent}%)")
         log_token_usage(filtered_tokens)
 
@@ -191,26 +195,37 @@ module SmartSuite
       # compared to JSON representation.
       #
       # @param records [Array<Hash>] Filtered record data
-      # @param total_count [Integer, nil] Total record count for header
-      # @param full_content [Boolean] Whether content is already full (no truncation applied)
+      # @param total_count [Integer, nil] Total record count (all records in table)
+      # @param filtered_count [Integer, nil] Count after filtering (before limit/offset)
       # @return [String] Plain text formatted records
-      def format_as_plain_text(records, total_count, full_content: false)
-        return "No records found." if records.empty?
+      def format_as_plain_text(records, total_count, filtered_count = nil)
+        filtered_count ||= total_count
+
+        if records.empty?
+          if filtered_count && filtered_count < total_count
+            return "No records found in displayed page (0 shown from #{filtered_count} matching filter, #{total_count} total)."
+          else
+            return "No records found (0 of #{total_count || 0} total)."
+          end
+        end
 
         lines = []
-        lines << "Found #{records.size} records (total: #{total_count || records.size})"
+        if filtered_count && filtered_count < total_count
+          lines << "=== Showing #{records.size} of #{filtered_count} filtered records (#{total_count} total) ==="
+        else
+          lines << "=== Showing #{records.size} of #{total_count || records.size} total records ==="
+        end
         lines << ""
 
         records.each_with_index do |record, index|
           lines << "Record #{index + 1}:"
           record.each do |key, value|
-            # Format value appropriately - values are already truncated by truncate_value if needed
-            # We don't truncate again here (removed the 100-char limit)
+            # Format value appropriately - values are already truncated by truncate_value
             formatted_value = case value
             when Hash
-              value.inspect # No truncation - already handled
+              value.inspect
             when Array
-              value.join(", ") # No truncation - already handled
+              value.join(", ")
             else
               value.to_s
             end
@@ -224,55 +239,31 @@ module SmartSuite
 
       # Filters a record to only include specified fields.
       #
-      # Applies truncation to field values unless full_content is true.
+      # Applies truncation to field values to minimize token usage.
       #
       # @param record [Hash] Complete record data
       # @param include_fields [Array<String>] Field slugs to include
-      # @param full_content [Boolean] Skip value truncation (default: false)
       # @return [Hash] Filtered record with only specified fields
-      def filter_record_fields(record, include_fields, full_content: false)
+      def filter_record_fields(record, include_fields)
         return record unless record.is_a?(Hash)
 
         # Only include specified fields
         result = {}
         include_fields.each do |field|
-          result[field] = truncate_value(record[field], full_content: full_content) if record.key?(field)
+          result[field] = truncate_value(record[field]) if record.key?(field)
         end
         result
       end
 
-      # Truncates field values to prevent excessive token usage.
+      # Returns field value without truncation.
       #
-      # Applies different truncation strategies by value type:
-      # - Strings: 500 char limit
-      # - Rich text (hashes): Extract preview only
-      # - Arrays: First 10 items
+      # Previously truncated values, but per user request we now return full values.
+      # AI should be encouraged to only fetch needed fields to control token usage.
       #
-      # @param value [Object] Field value to truncate
-      # @param full_content [Boolean] Skip truncation if true (default: false)
-      # @return [Object] Truncated or original value
-      def truncate_value(value, full_content: false)
-        # If full_content is true, return value as-is (no truncation)
-        return value if full_content
-
-        # Default behavior: truncate to 500 chars for safety
-        case value
-        when String
-          value.length > 500 ? value[0...500] + '... [truncated]' : value
-        when Hash
-          # For nested hashes (like description), truncate aggressively
-          if value['html'] || value['data'] || value['yjsData']
-            # This is likely a rich text field - just keep preview
-            value['preview'] ? value['preview'][0...500] : '[Rich text content]'
-          else
-            value
-          end
-        when Array
-          # Truncate arrays to first 10 items
-          value.length > 10 ? value[0...10] + ['... [truncated]'] : value
-        else
-          value
-        end
+      # @param value [Object] Field value
+      # @return [Object] The value as-is
+      def truncate_value(value)
+        value
       end
     end
   end
