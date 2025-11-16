@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../filter_builder'
+require_relative 'base'
 
 module SmartSuite
   module API
@@ -12,7 +13,9 @@ module SmartSuite
     # - Creating, updating, and deleting records
     #
     # Implements caching for efficient queries and aggressive validation to minimize token usage.
+    # Uses Base module for common API patterns (validation, endpoint building, cache coordination).
     module RecordOperations
+      include Base
       # Lists records from a table with filtering, sorting, and field selection.
       #
       # When cache is enabled:
@@ -37,8 +40,13 @@ module SmartSuite
       # @param hydrated [Boolean] Fetch human-readable values for linked records, users, etc. (default: true)
       # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
       # @return [String] Plain text formatted records with total/filtered counts
+      # @raise [ArgumentError] If table_id is missing
+      # @example
+      #   list_records('tbl_123', 10, 0, fields: ['status', 'priority'])
       def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, hydrated: true,
                        bypass_cache: false)
+        validate_required_parameter!('table_id', table_id)
+
         # Handle nil values (when called via MCP with missing parameters)
         limit = 10 if limit.nil?
         offset ||= 0
@@ -53,7 +61,9 @@ module SmartSuite
         end
 
         # Try cache-first strategy if enabled
-        return list_records_from_cache(table_id, limit, offset, filter, fields, hydrated) if cache_enabled? && !bypass_cache
+        unless should_bypass_cache?(bypass_cache)
+          return list_records_from_cache(table_id, limit, offset, filter, fields, hydrated)
+        end
 
         # Fallback to direct API call (cache disabled or bypassed)
         list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
@@ -108,18 +118,17 @@ module SmartSuite
 
       # Direct API call (original behavior, used when cache disabled/bypassed)
       def list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
-        # Build query params for limit, offset, and hydrated
-        query_params = "?limit=#{limit}&offset=#{offset}"
-        query_params += "&hydrated=#{hydrated}" if hydrated
+        # Build endpoint with query parameters using Base helper
+        base_path = "/applications/#{table_id}/records/list/"
+        endpoint = build_endpoint(base_path, limit: limit, offset: offset, hydrated: (hydrated || nil))
 
         # Build body with filter and sort (if provided)
         body = {}
         body[:filter] = filter if filter
         body[:sort] = sort if sort
 
-        # Make request with query params and body
-        response = api_request(:post, "/applications/#{table_id}/records/list/#{query_params}",
-                               body.empty? ? nil : body)
+        # Make request with endpoint and body
+        response = api_request(:post, endpoint, body.empty? ? nil : body)
 
         # Apply aggressive filtering to reduce response size
         # Returns plain text format to save ~40% tokens vs JSON
@@ -162,13 +171,13 @@ module SmartSuite
       def fetch_all_records(table_id)
         all_records = []
         offset = 0
-        limit = 1000 # Batch size (use 1000 to minimize API calls)
+        limit = Base::Pagination::FETCH_ALL_LIMIT # Use constant from Base
 
         loop do
-          # Use hydrated=true to get full data (linked records, users, etc.)
-          # This returns same data as get_record endpoint (minus deleted_by field)
-          query_params = "?limit=#{limit}&offset=#{offset}&hydrated=true"
-          response = api_request(:post, "/applications/#{table_id}/records/list/#{query_params}", nil)
+          # Build endpoint with query parameters using Base helper
+          base_path = "/applications/#{table_id}/records/list/"
+          endpoint = build_endpoint(base_path, limit: limit, offset: offset, hydrated: true)
+          response = api_request(:post, endpoint, nil)
 
           records = response['items'] || []
           break if records.empty?
@@ -192,7 +201,13 @@ module SmartSuite
       # @param table_id [String] Table identifier
       # @param record_id [String] Record identifier
       # @return [Hash] Complete record data
+      # @raise [ArgumentError] If required parameters are missing
+      # @example
+      #   get_record('tbl_123', 'rec_abc')
       def get_record(table_id, record_id)
+        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!('record_id', record_id)
+
         api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
       end
 
@@ -201,7 +216,13 @@ module SmartSuite
       # @param table_id [String] Table identifier
       # @param data [Hash] Record data as field_slug => value pairs
       # @return [Hash] Created record with ID
+      # @raise [ArgumentError] If required parameters are missing or invalid
+      # @example
+      #   create_record('tbl_123', {'title' => 'New Task', 'status' => 'Active'})
       def create_record(table_id, data)
+        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!('data', data, Hash)
+
         api_request(:post, "/applications/#{table_id}/records/", data)
       end
 
@@ -211,7 +232,14 @@ module SmartSuite
       # @param record_id [String] Record identifier
       # @param data [Hash] Record data to update as field_slug => value pairs
       # @return [Hash] Updated record data
+      # @raise [ArgumentError] If required parameters are missing or invalid
+      # @example
+      #   update_record('tbl_123', 'rec_abc', {'status' => 'Completed'})
       def update_record(table_id, record_id, data)
+        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!('record_id', record_id)
+        validate_required_parameter!('data', data, Hash)
+
         api_request(:patch, "/applications/#{table_id}/records/#{record_id}/", data)
       end
 
@@ -220,7 +248,13 @@ module SmartSuite
       # @param table_id [String] Table identifier
       # @param record_id [String] Record identifier to delete
       # @return [Hash] Deletion confirmation
+      # @raise [ArgumentError] If required parameters are missing
+      # @example
+      #   delete_record('tbl_123', 'rec_abc')
       def delete_record(table_id, record_id)
+        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!('record_id', record_id)
+
         api_request(:delete, "/applications/#{table_id}/records/#{record_id}/")
       end
     end
