@@ -22,13 +22,13 @@ module SmartSuite
   class CacheLayer
     attr_reader :db, :db_path
 
-    # Default TTL values in seconds
-    DEFAULT_TTL = 4 * 3600  # 4 hours
+    # Default TTL values in seconds (updated in v1.6)
+    DEFAULT_TTL = 12 * 3600  # 12 hours (for records)
     TTL_PRESETS = {
-      high_mutation: 1 * 3600,      # 1 hour
-      medium_mutation: 4 * 3600,    # 4 hours (default)
-      low_mutation: 12 * 3600,      # 12 hours
-      very_low_mutation: 24 * 3600  # 24 hours
+      high_mutation: 1 * 3600,          # 1 hour (frequently changing data)
+      medium_mutation: 12 * 3600,       # 12 hours (default for records)
+      low_mutation: 7 * 24 * 3600,      # 7 days (solutions, tables, members)
+      very_low_mutation: 30 * 24 * 3600 # 30 days (static reference data)
     }.freeze
 
     def initialize(db_path: nil)
@@ -1063,9 +1063,9 @@ module SmartSuite
     # Cache solutions list
     #
     # @param solutions [Array<Hash>] Array of solution hashes
-    # @param ttl [Integer] Time-to-live in seconds (default: 24 hours)
+    # @param ttl [Integer] Time-to-live in seconds (default: 7 days as of v1.6)
     # @return [Integer] Number of solutions cached
-    def cache_solutions(solutions, ttl: 24 * 3600)
+    def cache_solutions(solutions, ttl: 7 * 24 * 3600)
       expires_at = (Time.now + ttl).utc.iso8601
       cached_at = Time.now.utc.iso8601
 
@@ -1205,9 +1205,9 @@ module SmartSuite
     #
     # @param solution_id [String, nil] Solution ID (nil for all tables)
     # @param tables [Array<Hash>] Array of table hashes
-    # @param ttl [Integer] Time-to-live in seconds (default: 12 hours)
+    # @param ttl [Integer] Time-to-live in seconds (default: 7 days as of v1.6)
     # @return [Integer] Number of tables cached
-    def cache_table_list(solution_id, tables, ttl: 12 * 3600)
+    def cache_table_list(solution_id, tables, ttl: 7 * 24 * 3600)
       expires_at = (Time.now + ttl).utc.iso8601
       cached_at = Time.now.utc.iso8601
 
