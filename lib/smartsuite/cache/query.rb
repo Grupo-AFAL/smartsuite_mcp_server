@@ -121,9 +121,14 @@ module SmartSuite
         # Add ORDER BY
         sql += " #{@order_clause}" if @order_clause
 
-        # Add LIMIT and OFFSET
-        sql += " #{@limit_clause}" if @limit_clause
-        sql += " #{@offset_clause}" if @offset_clause
+        # Add LIMIT and OFFSET (OFFSET requires LIMIT in SQLite)
+        if @offset_clause && !@limit_clause
+          # SQLite requires LIMIT when using OFFSET, use -1 for unlimited
+          sql += " LIMIT -1 #{@offset_clause}"
+        elsif @limit_clause
+          sql += " #{@limit_clause}"
+          sql += " #{@offset_clause}" if @offset_clause
+        end
 
         # Log and execute query
         start_time = Time.now

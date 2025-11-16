@@ -191,6 +191,8 @@ module SmartSuite
       # @param field_type [String] SmartSuite field type
       # @return [String] SQLite column type
       def map_field_type_to_sql(field_type)
+        return 'TEXT' if field_type.nil? || field_type.empty?
+
         case field_type.downcase
         # System fields
         when 'autonumber', 'comments_count'
