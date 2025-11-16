@@ -156,8 +156,9 @@ All MCP tool responses should follow these patterns:
 5. **Error responses**: Standardize to `{"status" => "error", "error" => "...", "message" => "...", "timestamp" => "..."}`
 
 #### Medium Priority (Additions)
-6. **warm_cache**: Add "operation" => "warm" for consistency
-7. **Collection responses**: Add "timestamp" to all build_collection_response calls
+
+1. **warm_cache**: Add "operation" => "warm" for consistency
+2. **Collection responses**: Add "timestamp" to all build_collection_response calls
 
 ### Implementation Strategy
 
