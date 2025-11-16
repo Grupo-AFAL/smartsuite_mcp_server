@@ -1002,40 +1002,6 @@ module SmartSuite
       result && result['count'] > 0
     end
 
-    # Get cache status for a table
-    #
-    # @param table_id [String] SmartSuite table ID
-    # @return [Hash] Cache status information
-    def get_cache_status(table_id)
-      schema = get_cached_table_schema(table_id)
-      return {status: 'not_cached', table_id: table_id} unless schema
-
-      sql_table_name = schema['sql_table_name']
-
-      # Get record count and expiration
-      result = @db.execute(
-        "SELECT COUNT(*) as count, MIN(cached_at) as cached_at, MIN(expires_at) as expires_at
-         FROM #{sql_table_name}"
-      ).first
-
-      return {status: 'empty', table_id: table_id} unless result && result['count'] > 0
-
-      now = Time.now.utc.iso8601
-      expires_at = result['expires_at']
-      time_remaining = Time.parse(expires_at) - Time.parse(now)
-
-      {
-        table_id: table_id,
-        table_name: schema['table_name'],
-        record_count: result['count'],
-        cached_at: result['cached_at'],
-        expires_at: expires_at,
-        ttl_seconds: get_table_ttl(table_id),
-        status: time_remaining > 0 ? 'valid' : 'expired',
-        time_remaining_seconds: [time_remaining, 0].max
-      }
-    end
-
     # Record cache statistics
     #
     # @param category [String] Category of operation
@@ -1356,6 +1322,92 @@ module SmartSuite
         QueryLogger.log_cache_operation('invalidate', 'table_list:all_tables')
       end
     end
+
+    # Get cache status for solutions, tables, and records
+    #
+    # Shows cached_at, expires_at, time_remaining, record_count for each cached resource.
+    # Helps users understand cache state and plan cache refreshes.
+    #
+    # @param table_id [String, nil] Optional table ID to show status for specific table
+    # @return [Hash] Cache status information
+    def get_cache_status(table_id: nil)
+      now = Time.now.utc
+      status = {
+        'timestamp' => now.iso8601,
+        'solutions' => get_solutions_cache_status(now),
+        'tables' => get_tables_cache_status(now),
+        'records' => get_records_cache_status(now, table_id: table_id)
+      }
+
+      status
+    end
+
+    private
+
+    # Get solutions cache status
+    def get_solutions_cache_status(now)
+      result = db_execute("SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_solutions").first
+      return nil if result['count'] == 0
+
+      first_expires = Time.parse(result['first_expires'])
+      {
+        'count' => result['count'],
+        'expires_at' => first_expires.iso8601,
+        'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
+        'is_valid' => first_expires > now
+      }
+    end
+
+    # Get tables cache status
+    def get_tables_cache_status(now)
+      result = db_execute("SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_tables").first
+      return nil if result['count'] == 0
+
+      first_expires = Time.parse(result['first_expires'])
+      {
+        'count' => result['count'],
+        'expires_at' => first_expires.iso8601,
+        'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
+        'is_valid' => first_expires > now
+      }
+    end
+
+    # Get records cache status (all tables or specific table)
+    def get_records_cache_status(now, table_id: nil)
+      # Get all cached table schemas
+      schemas = db_execute("SELECT * FROM cache_table_registry")
+
+      if table_id
+        # Filter to specific table
+        schemas = schemas.select { |s| s['table_id'] == table_id }
+      end
+
+      return [] if schemas.empty?
+
+      schemas.map do |schema|
+        sql_table_name = schema['sql_table_name']
+
+        # Get record count and expiration
+        result = db_execute(
+          "SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM #{sql_table_name}"
+        ).first
+
+        next nil if result['count'] == 0
+
+        first_expires = Time.parse(result['first_expires'])
+        {
+          'table_id' => schema['table_id'],
+          'table_name' => schema['table_name'],
+          'record_count' => result['count'],
+          'cached_at' => Time.parse(schema['updated_at']).iso8601,
+          'expires_at' => first_expires.iso8601,
+          'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
+          'is_valid' => first_expires > now
+        }
+      end.compact
+    end
+
+    public
 
     # Close database connection
     def close

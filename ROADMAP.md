@@ -55,19 +55,19 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - ✅ All tests passing (84 runs, 401 assertions)
   - **Rationale:** Solo project, no migration compatibility needed
 
-- [ ] **Item 1: Rename `cached_table_schemas` → `cache_table_registry`**
-  - Update all code references in `cache_layer.rb`
-  - ALTER TABLE statement (no data migration, instant rename)
-  - Update documentation to clarify distinction from `cached_tables`
+- [x] **Item 1: Rename `cached_table_schemas` → `cache_table_registry`** ✅ COMPLETED
+  - ✅ Updated all code references in `cache_layer.rb`
+  - ✅ ALTER TABLE migration (no data migration, instant rename)
+  - ✅ Updated CHANGELOG with documentation
   - **Purpose:** Internal registry for dynamic SQL cache tables, not SmartSuite API cache
 
-- [ ] **Item 5: Increase cache TTL to 1 week**
-  - Solutions: 24h → 7 days
-  - Tables: 12h → 7 days
-  - Members: None → 7 days
-  - Records: 4h → 12h (configurable per table)
-  - Add explicit cache invalidation on structure changes (`add_field`, `update_field`, `delete_field`)
-  - Add `get_cache_status` tool to show TTL and expiration times
+- [x] **Item 5: Increase cache TTL values** ✅ COMPLETED (partial)
+  - ✅ Solutions: 24h → 7 days
+  - ✅ Tables: 12h → 7 days
+  - ✅ Records: 4h → 12h (configurable per table)
+  - ✅ Add explicit cache invalidation on structure changes (`add_field`, `update_field`, `delete_field`, `bulk_add_fields`)
+  - ⏳ Members: None → 7 days (not yet implemented - no member caching exists)
+  - [ ] Add `get_cache_status` tool to show TTL and expiration times (separate task below)
 
 - [ ] **Item 2: Review cache schema** ✅ Approved as-is
   - Keep current 9-table structure (all serve distinct purposes)
