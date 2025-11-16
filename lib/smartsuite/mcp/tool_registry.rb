@@ -455,7 +455,7 @@ module SmartSuite
       ].freeze
 
       # Statistics tools for API usage monitoring
-      # Includes: get_api_stats, reset_api_stats, get_cache_status
+      # Includes: get_api_stats, reset_api_stats, get_cache_status, refresh_cache
       STATS_TOOLS = [
         {
           'name' => 'get_api_stats',
@@ -493,6 +493,29 @@ module SmartSuite
               }
             },
             'required' => []
+          }
+        },
+        {
+          'name' => 'refresh_cache',
+          'description' => 'Manually refresh (invalidate) cache for specific resources. Invalidates cache without refetching - data will be refreshed on next access. Useful for forcing fresh data when you know it has changed.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'resource' => {
+                'type' => 'string',
+                'description' => 'Resource type to refresh: "solutions" (all solutions), "tables" (table list), or "records" (table records)',
+                'enum' => ['solutions', 'tables', 'records']
+              },
+              'table_id' => {
+                'type' => 'string',
+                'description' => 'Table ID (required when resource is "records")'
+              },
+              'solution_id' => {
+                'type' => 'string',
+                'description' => 'Solution ID (optional when resource is "tables" - omit to refresh all tables)'
+              }
+            },
+            'required' => ['resource']
           }
         }
       ].freeze

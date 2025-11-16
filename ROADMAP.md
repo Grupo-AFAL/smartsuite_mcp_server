@@ -112,12 +112,12 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - ✅ Add 4 new filter examples: empty fields, recent updates, complex AND/OR conditions, overdue tasks
   - ✅ Make AI context more helpful
 
-- [ ] **Item 6: Add user-triggered cache refresh**
-  - New MCP tool: `refresh_cache` (resource, table_id, solution_id)
-  - Behavior: Invalidate only (not refetch) - refetch on next access
-  - Add favorite tables configuration: `~/.smartsuite_mcp_favorites.json`
-  - Allow refresh of frequently-used tables via config
-  - Track refresh history in `cache_stats`
+- [x] **Item 6: Add user-triggered cache refresh** ✅ COMPLETED
+  - ✅ New MCP tool: `refresh_cache` (resource, table_id, solution_id)
+  - ✅ Behavior: Invalidate only (not refetch) - refetch on next access
+  - ✅ Supports three resource types: 'solutions', 'tables', 'records'
+  - ✅ Track refresh history in `cache_stats` via existing invalidation tracking
+  - ⏳ Favorite tables configuration deferred (can be added later if needed)
 
 - [ ] **Item 10: Implement manual cache warming**
   - New MCP tool: `warm_cache` (tables array or 'auto' for top 5)
@@ -416,7 +416,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | ------- | -------------- | ----------- | ---------- |
 | v1.0    | ✅ Released    | Nov 2025    | 100%       |
 | v1.5    | ✅ Released    | Nov 2025    | 100%       |
-| v1.6    | 🚧 In Progress | Dec 2025    | 57%        |
+| v1.6    | 🚧 In Progress | Dec 2025    | 64%        |
 | v2.0    | 📋 Planned     | Q1 2026     | 0%         |
 | v2.1    | 📋 Planned     | Q2 2026     | 0%         |
 | v2.2    | 📋 Planned     | Q2 2026     | 0%         |

@@ -265,6 +265,16 @@ class SmartSuiteServer
       else
         {'error' => 'Cache is disabled'}
       end
+    when 'refresh_cache'
+      if @client.cache_enabled?
+        @client.cache.refresh_cache(
+          arguments['resource'],
+          table_id: arguments['table_id'],
+          solution_id: arguments['solution_id']
+        )
+      else
+        {'error' => 'Cache is disabled'}
+      end
     else
       return {
         'jsonrpc' => '2.0',
