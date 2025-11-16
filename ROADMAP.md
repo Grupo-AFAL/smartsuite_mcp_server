@@ -181,6 +181,12 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 #### Token Optimization
 
+- [ ] **Replace text response format with TOON format**
+  - Migrate from plain text to TOON (Toolkit Oriented Object Notation)
+  - TOON spec: https://github.com/toon-format/toon
+  - Benefits: Better structured data, improved AI readability, reduced token usage
+  - Scope: Replace ResponseFormatter plain text output with TOON format
+  - Impact: Breaking change (response format), but more efficient for AI assistants
 - [ ] Smart field selection based on usage patterns
 - [ ] Automatic response compression
 - [ ] Differential updates (only changed fields)

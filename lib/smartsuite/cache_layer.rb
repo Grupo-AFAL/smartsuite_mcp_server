@@ -960,17 +960,27 @@ module SmartSuite
 
     # Invalidate cache for a table (force re-fetch on next query)
     #
+    # Invalidates both the cached records AND the table structure metadata.
+    # Use this when the table structure changes (fields added/updated/deleted).
+    #
     # @param table_id [String] SmartSuite table ID
-    def invalidate_table_cache(table_id)
+    # @param structure_changed [Boolean] Also invalidate table metadata (default: true)
+    def invalidate_table_cache(table_id, structure_changed: true)
       schema = get_cached_table_schema(table_id)
-      return unless schema
 
-      sql_table_name = schema['sql_table_name']
+      if schema
+        sql_table_name = schema['sql_table_name']
+        # Set expires_at to 0 to force re-fetch of cached records
+        @db.execute("UPDATE #{sql_table_name} SET expires_at = 0")
+        record_stat('invalidation', 'table_records', table_id)
+      end
 
-      # Set expires_at to 0 to force re-fetch
-      @db.execute("UPDATE #{sql_table_name} SET expires_at = 0")
-
-      record_stat('invalidation', 'table', table_id)
+      # Also invalidate table structure metadata if structure changed
+      if structure_changed
+        db_execute("UPDATE cached_tables SET expires_at = 0 WHERE id = ?", table_id)
+        record_stat('invalidation', 'table_structure', table_id)
+        QueryLogger.log_cache_operation('invalidate', "table_structure:#{table_id}")
+      end
     end
 
     # Check if cached records are valid (not expired)

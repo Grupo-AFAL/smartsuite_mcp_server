@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Automatic cache invalidation on structure changes** (v1.6):
+  - Field operations now automatically invalidate table cache:
+    - `add_field` - Invalidates table structure and records after adding field
+    - `bulk_add_fields` - Invalidates after bulk field additions
+    - `update_field` - Invalidates after field updates
+    - `delete_field` - Invalidates after field deletion
+  - Ensures cached data stays consistent with table schema
+  - Both table structure metadata and cached records are refreshed on next access
+  - Safe-navigation operator (`&.`) ensures no errors when cache disabled
+
 ### Changed
 - **Increased cache TTL values** for better performance (v1.6):
   - Solutions: 24 hours → **7 days** (rarely change)
@@ -14,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Records: 4 hours → **12 hours** (configurable per table)
   - Members: No cache → **7 days** (planned, not yet implemented)
   - Rationale: Longer TTL reduces API calls, improves response times
+- **Enhanced `invalidate_table_cache` method** (v1.6):
+  - Now accepts `structure_changed` parameter (default: true)
+  - Invalidates both cached records AND table structure metadata
+  - Separate stat tracking for `table_records` and `table_structure` invalidations
+  - Gracefully handles cases where cache doesn't exist for a table
 - **Renamed** `cached_table_schemas` table to `cache_table_registry` for clarity
   - This table is an internal registry for dynamically-created SQL cache tables, not a cache of SmartSuite table schemas
   - Database will automatically rename table on first run via ALTER TABLE statement
