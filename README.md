@@ -16,6 +16,14 @@ A Model Context Protocol (MCP) server for SmartSuite that enables AI assistants 
 
 ## 🚀 Quick Start
 
+### Prerequisites
+
+Before installation, ensure you have:
+- **Git** installed on your system
+  - macOS: Usually pre-installed, or install via `xcode-select --install`
+  - Windows: [Download Git for Windows](https://git-scm.com/download/win)
+  - Linux: `sudo apt-get install git` (Ubuntu/Debian) or `sudo dnf install git` (Fedora/RHEL)
+
 ### Automated Installation (Recommended)
 
 The easiest way to install the SmartSuite MCP server is using our automated installation script:
@@ -31,6 +39,14 @@ cd smartsuite_mcp_server
 ./install.sh
 ```
 
+The script will automatically:
+- ✅ Install Homebrew (macOS only, if not present)
+- ✅ Check for Ruby 3.0+ (install if needed on macOS)
+- ✅ Install all dependencies
+- ✅ Prompt for your SmartSuite API credentials
+- ✅ Configure Claude Desktop automatically
+- ✅ Set up everything for you!
+
 #### Windows
 
 ```powershell
@@ -42,8 +58,8 @@ cd smartsuite_mcp_server
 .\install.ps1
 ```
 
-The script will:
-- ✅ Check for Ruby 3.0+ (install if needed on macOS)
+The script will automatically:
+- ✅ Check for Ruby 3.0+ (must be pre-installed on Windows)
 - ✅ Install all dependencies
 - ✅ Prompt for your SmartSuite API credentials
 - ✅ Configure Claude Desktop automatically

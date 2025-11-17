@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Automated installation scripts** for non-technical users:
   - **macOS/Linux**: `./install.sh` - Bash-based installer with Homebrew integration
+    - Automatic Homebrew installation on macOS (if not present)
+    - Automatic Ruby installation via Homebrew on macOS
+    - Support for Apple Silicon and Intel Macs
+    - Support for jq (if installed) for safer JSON manipulation
   - **Windows**: `.\install.ps1` - PowerShell-based installer for Windows
   - One-command installation process
   - Automatic Ruby version checking (3.0+ required)
@@ -19,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatic Claude Desktop configuration with proper JSON formatting
   - Backup of existing configuration before making changes
   - Color-coded output for success/error/warning messages
-  - macOS: Support for jq (if installed) for safer JSON manipulation
   - Comprehensive error handling and validation
   - Cross-platform support: macOS, Linux, and Windows
 - **Development workflow guidelines** in CLAUDE.md:
@@ -31,7 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **README.md** - Updated Quick Start section to feature automated installation as the recommended method
+- **README.md** - Updated Quick Start section:
+  - Added Prerequisites section with git installation instructions for all platforms
+  - Featured automated installation as the recommended method
+  - Documented what each script automatically handles per platform
 - **ROADMAP.md** - Updated v2.0 goals to focus on "Token optimization and ease of installation"
 
 ## [1.8.0] - 2025-11-16
