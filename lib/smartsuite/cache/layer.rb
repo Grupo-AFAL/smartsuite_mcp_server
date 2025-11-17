@@ -721,6 +721,16 @@ module SmartSuite
           # Convert structure to JSON if it exists
           structure_json = table['structure']&.to_json
 
+          # API returns 'solution' but we normalize to 'solution_id'
+          solution_id_value = table['solution'] || table['solution_id']
+
+          # API returns first_created/last_updated as objects with 'by' and 'on'
+          created = table.dig('first_created', 'on')
+          created_by = table.dig('first_created', 'by')
+          # Note: Some tables might not have last_updated
+          updated = table.dig('last_updated', 'on')
+          updated_by = table.dig('last_updated', 'by')
+
           db_execute(
             "INSERT INTO cached_tables (
             id, slug, name, solution_id, description, structure,
@@ -730,13 +740,13 @@ module SmartSuite
             table['id'],
             table['slug'],
             table['name'],
-            table['solution_id'],
+            solution_id_value,
             table['description'],
             structure_json,
-            table['created'] ? parse_timestamp(table['created']) : nil,
-            table['updated'] ? parse_timestamp(table['updated']) : nil,
-            table['created_by'],
-            table['updated_by'],
+            created ? parse_timestamp(created) : nil,
+            updated ? parse_timestamp(updated) : nil,
+            created_by,
+            updated_by,
             table['deleted_date'] ? parse_timestamp(table['deleted_date']) : nil,
             table['deleted_by'],
             table['record_count'],
