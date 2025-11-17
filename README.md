@@ -59,11 +59,13 @@ cd smartsuite_mcp_server
 ```
 
 The script will automatically:
-- ✅ Check for Ruby 3.0+ (must be pre-installed on Windows)
+- ✅ Check for Ruby 3.0+ (auto-install via WinGet if not present)
 - ✅ Install all dependencies
 - ✅ Prompt for your SmartSuite API credentials
 - ✅ Configure Claude Desktop automatically
 - ✅ Set up everything for you!
+
+**Note:** Auto-installation of Ruby requires Windows Package Manager (WinGet), which is built into Windows 10 (version 1809+) and Windows 11. If WinGet is not available, you'll be prompted to install Ruby manually from [RubyInstaller.org](https://rubyinstaller.org/).
 
 **That's it!** Restart Claude Desktop and start using SmartSuite through natural language.
 

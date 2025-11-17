@@ -16,7 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Support for Apple Silicon and Intel Macs
     - Support for jq (if installed) for safer JSON manipulation
   - **Windows**: `.\install.ps1` - PowerShell-based installer for Windows
-  - One-command installation process
+    - Automatic Ruby installation via WinGet (Windows Package Manager)
+    - Works on Windows 10 (version 1809+) and Windows 11
+    - Interactive prompt to install Ruby if not present
+    - Fallback to manual installation if WinGet unavailable
+  - One-command installation process across all platforms
   - Automatic Ruby version checking (3.0+ required)
   - Automatic dependency installation via Bundler
   - Interactive prompts for SmartSuite API credentials
@@ -24,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Backup of existing configuration before making changes
   - Color-coded output for success/error/warning messages
   - Comprehensive error handling and validation
-  - Cross-platform support: macOS, Linux, and Windows
+  - True cross-platform auto-installation: macOS, Linux, and Windows
 - **Development workflow guidelines** in CLAUDE.md:
   - Feature branch workflow (always create branches before starting work)
   - Branch naming conventions (feature/, fix/, refactor/, docs/)
