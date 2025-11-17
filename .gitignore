@@ -35,3 +35,4 @@ tmp
 # Claude Code local settings
 .claude/settings.local.json
 *_test.log
+*_integration.log

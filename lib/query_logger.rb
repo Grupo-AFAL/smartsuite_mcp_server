@@ -7,7 +7,8 @@ require 'fileutils'
 #
 # Logs to separate files based on environment:
 # - Production: ~/.smartsuite_mcp_queries.log
-# - Test: ~/.smartsuite_mcp_queries_test.log
+# - Unit tests: ~/.smartsuite_mcp_queries_test.log
+# - Integration tests: ~/.smartsuite_mcp_queries_integration.log
 #
 # Usage:
 #   QueryLogger.log_api_request(method, url, params)
@@ -20,8 +21,11 @@ require 'fileutils'
 #   tail -f ~/.smartsuite_mcp_queries.log | grep "API"
 #   tail -f ~/.smartsuite_mcp_queries.log | grep "DB"
 #
-# Tail the test log:
+# Tail the unit test log:
 #   tail -f ~/.smartsuite_mcp_queries_test.log
+#
+# Tail the integration test log:
+#   tail -f ~/.smartsuite_mcp_queries_integration.log
 #
 class QueryLogger
   # ANSI color codes for terminal output
@@ -38,17 +42,31 @@ class QueryLogger
   class << self
     # Get the log file path based on environment
     #
-    # Returns different paths for test vs production:
-    # - Test: ~/.smartsuite_mcp_queries_test.log
+    # Returns different paths for integration tests, unit tests, and production:
+    # - Integration tests: ~/.smartsuite_mcp_queries_integration.log
+    # - Unit tests: ~/.smartsuite_mcp_queries_test.log
     # - Production: ~/.smartsuite_mcp_queries.log
     #
     # @return [String] absolute path to log file
     def log_file_path
-      if test_environment?
+      if integration_test_environment?
+        File.expand_path('~/.smartsuite_mcp_queries_integration.log')
+      elsif test_environment?
         File.expand_path('~/.smartsuite_mcp_queries_test.log')
       else
         File.expand_path('~/.smartsuite_mcp_queries.log')
       end
+    end
+
+    # Detect if running in integration test environment
+    #
+    # Integration tests use real API credentials and run against a test workspace.
+    # We detect them by checking if we're in the test/integration directory context.
+    #
+    # @return [Boolean] true if in integration test environment
+    def integration_test_environment?
+      # Check if called from integration test file
+      caller_locations.any? { |loc| loc.path.include?('test/integration/') }
     end
 
     # Detect if running in test environment
