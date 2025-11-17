@@ -61,7 +61,8 @@ module SmartSuite
 
         # Cache the response if cache enabled and no custom fields
         if cache_enabled? && !bypass_cache && fields.nil?
-          tables_list = extract_items_from_response(response)
+          # /applications/ endpoint returns an Array directly
+          tables_list = response.is_a?(Array) ? response : extract_items_from_response(response)
           @cache.cache_table_list(solution_id, tables_list)
           cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
           log_metric("✓ Cached #{tables_list.size} tables (#{cache_key})")
@@ -79,7 +80,12 @@ module SmartSuite
       # @return [Hash] Formatted tables with count
       def format_tables_response(response, fields)
         # Handle both API response format and cached array format
-        tables_list = extract_items_from_response(response) || response
+        # /applications/ endpoint returns an Array directly, not a Hash with 'items' key
+        tables_list = if response.is_a?(Array)
+                        response
+                      else
+                        extract_items_from_response(response) || response
+                      end
 
         # When fields are specified, return full response from API
         # When no fields specified, filter to essential fields only (client-side optimization)
@@ -92,7 +98,8 @@ module SmartSuite
                      {
                        'id' => table['id'],
                        'name' => table['name'],
-                       'solution_id' => table['solution_id']
+                       # API returns 'solution' but we normalize to 'solution_id'
+                       'solution_id' => table['solution'] || table['solution_id']
                      }
                    end
                  end
@@ -132,7 +139,8 @@ module SmartSuite
           result = {
             'id' => response['id'],
             'name' => response['name'],
-            'solution_id' => response['solution_id'],
+            # API returns 'solution' but we normalize to 'solution_id'
+            'solution_id' => response['solution'] || response['solution_id'],
             'structure' => filtered_structure
           }
 
