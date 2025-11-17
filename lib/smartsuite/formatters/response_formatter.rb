@@ -22,6 +22,9 @@ module SmartSuite
       # Removes UI/display metadata while keeping functional field data.
       # Achieves ~83.8% token reduction on table structures.
       #
+      # Also adds hints for fields that typically contain large amounts of data,
+      # helping AI be more selective about which fields to request.
+      #
       # @param field [Hash] Raw field definition from API
       # @return [Hash] Filtered field with only slug, label, type, and essential params
       def filter_field_structure(field)
@@ -31,6 +34,11 @@ module SmartSuite
           'label' => field['label'],
           'field_type' => field['field_type']
         }
+
+        # Add warning for fields that typically contain large content
+        if large_content_field?(field['field_type'])
+          filtered['large_content_warning'] = 'This field may contain extensive data (10K+ tokens). Request only when needed.'
+        end
 
         # Only include essential params if params exist
         return filtered unless field['params']
@@ -57,6 +65,25 @@ module SmartSuite
 
         filtered['params'] = params unless params.empty?
         filtered
+      end
+
+      # Determines if a field type typically contains large amounts of data.
+      #
+      # These fields should be requested selectively to avoid token limits.
+      #
+      # @param field_type [String] SmartSuite field type
+      # @return [Boolean] True if field typically contains large content
+      def large_content_field?(field_type)
+        return false unless field_type
+
+        large_types = %w[
+          textarea
+          richtextarea
+          comments
+          files
+        ]
+
+        large_types.include?(field_type.downcase)
       end
 
       # Filters and formats record list responses for minimal token usage.
