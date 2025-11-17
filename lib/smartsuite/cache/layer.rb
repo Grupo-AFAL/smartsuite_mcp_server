@@ -563,6 +563,29 @@ module SmartSuite
         Query.new(self, table_id)
       end
 
+      # Get a single record from cache by record ID
+      #
+      # @param table_id [String] SmartSuite table ID
+      # @param record_id [String] SmartSuite record ID
+      # @return [Hash, nil] Record data or nil if not found/expired
+      def get_cached_record(table_id, record_id)
+        # Check if cache is valid first
+        return nil unless cache_valid?(table_id)
+
+        # Query for the specific record
+        result = query(table_id).where(id: record_id).limit(1).execute.first
+
+        if result
+          QueryLogger.log_cache_operation('hit', "record:#{table_id}:#{record_id}")
+          record_stat('record_cached', 'hit', table_id)
+        end
+
+        result
+      rescue SQLite3::Exception => e
+        warn "[Cache] Error reading cached record #{record_id}: #{e.message}"
+        nil
+      end
+
       # ========== Solution Caching ==========
 
       # Cache solutions list
