@@ -2,7 +2,9 @@
 
 A Model Context Protocol (MCP) server for SmartSuite that enables AI assistants like Claude to interact with your SmartSuite workspace through natural language.
 
+[![Version](https://img.shields.io/badge/version-1.8.0-blue)]()
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)]()
+[![Coverage](https://img.shields.io/badge/coverage-82.77%25-yellow)]()
 [![Ruby](https://img.shields.io/badge/ruby-3.0+-red)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
 
@@ -163,8 +165,8 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## 📋 Project Status
 
-- **Current Version:** 1.5.0
-- **Development:** v1.6 in progress (15% complete)
+- **Current Version:** 1.8.0
+- **Development:** v2.0 in progress (token optimization & installation ease)
 - **Roadmap:** See [ROADMAP.md](ROADMAP.md)
 - **Changelog:** See [CHANGELOG.md](CHANGELOG.md)
 
