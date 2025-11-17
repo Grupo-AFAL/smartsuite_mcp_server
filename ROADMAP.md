@@ -416,13 +416,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | ------- | ----------- | ----------- | ---------- |
 | v1.0    | ✅ Released | Nov 2025    | 100%       |
 | v1.5    | ✅ Released | Nov 2025    | 100%       |
-| v1.6    | ✅ Released | Dec 2025    | 100%       |
-| v1.7    | ✅ Released | Jan 2026    | 100%       |
+| v1.6    | ✅ Released | Nov 2025    | 100%       |
+| v1.7    | ✅ Released | Nov 2025    | 100%       |
 | v1.8    | ✅ Released | Nov 2025    | 100%       |
-| v2.0    | 📋 Planned  | Q2 2026     | 0%         |
-| v2.1    | 📋 Planned  | Q3 2026     | 0%         |
-| v2.2    | 📋 Planned  | Q3 2026     | 0%         |
-| v3.0    | 💭 Ideation | Q4 2026     | 0%         |
+| v2.0    | 📋 Planned  | Q4 2025     | 0%         |
+| v2.1    | 📋 Planned  | Q4 2025     | 0%         |
+| v2.2    | 📋 Planned  | Q4 2025     | 0%         |
+| v3.0    | 💭 Ideation | Q1 2026     | 0%         |
 
 ---
 
