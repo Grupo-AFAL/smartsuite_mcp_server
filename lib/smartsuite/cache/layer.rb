@@ -168,15 +168,19 @@ module SmartSuite
           slug TEXT,
           name TEXT,
           solution_id TEXT,
-          description TEXT,
           structure TEXT,
           created TEXT,
-          updated TEXT,
           created_by TEXT,
-          updated_by TEXT,
-          deleted_date TEXT,
-          deleted_by TEXT,
-          record_count INTEGER,
+          status TEXT,
+          hidden INTEGER DEFAULT 0,
+          icon TEXT,
+          primary_field TEXT,
+          table_order INTEGER,
+          permissions TEXT,
+          field_permissions TEXT,
+          record_term TEXT,
+          fields_count_total INTEGER,
+          fields_count_linkedrecordfield INTEGER,
           cached_at TEXT NOT NULL,
           expires_at TEXT NOT NULL
         );
@@ -188,6 +192,9 @@ module SmartSuite
 
         # Migrate INTEGER timestamps to TEXT (ISO 8601)
         migrate_integer_timestamps_to_text
+
+        # Migrate cached_tables schema to match API response fields
+        migrate_cached_tables_schema
 
         # Create indexes after ensuring schema is up to date
         @db.execute_batch <<-SQL
@@ -724,32 +731,52 @@ module SmartSuite
           # API returns 'solution' but we normalize to 'solution_id'
           solution_id_value = table['solution'] || table['solution_id']
 
-          # API returns first_created/last_updated as objects with 'by' and 'on'
+          # API returns first_created as object with 'by' and 'on'
           created = table.dig('first_created', 'on')
           created_by = table.dig('first_created', 'by')
-          # Note: Some tables might not have last_updated
-          updated = table.dig('last_updated', 'on')
-          updated_by = table.dig('last_updated', 'by')
+
+          # Convert permissions and field_permissions to JSON
+          permissions_json = table['permissions']&.to_json
+          field_permissions_json = table['field_permissions']&.to_json
+
+          # Extract fields_count values
+          fields_count_total = table.dig('fields_count', 'total')
+          fields_count_linked = table.dig('fields_count', 'linkedrecordfield')
+
+          # Convert hidden boolean to integer (0/1)
+          hidden = table['hidden'] ? 1 : 0
+
+          # Convert integer fields (default to nil if not present)
+          table_order = table['order']&.to_i if table['order']
+          fields_total = fields_count_total.to_i if fields_count_total
+          fields_linked = fields_count_linked.to_i if fields_count_linked
 
           db_execute(
             "INSERT INTO cached_tables (
-            id, slug, name, solution_id, description, structure,
-            created, updated, created_by, updated_by, deleted_date, deleted_by, record_count,
+            id, slug, name, solution_id, structure,
+            created, created_by,
+            status, hidden, icon, primary_field, table_order,
+            permissions, field_permissions, record_term,
+            fields_count_total, fields_count_linkedrecordfield,
             cached_at, expires_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             table['id'],
             table['slug'],
             table['name'],
             solution_id_value,
-            table['description'],
             structure_json,
             created ? parse_timestamp(created) : nil,
-            updated ? parse_timestamp(updated) : nil,
             created_by,
-            updated_by,
-            table['deleted_date'] ? parse_timestamp(table['deleted_date']) : nil,
-            table['deleted_by'],
-            table['record_count'],
+            table['status'],
+            hidden,
+            table['icon'],
+            table['primary_field'],
+            table_order,
+            permissions_json,
+            field_permissions_json,
+            table['record_term'],
+            fields_total,
+            fields_linked,
             cached_at,
             expires_at
           )
