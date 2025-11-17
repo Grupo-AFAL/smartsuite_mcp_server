@@ -153,7 +153,7 @@ list_records('table_abc123', 10, 0,
 )
 ```
 
-See [examples/](examples/) for more usage patterns.
+See [examples/](docs/examples/) for more usage patterns.
 
 ## 🤝 Contributing
 

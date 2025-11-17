@@ -591,8 +591,8 @@ Then paginate if needed.
 - **[API Reference](../api/)** - Complete technical reference
 
 **Try examples:**
-- **[Basic Workflow](../../examples/basic-workflow.md)** - Step-by-step tutorial
-- **[Advanced Filtering](../../examples/advanced-filtering.md)** - Complex queries
+- **[Basic Workflow](../examples/basic-workflow.md)** - Step-by-step tutorial
+- **[Advanced Filtering](../examples/advanced-filtering.md)** - Complex queries
 
 **Get help:**
 - [Troubleshooting Guide](../getting-started/troubleshooting.md)
