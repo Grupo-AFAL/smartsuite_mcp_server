@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Development workflow guidelines** in CLAUDE.md:
+  - Feature branch workflow (always create branches before starting work)
+  - Branch naming conventions (feature/, fix/, refactor/, docs/)
+  - Completion checklist: Documentation, Tests, Code Quality, Linting, Refactoring, GitHub Actions
+  - Example completion workflow with all necessary commands
+  - Ensures consistent quality and completeness for all future features
+
 ## [1.8.0] - 2025-11-16
 
 ### Added

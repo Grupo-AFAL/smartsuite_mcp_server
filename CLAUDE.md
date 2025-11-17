@@ -82,7 +82,7 @@ Branch naming conventions:
 **BEFORE merging or creating a PR**, complete this checklist:
 
 1. **Documentation** ✅
-   - Update CHANGELOG.md with changes under `[Unreleased]` section
+   - **ALWAYS update CHANGELOG.md** with changes under `[Unreleased]` section (required for ALL changes, enforced by GitHub Actions)
    - Update ROADMAP.md if the feature affects planned milestones
    - Update relevant docs in `docs/` directory
    - Add/update YARD documentation for new/modified methods
@@ -126,8 +126,8 @@ bundle exec rubocop -A
 bundle exec reek
 bundle exec yard stats --list-undoc
 
-# 2. Update documentation
-# Edit CHANGELOG.md, ROADMAP.md, relevant docs
+# 2. Update documentation (REQUIRED: CHANGELOG.md must ALWAYS be updated)
+# Edit CHANGELOG.md (add to [Unreleased] section), ROADMAP.md, relevant docs
 
 # 3. Commit changes
 git add .
