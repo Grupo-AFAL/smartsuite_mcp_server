@@ -23,6 +23,17 @@ class QueryLogger
   # @return [String] absolute path to ~/.smartsuite_mcp_queries.log
   LOG_FILE = File.expand_path('~/.smartsuite_mcp_queries.log')
 
+  # ANSI color codes for terminal output
+  COLORS = {
+    reset: "\e[0m",
+    api: "\e[36m",      # Cyan for API calls
+    db: "\e[32m",       # Green for database queries
+    cache: "\e[35m",    # Magenta for cache operations
+    error: "\e[31m",    # Red for errors
+    success: "\e[32m",  # Green for success
+    warning: "\e[33m"   # Yellow for warnings
+  }.freeze
+
   class << self
     # Get the shared Logger instance
     #
@@ -50,9 +61,10 @@ class QueryLogger
       query_params = params[:query_params] || {}
       body = params[:body]
 
-      msg = "API → #{method.to_s.upcase} #{url}"
+      msg = "#{COLORS[:api]}API → #{method.to_s.upcase} #{url}"
       msg += " | Query: #{query_params.inspect}" unless query_params.empty?
       msg += " | Body: #{truncate_json(body)}" if body
+      msg += COLORS[:reset]
 
       logger.info(msg)
     end
@@ -62,8 +74,10 @@ class QueryLogger
     # @param duration [Float] Request duration in seconds
     # @param body_size [Integer] Response body size in bytes (optional)
     def log_api_response(status, duration, body_size = nil)
-      msg = "API ← #{status} | #{(duration * 1000).round(1)}ms"
+      color = status >= 200 && status < 300 ? COLORS[:success] : COLORS[:error]
+      msg = "#{color}API ← #{status} | #{(duration * 1000).round(1)}ms"
       msg += " | #{format_bytes(body_size)}" if body_size
+      msg += COLORS[:reset]
 
       logger.info(msg)
     end
@@ -76,9 +90,10 @@ class QueryLogger
       # Clean up SQL for readability
       clean_sql = sql.gsub(/\s+/, ' ').strip
 
-      msg = "DB  → #{clean_sql}"
+      msg = "#{COLORS[:db]}DB  → #{clean_sql}"
       msg += " | Params: #{params.inspect}" unless params.empty?
       msg += " | #{(duration * 1000).round(1)}ms" if duration
+      msg += COLORS[:reset]
 
       logger.debug(msg)
     end
@@ -87,8 +102,9 @@ class QueryLogger
     # @param row_count [Integer] Number of rows returned
     # @param duration [Float] Query duration in seconds (optional)
     def log_db_result(row_count, duration = nil)
-      msg = "DB  ← #{row_count} rows"
+      msg = "#{COLORS[:db]}DB  ← #{row_count} rows"
       msg += " | #{(duration * 1000).round(1)}ms" if duration
+      msg += COLORS[:reset]
 
       logger.debug(msg)
     end
@@ -98,8 +114,9 @@ class QueryLogger
     # @param table_id [String] Table ID
     # @param details [Hash] Additional details
     def log_cache_operation(operation, table_id, details = {})
-      msg = "CACHE #{operation.upcase} | Table: #{table_id}"
+      msg = "#{COLORS[:cache]}CACHE #{operation.upcase} | Table: #{table_id}"
       details.each { |k, v| msg += " | #{k}: #{v}" }
+      msg += COLORS[:reset]
 
       logger.info(msg)
     end
@@ -110,10 +127,11 @@ class QueryLogger
     # @param limit [Integer] Limit
     # @param offset [Integer] Offset
     def log_cache_query(table_id, filters = {}, limit: nil, offset: nil)
-      msg = "CACHE QUERY | Table: #{table_id}"
+      msg = "#{COLORS[:cache]}CACHE QUERY | Table: #{table_id}"
       msg += " | Filters: #{filters.inspect}" unless filters.empty?
       msg += " | Limit: #{limit}" if limit
       msg += " | Offset: #{offset}" if offset
+      msg += COLORS[:reset]
 
       logger.info(msg)
     end
@@ -122,8 +140,8 @@ class QueryLogger
     # @param context [String] Context where error occurred
     # @param error [Exception] The error
     def log_error(context, error)
-      logger.error("#{context} | ERROR: #{error.class}: #{error.message}")
-      logger.error(error.backtrace.first(5).join("\n")) if error.backtrace
+      logger.error("#{COLORS[:error]}#{context} | ERROR: #{error.class}: #{error.message}#{COLORS[:reset]}")
+      logger.error("#{COLORS[:error]}#{error.backtrace.first(5).join("\n")}#{COLORS[:reset]}") if error.backtrace
     end
 
     private
