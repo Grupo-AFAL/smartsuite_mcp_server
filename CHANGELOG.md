@@ -9,12 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **One-liner installation** - Zero-friction installation with a single command:
+  - **macOS/Linux**: `curl -fsSL https://raw.githubusercontent.com/.../bootstrap.sh | bash`
+  - **Windows**: `irm https://raw.githubusercontent.com/.../bootstrap.ps1 | iex`
+  - Bootstrap scripts automatically:
+    - Clone repository to `~/.smartsuite_mcp`
+    - Run the full installation script
+    - Handle updates to existing installations
+    - No manual git clone required
+  - Users just paste one command and enter their API credentials
+  - Easiest possible installation experience
+- **Automated installation scripts** for non-technical users:
+  - **macOS/Linux**: `./install.sh` - Bash-based installer with Homebrew integration
+    - Automatic Homebrew installation on macOS (if not present)
+    - Automatic Ruby installation via Homebrew on macOS
+    - Support for Apple Silicon and Intel Macs
+    - Support for jq (if installed) for safer JSON manipulation
+  - **Windows**: `.\install.ps1` - PowerShell-based installer for Windows
+    - Automatic Ruby installation via WinGet (Windows Package Manager)
+    - Works on Windows 10 (version 1809+) and Windows 11
+    - Interactive prompt to install Ruby if not present
+    - Fallback to manual installation if WinGet unavailable
+  - One-command installation process across all platforms
+  - Automatic Ruby version checking (3.0+ required)
+  - Automatic dependency installation via Bundler
+  - Interactive prompts for SmartSuite API credentials
+  - Automatic Claude Desktop configuration with proper JSON formatting
+  - Backup of existing configuration before making changes
+  - Color-coded output for success/error/warning messages
+  - Comprehensive error handling and validation
+  - True cross-platform auto-installation: macOS, Linux, and Windows
 - **Development workflow guidelines** in CLAUDE.md:
   - Feature branch workflow (always create branches before starting work)
   - Branch naming conventions (feature/, fix/, refactor/, docs/)
   - Completion checklist: Documentation, Tests, Code Quality, Linting, Refactoring, GitHub Actions
   - Example completion workflow with all necessary commands
   - Ensures consistent quality and completeness for all future features
+
+### Changed
+
+- **README.md** - Completely restructured Quick Start section:
+  - **One-liner installation** now featured as primary method (easiest!)
+  - Manual clone + script moved to "Alternative" section
+  - Removed verbose prerequisites (bootstrap scripts handle git checks)
+  - Simplified and streamlined documentation
+  - Focus on "paste one command, enter credentials, done"
+- **ROADMAP.md** - Updated v2.0 goals to focus on "Token optimization and ease of installation"
 
 ## [1.8.0] - 2025-11-16
 

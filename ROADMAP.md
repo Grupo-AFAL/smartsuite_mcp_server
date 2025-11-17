@@ -66,6 +66,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 ### v1.8 - Developer Experience & Quality (Completed - Nov 2025)
 
 #### Code Quality
+
 - ✅ FilterBuilder module extracted from cache layer
 - ✅ API::Base module with common helpers for all API operations
 - ✅ 35-40% code duplication eliminated across API modules
@@ -73,18 +74,21 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 - ✅ Standardized response formats (ResponseFormats module)
 
 #### Testing
+
 - ✅ Comprehensive test coverage: 68.38% → 82.93% (+14.55%)
 - ✅ 99 new tests across 7 test files (404 total tests, 1,419 assertions)
 - ✅ Integration tests with workspace confirmation and credential isolation
 - ✅ All GitHub Actions passing (Tests, RuboCop, Security, Documentation)
 
 #### Documentation
+
 - ✅ Enhanced YARD documentation (100% coverage, 124 public methods)
 - ✅ Comprehensive troubleshooting guide (345 lines, 25+ FAQ entries)
 - ✅ Architecture documentation for response formats
 - ✅ Updated ROADMAP and CHANGELOG
 
 #### Developer Experience
+
 - ✅ Standardized response formats across all cache tools
 - ✅ Input validation comprehensive at API layer
 - ✅ CI/CD workflows for quality assurance
@@ -103,6 +107,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 #### Code Quality
 
 - ✅ **Extract filter building into dedicated FilterBuilder module**
+
   - Created `lib/smartsuite/filter_builder.rb` with SmartSuite→SQL conversion
   - Supports 20+ comparison operators
   - 30 comprehensive test cases
@@ -120,6 +125,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 #### Documentation
 
 - ✅ **Create comprehensive troubleshooting guide**
+
   - Enhanced `docs/getting-started/troubleshooting.md` (345 new lines)
   - Added 25+ FAQ entries covering common scenarios
   - Documented v1.6-v1.8 cache features
@@ -136,6 +142,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 #### Developer Experience
 
 - ❌ **Add input validation for all MCP tool parameters**
+
   - **Decision:** Skipped - validation already comprehensive at API layer
   - Current implementation uses Base module's `validate_required_parameter!` and `validate_optional_parameter!`
   - 22 new validation calls added across API modules in v1.8
@@ -158,6 +165,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 #### Testing
 
 - ✅ **Add integration tests with real SmartSuite API**
+
   - Created `test/integration/` directory with manual integration tests
   - Test harness for workspace, table, record, cache operations
   - Validates API contract assumptions against real API
@@ -182,13 +190,12 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 ### v2.0 - Performance & Scalability (Q2 2026)
 
-**Goal:** Handle large workspaces efficiently
+**Goal:** Token optimization and ease of installation
 
 #### Core Improvements
 
-- [ ] Connection pooling for multiple concurrent requests
 - [ ] Query optimization for complex filters
-- [ ] Parallel fetching for independent API calls
+- [ ] Create script to install MCP for users without coding skills
 
 #### Token Optimization
 
@@ -200,14 +207,9 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - Impact: Breaking change (response format), but more efficient for AI assistants
 - [ ] Smart field selection based on usage patterns
 - [ ] Automatic response compression
-- [ ] Differential updates (only changed fields)
-- [ ] Response streaming to reduce memory usage
 
 #### Developer Experience
 
-- [ ] CLI tool for cache management (`smartsuite-cache stats`, `smartsuite-cache clear`)
-- [ ] Health check endpoint for monitoring
-- [ ] Performance metrics dashboard
 - [ ] Debug mode with detailed logging
 
 ### v2.1 - Advanced Filtering & Search (Q2 2026)
@@ -410,17 +412,17 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 
 ## Roadmap Status
 
-| Version | Status       | Target Date | Completion |
-| ------- | ------------ | ----------- | ---------- |
-| v1.0    | ✅ Released  | Nov 2025    | 100%       |
-| v1.5    | ✅ Released  | Nov 2025    | 100%       |
-| v1.6    | ✅ Released  | Dec 2025    | 100%       |
-| v1.7    | ✅ Released  | Jan 2026    | 100%       |
-| v1.8    | ✅ Released  | Nov 2025    | 100%       |
-| v2.0    | 📋 Planned   | Q2 2026     | 0%         |
-| v2.1    | 📋 Planned   | Q3 2026     | 0%         |
-| v2.2    | 📋 Planned   | Q3 2026     | 0%         |
-| v3.0    | 💭 Ideation  | Q4 2026     | 0%         |
+| Version | Status      | Target Date | Completion |
+| ------- | ----------- | ----------- | ---------- |
+| v1.0    | ✅ Released | Nov 2025    | 100%       |
+| v1.5    | ✅ Released | Nov 2025    | 100%       |
+| v1.6    | ✅ Released | Nov 2025    | 100%       |
+| v1.7    | ✅ Released | Nov 2025    | 100%       |
+| v1.8    | ✅ Released | Nov 2025    | 100%       |
+| v2.0    | 📋 Planned  | Q4 2025     | 0%         |
+| v2.1    | 📋 Planned  | Q4 2025     | 0%         |
+| v2.2    | 📋 Planned  | Q4 2025     | 0%         |
+| v3.0    | 💭 Ideation | Q1 2026     | 0%         |
 
 ---
 
