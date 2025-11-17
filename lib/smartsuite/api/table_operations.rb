@@ -124,7 +124,22 @@ module SmartSuite
       def get_table(table_id)
         validate_required_parameter!('table_id', table_id)
 
-        log_metric("→ Getting table structure: #{table_id}")
+        # Try to get from cache first
+        if @cache
+          cached_table = @cache.get_cached_table(table_id)
+          if cached_table
+            # Filter structure to only essential fields (cache has full structure)
+            filtered_structure = cached_table['structure'].map { |field| filter_field_structure(field) }
+            cached_table['structure'] = filtered_structure
+
+            log_metric("✓ Retrieved table from cache: #{table_id}")
+            log_token_usage(estimate_tokens(JSON.generate(cached_table)))
+            return cached_table
+          end
+        end
+
+        # Cache miss - fetch from API
+        log_metric("→ Getting table structure from API: #{table_id}")
         response = api_request(:get, "/applications/#{table_id}/")
 
         # Return filtered structure including only essential fields

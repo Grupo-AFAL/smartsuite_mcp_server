@@ -793,6 +793,44 @@ module SmartSuite
       #
       # @param solution_id [String, nil] Solution ID (nil for all tables)
       # @return [Array<Hash>, nil] Array of tables or nil if cache invalid
+      # Get a single table from cache by table_id
+      #
+      # @param table_id [String] SmartSuite table ID
+      # @return [Hash, nil] Table data with structure, or nil if not cached/expired
+      def get_cached_table(table_id)
+        result = db_execute(
+          'SELECT id, name, solution_id, structure, slug, status, hidden, icon, primary_field,
+                  expires_at
+           FROM cached_tables
+           WHERE id = ? AND expires_at > ?',
+          table_id,
+          Time.now.utc.iso8601
+        ).first
+
+        return nil unless result
+
+        # Parse structure JSON back to array
+        structure = result['structure'] ? JSON.parse(result['structure']) : []
+
+        QueryLogger.log_cache_operation('hit', "table:#{table_id}")
+        record_stat('table_cached', 'hit', table_id)
+
+        {
+          'id' => result['id'],
+          'name' => result['name'],
+          'solution_id' => result['solution_id'],
+          'structure' => structure,
+          'slug' => result['slug'],
+          'status' => result['status'],
+          'hidden' => result['hidden'],
+          'icon' => result['icon'],
+          'primary_field' => result['primary_field']
+        }
+      rescue SQLite3::Exception => e
+        warn "[Cache] Error reading cached table #{table_id}: #{e.message}"
+        nil
+      end
+
       def get_cached_table_list(solution_id)
         # Check if cache is valid
         return nil unless table_list_cache_valid?(solution_id)
