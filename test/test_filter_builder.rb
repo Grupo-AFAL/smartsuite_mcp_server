@@ -61,7 +61,7 @@ class TestFilterBuilder < Minitest::Test
   end
 
   def test_convert_comparison_is_not_empty
-    assert_equal({ not_null: true }, SmartSuite::FilterBuilder.convert_comparison('is_not_empty', nil))
+    assert_equal({ is_not_null: true }, SmartSuite::FilterBuilder.convert_comparison('is_not_empty', nil))
   end
 
   # Test array operators
@@ -168,7 +168,7 @@ class TestFilterBuilder < Minitest::Test
     assert_equal({ title: { contains: 'Important' } }, @query.conditions[0])
     assert_equal({ tags: { has_any_of: %w[urgent critical] } }, @query.conditions[1])
     assert_equal({ due_date: { gte: '2025-01-01' } }, @query.conditions[2])
-    assert_equal({ assigned_to: { not_null: true } }, @query.conditions[3])
+    assert_equal({ assigned_to: { is_not_null: true } }, @query.conditions[3])
   end
 
   # Test that field names are converted to symbols

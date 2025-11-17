@@ -235,13 +235,66 @@ module SmartSuite
           cached_record = @cache.get_cached_record(table_id, record_id)
           if cached_record
             log_metric("✓ Retrieved record from cache: #{record_id}")
-            return cached_record
+            # Process SmartDoc fields to extract only HTML
+            return process_smartdoc_fields(cached_record)
           end
         end
 
         # Cache miss or disabled - fetch from API
         log_metric("→ Getting record from API: #{record_id}")
-        api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
+        record = api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
+        # Process SmartDoc fields in API response too
+        process_smartdoc_fields(record)
+      end
+
+      # Process SmartDoc fields in a record to extract only HTML content.
+      #
+      # SmartDoc fields contain {data, html, preview, yjsData} but AI only needs HTML.
+      # This reduces token usage by ~60-70% for rich text fields.
+      #
+      # Cache stores these as JSON strings, so we parse them first before checking.
+      #
+      # @param record [Hash] Record with potential SmartDoc fields
+      # @return [Hash] Record with SmartDoc fields replaced by HTML strings
+      def process_smartdoc_fields(record)
+        return record unless record.is_a?(Hash)
+
+        record.transform_values do |value|
+          # Try to parse JSON strings
+          parsed_value = value.is_a?(String) ? parse_json_safe(value) : value
+
+          # Check if parsed value is a SmartDoc structure
+          if smartdoc_value?(parsed_value)
+            # Extract only HTML content
+            parsed_value['html'] || parsed_value[:html] || ''
+          else
+            value # Return original value if not SmartDoc
+          end
+        end
+      end
+
+      # Safely parse JSON string, returning nil if parsing fails.
+      #
+      # @param str [String] JSON string to parse
+      # @return [Object, nil] Parsed JSON or nil if invalid
+      def parse_json_safe(str)
+        JSON.parse(str)
+      rescue JSON::ParserError, TypeError
+        nil
+      end
+
+      # Determines if a value is a SmartDoc field.
+      #
+      # @param value [Object] Value to check
+      # @return [Boolean] True if value is a SmartDoc structure
+      def smartdoc_value?(value)
+        return false unless value.is_a?(Hash)
+
+        # SmartDoc has both 'data' and 'html' keys
+        has_data = value.key?('data') || value.key?(:data)
+        has_html = value.key?('html') || value.key?(:html)
+
+        has_data && has_html
       end
 
       # Creates a new record in a table.

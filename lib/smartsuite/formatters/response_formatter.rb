@@ -289,15 +289,46 @@ module SmartSuite
         result
       end
 
-      # Returns field value without truncation.
+      # Processes field values for AI consumption.
       #
-      # Previously truncated values, but per user request we now return full values.
-      # AI should be encouraged to only fetch needed fields to control token usage.
+      # For SmartDoc fields (rich text with data/html/preview/yjsData keys),
+      # extracts only the HTML content to minimize tokens while preserving readability.
+      # Cache stores the complete JSON structure.
+      #
+      # Previously truncated values, but per user request we now return full values
+      # except for SmartDoc optimization.
       #
       # @param value [Object] Field value
-      # @return [Object] The value as-is
+      # @return [Object] Processed value (HTML string for SmartDoc, original value otherwise)
       def truncate_value(value)
-        value
+        # Detect SmartDoc structure (has data, html, preview, yjsData keys)
+        if smartdoc_value?(value)
+          # Return only HTML content for AI
+          # Cache still stores complete JSON with all keys
+          value['html'] || value[:html] || ''
+        else
+          value
+        end
+      end
+
+      # Determines if a value is a SmartDoc field.
+      #
+      # SmartDoc fields contain rich text with structure:
+      # - data: TipTap/ProseMirror document structure
+      # - html: Rendered HTML content
+      # - preview: Plain text preview
+      # - yjsData: Collaborative editing data
+      #
+      # @param value [Object] Field value to check
+      # @return [Boolean] True if value is a SmartDoc structure
+      def smartdoc_value?(value)
+        return false unless value.is_a?(Hash)
+
+        # Check for SmartDoc signature keys
+        has_data = value.key?('data') || value.key?(:data)
+        has_html = value.key?('html') || value.key?(:html)
+
+        has_data && has_html
       end
     end
   end
