@@ -338,4 +338,135 @@ class TestRecordOperations < Minitest::Test
 
     assert_includes error.message, '403'
   end
+
+  # ============================================================================
+  # REGRESSION TESTS: SmartDoc HTML Extraction
+  # ============================================================================
+  # Bug: SmartDoc fields (richtextarea) contain {data, html, preview, yjsData}
+  # but AI only needs HTML. Previously returned all keys causing 60-70% extra tokens.
+  # Fix: Extract only HTML content from SmartDoc fields while preserving full JSON in cache.
+
+  # Test SmartDoc extraction from API response (Hash format)
+  def test_get_record_extracts_smartdoc_html_from_api
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    # Mock API response with SmartDoc field as Hash
+    smartdoc_field = {
+      'data' => { 'type' => 'doc', 'content' => [] },
+      'html' => '<div><h1>Meeting Notes</h1><p>Important discussion</p></div>',
+      'preview' => 'Meeting Notes Important discussion',
+      'yjsData' => 'base64encodeddata...'
+    }
+
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
+      .to_return(
+        status: 200,
+        body: {
+          id: 'rec_456',
+          title: 'Test Record',
+          description: smartdoc_field
+        }.to_json
+      )
+
+    result = client.get_record('tbl_123', 'rec_456')
+
+    # Verify: description should be ONLY the HTML string
+    assert_equal '<div><h1>Meeting Notes</h1><p>Important discussion</p></div>', result['description'],
+                 'Should extract only HTML from SmartDoc field'
+
+    # Verify: Not a Hash anymore
+    refute result['description'].is_a?(Hash), 'Should not be a Hash'
+
+    # Verify: Other fields unchanged
+    assert_equal 'rec_456', result['id']
+    assert_equal 'Test Record', result['title']
+  end
+
+  # Test SmartDoc extraction with empty HTML
+  def test_get_record_extracts_smartdoc_empty_html
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    smartdoc_field = {
+      'data' => { 'type' => 'doc', 'content' => [] },
+      'html' => '',
+      'preview' => '',
+      'yjsData' => ''
+    }
+
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
+      .to_return(
+        status: 200,
+        body: {
+          id: 'rec_456',
+          transcript: smartdoc_field
+        }.to_json
+      )
+
+    result = client.get_record('tbl_123', 'rec_456')
+
+    # Should return empty string, not nil
+    assert_equal '', result['transcript'], 'Should return empty string for empty SmartDoc HTML'
+  end
+
+  # Test that non-SmartDoc Hash fields are not modified
+  def test_get_record_preserves_non_smartdoc_json
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    # Regular JSON object that has "html" key but not SmartDoc structure (missing "data" key)
+    regular_json = { 'html' => 'value', 'other' => 'data' }
+
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
+      .to_return(
+        status: 200,
+        body: {
+          id: 'rec_456',
+          metadata: regular_json
+        }.to_json
+      )
+
+    result = client.get_record('tbl_123', 'rec_456')
+
+    # Should not be modified (not a SmartDoc structure)
+    assert_equal regular_json, result['metadata'], 'Non-SmartDoc JSON should not be modified'
+    assert result['metadata'].is_a?(Hash), 'Should still be a Hash'
+  end
+
+  # Test SmartDoc with multiple fields
+  def test_get_record_extracts_multiple_smartdoc_fields
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    smartdoc1 = {
+      'data' => { 'type' => 'doc' },
+      'html' => '<p>Description content</p>',
+      'preview' => 'Description content',
+      'yjsData' => 'data1'
+    }
+
+    smartdoc2 = {
+      'data' => { 'type' => 'doc' },
+      'html' => '<p>Notes content</p>',
+      'preview' => 'Notes content',
+      'yjsData' => 'data2'
+    }
+
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
+      .to_return(
+        status: 200,
+        body: {
+          id: 'rec_456',
+          title: 'Regular field',
+          description: smartdoc1,
+          notes: smartdoc2
+        }.to_json
+      )
+
+    result = client.get_record('tbl_123', 'rec_456')
+
+    # Both SmartDoc fields should be extracted
+    assert_equal '<p>Description content</p>', result['description']
+    assert_equal '<p>Notes content</p>', result['notes']
+
+    # Regular field unchanged
+    assert_equal 'Regular field', result['title']
+  end
 end

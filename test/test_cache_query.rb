@@ -338,6 +338,124 @@ class TestCacheQuery < Minitest::Test
     assert results.all? { |r| r['status'] == 'active' }, 'Should process valid fields'
   end
 
+  # ============================================================================
+  # REGRESSION TESTS: Empty Field Values in Query Results
+  # ============================================================================
+  # Bug: map_column_names_to_field_slugs didn't correctly preserve empty/null values
+  # Fix: Ensured all fields are present in results, even if nil, empty string, or zero
+
+  # Test that nil field values are preserved in query results
+  def test_empty_fields_preserved_nil_values
+    # Create table with records containing nil values
+    table_id = 'tbl_empty_test'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'description', 'label' => 'Description', 'field_type' => 'textarea' },
+        { 'slug' => 'priority', 'label' => 'Priority', 'field_type' => 'numberfield' }
+      ]
+    }
+    records = [
+      { 'id' => 'rec_1', 'title' => 'Task 1', 'description' => nil, 'priority' => nil }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    results = @cache.query(table_id).execute
+
+    # Verify all fields present
+    assert_equal 1, results.size
+    record = results.first
+
+    assert record.key?('title'), 'Should have title field'
+    assert record.key?('description'), 'Should have description field even if nil'
+    assert record.key?('priority'), 'Should have priority field even if nil'
+
+    # Verify nil values preserved
+    assert_equal 'Task 1', record['title']
+    assert_nil record['description'], 'Should preserve nil for description'
+    assert_nil record['priority'], 'Should preserve nil for priority'
+  end
+
+  # Test that empty string values are preserved
+  def test_empty_fields_preserved_empty_strings
+    table_id = 'tbl_empty_string_test'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'description', 'label' => 'Description', 'field_type' => 'textarea' }
+      ]
+    }
+    records = [
+      { 'id' => 'rec_1', 'title' => '', 'description' => '' }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    results = @cache.query(table_id).execute
+    record = results.first
+
+    assert record.key?('title'), 'Should have title field'
+    assert record.key?('description'), 'Should have description field'
+
+    assert_equal '', record['title'], 'Should preserve empty string for title'
+    assert_equal '', record['description'], 'Should preserve empty string for description'
+  end
+
+  # Test that zero values are preserved
+  def test_empty_fields_preserved_zero_values
+    table_id = 'tbl_zero_test'
+    structure = {
+      'structure' => [
+        { 'slug' => 'priority', 'label' => 'Priority', 'field_type' => 'numberfield' },
+        { 'slug' => 'count', 'label' => 'Count', 'field_type' => 'numberfield' }
+      ]
+    }
+    records = [
+      { 'id' => 'rec_1', 'priority' => 0, 'count' => 0 }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    results = @cache.query(table_id).execute
+    record = results.first
+
+    assert record.key?('priority'), 'Should have priority field'
+    assert record.key?('count'), 'Should have count field'
+
+    assert_equal 0, record['priority'], 'Should preserve zero for priority'
+    assert_equal 0, record['count'], 'Should preserve zero for count'
+  end
+
+  # Test mixed empty and non-empty values
+  def test_empty_fields_preserved_mixed_values
+    table_id = 'tbl_mixed_test'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'description', 'label' => 'Description', 'field_type' => 'textarea' },
+        { 'slug' => 'priority', 'label' => 'Priority', 'field_type' => 'numberfield' }
+      ]
+    }
+    records = [
+      { 'id' => 'rec_1', 'title' => 'Has title', 'description' => nil, 'priority' => 0 },
+      { 'id' => 'rec_2', 'title' => '', 'description' => 'Has description', 'priority' => nil }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    results = @cache.query(table_id).execute
+    assert_equal 2, results.size
+
+    # Check first record
+    rec1 = results.find { |r| r['id'] == 'rec_1' }
+    assert_equal 'Has title', rec1['title']
+    assert_nil rec1['description']
+    assert_equal 0, rec1['priority']
+
+    # Check second record
+    rec2 = results.find { |r| r['id'] == 'rec_2' }
+    assert_equal '', rec2['title']
+    assert_equal 'Has description', rec2['description']
+    assert_nil rec2['priority']
+  end
+
   # Test has_any_of operator (for JSON arrays)
   def test_where_has_any_of
     # Insert a record with JSON array field (tags)
