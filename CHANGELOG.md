@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Missing documentation files** - Created comprehensive documentation to fix broken links:
+  - `docs/getting-started/configuration.md` - Complete environment variable and cache configuration guide
+  - `docs/reference/filter-operators.md` - Comprehensive filter operator reference organized by field type
+  - `docs/contributing/code-style.md` - Ruby coding standards and style guidelines
+  - `docs/contributing/testing.md` - Testing standards and best practices with Minitest
+  - `docs/contributing/documentation.md` - Documentation standards and writing guidelines
 - **One-liner installation** - Zero-friction installation with a single command:
   - **macOS/Linux**: `curl -fsSL https://raw.githubusercontent.com/.../bootstrap.sh | bash`
   - **Windows**: `irm https://raw.githubusercontent.com/.../bootstrap.ps1 | iex`
@@ -55,6 +61,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Simplified and streamlined documentation
   - Focus on "paste one command, enter credentials, done"
 - **ROADMAP.md** - Updated v2.0 goals to focus on "Token optimization and ease of installation"
+
+### Fixed
+
+- **Broken documentation links** - Fixed 9 broken links across documentation:
+  - Fixed incorrect relative paths in `docs/guides/user-guide.md` (lines 594-595) - Changed `../../examples/` to `../examples/`
+  - Fixed examples directory reference in `README.md` (line 156) - Changed `examples/` to `docs/examples/`
+  - Created missing `docs/getting-started/configuration.md` (referenced in 3 locations)
+  - Created missing `docs/reference/filter-operators.md` (referenced in filtering guide)
+  - Created missing `docs/contributing/code-style.md`, `testing.md`, and `documentation.md` (referenced in README)
 
 ## [1.8.0] - 2025-11-16
 

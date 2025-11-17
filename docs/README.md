@@ -61,6 +61,7 @@ Practical tutorials and patterns:
 ## 🎯 Quick Links
 
 **Most Popular Pages:**
+
 - [Quick Start Tutorial](getting-started/quick-start.md)
 - [User Guide](guides/user-guide.md)
 - [Caching Guide](guides/caching-guide.md)
@@ -68,12 +69,12 @@ Practical tutorials and patterns:
 - [Troubleshooting](getting-started/troubleshooting.md)
 
 **For AI Assistants (Claude Code):**
+
 - [CLAUDE.md](../CLAUDE.md) - Instructions for Claude Code
 
 ## 🆘 Need Help?
 
 - **Issues:** [GitHub Issues](https://github.com/Grupo-AFAL/smartsuite_mcp_server/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/Grupo-AFAL/smartsuite_mcp_server/discussions)
 - **Troubleshooting:** See [getting-started/troubleshooting.md](getting-started/troubleshooting.md)
 
 ## 📝 Documentation Goals
