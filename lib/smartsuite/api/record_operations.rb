@@ -62,7 +62,7 @@ module SmartSuite
         end
 
         # Try cache-first strategy if enabled
-        return list_records_from_cache(table_id, limit, offset, filter, fields, hydrated) unless should_bypass_cache?(bypass: bypass_cache)
+        return list_records_from_cache(table_id, limit, offset, filter, sort, fields, hydrated) unless should_bypass_cache?(bypass: bypass_cache)
 
         # Fallback to direct API call (cache disabled or bypassed)
         list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
@@ -71,7 +71,7 @@ module SmartSuite
       private
 
       # List records using cache (aggressive fetch strategy)
-      def list_records_from_cache(table_id, limit, offset, filter, fields, hydrated)
+      def list_records_from_cache(table_id, limit, offset, filter, sort, fields, hydrated)
         # Ensure cache is populated
         ensure_records_cached(table_id)
 
@@ -80,6 +80,9 @@ module SmartSuite
 
         # Apply filters if provided
         query = apply_filters_to_query(query, filter) if filter && filter['fields']&.any?
+
+        # Apply sorting if provided
+        query = apply_sorting_to_query(query, sort) if sort && sort.is_a?(Array) && sort.any?
 
         # Get total record count (before limit/offset)
         total_count = query.count
@@ -113,6 +116,25 @@ module SmartSuite
       # @return [SmartSuite::Cache::Query] Query with filters applied
       def apply_filters_to_query(query, filter)
         SmartSuite::FilterBuilder.apply_to_query(query, filter)
+      end
+
+      # Apply SmartSuite sort criteria to cache query
+      #
+      # SmartSuite sort format: [{field: 'field_slug', direction: 'asc|desc'}, ...]
+      # Currently only supports single field sorting (uses first sort criterion).
+      #
+      # @param query [SmartSuite::Cache::Query] Cache query builder instance
+      # @param sort [Array<Hash>] SmartSuite sort array
+      # @return [SmartSuite::Cache::Query] Query with sorting applied
+      def apply_sorting_to_query(query, sort)
+        return query unless sort && sort.is_a?(Array) && sort.any?
+
+        # Get first sort criterion (Query.order currently only supports single field)
+        first_sort = sort.first
+        field_slug = first_sort['field'] || first_sort[:field]
+        direction = first_sort['direction'] || first_sort[:direction] || 'ASC'
+
+        query.order(field_slug, direction.upcase)
       end
 
       # Direct API call (original behavior, used when cache disabled/bypassed)

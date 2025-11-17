@@ -105,7 +105,7 @@ module SmartSuite
 
       # Execute the query
       #
-      # @return [Array<Hash>] Query results
+      # @return [Array<Hash>] Query results with original field slugs as keys
       def execute
         schema = @cache.get_cached_table_schema(@table_id)
         return [] unless schema
@@ -139,7 +139,8 @@ module SmartSuite
         duration = Time.now - start_time
         QueryLogger.log_db_result(result.length, duration)
 
-        result
+        # Map transliterated column names back to original field slugs
+        map_column_names_to_field_slugs(result, schema['field_mapping'])
       rescue StandardError => e
         QueryLogger.log_error('Cache Query Execute', e)
         raise
@@ -177,6 +178,35 @@ module SmartSuite
       end
 
       private
+
+      # Map transliterated column names back to original SmartSuite field slugs
+      #
+      # @param results [Array<Hash>] Query results with transliterated column names
+      # @param field_mapping [Hash] Mapping of field_slug => {column_name => type}
+      # @return [Array<Hash>] Results with original field slugs as keys
+      def map_column_names_to_field_slugs(results, field_mapping)
+        # Build reverse mapping: {column_name => field_slug}
+        reverse_mapping = {}
+        field_mapping.each do |field_slug, columns|
+          columns.each_key do |col_name|
+            reverse_mapping[col_name] = field_slug
+          end
+        end
+
+        # Transform each result row
+        results.map do |row|
+          mapped_row = {}
+          row.each do |col_name, value|
+            # Map column name to original field slug (or keep column name if no mapping)
+            field_slug = reverse_mapping[col_name] || col_name
+
+            # For fields with multiple columns (e.g., status has status + status_updated_on),
+            # prefer the first column value (don't overwrite)
+            mapped_row[field_slug] ||= value
+          end
+          mapped_row
+        end
+      end
 
       # Build SQL condition for a field
       #
