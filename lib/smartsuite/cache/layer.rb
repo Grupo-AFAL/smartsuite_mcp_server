@@ -336,7 +336,7 @@ module SmartSuite
           return extracted_values[col_base] if stored_col_name.end_with?(col_base) && !stored_col_name.include?('_updated_on')
           return extracted_values["#{col_base}_updated_on"] if stored_col_name.include?('_updated_on')
         when 'daterangefield', 'duedatefield'
-          col_base = sanitize_column_name(field_slug)
+          sanitize_column_name(field_slug)
           extracted_values.each do |extracted_col, val|
             # Match by suffix: "fecha_from" matches anything ending with "_from"
             if extracted_col.end_with?('_from') && stored_col_name.include?('_from')
