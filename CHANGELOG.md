@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **One-liner installation** - Zero-friction installation with a single command:
+  - **macOS/Linux**: `curl -fsSL https://raw.githubusercontent.com/.../bootstrap.sh | bash`
+  - **Windows**: `irm https://raw.githubusercontent.com/.../bootstrap.ps1 | iex`
+  - Bootstrap scripts automatically:
+    - Clone repository to `~/.smartsuite_mcp`
+    - Run the full installation script
+    - Handle updates to existing installations
+    - No manual git clone required
+  - Users just paste one command and enter their API credentials
+  - Easiest possible installation experience
 - **Automated installation scripts** for non-technical users:
   - **macOS/Linux**: `./install.sh` - Bash-based installer with Homebrew integration
     - Automatic Homebrew installation on macOS (if not present)
@@ -38,10 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **README.md** - Updated Quick Start section:
-  - Added Prerequisites section with git installation instructions for all platforms
-  - Featured automated installation as the recommended method
-  - Documented what each script automatically handles per platform
+- **README.md** - Completely restructured Quick Start section:
+  - **One-liner installation** now featured as primary method (easiest!)
+  - Manual clone + script moved to "Alternative" section
+  - Removed verbose prerequisites (bootstrap scripts handle git checks)
+  - Simplified and streamlined documentation
+  - Focus on "paste one command, enter credentials, done"
 - **ROADMAP.md** - Updated v2.0 goals to focus on "Token optimization and ease of installation"
 
 ## [1.8.0] - 2025-11-16

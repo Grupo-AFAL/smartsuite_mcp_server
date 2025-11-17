@@ -16,19 +16,36 @@ A Model Context Protocol (MCP) server for SmartSuite that enables AI assistants 
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### One-Liner Installation (Easiest!)
 
-Before installation, ensure you have:
-- **Git** installed on your system
-  - macOS: Usually pre-installed, or install via `xcode-select --install`
-  - Windows: [Download Git for Windows](https://git-scm.com/download/win)
-  - Linux: `sudo apt-get install git` (Ubuntu/Debian) or `sudo dnf install git` (Fedora/RHEL)
-
-### Automated Installation (Recommended)
-
-The easiest way to install the SmartSuite MCP server is using our automated installation script:
+Install the SmartSuite MCP server with just one command:
 
 #### macOS / Linux
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Grupo-AFAL/smartsuite_mcp_server/main/bootstrap.sh | bash
+```
+
+#### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/Grupo-AFAL/smartsuite_mcp_server/main/bootstrap.ps1 | iex
+```
+
+**That's it!** The script will:
+- ✅ Check for Git (required) and provide install instructions if needed
+- ✅ Clone the repository to `~/.smartsuite_mcp`
+- ✅ Auto-install Homebrew on macOS (if needed)
+- ✅ Auto-install Ruby via package manager (if needed)
+- ✅ Install all dependencies
+- ✅ Prompt for your SmartSuite API credentials
+- ✅ Configure Claude Desktop automatically
+
+Just restart Claude Desktop when done!
+
+### Alternative: Manual Clone + Script
+
+If you prefer to clone the repository yourself first:
 
 ```bash
 # Clone the repository
@@ -36,38 +53,9 @@ git clone https://github.com/Grupo-AFAL/smartsuite_mcp_server.git
 cd smartsuite_mcp_server
 
 # Run the installation script
-./install.sh
+./install.sh          # macOS/Linux
+.\install.ps1         # Windows
 ```
-
-The script will automatically:
-- ✅ Install Homebrew (macOS only, if not present)
-- ✅ Check for Ruby 3.0+ (install if needed on macOS)
-- ✅ Install all dependencies
-- ✅ Prompt for your SmartSuite API credentials
-- ✅ Configure Claude Desktop automatically
-- ✅ Set up everything for you!
-
-#### Windows
-
-```powershell
-# Clone the repository
-git clone https://github.com/Grupo-AFAL/smartsuite_mcp_server.git
-cd smartsuite_mcp_server
-
-# Run the installation script
-.\install.ps1
-```
-
-The script will automatically:
-- ✅ Check for Ruby 3.0+ (auto-install via WinGet if not present)
-- ✅ Install all dependencies
-- ✅ Prompt for your SmartSuite API credentials
-- ✅ Configure Claude Desktop automatically
-- ✅ Set up everything for you!
-
-**Note:** Auto-installation of Ruby requires Windows Package Manager (WinGet), which is built into Windows 10 (version 1809+) and Windows 11. If WinGet is not available, you'll be prompted to install Ruby manually from [RubyInstaller.org](https://rubyinstaller.org/).
-
-**That's it!** Restart Claude Desktop and start using SmartSuite through natural language.
 
 ### Get API Credentials
 
