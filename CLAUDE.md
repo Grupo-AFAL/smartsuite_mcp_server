@@ -55,6 +55,96 @@ The server communicates via stdin/stdout using JSON-RPC protocol. Test by sendin
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ruby smartsuite_server.rb
 ```
 
+## Development Workflow
+
+### Starting a New Feature
+
+**ALWAYS create a feature branch** before starting work on a new feature:
+
+```bash
+# Create and checkout a new feature branch
+git checkout -b feature/feature-name
+
+# Examples:
+git checkout -b feature/add-bulk-delete
+git checkout -b feature/improve-error-handling
+git checkout -b fix/cache-invalidation-bug
+```
+
+Branch naming conventions:
+- `feature/` - New features or enhancements
+- `fix/` - Bug fixes
+- `refactor/` - Code refactoring without functional changes
+- `docs/` - Documentation updates
+
+### Completing a Feature
+
+**BEFORE merging or creating a PR**, complete this checklist:
+
+1. **Documentation** ✅
+   - Update CHANGELOG.md with changes under `[Unreleased]` section
+   - Update ROADMAP.md if the feature affects planned milestones
+   - Update relevant docs in `docs/` directory
+   - Add/update YARD documentation for new/modified methods
+   - Update CLAUDE.md if workflow or architecture changes
+
+2. **Tests** ✅
+   - Run full test suite: `bundle exec rake test`
+   - Ensure tests pass with 0 failures
+   - Add tests for new functionality
+   - Maintain or improve code coverage (current baseline: 82.77%, target: 90%)
+   - Consider edge cases and error scenarios
+
+3. **Code Quality** ✅
+   - Run RuboCop: `bundle exec rubocop`
+   - Fix any style violations: `bundle exec rubocop -A` (auto-correct)
+   - Run Reek for code smells: `bundle exec reek`
+   - Ensure YARD coverage: `bundle exec yard stats --list-undoc`
+
+4. **Linting** ✅
+   - Markdown files: Check with markdownlint
+   - Ensure CHANGELOG follows Keep a Changelog format
+   - Check for proper heading structure and formatting
+
+5. **Refactoring Opportunities** ✅
+   - Look for code duplication (DRY principle)
+   - Check if new helpers/modules could be extracted
+   - Verify proper use of existing modules (API::Base, FilterBuilder, etc.)
+   - Consider token optimization opportunities
+   - Review error handling consistency
+
+6. **GitHub Actions** ✅
+   - Verify all workflows pass locally before pushing
+   - Check test coverage meets baseline
+   - Ensure security audit passes (bundle audit)
+
+**Example completion workflow:**
+```bash
+# 1. Run all checks
+bundle exec rake test
+bundle exec rubocop -A
+bundle exec reek
+bundle exec yard stats --list-undoc
+
+# 2. Update documentation
+# Edit CHANGELOG.md, ROADMAP.md, relevant docs
+
+# 3. Commit changes
+git add .
+git commit -m "feat: Add feature description
+
+Detailed description of changes...
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+# 4. Push and verify GitHub Actions
+git push origin feature/feature-name
+
+# 5. If ready for release, merge to main and create release tag
+```
+
 ## Architecture
 
 The codebase follows a modular architecture with clear separation of concerns across three layers:
