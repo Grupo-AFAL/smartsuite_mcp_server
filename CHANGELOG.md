@@ -51,6 +51,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Completion checklist: Documentation, Tests, Code Quality, Linting, Refactoring, GitHub Actions
   - Example completion workflow with all necessary commands
   - Ensures consistent quality and completeness for all future features
+- **Cache query sorting** - Added `order(field_slug, direction)` method to Cache::Query
+  - Supports ASC/DESC sorting on cached records
+  - Enables local sorting without API calls
+  - Applied via `apply_sorting_to_query` in RecordOperations
+- **get_record cache support** - `get_record` now uses cache-first strategy
+  - Only makes API call if record not cached
+  - Significant performance improvement for individual record lookups (~100ms → <10ms)
+  - Applies SmartDoc HTML extraction to both cached and API responses
+- **get_table caching** - Added caching support to `get_table` method
+  - Caches table structure with 12-hour TTL
+  - Reduces API calls for frequently accessed table metadata
+  - Improved `bypass_cache` documentation
+- **SmartDoc HTML extraction** - 60-70% token savings for rich text fields
+  - Extract only HTML content from SmartDoc/richtextarea fields
+  - SmartDoc fields contain `{data, html, preview, yjsData}` but AI only needs HTML
+  - Cache stores complete JSON, but `get_record` and `list_records` return only HTML
+  - Added JSON string parsing to handle cached values
+  - Reduces token usage by 60-70% for rich text fields (e.g., 100KB JSON → 3-4KB HTML)
+- **Color-coded logging** - ANSI color codes for different log types
+  - API operations: Cyan
+  - Database queries: Green
+  - Cache operations: Magenta
+  - Errors: Red
+  - Easier visual scanning of logs during development
+- **Separate test/production logs** - Environment-based log file separation
+  - Test logs: `~/.smartsuite_mcp_queries_test.log`
+  - Production logs: `~/.smartsuite_mcp_queries.log`
+  - Auto-detection based on environment
+  - Prevents test noise in production logs
 
 ### Changed
 
@@ -64,6 +93,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **is_not_empty filter operator** - Fixed FilterBuilder mapping from `{not_null: true}` to `{is_not_null: true}`
+  - Resolves "can't prepare TrueClass" error when using `is_not_empty` filter
+  - Cache::Query expects `:is_not_null`, not `:not_null` operator
+  - Updated tests and documentation
+- **Empty field values column mapping** - Fixed column name mapping for empty/null fields in cache query results
+  - `map_column_names_to_field_slugs` now correctly handles all fields
+  - Prevents missing fields in query results
+  - Added comprehensive test coverage
+- **Spanish accent handling** - Column names with accents properly transliterated
+  - `"Título"` → `"titulo"`, prevents SQL insert failures
+  - Added comprehensive Spanish/Latin accent mappings with Unicode normalization
+  - Fixes cache insertion failures for tables with Spanish field names
+- **Cache column mapping** - Fixed `insert_record` to use stored column names from `field_mapping`
+  - Previously regenerated column names, causing SQL insert failures
+  - Added `find_matching_value` helper to map extracted values correctly
+  - Critical for tables with non-ASCII field names
+- **list_tables API response format** - Fixed to handle Array responses from `/applications/` endpoint
+  - Normalized `"solution"` field to `"solution_id"` for consistency
+  - Resolves issue where list_tables returned 0 results despite 519+ tables existing
+- **cached_tables schema** - Updated schema to match SmartSuite API field names
+  - Aligned with actual API response structure
+  - Improved cache reliability and consistency
 - **Broken documentation links** - Fixed 9 broken links across documentation:
   - Fixed incorrect relative paths in `docs/guides/user-guide.md` (lines 594-595) - Changed `../../examples/` to `../examples/`
   - Fixed examples directory reference in `README.md` (line 156) - Changed `examples/` to `docs/examples/`
