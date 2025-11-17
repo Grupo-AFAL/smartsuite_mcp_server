@@ -4,7 +4,10 @@ require 'logger'
 require 'fileutils'
 
 # QueryLogger provides centralized logging for all API and database queries.
-# Logs to ~/.smartsuite_mcp_queries.log for easy debugging and monitoring.
+#
+# Logs to separate files based on environment:
+# - Production: ~/.smartsuite_mcp_queries.log
+# - Test: ~/.smartsuite_mcp_queries_test.log
 #
 # Usage:
 #   QueryLogger.log_api_request(method, url, params)
@@ -12,17 +15,15 @@ require 'fileutils'
 #   QueryLogger.log_db_query(sql, params, duration)
 #   QueryLogger.log_cache_operation(operation, table_id, details)
 #
-# Tail the log:
+# Tail the production log:
 #   tail -f ~/.smartsuite_mcp_queries.log
 #   tail -f ~/.smartsuite_mcp_queries.log | grep "API"
 #   tail -f ~/.smartsuite_mcp_queries.log | grep "DB"
 #
+# Tail the test log:
+#   tail -f ~/.smartsuite_mcp_queries_test.log
+#
 class QueryLogger
-  # Path to the query log file
-  #
-  # @return [String] absolute path to ~/.smartsuite_mcp_queries.log
-  LOG_FILE = File.expand_path('~/.smartsuite_mcp_queries.log')
-
   # ANSI color codes for terminal output
   COLORS = {
     reset: "\e[0m",
@@ -35,22 +36,58 @@ class QueryLogger
   }.freeze
 
   class << self
+    # Get the log file path based on environment
+    #
+    # Returns different paths for test vs production:
+    # - Test: ~/.smartsuite_mcp_queries_test.log
+    # - Production: ~/.smartsuite_mcp_queries.log
+    #
+    # @return [String] absolute path to log file
+    def log_file_path
+      if test_environment?
+        File.expand_path('~/.smartsuite_mcp_queries_test.log')
+      else
+        File.expand_path('~/.smartsuite_mcp_queries.log')
+      end
+    end
+
+    # Detect if running in test environment
+    #
+    # Checks for common test indicators:
+    # - RACK_ENV or RAILS_ENV set to 'test'
+    # - Running under minitest or rspec
+    #
+    # @return [Boolean] true if in test environment
+    def test_environment?
+      ENV['RACK_ENV'] == 'test' ||
+        ENV['RAILS_ENV'] == 'test' ||
+        defined?(Minitest) ||
+        defined?(RSpec)
+    end
+
     # Get the shared Logger instance
     #
     # Creates a daily rotating logger if not already initialized.
-    # Logs are written to ~/.smartsuite_mcp_queries.log with DEBUG level.
+    # Logs to different files based on environment (test vs production).
     #
     # @return [Logger] configured logger instance
     def logger
       @logger ||= begin
-        FileUtils.mkdir_p(File.dirname(LOG_FILE))
-        logger = Logger.new(LOG_FILE, 'daily')
+        log_path = log_file_path
+        FileUtils.mkdir_p(File.dirname(log_path))
+        logger = Logger.new(log_path, 'daily')
         logger.level = Logger::DEBUG
         logger.formatter = proc do |severity, datetime, _progname, msg|
           "[#{datetime.strftime('%Y-%m-%d %H:%M:%S.%L')}] #{severity.ljust(5)} #{msg}\n"
         end
         logger
       end
+    end
+
+    # Reset the logger instance (useful for switching environments in tests)
+    def reset_logger!
+      @logger&.close
+      @logger = nil
     end
 
     # Log API request to SmartSuite
