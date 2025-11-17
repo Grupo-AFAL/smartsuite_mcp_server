@@ -62,7 +62,10 @@ module SmartSuite
         end
 
         # Try cache-first strategy if enabled
-        return list_records_from_cache(table_id, limit, offset, filter, sort, fields, hydrated) unless should_bypass_cache?(bypass: bypass_cache)
+        unless should_bypass_cache?(bypass: bypass_cache)
+          return list_records_from_cache(table_id, limit, offset, filter, sort, fields,
+                                         hydrated)
+        end
 
         # Fallback to direct API call (cache disabled or bypassed)
         list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
@@ -82,7 +85,7 @@ module SmartSuite
         query = apply_filters_to_query(query, filter) if filter && filter['fields']&.any?
 
         # Apply sorting if provided
-        query = apply_sorting_to_query(query, sort) if sort && sort.is_a?(Array) && sort.any?
+        query = apply_sorting_to_query(query, sort) if sort.is_a?(Array) && sort.any?
 
         # Get total record count (before limit/offset)
         total_count = query.count
@@ -127,7 +130,7 @@ module SmartSuite
       # @param sort [Array<Hash>] SmartSuite sort array
       # @return [SmartSuite::Cache::Query] Query with sorting applied
       def apply_sorting_to_query(query, sort)
-        return query unless sort && sort.is_a?(Array) && sort.any?
+        return query unless sort.is_a?(Array) && sort.any?
 
         # Get first sort criterion (Query.order currently only supports single field)
         first_sort = sort.first
