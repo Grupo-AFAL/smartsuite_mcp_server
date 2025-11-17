@@ -209,7 +209,7 @@ module SmartSuite
               },
               'bypass_cache' => {
                 'type' => 'boolean',
-                'description' => 'Optional: If true, forces a direct API call even if cache is valid, and updates the cache with fresh data. Use this when you need guaranteed fresh data immediately after creating/updating/deleting records. Default: false (use cache when available).'
+                'description' => 'Optional: If true, forces a direct API call and updates cache. ⚠️ ONLY use when you have created/updated/deleted records IN THIS SAME SESSION and need to see those changes immediately. DO NOT use for read-only queries - the cache is automatically kept fresh. Default: false.'
               }
             },
             'required' => %w[table_id fields]
@@ -235,7 +235,7 @@ module SmartSuite
         },
         {
           'name' => 'create_record',
-          'description' => 'Create a new record in a SmartSuite table. CACHE NOTE: Does NOT invalidate cache - newly created record will not appear in list_records results until cache expires (default: 4 hours) OR you use bypass_cache=true in your next list_records call.',
+          'description' => 'Create a new record in a SmartSuite table. CACHE NOTE: Newly created record will not appear in list_records results until you use bypass_cache=true in your NEXT list_records call (only needed if you want to see this new record immediately in the same session).',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -253,7 +253,7 @@ module SmartSuite
         },
         {
           'name' => 'update_record',
-          'description' => 'Update an existing record in a SmartSuite table. CACHE NOTE: Does NOT invalidate cache - updates will not appear in list_records results until cache expires (default: 4 hours) OR you use bypass_cache=true in your next list_records call.',
+          'description' => 'Update an existing record in a SmartSuite table. CACHE NOTE: Updates will not appear in list_records results until you use bypass_cache=true in your NEXT list_records call (only needed if you want to see the updated values immediately in the same session).',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -275,7 +275,7 @@ module SmartSuite
         },
         {
           'name' => 'delete_record',
-          'description' => 'Delete a record from a SmartSuite table. CACHE NOTE: Does NOT invalidate cache - deleted record will still appear in list_records results until cache expires (default: 4 hours) OR you use bypass_cache=true in your next list_records call.',
+          'description' => 'Delete a record from a SmartSuite table. CACHE NOTE: Deleted record will still appear in list_records results until you use bypass_cache=true in your NEXT list_records call (only needed if you want to verify deletion immediately in the same session).',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
