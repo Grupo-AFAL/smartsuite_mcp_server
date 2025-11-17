@@ -319,17 +319,17 @@ class TestFilterBuilder < Minitest::Test
       result = SmartSuite::FilterBuilder.convert_comparison(operator, value)
 
       # Result should be either a simple value, nil, or a Hash with operator keys
-      if result.is_a?(Hash)
-        # Verify the hash has valid Cache::Query operator keys
-        # These are the operator symbols Cache::Query.build_complex_condition recognizes
-        valid_operators = %i[eq ne gt gte lt lte contains not_contains starts_with ends_with
-                             in not_in between is_null is_not_null is_empty is_not_empty
-                             has_any_of has_all_of is_exactly has_none_of]
+      next unless result.is_a?(Hash)
 
-        result.keys.each do |key|
-          assert valid_operators.include?(key),
-                 "Operator '#{operator}' produced unknown key :#{key}"
-        end
+      # Verify the hash has valid Cache::Query operator keys
+      # These are the operator symbols Cache::Query.build_complex_condition recognizes
+      valid_operators = %i[eq ne gt gte lt lte contains not_contains starts_with ends_with
+                           in not_in between is_null is_not_null is_empty is_not_empty
+                           has_any_of has_all_of is_exactly has_none_of]
+
+      result.each_key do |key|
+        assert valid_operators.include?(key),
+               "Operator '#{operator}' produced unknown key :#{key}"
       end
     end
   end
