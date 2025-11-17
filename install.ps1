@@ -35,15 +35,54 @@ function Print-Header {
     Write-Host ""
 }
 
+# Check for WinGet (Windows Package Manager)
+function Test-WinGet {
+    return (Get-Command winget -ErrorAction SilentlyContinue) -ne $null
+}
+
+# Install Ruby using WinGet
+function Install-Ruby {
+    Print-Header "Installing Ruby"
+
+    if (Test-WinGet) {
+        Print-Info "Installing Ruby using Windows Package Manager (WinGet)..."
+        Print-Info "This may take a few minutes..."
+
+        # Install Ruby+Devkit 3.3 (latest stable with DevKit)
+        winget install --id RubyInstallerTeam.RubyWithDevKit.3.3 --silent --accept-package-agreements --accept-source-agreements
+
+        # Refresh environment variables to pick up Ruby
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+        Print-Success "Ruby installed successfully"
+    } else {
+        Print-Error "Windows Package Manager (WinGet) is not available."
+        Print-Info "WinGet is built into Windows 10 (1809+) and Windows 11."
+        Print-Info ""
+        Print-Info "Please install Ruby manually from: https://rubyinstaller.org/"
+        Print-Info "Recommended: Ruby+Devkit 3.0 or higher"
+        Print-Info ""
+        Print-Info "After installing Ruby, run this script again."
+        exit 1
+    }
+}
+
 # Check for Ruby installation
 function Check-Ruby {
     Print-Header "Checking Ruby Installation"
 
     if (-not (Get-Command ruby -ErrorAction SilentlyContinue)) {
-        Print-Error "Ruby is not installed."
-        Print-Info "Please install Ruby from: https://rubyinstaller.org/"
-        Print-Info "Recommended: Ruby+Devkit 3.0 or higher"
-        exit 1
+        Print-Warning "Ruby is not installed."
+
+        $response = Read-Host "Would you like to install Ruby automatically? (yes/no)"
+        if ($response -eq "yes" -or $response -eq "y") {
+            Install-Ruby
+        } else {
+            Print-Info "Please install Ruby from: https://rubyinstaller.org/"
+            Print-Info "Recommended: Ruby+Devkit 3.0 or higher"
+            Print-Info "After installing Ruby, run this script again."
+            exit 1
+        }
     }
 
     $rubyVersion = (ruby -v | Select-String -Pattern '\d+\.\d+').Matches.Value
