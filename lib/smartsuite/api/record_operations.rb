@@ -196,6 +196,7 @@ module SmartSuite
       # Retrieves a single record by ID.
       #
       # Returns complete record with all fields.
+      # Uses cache-first strategy - only makes API call if record not cached.
       #
       # @param table_id [String] Table identifier
       # @param record_id [String] Record identifier
@@ -207,6 +208,17 @@ module SmartSuite
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
 
+        # Try to get from cache first
+        if @cache
+          cached_record = @cache.get_cached_record(table_id, record_id)
+          if cached_record
+            log_metric("✓ Retrieved record from cache: #{record_id}")
+            return cached_record
+          end
+        end
+
+        # Cache miss or disabled - fetch from API
+        log_metric("→ Getting record from API: #{record_id}")
         api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
       end
 
