@@ -56,6 +56,30 @@ check_os() {
     fi
 }
 
+# Install Homebrew on macOS if not present
+install_homebrew() {
+    if [[ "$OS_TYPE" != "macos" ]]; then
+        return
+    fi
+
+    if ! command -v brew &> /dev/null; then
+        print_header "Installing Homebrew"
+        print_info "Homebrew is not installed. Installing now..."
+        print_warning "You may be prompted for your password."
+
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+        # Add Homebrew to PATH for Apple Silicon Macs
+        if [[ -f "/opt/homebrew/bin/brew" ]]; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+        fi
+
+        print_success "Homebrew installed successfully"
+    else
+        print_success "Homebrew is already installed"
+    fi
+}
+
 # Check for Ruby installation
 check_ruby() {
     print_header "Checking Ruby Installation"
@@ -65,14 +89,14 @@ check_ruby() {
 
         if [[ "$OS_TYPE" == "macos" ]]; then
             print_info "Installing Ruby using Homebrew..."
-
-            if ! command -v brew &> /dev/null; then
-                print_error "Homebrew is not installed. Please install Homebrew first:"
-                echo "Visit: https://brew.sh"
-                exit 1
-            fi
-
             brew install ruby
+
+            # Add Ruby to PATH for current session
+            if [[ -d "/opt/homebrew/opt/ruby/bin" ]]; then
+                export PATH="/opt/homebrew/opt/ruby/bin:$PATH"
+            elif [[ -d "/usr/local/opt/ruby/bin" ]]; then
+                export PATH="/usr/local/opt/ruby/bin:$PATH"
+            fi
         elif [[ "$OS_TYPE" == "linux" ]]; then
             print_info "Please install Ruby 3.0+ using your package manager:"
             echo "  Ubuntu/Debian: sudo apt-get install ruby-full"
@@ -263,6 +287,7 @@ main() {
 
     # Run installation steps
     check_os
+    install_homebrew  # Install Homebrew first on macOS (if needed)
     check_ruby
     install_dependencies
     get_credentials
