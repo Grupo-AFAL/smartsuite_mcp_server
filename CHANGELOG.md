@@ -9,12 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Automated installation scripts** for non-technical users:
+  - **macOS/Linux**: `./install.sh` - Bash-based installer with Homebrew integration
+  - **Windows**: `.\install.ps1` - PowerShell-based installer for Windows
+  - One-command installation process
+  - Automatic Ruby version checking (3.0+ required)
+  - Automatic dependency installation via Bundler
+  - Interactive prompts for SmartSuite API credentials
+  - Automatic Claude Desktop configuration with proper JSON formatting
+  - Backup of existing configuration before making changes
+  - Color-coded output for success/error/warning messages
+  - macOS: Support for jq (if installed) for safer JSON manipulation
+  - Comprehensive error handling and validation
+  - Cross-platform support: macOS, Linux, and Windows
 - **Development workflow guidelines** in CLAUDE.md:
   - Feature branch workflow (always create branches before starting work)
   - Branch naming conventions (feature/, fix/, refactor/, docs/)
   - Completion checklist: Documentation, Tests, Code Quality, Linting, Refactoring, GitHub Actions
   - Example completion workflow with all necessary commands
   - Ensures consistent quality and completeness for all future features
+
+### Changed
+
+- **README.md** - Updated Quick Start section to feature automated installation as the recommended method
+- **ROADMAP.md** - Updated v2.0 goals to focus on "Token optimization and ease of installation"
 
 ## [1.8.0] - 2025-11-16
 

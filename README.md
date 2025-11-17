@@ -16,7 +16,52 @@ A Model Context Protocol (MCP) server for SmartSuite that enables AI assistants 
 
 ## 🚀 Quick Start
 
-### Installation
+### Automated Installation (Recommended)
+
+The easiest way to install the SmartSuite MCP server is using our automated installation script:
+
+#### macOS / Linux
+
+```bash
+# Clone the repository
+git clone https://github.com/Grupo-AFAL/smartsuite_mcp_server.git
+cd smartsuite_mcp_server
+
+# Run the installation script
+./install.sh
+```
+
+#### Windows
+
+```powershell
+# Clone the repository
+git clone https://github.com/Grupo-AFAL/smartsuite_mcp_server.git
+cd smartsuite_mcp_server
+
+# Run the installation script
+.\install.ps1
+```
+
+The script will:
+- ✅ Check for Ruby 3.0+ (install if needed on macOS)
+- ✅ Install all dependencies
+- ✅ Prompt for your SmartSuite API credentials
+- ✅ Configure Claude Desktop automatically
+- ✅ Set up everything for you!
+
+**That's it!** Restart Claude Desktop and start using SmartSuite through natural language.
+
+### Get API Credentials
+
+Before running the install script, get your SmartSuite credentials:
+
+1. Log in to [SmartSuite](https://app.smartsuite.com)
+2. Go to Settings → API
+3. Generate an API key and note your Account ID
+
+### Manual Installation (Alternative)
+
+If you prefer to install manually or the automated script doesn't work for your setup:
 
 ```bash
 # Clone the repository
@@ -26,14 +71,11 @@ cd smartsuite_mcp_server
 # Install dependencies
 bundle install
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your SmartSuite API credentials
+# Make server executable
+chmod +x smartsuite_server.rb
 ```
 
-### Configuration
-
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+Then manually add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -50,13 +92,7 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 }
 ```
 
-### Get API Credentials
-
-1. Log in to [SmartSuite](https://app.smartsuite.com)
-2. Go to Settings → API
-3. Generate an API key and note your Account ID
-
-**That's it!** Restart Claude Desktop and start using SmartSuite through natural language.
+**Note:** Replace `/path/to/smartsuite_mcp_server/` with the actual path where you cloned the repository.
 
 ## 📚 Documentation
 
