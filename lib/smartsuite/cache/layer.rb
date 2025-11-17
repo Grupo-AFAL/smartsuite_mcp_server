@@ -273,10 +273,18 @@ module SmartSuite
           next unless field_mapping[field_slug]
 
           field_value = record[field_slug]
+
+          # Use stored column names from field_mapping instead of regenerating
+          stored_columns = field_mapping[field_slug]
           extracted_values = extract_field_value(field_info, field_value)
 
-          extracted_values.each do |col_name, val|
-            columns << col_name
+          # Map extracted values to stored column names
+          stored_columns.each_key do |stored_col_name|
+            # The extracted_values keys might differ from stored column names
+            # Find the corresponding value by matching the column purpose
+            val = find_matching_value(extracted_values, stored_col_name, field_info)
+
+            columns << stored_col_name
             values << val
             placeholders << '?'
           end
@@ -287,6 +295,78 @@ module SmartSuite
              VALUES (#{placeholders.join(', ')})"
 
         @db.execute(sql, values)
+      end
+
+      # Find matching value from extracted values for a stored column name
+      #
+      # @param extracted_values [Hash] Values extracted from field
+      # @param stored_col_name [String] Stored column name in database
+      # @param field_info [Hash] Field definition
+      # @return [Object] Matched value or nil
+      def find_matching_value(extracted_values, stored_col_name, field_info)
+        # For simple fields with one column, just return the first value
+        return extracted_values.values.first if extracted_values.size == 1
+
+        # For multi-column fields, match by suffix pattern
+        # e.g., stored "fecha_from" matches extracted "fecha_from"
+        # or stored "t_tulo" matches extracted column with similar purpose
+        field_type = field_info['field_type'].downcase
+        field_slug = field_info['slug']
+
+        # For special multi-column types, match by suffix
+        case field_type
+        when 'firstcreated'
+          return extracted_values['created_on'] if stored_col_name == 'created_on'
+          return extracted_values['created_by'] if stored_col_name == 'created_by'
+        when 'lastupdated'
+          return extracted_values['updated_on'] if stored_col_name == 'updated_on'
+          return extracted_values['updated_by'] if stored_col_name == 'updated_by'
+        when 'deleted_date'
+          return extracted_values['deleted_on'] if stored_col_name == 'deleted_on'
+          return extracted_values['deleted_by'] if stored_col_name == 'deleted_by'
+        when 'statusfield'
+          col_base = sanitize_column_name(field_slug)
+          return extracted_values[col_base] if stored_col_name.end_with?(col_base) && !stored_col_name.include?('_updated_on')
+          return extracted_values["#{col_base}_updated_on"] if stored_col_name.include?('_updated_on')
+        when 'daterangefield', 'duedatefield'
+          col_base = sanitize_column_name(field_slug)
+          extracted_values.each do |extracted_col, val|
+            # Match by suffix: "fecha_from" matches anything ending with "_from"
+            if extracted_col.end_with?('_from') && stored_col_name.include?('_from')
+              return val
+            elsif extracted_col.end_with?('_to') && stored_col_name.include?('_to')
+              return val
+            elsif extracted_col.include?('_is_overdue') && stored_col_name.include?('_is_overdue')
+              return val
+            elsif extracted_col.include?('_is_completed') && stored_col_name.include?('_is_completed')
+              return val
+            end
+          end
+        end
+
+        # For other complex types (address, fullname, smartdoc, etc.), match by suffix
+        extracted_values.each do |extracted_col, val|
+          # Try exact match first
+          return val if extracted_col == stored_col_name
+
+          # Try suffix match (e.g., "participantes_json" matches anything ending with "_json")
+          if extracted_col.end_with?('_text') && stored_col_name.include?('_text')
+            return val
+          elsif extracted_col.end_with?('_json') && stored_col_name.include?('_json')
+            return val
+          elsif extracted_col.end_with?('_preview') && stored_col_name.include?('_preview')
+            return val
+          elsif extracted_col.end_with?('_total') && stored_col_name.include?('_total')
+            return val
+          elsif extracted_col.end_with?('_completed') && stored_col_name.include?('_completed')
+            return val
+          elsif extracted_col.end_with?('_count') && stored_col_name.include?('_count')
+            return val
+          end
+        end
+
+        # Default: return first value or nil
+        extracted_values.values.first
       end
 
       # Extract value(s) for a field (handles multi-column fields)

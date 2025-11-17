@@ -165,7 +165,22 @@ class TestCacheMetadata < Minitest::Test
 
   def test_sanitize_column_name_empty_after_sanitization
     result = @cache.send(:sanitize_column_name, '@#$%')
-    assert_equal '____', result, 'Special chars converted to underscores'
+    assert_equal 'column', result, 'Empty column name gets fallback value'
+  end
+
+  def test_sanitize_column_name_with_spanish_accents
+    result = @cache.send(:sanitize_column_name, 'Título')
+    assert_equal 'titulo', result, 'Spanish accents should be transliterated'
+  end
+
+  def test_sanitize_column_name_with_multiple_accents
+    result = @cache.send(:sanitize_column_name, 'Última actualización')
+    assert_equal 'ultima_actualizacion', result, 'Multiple accents should be handled'
+  end
+
+  def test_transliterate_accents_spanish
+    result = @cache.send(:transliterate_accents, 'áéíóúñÁÉÍÓÚÑ')
+    assert_equal 'aeiounAEIOUN', result, 'Spanish accents transliterated correctly'
   end
 
   # Test deduplicate_column_name
