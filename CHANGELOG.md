@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bug reported: After refreshing cache, subsequent queries returned stale data from cache
   - Added 4 comprehensive tests for cascading invalidation scenarios
   - Fixes issue where `list_records` would return cached data even after `refresh_cache` was called
+  - **Improved cache logging** - Fixed missing query logs by using `db_execute` instead of `@db.execute`
+    - Changed 5 instances in `cache/layer.rb`: `insert_record` (line 308), `cache_table_records` (line 250), `invalidate_table_cache` (line 520), `cache_valid?` (line 543), `invalidate_records_for_solution` (line 1116)
+    - All cache INSERT, DELETE, UPDATE, and SELECT operations now logged to `~/.smartsuite_mcp_queries.log`
+    - Makes cache operations visible for debugging and monitoring
 
 ## [1.9.0] - 2025-11-18
 
