@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Improved `refresh_cache` tool description** - Clarified resource parameter to prevent AI from refreshing entire workspace when user wants to refresh one solution
+  - Added explicit examples: "To refresh ProductEK solution use resource='tables' with solution_id='sol_123', NOT resource='solutions'"
+  - Enumerated all 4 use cases: (1) refresh all workspace, (2) refresh one solution, (3) refresh all tables, (4) refresh one table
+  - Changed `solution_id` description to say "required when refreshing a specific solution"
+  - Prevents confusion where AI would use `resource: "solutions"` (all solutions) instead of `resource: "tables", solution_id: "X"` (one solution)
+
 ### Removed
 
 ### Fixed
