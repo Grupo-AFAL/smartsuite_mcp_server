@@ -224,6 +224,61 @@ module SmartSuite
         SQL
       end
 
+      # Migrate cached_tables schema to add API fields and remove unused fields
+      #
+      # Removes: description, updated, updated_by, deleted_date, deleted_by, record_count
+      # Adds: status, hidden, icon, primary_field, order, permissions, field_permissions,
+      #       record_term, fields_count_total, fields_count_linkedrecordfield
+      #
+      # @return [void]
+      def migrate_cached_tables_schema
+        # Check if old schema exists (has 'description' column)
+        cols = @db.execute('PRAGMA table_info(cached_tables)')
+        description_col = cols.find { |c| c['name'] == 'description' }
+
+        # Only migrate if old schema exists
+        return unless description_col
+
+        # Create new table with updated schema
+        @db.execute_batch <<-SQL
+        CREATE TABLE cached_tables_new (
+          id TEXT PRIMARY KEY,
+          slug TEXT,
+          name TEXT,
+          solution_id TEXT,
+          structure TEXT,
+          created TEXT,
+          created_by TEXT,
+          status TEXT,
+          hidden INTEGER DEFAULT 0,
+          icon TEXT,
+          primary_field TEXT,
+          table_order INTEGER,
+          permissions TEXT,
+          field_permissions TEXT,
+          record_term TEXT,
+          fields_count_total INTEGER,
+          fields_count_linkedrecordfield INTEGER,
+          cached_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL
+        );
+
+        INSERT INTO cached_tables_new (
+          id, slug, name, solution_id, structure, created, created_by,
+          cached_at, expires_at
+        )
+        SELECT
+          id, slug, name, solution_id, structure, created, created_by,
+          cached_at, expires_at
+        FROM cached_tables;
+
+        DROP TABLE cached_tables;
+        ALTER TABLE cached_tables_new RENAME TO cached_tables;
+        SQL
+
+        log_metric('→ Migrated cached_tables schema: removed 6 unused fields, added 10 API fields')
+      end
+
       private
 
       # Log migration metrics

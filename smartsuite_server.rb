@@ -154,7 +154,8 @@ class SmartSuiteServer
              when 'list_solutions'
                @client.list_solutions(
                  include_activity_data: arguments['include_activity_data'],
-                 fields: arguments['fields']
+                 fields: arguments['fields'],
+                 name: arguments['name']
                )
              when 'analyze_solution_usage'
                @client.analyze_solution_usage(
@@ -195,8 +196,7 @@ class SmartSuiteServer
                  filter: arguments['filter'],
                  sort: arguments['sort'],
                  fields: arguments['fields'],
-                 hydrated: arguments['hydrated'],
-                 bypass_cache: arguments['bypass_cache']
+                 hydrated: arguments['hydrated']
                )
              when 'get_record'
                @client.get_record(arguments['table_id'], arguments['record_id'])

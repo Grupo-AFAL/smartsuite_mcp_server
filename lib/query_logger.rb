@@ -4,7 +4,11 @@ require 'logger'
 require 'fileutils'
 
 # QueryLogger provides centralized logging for all API and database queries.
-# Logs to ~/.smartsuite_mcp_queries.log for easy debugging and monitoring.
+#
+# Logs to separate files based on environment:
+# - Production: ~/.smartsuite_mcp_queries.log
+# - Unit tests: ~/.smartsuite_mcp_queries_test.log
+# - Integration tests: ~/.smartsuite_mcp_queries_integration.log
 #
 # Usage:
 #   QueryLogger.log_api_request(method, url, params)
@@ -12,34 +16,96 @@ require 'fileutils'
 #   QueryLogger.log_db_query(sql, params, duration)
 #   QueryLogger.log_cache_operation(operation, table_id, details)
 #
-# Tail the log:
+# Tail the production log:
 #   tail -f ~/.smartsuite_mcp_queries.log
 #   tail -f ~/.smartsuite_mcp_queries.log | grep "API"
 #   tail -f ~/.smartsuite_mcp_queries.log | grep "DB"
 #
+# Tail the unit test log:
+#   tail -f ~/.smartsuite_mcp_queries_test.log
+#
+# Tail the integration test log:
+#   tail -f ~/.smartsuite_mcp_queries_integration.log
+#
 class QueryLogger
-  # Path to the query log file
-  #
-  # @return [String] absolute path to ~/.smartsuite_mcp_queries.log
-  LOG_FILE = File.expand_path('~/.smartsuite_mcp_queries.log')
+  # ANSI color codes for terminal output
+  COLORS = {
+    reset: "\e[0m",
+    api: "\e[36m",      # Cyan for API calls
+    db: "\e[32m",       # Green for database queries
+    cache: "\e[35m",    # Magenta for cache operations
+    error: "\e[31m",    # Red for errors
+    success: "\e[32m",  # Green for success
+    warning: "\e[33m"   # Yellow for warnings
+  }.freeze
 
   class << self
+    # Get the log file path based on environment
+    #
+    # Returns different paths for integration tests, unit tests, and production:
+    # - Integration tests: ~/.smartsuite_mcp_queries_integration.log
+    # - Unit tests: ~/.smartsuite_mcp_queries_test.log
+    # - Production: ~/.smartsuite_mcp_queries.log
+    #
+    # @return [String] absolute path to log file
+    def log_file_path
+      if integration_test_environment?
+        File.expand_path('~/.smartsuite_mcp_queries_integration.log')
+      elsif test_environment?
+        File.expand_path('~/.smartsuite_mcp_queries_test.log')
+      else
+        File.expand_path('~/.smartsuite_mcp_queries.log')
+      end
+    end
+
+    # Detect if running in integration test environment
+    #
+    # Integration tests use real API credentials and run against a test workspace.
+    # We detect them by checking if we're in the test/integration directory context.
+    #
+    # @return [Boolean] true if in integration test environment
+    def integration_test_environment?
+      # Check if called from integration test file
+      caller_locations.any? { |loc| loc.path.include?('test/integration/') }
+    end
+
+    # Detect if running in test environment
+    #
+    # Checks for common test indicators:
+    # - RACK_ENV or RAILS_ENV set to 'test'
+    # - Running under minitest or rspec
+    #
+    # @return [Boolean] true if in test environment
+    def test_environment?
+      ENV['RACK_ENV'] == 'test' ||
+        ENV['RAILS_ENV'] == 'test' ||
+        defined?(Minitest) ||
+        defined?(RSpec)
+    end
+
     # Get the shared Logger instance
     #
     # Creates a daily rotating logger if not already initialized.
-    # Logs are written to ~/.smartsuite_mcp_queries.log with DEBUG level.
+    # Logs to different files based on environment (test vs production).
     #
     # @return [Logger] configured logger instance
     def logger
       @logger ||= begin
-        FileUtils.mkdir_p(File.dirname(LOG_FILE))
-        logger = Logger.new(LOG_FILE, 'daily')
+        log_path = log_file_path
+        FileUtils.mkdir_p(File.dirname(log_path))
+        logger = Logger.new(log_path, 'daily')
         logger.level = Logger::DEBUG
         logger.formatter = proc do |severity, datetime, _progname, msg|
           "[#{datetime.strftime('%Y-%m-%d %H:%M:%S.%L')}] #{severity.ljust(5)} #{msg}\n"
         end
         logger
       end
+    end
+
+    # Reset the logger instance (useful for switching environments in tests)
+    def reset_logger!
+      @logger&.close
+      @logger = nil
     end
 
     # Log API request to SmartSuite
@@ -50,9 +116,10 @@ class QueryLogger
       query_params = params[:query_params] || {}
       body = params[:body]
 
-      msg = "API → #{method.to_s.upcase} #{url}"
+      msg = "#{COLORS[:api]}API → #{method.to_s.upcase} #{url}"
       msg += " | Query: #{query_params.inspect}" unless query_params.empty?
       msg += " | Body: #{truncate_json(body)}" if body
+      msg += COLORS[:reset]
 
       logger.info(msg)
     end
@@ -62,8 +129,10 @@ class QueryLogger
     # @param duration [Float] Request duration in seconds
     # @param body_size [Integer] Response body size in bytes (optional)
     def log_api_response(status, duration, body_size = nil)
-      msg = "API ← #{status} | #{(duration * 1000).round(1)}ms"
+      color = status >= 200 && status < 300 ? COLORS[:success] : COLORS[:error]
+      msg = "#{color}API ← #{status} | #{(duration * 1000).round(1)}ms"
       msg += " | #{format_bytes(body_size)}" if body_size
+      msg += COLORS[:reset]
 
       logger.info(msg)
     end
@@ -76,9 +145,10 @@ class QueryLogger
       # Clean up SQL for readability
       clean_sql = sql.gsub(/\s+/, ' ').strip
 
-      msg = "DB  → #{clean_sql}"
+      msg = "#{COLORS[:db]}DB  → #{clean_sql}"
       msg += " | Params: #{params.inspect}" unless params.empty?
       msg += " | #{(duration * 1000).round(1)}ms" if duration
+      msg += COLORS[:reset]
 
       logger.debug(msg)
     end
@@ -87,8 +157,9 @@ class QueryLogger
     # @param row_count [Integer] Number of rows returned
     # @param duration [Float] Query duration in seconds (optional)
     def log_db_result(row_count, duration = nil)
-      msg = "DB  ← #{row_count} rows"
+      msg = "#{COLORS[:db]}DB  ← #{row_count} rows"
       msg += " | #{(duration * 1000).round(1)}ms" if duration
+      msg += COLORS[:reset]
 
       logger.debug(msg)
     end
@@ -98,8 +169,9 @@ class QueryLogger
     # @param table_id [String] Table ID
     # @param details [Hash] Additional details
     def log_cache_operation(operation, table_id, details = {})
-      msg = "CACHE #{operation.upcase} | Table: #{table_id}"
+      msg = "#{COLORS[:cache]}CACHE #{operation.upcase} | Table: #{table_id}"
       details.each { |k, v| msg += " | #{k}: #{v}" }
+      msg += COLORS[:reset]
 
       logger.info(msg)
     end
@@ -110,10 +182,11 @@ class QueryLogger
     # @param limit [Integer] Limit
     # @param offset [Integer] Offset
     def log_cache_query(table_id, filters = {}, limit: nil, offset: nil)
-      msg = "CACHE QUERY | Table: #{table_id}"
+      msg = "#{COLORS[:cache]}CACHE QUERY | Table: #{table_id}"
       msg += " | Filters: #{filters.inspect}" unless filters.empty?
       msg += " | Limit: #{limit}" if limit
       msg += " | Offset: #{offset}" if offset
+      msg += COLORS[:reset]
 
       logger.info(msg)
     end
@@ -122,8 +195,8 @@ class QueryLogger
     # @param context [String] Context where error occurred
     # @param error [Exception] The error
     def log_error(context, error)
-      logger.error("#{context} | ERROR: #{error.class}: #{error.message}")
-      logger.error(error.backtrace.first(5).join("\n")) if error.backtrace
+      logger.error("#{COLORS[:error]}#{context} | ERROR: #{error.class}: #{error.message}#{COLORS[:reset]}")
+      logger.error("#{COLORS[:error]}#{error.backtrace.first(5).join("\n")}#{COLORS[:reset]}") if error.backtrace
     end
 
     private

@@ -24,7 +24,6 @@ module SmartSuite
       #
       # @param solution_id [String, nil] Optional solution ID to filter tables
       # @param fields [Array<String>, nil] Optional array of field slugs to include in response
-      # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
       # @return [Hash] Tables with count and filtered data
       # @example List all tables
       #   list_tables
@@ -34,11 +33,11 @@ module SmartSuite
       #
       # @example List with specific fields
       #   list_tables(fields: ["id", "name", "structure"])
-      def list_tables(solution_id: nil, fields: nil, bypass_cache: false)
+      def list_tables(solution_id: nil, fields: nil)
         validate_optional_parameter!('fields', fields, Array) if fields
 
         # Try cache first if enabled and no custom fields specified
-        unless should_bypass_cache?(bypass: bypass_cache) || fields&.any?
+        unless should_bypass_cache? || fields&.any?
           cached_tables = @cache.get_cached_table_list(solution_id)
           cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
 
@@ -60,8 +59,9 @@ module SmartSuite
         response = api_request(:get, endpoint)
 
         # Cache the response if cache enabled and no custom fields
-        if cache_enabled? && !bypass_cache && fields.nil?
-          tables_list = extract_items_from_response(response)
+        if cache_enabled? && fields.nil?
+          # /applications/ endpoint returns an Array directly
+          tables_list = response.is_a?(Array) ? response : extract_items_from_response(response)
           @cache.cache_table_list(solution_id, tables_list)
           cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
           log_metric("✓ Cached #{tables_list.size} tables (#{cache_key})")
@@ -79,7 +79,12 @@ module SmartSuite
       # @return [Hash] Formatted tables with count
       def format_tables_response(response, fields)
         # Handle both API response format and cached array format
-        tables_list = extract_items_from_response(response) || response
+        # /applications/ endpoint returns an Array directly, not a Hash with 'items' key
+        tables_list = if response.is_a?(Array)
+                        response
+                      else
+                        extract_items_from_response(response) || response
+                      end
 
         # When fields are specified, return full response from API
         # When no fields specified, filter to essential fields only (client-side optimization)
@@ -92,7 +97,8 @@ module SmartSuite
                      {
                        'id' => table['id'],
                        'name' => table['name'],
-                       'solution_id' => table['solution_id']
+                       # API returns 'solution' but we normalize to 'solution_id'
+                       'solution_id' => table['solution'] || table['solution_id']
                      }
                    end
                  end
@@ -117,7 +123,22 @@ module SmartSuite
       def get_table(table_id)
         validate_required_parameter!('table_id', table_id)
 
-        log_metric("→ Getting table structure: #{table_id}")
+        # Try to get from cache first
+        if @cache
+          cached_table = @cache.get_cached_table(table_id)
+          if cached_table
+            # Filter structure to only essential fields (cache has full structure)
+            filtered_structure = cached_table['structure'].map { |field| filter_field_structure(field) }
+            cached_table['structure'] = filtered_structure
+
+            log_metric("✓ Retrieved table from cache: #{table_id}")
+            log_token_usage(estimate_tokens(JSON.generate(cached_table)))
+            return cached_table
+          end
+        end
+
+        # Cache miss - fetch from API
+        log_metric("→ Getting table structure from API: #{table_id}")
         response = api_request(:get, "/applications/#{table_id}/")
 
         # Return filtered structure including only essential fields
@@ -132,7 +153,8 @@ module SmartSuite
           result = {
             'id' => response['id'],
             'name' => response['name'],
-            'solution_id' => response['solution_id'],
+            # API returns 'solution' but we normalize to 'solution_id'
+            'solution_id' => response['solution'] || response['solution_id'],
             'structure' => filtered_structure
           }
 

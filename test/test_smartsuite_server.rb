@@ -236,7 +236,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test SmartSuiteClient data formatting
   def test_client_list_solutions_formats_hash_response
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -261,7 +261,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions(bypass_cache: true)
+    result = client.list_solutions
 
     assert_equal 2, result['count']
     assert_equal 2, result['solutions'].length
@@ -271,7 +271,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_solutions_formats_array_response
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = [
       {
@@ -287,14 +287,14 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions(bypass_cache: true)
+    result = client.list_solutions
 
     assert_equal 1, result['count']
     assert_equal 1, result['solutions'].length
   end
 
   def test_client_list_tables_formats_response
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -312,7 +312,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_tables(bypass_cache: true)
+    result = client.list_tables
 
     assert_equal 1, result['count']
     assert_equal 'tbl_1', result['tables'][0]['id']
@@ -322,7 +322,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_tables_filters_by_solution_id
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     # Track the endpoint that was called
     called_endpoint = nil
@@ -350,7 +350,7 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     # Test filtering by solution_id
-    result = client.list_tables(solution_id: 'sol_1', bypass_cache: true)
+    result = client.list_tables(solution_id: 'sol_1')
 
     # Verify the API was called with the solution query parameter
     assert_equal '/applications/?solution=sol_1', called_endpoint, 'Should use solution query parameter'
@@ -386,7 +386,7 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     # Test with fields parameter
-    result = client.list_tables(fields: %w[name id structure], bypass_cache: true)
+    result = client.list_tables(fields: %w[name id structure])
 
     # Verify the API was called with fields query parameters
     assert_includes called_endpoint, 'fields=name', 'Should include fields=name'
@@ -2050,7 +2050,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test list_solutions with fields parameter
   def test_list_solutions_with_fields_parameter
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -2202,26 +2202,71 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal 2, api_call_count, 'Should make another API call (no cache)'
   end
 
-  def test_list_records_with_bypass_cache_parameter
+  # Regression test: list_solutions should use cache even when fields parameter is provided
+  # Bug fixed: Previously bypassed cache whenever fields parameter was present
+  def test_list_solutions_uses_cache_with_fields_parameter
     cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
 
     begin
       client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
 
       api_call_count = 0
+      mock_response = {
+        'items' => [
+          {
+            'id' => 'sol_1',
+            'name' => 'Solution 1',
+            'logo_icon' => 'star',
+            'logo_color' => '#FF0000',
+            'created' => '2025-01-01T00:00:00Z',
+            'status' => 'active'
+          },
+          {
+            'id' => 'sol_2',
+            'name' => 'Solution 2',
+            'logo_icon' => 'rocket',
+            'logo_color' => '#00FF00',
+            'created' => '2025-01-02T00:00:00Z',
+            'status' => 'active'
+          }
+        ]
+      }
 
-      # Mock api_request for direct API calls
+      # Mock api_request to track API calls
       client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
         api_call_count += 1
-        { 'items' => [], 'total_count' => 0 }
+        mock_response
       end
 
-      # Call with bypass_cache should always hit API
-      client.list_records('tbl_123', 10, 0, fields: ['title'], bypass_cache: true)
-      assert_equal 1, api_call_count, 'Should make API call when bypass_cache: true'
+      # First call should populate cache (1 API call)
+      result1 = client.list_solutions
+      assert_equal 1, api_call_count, 'Should make 1 API call to populate cache'
+      assert_equal 2, result1['count'], 'Should return 2 solutions'
 
-      client.list_records('tbl_123', 10, 0, fields: ['title'], bypass_cache: true)
-      assert_equal 2, api_call_count, 'Should make another API call when bypass_cache: true'
+      # Second call WITH fields parameter should use cache (no additional API call)
+      # This is the regression test - previously this would bypass cache
+      result2 = client.list_solutions(fields: %w[id name created])
+      assert_equal 1, api_call_count, 'Should NOT make additional API call (cache hit)'
+      assert_equal 2, result2['count'], 'Should return 2 solutions from cache'
+
+      # Verify client-side filtering worked
+      solution = result2['solutions'][0]
+      assert_equal 'sol_1', solution['id']
+      assert_equal 'Solution 1', solution['name']
+      assert_equal '2025-01-01T00:00:00Z', solution['created']
+      refute solution.key?('logo_icon'), 'Should not include fields not requested (client-side filtered)'
+      refute solution.key?('status'), 'Should not include fields not requested (client-side filtered)'
+
+      # Third call with different fields should still use cache
+      result3 = client.list_solutions(fields: %w[id name])
+      assert_equal 1, api_call_count, 'Should still NOT make additional API call (cache hit)'
+      assert_equal 2, result3['count'], 'Should return 2 solutions from cache'
+
+      # Verify different client-side filtering
+      solution3 = result3['solutions'][0]
+      assert_equal 'sol_1', solution3['id']
+      assert_equal 'Solution 1', solution3['name']
+      refute solution3.key?('created'), 'Should not include fields not requested'
     ensure
       FileUtils.rm_f(cache_path)
     end
