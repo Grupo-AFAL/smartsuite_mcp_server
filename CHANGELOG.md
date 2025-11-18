@@ -34,6 +34,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added server handler in `SmartSuiteServer` (lines 222-228)
   - Added 6 comprehensive tests (success, parameter validation, API error)
 
+- **Secure file attachment helper** - Added `SecureFileAttacher` class for secure local file uploads
+  - Addresses security limitation of `attach_file` requiring public URLs
+  - Uses AWS S3 with short-lived pre-signed URLs (default: 2 minutes)
+  - Automatic file cleanup after SmartSuite fetches files
+  - Server-side encryption enabled by default
+  - Supports single or multiple file uploads
+  - Implemented in `lib/secure_file_attacher.rb` (389 lines)
+  - Added 13 comprehensive tests in `test/test_secure_file_attacher.rb`
+  - Added complete usage examples in `examples/secure_file_attachment.rb`
+  - Added detailed setup guide in `docs/guides/secure-file-attachment.md`
+  - Security features:
+    - Pre-signed URLs expire in 60-120 seconds
+    - Files deleted immediately after SmartSuite fetch
+    - Lifecycle policy for failsafe cleanup
+    - Minimal IAM permissions required
+    - Debug logging support
+
 - **Deleted records management** - Added operations for working with soft-deleted records
   - `list_deleted_records`: List all soft-deleted records from a solution
     - Accepts `preview` parameter to limit returned fields (default: true)

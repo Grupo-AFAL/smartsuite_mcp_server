@@ -589,6 +589,38 @@ attach_file(
 - **Uses update endpoint:** Internally uses PATCH to update the file field
 - **Cache not invalidated:** Updated record may not appear in cache until TTL expires
 
+### Security Considerations
+
+⚠️ **Important:** The `attach_file` API requires publicly accessible URLs, which can pose security risks for sensitive files.
+
+**Recommended Solution: Use `SecureFileAttacher`**
+
+For secure file attachment, use the included `SecureFileAttacher` helper class which:
+- Uploads files to AWS S3 with encryption
+- Generates short-lived pre-signed URLs (default: 2 minutes)
+- Automatically deletes files after SmartSuite fetches them
+- Never exposes files publicly
+
+```ruby
+require_relative 'lib/secure_file_attacher'
+
+# Initialize secure attacher
+attacher = SecureFileAttacher.new(client, 'my-temp-bucket')
+
+# Attach local files securely
+attacher.attach_file_securely(
+  'tbl_123',
+  'rec_456',
+  'attachments',
+  './sensitive_document.pdf'
+)
+```
+
+**See:**
+- `lib/secure_file_attacher.rb` - Full implementation
+- `examples/secure_file_attachment.rb` - Complete usage examples
+- `docs/guides/secure-file-attachment.md` - Setup guide
+
 ---
 
 ## list_deleted_records
