@@ -711,9 +711,9 @@ class TestCacheQuery < Minitest::Test
 
     records = [
       { 'id' => 'rec_1', 'title' => 'One Tag', 'tags' => ['tag_a'] },
-      { 'id' => 'rec_2', 'title' => 'Two Tags Exact', 'tags' => ['tag_a', 'tag_b'] },
-      { 'id' => 'rec_3', 'title' => 'Three Tags', 'tags' => ['tag_a', 'tag_b', 'tag_c'] },
-      { 'id' => 'rec_4', 'title' => 'Two Tags Different', 'tags' => ['tag_b', 'tag_c'] },
+      { 'id' => 'rec_2', 'title' => 'Two Tags Exact', 'tags' => %w[tag_a tag_b] },
+      { 'id' => 'rec_3', 'title' => 'Three Tags', 'tags' => %w[tag_a tag_b tag_c] },
+      { 'id' => 'rec_4', 'title' => 'Two Tags Different', 'tags' => %w[tag_b tag_c] },
       { 'id' => 'rec_5', 'title' => 'Empty', 'tags' => [] }
     ]
     @cache.cache_table_records(table_id, structure, records)
@@ -755,8 +755,8 @@ class TestCacheQuery < Minitest::Test
 
     records = [
       { 'id' => 'rec_1', 'title' => 'One Link', 'related' => ['link_a'] },
-      { 'id' => 'rec_2', 'title' => 'Two Links Exact', 'related' => ['link_a', 'link_b'] },
-      { 'id' => 'rec_3', 'title' => 'Three Links', 'related' => ['link_a', 'link_b', 'link_c'] }
+      { 'id' => 'rec_2', 'title' => 'Two Links Exact', 'related' => %w[link_a link_b] },
+      { 'id' => 'rec_3', 'title' => 'Three Links', 'related' => %w[link_a link_b link_c] }
     ]
     @cache.cache_table_records(table_id, structure, records)
 

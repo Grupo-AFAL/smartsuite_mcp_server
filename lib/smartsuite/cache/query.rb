@@ -114,7 +114,7 @@ module SmartSuite
 
           # Select appropriate column based on field type (same logic as build_condition)
           # For duedatefield and daterangefield, SmartSuite API uses to_date for sorting
-          col_name = if (field_type == 'duedatefield' || field_type == 'daterangefield')
+          col_name = if %w[duedatefield daterangefield].include?(field_type)
                        # Check if sorting by sub-field (e.g., due_date.from_date)
                        if field_slug.to_s.end_with?('.from_date')
                          columns.keys.find { |k| k.end_with?('_from') } || columns.keys.first
@@ -271,7 +271,7 @@ module SmartSuite
         # Select appropriate column based on field type and slug
         # For duedatefield and daterangefield, SmartSuite API uses to_date for all comparisons
         # unless explicitly filtering by .from_date or .to_date sub-field
-        col_name = if (field_type == 'duedatefield' || field_type == 'daterangefield')
+        col_name = if %w[duedatefield daterangefield].include?(field_type)
                      # Check if filtering by sub-field (e.g., due_date.from_date)
                      if field_slug.end_with?('.from_date')
                        # User explicitly requested from_date column

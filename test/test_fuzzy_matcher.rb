@@ -88,7 +88,7 @@ class TestFuzzyMatcher < Minitest::Test
 
   # Test typo tolerance (2 character difference)
   def test_double_typo_tolerance
-    assert SmartSuite::FuzzyMatcher.match?('Desarrollos', 'desarolos')  # missing 'l' twice
+    assert SmartSuite::FuzzyMatcher.match?('Desarrollos', 'desarolos') # missing 'l' twice
   end
 
   # Test multi-word queries

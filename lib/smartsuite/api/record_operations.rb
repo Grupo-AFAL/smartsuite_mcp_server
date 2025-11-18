@@ -175,9 +175,7 @@ module SmartSuite
           comparison = sanitized_field['comparison']
 
           # For empty check operators, ensure value is null
-          if ['is_empty', 'is_not_empty'].include?(comparison)
-            sanitized_field['value'] = nil
-          end
+          sanitized_field['value'] = nil if %w[is_empty is_not_empty].include?(comparison)
 
           sanitized_field
         end

@@ -572,7 +572,7 @@ class TestRecordOperations < Minitest::Test
         body: { items: [] }.to_json
       )
 
-    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['status', 'priority', 'notes'])
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: %w[status priority notes])
 
     assert result.is_a?(String), 'Should return plain text'
   end
@@ -606,7 +606,7 @@ class TestRecordOperations < Minitest::Test
         body: { items: [] }.to_json
       )
 
-    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['title', 'amount'])
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: %w[title amount])
 
     assert result.is_a?(String), 'Should return plain text'
   end
