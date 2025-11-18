@@ -885,11 +885,8 @@ module SmartSuite
           table['slug'] = row['slug'] if row['slug']
           table['description'] = row['description'] if row['description']
           table['structure'] = JSON.parse(row['structure']) if row['structure']
-          table['created'] = Time.at(row['created']).utc.iso8601 if row['created']
-          table['updated'] = Time.at(row['updated']).utc.iso8601 if row['updated']
+          table['created'] = row['created'] if row['created']
           table['created_by'] = row['created_by'] if row['created_by']
-          table['updated_by'] = row['updated_by'] if row['updated_by']
-          table['deleted_date'] = Time.at(row['deleted_date']).utc.iso8601 if row['deleted_date']
           table['deleted_by'] = row['deleted_by'] if row['deleted_by']
           table['record_count'] = row['record_count'] if row['record_count']
 
