@@ -2,18 +2,18 @@
 
 **Generated:** November 17, 2025
 **Version:** 1.9.0
-**Scope:** Post-implementation review after adding 6 new record operations
+**Scope:** Post-implementation review after adding 7 new record operations
 
 ---
 
 ## Executive Summary
 
-After implementing 6 new record operations (bulk operations, file URL retrieval, deleted records management) and adding 27 comprehensive tests, this report identifies refactoring opportunities to improve code maintainability, reduce duplication, and enhance developer experience.
+After implementing 7 new record operations (bulk operations, file attachment and URL retrieval, deleted records management) and adding 33 comprehensive tests, this report identifies refactoring opportunities to improve code maintainability, reduce duplication, and enhance developer experience.
 
 **Key Findings:**
 - ✅ **RecordOperations module:** Well-designed, no refactoring needed
-- ⚠️ **Test file:** Significant duplication in test setup and validation patterns (27 new tests)
-- ⚠️ **ToolRegistry:** Massive schema duplication across 28 tools
+- ⚠️ **Test file:** Significant duplication in test setup and validation patterns (33 new tests)
+- ⚠️ **ToolRegistry:** Massive schema duplication across 29 tools
 - ✅ **SmartSuiteServer:** Appropriate design, minor optimization possible
 - 💡 **Test helpers:** Missing opportunity to reduce boilerplate
 
@@ -182,12 +182,12 @@ end
 ### 2. ToolRegistry Schema Duplication (HIGH PRIORITY) 🔴
 
 **Location:** `lib/smartsuite/mcp/tool_registry.rb`
-**Lines Affected:** Throughout 28 tool definitions (lines 17-690)
+**Lines Affected:** Throughout 29 tool definitions (lines 17-690)
 **Impact:** High - Every new tool repeats schema boilerplate
 
 #### Problem
 
-Common parameter schemas are duplicated across **28 tools**:
+Common parameter schemas are duplicated across **29 tools**:
 
 **`table_id` appears 18+ times:**
 ```ruby
@@ -481,7 +481,7 @@ HTTP_FORBIDDEN = 403
 
 2. **Schema Constants** 🔴
    - Extract 8-10 common parameter schemas
-   - Apply incrementally across 28 tools
+   - Apply incrementally across 29 tools
    - Reduces 100+ lines of duplication
    - **Estimated Effort:** 6-8 hours
 

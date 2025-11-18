@@ -106,10 +106,14 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - `bulk_delete_records`: Soft delete multiple records in one operation
   - Significantly more efficient than individual operations when working with many records
 
-- ✅ **File Operations** - Public URL retrieval for file attachments
+- ✅ **File Operations** - File attachment and URL retrieval
+  - `attach_file`: Attach files to records by providing publicly accessible URLs
+    - SmartSuite downloads files from provided URLs and attaches them
+    - Supports single or multiple files in one operation
+    - See `SecureFileAttacher` helper for production-safe file uploads
   - `get_file_url`: Get public URLs for files attached to records (20-year lifetime)
-  - Accepts file handle from file/image field values
-  - Enables direct file access without additional API calls
+    - Accepts file handle from file/image field values
+    - Enables direct file access without additional API calls
 
 - ✅ **Deleted Records Management** - Work with soft-deleted records
   - `list_deleted_records`: List all soft-deleted records from a solution
@@ -119,19 +123,21 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 #### Testing & Quality
 
-- ✅ 27 comprehensive tests covering all new operations
+- ✅ 33 comprehensive tests covering all new operations
   - Parameter validation tests for all required fields
   - Type validation for array/hash parameters
   - API error handling for various HTTP error codes
   - Success case verification with proper HTTP mocking
-- ✅ Total test suite: 492 tests, 1,715 assertions (all passing)
-- ✅ Code coverage: 81.11% (improved from 80.25%)
-- ✅ Tool count increased from 22 to 28 MCP tools
+  - 13 additional tests for SecureFileAttacher helper
+- ✅ Total test suite: 498 tests, 1,733 assertions (all passing)
+- ✅ Code coverage: 78.22%
+- ✅ Tool count increased from 22 to 29 MCP tools (+7 new record operations)
 
 #### Implementation
 
-- ✅ Added 6 new methods in RecordOperations module
-- ✅ Added 6 new MCP tool schemas in ToolRegistry
+- ✅ Added 7 new methods in RecordOperations module (bulk operations, file operations, deleted records)
+- ✅ Added 7 new MCP tool schemas in ToolRegistry
+- ✅ Added SecureFileAttacher helper class for production-safe file uploads (389 lines)
 - ✅ Added server handlers in SmartSuiteServer
 - ✅ Full YARD documentation for all new methods
 - ✅ Updated CHANGELOG with comprehensive change documentation

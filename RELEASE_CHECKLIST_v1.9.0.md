@@ -112,17 +112,18 @@ Efficiently process multiple records in a single API call:
 
 ## 📊 Metrics
 
-- **Test Coverage**: 81.19% (up from 81.11%)
-- **Total Tests**: 492 tests, 1,715 assertions
+- **Test Coverage**: 78.22%
+- **Total Tests**: 498 tests, 1,733 assertions
 - **Code Reduction**: 90 lines eliminated through refactoring
-- **New Operations**: 6 record operations
-- **New Tests**: 27 comprehensive test cases
+- **New Operations**: 7 record operations
+- **New Tests**: 33 comprehensive test cases
 
 ## 📚 Documentation
 
-- Complete API reference for all 6 operations
+- Complete API reference for all 7 operations
 - Updated user guide and architecture docs
 - Refactoring opportunities report
+- SecureFileAttacher setup guide
 
 See [CHANGELOG.md](https://github.com/Grupo-AFAL/smartsuite_mcp_server/blob/main/CHANGELOG.md) for complete details.
 EOF
