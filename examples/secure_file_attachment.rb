@@ -45,7 +45,7 @@ begin
   attacher = SecureFileAttacher.new(
     client,
     S3_BUCKET_NAME,
-    region: 'us-east-1',        # Your S3 region
+    region: 'us-east-1', # Your S3 region
     url_expires_in: 120,         # 2 minutes (default)
     fetch_timeout: 30            # 30 seconds (default)
   )
@@ -58,7 +58,7 @@ begin
     './invoice.pdf'                   # Local file path
   )
 
-  puts "✓ File attached successfully!"
+  puts '✓ File attached successfully!'
   puts "  Record ID: #{result['id']}"
   puts "  Attachments: #{result['attachments']&.length || 0} file(s)"
   puts
@@ -90,7 +90,7 @@ begin
     ]
   )
 
-  puts "✓ Files attached successfully!"
+  puts '✓ Files attached successfully!'
   puts "  Record ID: #{result['id']}"
   puts "  Images: #{result['images']&.length || 0} file(s)"
   puts
@@ -112,17 +112,17 @@ begin
   attacher = SecureFileAttacher.new(
     client,
     S3_BUCKET_NAME,
-    url_expires_in: 60  # 1 minute only
+    url_expires_in: 60 # 1 minute only
   )
 
-  result = attacher.attach_file_securely(
+  attacher.attach_file_securely(
     'tbl_6796989a7ee3c6b731717836',
     'rec_68e3d5fb98c0282a4f1e2614',
     'documents',
     './sensitive_document.pdf'
   )
 
-  puts "✓ Sensitive file attached with 60-second URL expiration!"
+  puts '✓ Sensitive file attached with 60-second URL expiration!'
   puts
 rescue StandardError => e
   puts "✗ Error: #{e.message}"
@@ -142,14 +142,14 @@ begin
   client = SmartSuiteClient.new(SMARTSUITE_API_KEY, SMARTSUITE_ACCOUNT_ID)
   attacher = SecureFileAttacher.new(client, S3_BUCKET_NAME)
 
-  result = attacher.attach_file_securely(
+  attacher.attach_file_securely(
     'tbl_6796989a7ee3c6b731717836',
     'rec_68e3d5fb98c0282a4f1e2614',
     'attachments',
     './document.pdf'
   )
 
-  puts "✓ File attached with detailed logging!"
+  puts '✓ File attached with detailed logging!'
   puts
 rescue StandardError => e
   puts "✗ Error: #{e.message}"
