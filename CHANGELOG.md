@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Fuzzy name search for solutions** - Filter solutions by name with typo tolerance
-  - Added `name` parameter to `list_solutions` tool
+  - Added `name` parameter to `list_solutions` tool with strong recommendation to use for token optimization
+  - Tool description emphasizes using `name` filter to significantly reduce token usage by returning only matching solutions
   - Custom SQLite function `fuzzy_match()` registered for DB-layer filtering
   - Supports partial matches, case-insensitive, accent-insensitive
   - Allows up to 2 character typos using Levenshtein distance

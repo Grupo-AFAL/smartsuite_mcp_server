@@ -17,7 +17,7 @@ module SmartSuite
       WORKSPACE_TOOLS = [
         {
           'name' => 'list_solutions',
-          'description' => 'List all solutions in your SmartSuite workspace (solutions contain tables). Supports fuzzy name search with typo tolerance.',
+          'description' => 'List all solutions in your SmartSuite workspace (solutions contain tables). Supports fuzzy name search with typo tolerance. ⚠️ STRONGLY RECOMMENDED: Use the "name" parameter to filter solutions and significantly reduce token usage.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -32,7 +32,7 @@ module SmartSuite
               },
               'name' => {
                 'type' => 'string',
-                'description' => 'Optional: Filter solutions by name using fuzzy matching with typo tolerance. Handles partial matches, case-insensitive, accent-insensitive, and allows up to 2 character typos. Examples: "desarollo" matches "Desarrollos de software", "gestion" matches "Gestión de Proyectos", "finanzs" matches "Finanzas".'
+                'description' => '⚠️ STRONGLY RECOMMENDED for token optimization: Filter solutions by name using fuzzy matching with typo tolerance. Returns only matching solutions instead of all solutions, significantly reducing token usage. Handles partial matches, case-insensitive, accent-insensitive, and allows up to 2 character typos. Examples: "desarollo" matches "Desarrollos de software", "gestion" matches "Gestión de Proyectos", "finanzs" matches "Finanzas". Always use this parameter when you know which solution(s) you need.'
               }
             },
             'required' => []
