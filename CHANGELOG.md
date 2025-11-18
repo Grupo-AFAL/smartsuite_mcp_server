@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Fuzzy name search for solutions** - Filter solutions by name with typo tolerance
+  - Added `name` parameter to `list_solutions` tool
+  - Custom SQLite function `fuzzy_match()` registered for DB-layer filtering
+  - Supports partial matches, case-insensitive, accent-insensitive
+  - Allows up to 2 character typos using Levenshtein distance
+  - Examples: "desarollo" matches "Desarrollos de software", "gestion" matches "Gestión de Proyectos"
+  - Implemented in `FuzzyMatcher` module with comprehensive test coverage (13 tests)
+  - Cache-first strategy: fuzzy matching happens at SQLite layer when using cache
+  - Fallback client-side filtering for non-cached responses
 - **Missing documentation files** - Created comprehensive documentation to fix broken links:
   - `docs/getting-started/configuration.md` - Complete environment variable and cache configuration guide
   - `docs/reference/filter-operators.md` - Comprehensive filter operator reference organized by field type

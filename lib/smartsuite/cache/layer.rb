@@ -9,6 +9,7 @@ require_relative 'migrations'
 require_relative 'metadata'
 require_relative 'performance'
 require_relative '../response_formats'
+require_relative '../fuzzy_matcher'
 require_relative '../../query_logger'
 
 module SmartSuite
@@ -52,6 +53,9 @@ module SmartSuite
         @db_path = db_path || File.expand_path('~/.smartsuite_mcp_cache.db')
         @db = SQLite3::Database.new(@db_path)
         @db.results_as_hash = true
+
+        # Register custom SQLite functions
+        register_custom_functions
 
         # Set file permissions (owner read/write only)
         File.chmod(0o600, @db_path) if File.exist?(@db_path)
@@ -656,15 +660,22 @@ module SmartSuite
       # Get cached solutions list
       #
       # @return [Array<Hash>, nil] Array of solutions or nil if cache invalid
-      def get_cached_solutions
+      def get_cached_solutions(name: nil)
         # Check if cache is valid
         return nil unless solutions_cache_valid?
 
-        # Fetch all solutions
-        results = db_execute(
-          'SELECT * FROM cached_solutions WHERE expires_at > ?',
-          Time.now.utc.iso8601
-        )
+        # Build query with optional name filter using fuzzy matching
+        if name
+          results = db_execute(
+            'SELECT * FROM cached_solutions WHERE expires_at > ? AND fuzzy_match(name, ?) = 1',
+            Time.now.utc.iso8601, name
+          )
+        else
+          results = db_execute(
+            'SELECT * FROM cached_solutions WHERE expires_at > ?',
+            Time.now.utc.iso8601
+          )
+        end
 
         return nil if results.empty?
 
@@ -1028,6 +1039,22 @@ module SmartSuite
       end
 
       private
+
+      # Register custom SQLite functions for advanced querying
+      #
+      # Registers:
+      # - fuzzy_match(text, query): Fuzzy string matching with typo tolerance
+      def register_custom_functions
+        # Register fuzzy_match function
+        # Returns 1 if text fuzzy matches query, 0 otherwise
+        @db.create_function('fuzzy_match', 2) do |func, text, query|
+          # Handle NULL values
+          next 0 if text.nil? || query.nil?
+
+          # Use FuzzyMatcher module for matching logic
+          SmartSuite::FuzzyMatcher.match?(text, query) ? 1 : 0
+        end
+      end
 
       # Get solutions cache status
       def get_solutions_cache_status(now)

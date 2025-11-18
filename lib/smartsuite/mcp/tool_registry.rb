@@ -17,7 +17,7 @@ module SmartSuite
       WORKSPACE_TOOLS = [
         {
           'name' => 'list_solutions',
-          'description' => 'List all solutions in your SmartSuite workspace (solutions contain tables)',
+          'description' => 'List all solutions in your SmartSuite workspace (solutions contain tables). Supports fuzzy name search with typo tolerance.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -29,6 +29,10 @@ module SmartSuite
                 'type' => 'array',
                 'items' => { 'type' => 'string' },
                 'description' => 'Optional: Array of field names to request from API (e.g., ["id", "name", "permissions", "created_by"]). Available fields: name, slug, logo_color, logo_icon, description, permissions (with owners array), hidden, created, created_by, updated, updated_by, has_demo_data, status, automation_count, records_count, members_count, sharing_hash, sharing_password, sharing_enabled, sharing_allow_copy, applications_count, last_access, id, delete_date, deleted_by, template. When specified, only these fields are returned from API. When omitted, client-side filtering returns only essential fields (id, name, logo_icon, logo_color).'
+              },
+              'name' => {
+                'type' => 'string',
+                'description' => 'Optional: Filter solutions by name using fuzzy matching with typo tolerance. Handles partial matches, case-insensitive, accent-insensitive, and allows up to 2 character typos. Examples: "desarollo" matches "Desarrollos de software", "gestion" matches "Gestión de Proyectos", "finanzs" matches "Finanzas".'
               }
             },
             'required' => []
