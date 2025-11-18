@@ -12,6 +12,67 @@ module SmartSuite
     # - description: Human-readable description
     # - inputSchema: JSON Schema for parameters
     module ToolRegistry
+      # ========================================================================
+      # COMMON SCHEMA CONSTANTS
+      # ========================================================================
+      # These constants reduce duplication across 28 tool definitions.
+      # Each parameter schema is used in multiple tools.
+
+      # Table identifier parameter (used in 18+ tools)
+      SCHEMA_TABLE_ID = {
+        'type' => 'string',
+        'description' => 'The ID of the table'
+      }.freeze
+
+      # Record identifier parameter (used in 8+ tools)
+      SCHEMA_RECORD_ID = {
+        'type' => 'string',
+        'description' => 'The ID of the record'
+      }.freeze
+
+      # Solution identifier parameter (used in 6+ tools)
+      SCHEMA_SOLUTION_ID = {
+        'type' => 'string',
+        'description' => 'The ID of the solution'
+      }.freeze
+
+      # Array of record data for bulk add (used in bulk_add_records)
+      SCHEMA_RECORDS_ARRAY = {
+        'type' => 'array',
+        'description' => 'Array of record data hashes (field_slug: value pairs)',
+        'items' => { 'type' => 'object' }
+      }.freeze
+
+      # Array of record updates for bulk update (used in bulk_update_records)
+      SCHEMA_RECORDS_UPDATE_ARRAY = {
+        'type' => 'array',
+        'description' => 'Array of record hashes with \'id\' and fields to update',
+        'items' => { 'type' => 'object' }
+      }.freeze
+
+      # Array of record IDs for bulk delete (used in bulk_delete_records)
+      SCHEMA_RECORD_IDS_ARRAY = {
+        'type' => 'array',
+        'description' => 'Array of record IDs to delete',
+        'items' => { 'type' => 'string' }
+      }.freeze
+
+      # File handle parameter (used in get_file_url)
+      SCHEMA_FILE_HANDLE = {
+        'type' => 'string',
+        'description' => 'File handle from a file/image field'
+      }.freeze
+
+      # Preview parameter for deleted records (used in list_deleted_records)
+      SCHEMA_PREVIEW = {
+        'type' => 'boolean',
+        'description' => 'Optional: If true, returns limited fields (default: true)'
+      }.freeze
+
+      # ========================================================================
+      # TOOL DEFINITIONS
+      # ========================================================================
+
       # Workspace operation tools for solutions
       # Includes: list_solutions, analyze_solution_usage
       WORKSPACE_TOOLS = [
@@ -299,17 +360,8 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table'
-              },
-              'records' => {
-                'type' => 'array',
-                'description' => 'Array of record data hashes (field_slug: value pairs)',
-                'items' => {
-                  'type' => 'object'
-                }
-              }
+              'table_id' => SCHEMA_TABLE_ID,
+              'records' => SCHEMA_RECORDS_ARRAY
             },
             'required' => %w[table_id records]
           }
@@ -320,17 +372,8 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table'
-              },
-              'records' => {
-                'type' => 'array',
-                'description' => 'Array of record hashes with \'id\' and fields to update',
-                'items' => {
-                  'type' => 'object'
-                }
-              }
+              'table_id' => SCHEMA_TABLE_ID,
+              'records' => SCHEMA_RECORDS_UPDATE_ARRAY
             },
             'required' => %w[table_id records]
           }
@@ -341,17 +384,8 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table'
-              },
-              'record_ids' => {
-                'type' => 'array',
-                'description' => 'Array of record IDs to delete',
-                'items' => {
-                  'type' => 'string'
-                }
-              }
+              'table_id' => SCHEMA_TABLE_ID,
+              'record_ids' => SCHEMA_RECORD_IDS_ARRAY
             },
             'required' => %w[table_id record_ids]
           }
@@ -362,10 +396,7 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'file_handle' => {
-                'type' => 'string',
-                'description' => 'File handle from a file/image field'
-              }
+              'file_handle' => SCHEMA_FILE_HANDLE
             },
             'required' => ['file_handle']
           }
@@ -376,14 +407,8 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'solution_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the solution'
-              },
-              'preview' => {
-                'type' => 'boolean',
-                'description' => 'Optional: If true, returns limited fields (default: true)'
-              }
+              'solution_id' => SCHEMA_SOLUTION_ID,
+              'preview' => SCHEMA_PREVIEW
             },
             'required' => ['solution_id']
           }
@@ -394,14 +419,8 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table'
-              },
-              'record_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the record to restore'
-              }
+              'table_id' => SCHEMA_TABLE_ID,
+              'record_id' => SCHEMA_RECORD_ID
             },
             'required' => %w[table_id record_id]
           }
