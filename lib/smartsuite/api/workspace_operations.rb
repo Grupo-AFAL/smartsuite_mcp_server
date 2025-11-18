@@ -20,11 +20,11 @@ module SmartSuite
       #
       # Filters response to only include essential fields (id, name, logo) by default.
       # Set include_activity_data: true to include usage metrics for identifying inactive solutions.
-      # Or specify fields array to request specific fields from the API.
+      # Or specify fields array for client-side filtering (API doesn't support field selection).
       # Tracks token usage and logs metrics.
       #
       # @param include_activity_data [Boolean] Include activity/usage fields (default: false)
-      # @param fields [Array<String>] Specific fields to request from API (optional)
+      # @param fields [Array<String>] Specific fields to return (client-side filtered, optional)
       # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
       # @return [Hash] Solutions with count and filtered data
       # @example List all solutions
