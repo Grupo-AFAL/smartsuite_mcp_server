@@ -158,7 +158,9 @@ module SmartSuite
       ].freeze
 
       # Record operation tools for CRUD operations on table records
-      # Includes: list_records, get_record, create_record, update_record, delete_record
+      # Includes: list_records, get_record, create_record, update_record, delete_record,
+      #           bulk_add_records, bulk_update_records, bulk_delete_records,
+      #           get_file_url, list_deleted_records, restore_deleted_record
       RECORD_TOOLS = [
         {
           'name' => 'list_records',
@@ -286,6 +288,119 @@ module SmartSuite
               'record_id' => {
                 'type' => 'string',
                 'description' => 'The ID of the record to delete'
+              }
+            },
+            'required' => %w[table_id record_id]
+          }
+        },
+        {
+          'name' => 'bulk_add_records',
+          'description' => 'Create multiple records in a single request (bulk operation). More efficient than multiple create_record calls when adding many records.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the table'
+              },
+              'records' => {
+                'type' => 'array',
+                'description' => 'Array of record data hashes (field_slug: value pairs)',
+                'items' => {
+                  'type' => 'object'
+                }
+              }
+            },
+            'required' => %w[table_id records]
+          }
+        },
+        {
+          'name' => 'bulk_update_records',
+          'description' => 'Update multiple records in a single request (bulk operation). More efficient than multiple update_record calls. Each record hash must include \'id\' field along with fields to update.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the table'
+              },
+              'records' => {
+                'type' => 'array',
+                'description' => 'Array of record hashes with \'id\' and fields to update',
+                'items' => {
+                  'type' => 'object'
+                }
+              }
+            },
+            'required' => %w[table_id records]
+          }
+        },
+        {
+          'name' => 'bulk_delete_records',
+          'description' => 'Delete multiple records in a single request (bulk operation). More efficient than multiple delete_record calls. Performs soft delete - records can be restored using restore_deleted_record.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the table'
+              },
+              'record_ids' => {
+                'type' => 'array',
+                'description' => 'Array of record IDs to delete',
+                'items' => {
+                  'type' => 'string'
+                }
+              }
+            },
+            'required' => %w[table_id record_ids]
+          }
+        },
+        {
+          'name' => 'get_file_url',
+          'description' => 'Get a public URL for a file attached to a record. The file handle can be found in file/image field values. Returns a public URL with a 20-year lifetime.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'file_handle' => {
+                'type' => 'string',
+                'description' => 'File handle from a file/image field'
+              }
+            },
+            'required' => ['file_handle']
+          }
+        },
+        {
+          'name' => 'list_deleted_records',
+          'description' => 'List deleted records from a solution. Returns records that have been soft-deleted and can be restored.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'solution_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the solution'
+              },
+              'preview' => {
+                'type' => 'boolean',
+                'description' => 'Optional: If true, returns limited fields (default: true)'
+              }
+            },
+            'required' => ['solution_id']
+          }
+        },
+        {
+          'name' => 'restore_deleted_record',
+          'description' => 'Restore a deleted record. Restores a soft-deleted record back to the table. The restored record will have "(Restored)" appended to its title.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the table'
+              },
+              'record_id' => {
+                'type' => 'string',
+                'description' => 'The ID of the record to restore'
               }
             },
             'required' => %w[table_id record_id]
@@ -686,7 +801,7 @@ module SmartSuite
       ].freeze
 
       # All tools combined into a single array for MCP protocol responses
-      # Total: 22 tools across 8 categories
+      # Total: 28 tools across 8 categories (4 workspace, 3 table, 11 record, 4 field, 4 member, 2 comment, 2 view, 5 stats)
       ALL_TOOLS = (WORKSPACE_TOOLS + TABLE_TOOLS + RECORD_TOOLS + FIELD_TOOLS + MEMBER_TOOLS + COMMENT_TOOLS + VIEW_TOOLS + STATS_TOOLS).freeze
 
       # Generates a JSON-RPC 2.0 response for the tools/list MCP method.

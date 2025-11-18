@@ -370,6 +370,124 @@ module SmartSuite
 
         api_request(:delete, "/applications/#{table_id}/records/#{record_id}/")
       end
+
+      # Creates multiple records in a single request (bulk operation).
+      #
+      # More efficient than multiple create_record calls when adding many records.
+      # Accepts an array of record data hashes.
+      #
+      # @param table_id [String] Table identifier
+      # @param records [Array<Hash>] Array of record data hashes (field_slug => value)
+      # @return [Array<Hash>] Array of created records with IDs
+      # @raise [ArgumentError] If required parameters are missing or invalid
+      # @example
+      #   bulk_add_records('tbl_123', [
+      #     {'title' => 'Task 1', 'status' => 'Active'},
+      #     {'title' => 'Task 2', 'status' => 'Pending'}
+      #   ])
+      def bulk_add_records(table_id, records)
+        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!('records', records, Array)
+
+        api_request(:post, "/applications/#{table_id}/records/bulk/", records)
+      end
+
+      # Updates multiple records in a single request (bulk operation).
+      #
+      # More efficient than multiple update_record calls when updating many records.
+      # Each record hash must include 'id' field along with fields to update.
+      #
+      # @param table_id [String] Table identifier
+      # @param records [Array<Hash>] Array of record hashes with 'id' and fields to update
+      # @return [Array<Hash>] Array of updated records
+      # @raise [ArgumentError] If required parameters are missing or invalid
+      # @example
+      #   bulk_update_records('tbl_123', [
+      #     {'id' => 'rec_abc', 'status' => 'Completed'},
+      #     {'id' => 'rec_def', 'status' => 'In Progress'}
+      #   ])
+      def bulk_update_records(table_id, records)
+        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!('records', records, Array)
+
+        api_request(:patch, "/applications/#{table_id}/records/bulk/", records)
+      end
+
+      # Deletes multiple records in a single request (bulk operation).
+      #
+      # More efficient than multiple delete_record calls when deleting many records.
+      # This performs a soft delete - records can be restored using restore_deleted_record.
+      #
+      # @param table_id [String] Table identifier
+      # @param record_ids [Array<String>] Array of record IDs to delete
+      # @return [Hash] Deletion confirmation
+      # @raise [ArgumentError] If required parameters are missing or invalid
+      # @example
+      #   bulk_delete_records('tbl_123', ['rec_abc', 'rec_def', 'rec_ghi'])
+      def bulk_delete_records(table_id, record_ids)
+        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!('record_ids', record_ids, Array)
+
+        api_request(:patch, "/applications/#{table_id}/records/bulk_delete/", record_ids)
+      end
+
+      # Gets a public URL for a file attached to a record.
+      #
+      # The file handle can be found in file/image field values.
+      # Returns a public URL with a 20-year lifetime.
+      #
+      # @param file_handle [String] File handle from a file/image field
+      # @return [Hash] Hash containing 'url' key with the public file URL
+      # @raise [ArgumentError] If file_handle is missing
+      # @example
+      #   get_file_url('handle_xyz')
+      #   # => {"url" => "https://..."}
+      def get_file_url(file_handle)
+        validate_required_parameter!('file_handle', file_handle)
+
+        api_request(:get, "/shared-files/#{file_handle}/url/")
+      end
+
+      # Lists deleted records from a solution.
+      #
+      # Returns records that have been soft-deleted and can be restored.
+      # The preview parameter limits which fields are returned.
+      #
+      # @param solution_id [String] Solution identifier
+      # @param preview [Boolean] If true, returns limited fields (default: true)
+      # @return [Array<Hash>] Array of deleted records with deletion metadata
+      # @raise [ArgumentError] If solution_id is missing
+      # @example
+      #   list_deleted_records('sol_123', preview: true)
+      def list_deleted_records(solution_id, preview: true)
+        validate_required_parameter!('solution_id', solution_id)
+
+        # Build endpoint with query parameter
+        endpoint = build_endpoint('/deleted-records/', preview: preview)
+
+        # Body contains solution_id
+        body = { solution_id: solution_id }
+
+        api_request(:post, endpoint, body)
+      end
+
+      # Restores a deleted record.
+      #
+      # Restores a soft-deleted record back to the table.
+      # The restored record will have "(Restored)" appended to its title.
+      #
+      # @param table_id [String] Table identifier
+      # @param record_id [String] Record identifier to restore
+      # @return [Hash] Restored record data
+      # @raise [ArgumentError] If required parameters are missing
+      # @example
+      #   restore_deleted_record('tbl_123', 'rec_abc')
+      def restore_deleted_record(table_id, record_id)
+        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!('record_id', record_id)
+
+        api_request(:post, "/applications/#{table_id}/records/#{record_id}/restore/", {})
+      end
     end
   end
 end
