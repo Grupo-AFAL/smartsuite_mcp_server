@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports partial matches, case-insensitive, accent-insensitive
   - Allows up to 2 character typos using Levenshtein distance
   - Examples: "desarollo" matches "Desarrollos de software", "gestion" matches "Gestión de Proyectos"
-  - Implemented in `FuzzyMatcher` module with comprehensive test coverage (13 tests)
+  - Implemented in `FuzzyMatcher` module with comprehensive test coverage (19 tests, 57 assertions)
+  - Comprehensive accent support tested: all Spanish vowels (á,é,í,ó,ú), special chars (ñ,ü), uppercase, bidirectional matching
   - Cache-first strategy: fuzzy matching happens at SQLite layer when using cache
   - Fallback client-side filtering for non-cached responses
 - **Missing documentation files** - Created comprehensive documentation to fix broken links:

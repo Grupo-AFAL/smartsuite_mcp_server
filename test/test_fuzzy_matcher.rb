@@ -30,6 +30,55 @@ class TestFuzzyMatcher < Minitest::Test
     assert SmartSuite::FuzzyMatcher.match?('Transformación Digital', 'transformacion')
   end
 
+  # Test comprehensive accent support (Spanish vowels)
+  def test_all_spanish_accented_vowels
+    assert SmartSuite::FuzzyMatcher.match?('Administración', 'administracion')
+    assert SmartSuite::FuzzyMatcher.match?('Teléfono', 'telefono')
+    assert SmartSuite::FuzzyMatcher.match?('Informática', 'informatica')
+    assert SmartSuite::FuzzyMatcher.match?('Operación', 'operacion')
+    assert SmartSuite::FuzzyMatcher.match?('Menú', 'menu')
+  end
+
+  # Test ñ and ü normalization
+  def test_spanish_special_characters
+    assert SmartSuite::FuzzyMatcher.match?('Diseño', 'diseno')
+    assert SmartSuite::FuzzyMatcher.match?('Año', 'ano')
+    assert SmartSuite::FuzzyMatcher.match?('Niño', 'nino')
+    assert SmartSuite::FuzzyMatcher.match?('Bilingüe', 'bilingue')
+  end
+
+  # Test uppercase accents
+  def test_uppercase_accents
+    assert SmartSuite::FuzzyMatcher.match?('GESTIÓN', 'gestion')
+    assert SmartSuite::FuzzyMatcher.match?('ADMINISTRACIÓN', 'administracion')
+    assert SmartSuite::FuzzyMatcher.match?('DISEÑO', 'diseno')
+  end
+
+  # Test mixed accents (accented query vs non-accented target)
+  def test_bidirectional_accent_matching
+    # Accented query, non-accented target
+    assert SmartSuite::FuzzyMatcher.match?('Gestion', 'gestión')
+    assert SmartSuite::FuzzyMatcher.match?('Administracion', 'administración')
+    # Non-accented query, accented target
+    assert SmartSuite::FuzzyMatcher.match?('Gestión', 'gestion')
+    assert SmartSuite::FuzzyMatcher.match?('Administración', 'administracion')
+  end
+
+  # Test accents with typos
+  def test_accents_with_typos
+    # Accented word with typo
+    assert SmartSuite::FuzzyMatcher.match?('Administración', 'administacion')  # missing 'r'
+    assert SmartSuite::FuzzyMatcher.match?('Información', 'informacion')       # no accent
+    assert SmartSuite::FuzzyMatcher.match?('Información', 'imformacion')       # typo + no accent
+  end
+
+  # Test multiple accented words
+  def test_multiple_accented_words
+    assert SmartSuite::FuzzyMatcher.match?('Gestión de Comunicación', 'gestion comunicacion')
+    assert SmartSuite::FuzzyMatcher.match?('Administración y Finanzas', 'administracion finanzas')
+    assert SmartSuite::FuzzyMatcher.match?('Diseño e Innovación', 'diseno innovacion')
+  end
+
   # Test typo tolerance (1 character difference)
   def test_single_typo_tolerance
     assert SmartSuite::FuzzyMatcher.match?('Desarrollos', 'desarollos')  # extra 'l'
