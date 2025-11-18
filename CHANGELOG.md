@@ -104,6 +104,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **is_empty/is_not_empty filter API rejection** - Fixed SmartSuite API rejecting empty check filters with non-null values
+  - Error: `"' is not allowed for the 'is_not_empty' comparison"` (API error 400)
+  - SmartSuite API requires `null` value for `is_empty` and `is_not_empty` operators, not empty string
+  - Added `sanitize_filter_for_api` method in RecordOperations to clean filters before sending to API
+  - Automatically converts empty string or any value to `null` for empty check operators
+  - Other filter operators are preserved unchanged
+  - Added 4 regression tests to verify sanitization logic
+  - Resolves MCP error -32603 when using empty check filters with `bypass_cache: true`
 - **SQLite type coercion errors** - Fixed "can't convert String into an exact number" errors in cache operations
   - **COUNT() fix**: SQLite COUNT() returns strings in some configurations, calling `.positive?` on String fails
     - Fixed 4 occurrences in cache/layer.rb: lines 531, 716, 916, 924

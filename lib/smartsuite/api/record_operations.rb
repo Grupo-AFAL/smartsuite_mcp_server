@@ -148,7 +148,7 @@ module SmartSuite
 
         # Build body with filter and sort (if provided)
         body = {}
-        body[:filter] = filter if filter
+        body[:filter] = sanitize_filter_for_api(filter) if filter
         body[:sort] = sort if sort
 
         # Make request with endpoint and body
@@ -157,6 +157,32 @@ module SmartSuite
         # Apply aggressive filtering to reduce response size
         # Returns plain text format to save ~40% tokens vs JSON
         filter_records_response(response, fields, plain_text: true, hydrated: hydrated)
+      end
+
+      # Sanitize filter before sending to SmartSuite API.
+      #
+      # The SmartSuite API has specific requirements for certain comparison operators:
+      # - is_empty and is_not_empty must have null value (not empty string)
+      #
+      # @param filter [Hash] Filter criteria
+      # @return [Hash] Sanitized filter
+      def sanitize_filter_for_api(filter)
+        return filter unless filter.is_a?(Hash) && filter['fields']
+
+        sanitized_filter = filter.dup
+        sanitized_filter['fields'] = filter['fields'].map do |field_filter|
+          sanitized_field = field_filter.dup
+          comparison = sanitized_field['comparison']
+
+          # For empty check operators, ensure value is null
+          if ['is_empty', 'is_not_empty'].include?(comparison)
+            sanitized_field['value'] = nil
+          end
+
+          sanitized_field
+        end
+
+        sanitized_filter
       end
 
       # Ensure records are cached for a table
