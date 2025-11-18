@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Cache invalidation cascade** - Fixed bug where refreshing cache for solutions or tables didn't invalidate cached records
+  - `refresh_cache('solutions')` now invalidates solutions → tables → records (full cascade)
+  - `refresh_cache('tables', solution_id: 'sol_123')` now invalidates tables → records for that solution
+  - Added `invalidate_records_for_solution(solution_id)` private helper method
+  - Added `get_table_ids_for_solution(solution_id)` private helper method
+  - Modified `invalidate_solutions_cache` to cascade through `invalidate_table_list_cache`
+  - Modified `invalidate_table_list_cache` to call `invalidate_records_for_solution` first
+  - Bug reported: After refreshing cache, subsequent queries returned stale data from cache
+  - Added 4 comprehensive tests for cascading invalidation scenarios
+  - Fixes issue where `list_records` would return cached data even after `refresh_cache` was called
+
 ## [1.9.0] - 2025-11-18
 
 ### Added
