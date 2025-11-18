@@ -269,15 +269,24 @@ module SmartSuite
           # For multi-column fields, index the main columns
           case field_type
           when 'statusfield'
-            col_name = sanitize_column_name(field_slug)
+            # Use actual column name from field_mapping (label-based, not slug-based)
+            col_name = columns.keys.first
             @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}
                        ON #{sql_table_name}(#{col_name})")
           when 'daterangefield', 'duedatefield'
-            col_name = sanitize_column_name(field_slug)
-            @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}_from
-                       ON #{sql_table_name}(#{col_name}_from)")
-            @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}_to
-                       ON #{sql_table_name}(#{col_name}_to)")
+            # Use actual column names from field_mapping instead of regenerating
+            col_names = columns.keys
+            from_col = col_names.find { |c| c.end_with?('_from') }
+            to_col = col_names.find { |c| c.end_with?('_to') }
+
+            if from_col
+              @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{from_col}
+                         ON #{sql_table_name}(#{from_col})")
+            end
+            if to_col
+              @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{to_col}
+                         ON #{sql_table_name}(#{to_col})")
+            end
           when 'lastupdated'
             @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_updated_on
                        ON #{sql_table_name}(updated_on)")
@@ -331,10 +340,24 @@ module SmartSuite
 
       # Sanitize column name for SQL
       #
-      # @param field_slug [String] SmartSuite field slug
+      # Properly handles accented characters by transliterating them to ASCII equivalents.
+      # Example: "Título" → "titulo", "Última actualización" → "ultima_actualizacion"
+      #
+      # @param field_slug [String] SmartSuite field slug or label
       # @return [String] SQL-safe column name
       def sanitize_column_name(field_slug)
-        sanitized = field_slug.gsub(/[^a-zA-Z0-9_]/, '_').downcase
+        # First, transliterate accented characters to ASCII equivalents
+        # This handles Spanish and other Latin-based languages properly
+        transliterated = transliterate_accents(field_slug)
+
+        # Then sanitize: keep only alphanumeric and underscores, convert to lowercase
+        sanitized = transliterated.gsub(/[^a-zA-Z0-9_]/, '_').downcase
+
+        # Remove consecutive underscores
+        sanitized = sanitized.gsub(/_+/, '_')
+
+        # Remove leading/trailing underscores
+        sanitized = sanitized.gsub(/^_+|_+$/, '')
 
         # Ensure doesn't start with digit
         sanitized = "f_#{sanitized}" if sanitized =~ /^[0-9]/
@@ -344,7 +367,51 @@ module SmartSuite
                       order group by having limit offset union all distinct]
         sanitized = "field_#{sanitized}" if reserved.include?(sanitized)
 
+        # Fallback to "column" if empty after sanitization
+        sanitized = 'column' if sanitized.empty?
+
         sanitized
+      end
+
+      # Transliterate accented characters to ASCII equivalents
+      #
+      # @param text [String] Text with possible accented characters
+      # @return [String] Text with accents removed
+      def transliterate_accents(text)
+        # Common Spanish and Latin accent mappings
+        accent_map = {
+          'á' => 'a', 'Á' => 'A',
+          'é' => 'e', 'É' => 'E',
+          'í' => 'i', 'Í' => 'I',
+          'ó' => 'o', 'Ó' => 'O',
+          'ú' => 'u', 'Ú' => 'U',
+          'ñ' => 'n', 'Ñ' => 'N',
+          'ü' => 'u', 'Ü' => 'U',
+          'à' => 'a', 'À' => 'A',
+          'è' => 'e', 'È' => 'E',
+          'ì' => 'i', 'Ì' => 'I',
+          'ò' => 'o', 'Ò' => 'O',
+          'ù' => 'u', 'Ù' => 'U',
+          'â' => 'a', 'Â' => 'A',
+          'ê' => 'e', 'Ê' => 'E',
+          'î' => 'i', 'Î' => 'I',
+          'ô' => 'o', 'Ô' => 'O',
+          'û' => 'u', 'Û' => 'U',
+          'ã' => 'a', 'Ã' => 'A',
+          'õ' => 'o', 'Õ' => 'O',
+          'ç' => 'c', 'Ç' => 'C',
+          'ä' => 'a', 'Ä' => 'A',
+          'ë' => 'e', 'Ë' => 'E',
+          'ï' => 'i', 'Ï' => 'I',
+          'ö' => 'o', 'Ö' => 'O',
+          'ÿ' => 'y', 'Ÿ' => 'Y'
+        }
+
+        result = text.dup
+        accent_map.each do |accented, plain|
+          result.gsub!(accented, plain)
+        end
+        result
       end
 
       # Deduplicate column name by appending suffix if needed (v1.6+)
@@ -414,9 +481,37 @@ module SmartSuite
           # Create index if needed
           next unless should_index_field?(field_info)
 
-          col_name = sanitize_column_name(field_slug)
-          @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}
-                     ON #{sql_table_name}(#{col_name})")
+          # Use actual column names from field_mapping (same logic as create_indexes_for_table)
+          columns = field_mapping[field_slug]
+          field_type = field_info['field_type'].downcase
+
+          case field_type
+          when 'statusfield'
+            col_name = columns.keys.first
+            @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}
+                       ON #{sql_table_name}(#{col_name})")
+          when 'daterangefield', 'duedatefield'
+            col_names = columns.keys
+            from_col = col_names.find { |c| c.end_with?('_from') }
+            to_col = col_names.find { |c| c.end_with?('_to') }
+
+            if from_col
+              @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{from_col}
+                         ON #{sql_table_name}(#{from_col})")
+            end
+            if to_col
+              @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{to_col}
+                         ON #{sql_table_name}(#{to_col})")
+            end
+          when 'lastupdated'
+            @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_updated_on
+                       ON #{sql_table_name}(updated_on)")
+          else
+            # Single column index
+            col_name = columns.keys.first
+            @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}
+                       ON #{sql_table_name}(#{col_name})")
+          end
         end
 
         # Update schema metadata

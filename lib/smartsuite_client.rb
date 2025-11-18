@@ -182,7 +182,7 @@ class SmartSuiteClient
 
       # Warm cache by triggering list_records with minimal fields
       # This will call ensure_records_cached which fetches and caches all records
-      list_records(table_id, 1, 0, fields: ['id'], bypass_cache: false)
+      list_records(table_id, 1, 0, fields: ['id'])
 
       results << {
         'table_id' => table_id,

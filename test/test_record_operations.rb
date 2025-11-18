@@ -40,8 +40,8 @@ class TestRecordOperations < Minitest::Test
     assert_includes result, 'fields', 'Should mention missing fields parameter'
   end
 
-  # Test list_records with bypass_cache
-  def test_list_records_bypass_cache
+  # Test list_records with cache disabled
+  def test_list_records_cache_disabled
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
 
     # Stub direct API call
@@ -51,7 +51,7 @@ class TestRecordOperations < Minitest::Test
         body: { items: [{ id: 'rec_1', status: 'active' }] }.to_json
       )
 
-    result = client.list_records('tbl_123', 10, 0, fields: ['status'], bypass_cache: true)
+    result = client.list_records('tbl_123', 10, 0, fields: ['status'])
 
     assert result.is_a?(String), 'Should return plain text'
   end
@@ -72,7 +72,7 @@ class TestRecordOperations < Minitest::Test
       )
 
     sort = [{ 'field' => 'priority', 'direction' => 'desc' }]
-    result = client.list_records('tbl_123', 10, 0, sort: sort, fields: ['priority'], bypass_cache: true)
+    result = client.list_records('tbl_123', 10, 0, sort: sort, fields: ['priority'])
 
     assert result.is_a?(String), 'Should return plain text'
   end
@@ -87,7 +87,7 @@ class TestRecordOperations < Minitest::Test
         body: { items: [] }.to_json
       )
 
-    result = client.list_records('tbl_123', 5, 10, fields: ['status'], bypass_cache: true)
+    result = client.list_records('tbl_123', 5, 10, fields: ['status'])
 
     assert result.is_a?(String), 'Should handle pagination'
   end
@@ -337,5 +337,277 @@ class TestRecordOperations < Minitest::Test
     end
 
     assert_includes error.message, '403'
+  end
+
+  # ============================================================================
+  # REGRESSION TESTS: SmartDoc HTML Extraction
+  # ============================================================================
+  # Bug: SmartDoc fields (richtextarea) contain {data, html, preview, yjsData}
+  # but AI only needs HTML. Previously returned all keys causing 60-70% extra tokens.
+  # Fix: Extract only HTML content from SmartDoc fields while preserving full JSON in cache.
+
+  # Test SmartDoc extraction from API response (Hash format)
+  def test_get_record_extracts_smartdoc_html_from_api
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    # Mock API response with SmartDoc field as Hash
+    smartdoc_field = {
+      'data' => { 'type' => 'doc', 'content' => [] },
+      'html' => '<div><h1>Meeting Notes</h1><p>Important discussion</p></div>',
+      'preview' => 'Meeting Notes Important discussion',
+      'yjsData' => 'base64encodeddata...'
+    }
+
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
+      .to_return(
+        status: 200,
+        body: {
+          id: 'rec_456',
+          title: 'Test Record',
+          description: smartdoc_field
+        }.to_json
+      )
+
+    result = client.get_record('tbl_123', 'rec_456')
+
+    # Verify: description should be ONLY the HTML string
+    assert_equal '<div><h1>Meeting Notes</h1><p>Important discussion</p></div>', result['description'],
+                 'Should extract only HTML from SmartDoc field'
+
+    # Verify: Not a Hash anymore
+    refute result['description'].is_a?(Hash), 'Should not be a Hash'
+
+    # Verify: Other fields unchanged
+    assert_equal 'rec_456', result['id']
+    assert_equal 'Test Record', result['title']
+  end
+
+  # Test SmartDoc extraction with empty HTML
+  def test_get_record_extracts_smartdoc_empty_html
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    smartdoc_field = {
+      'data' => { 'type' => 'doc', 'content' => [] },
+      'html' => '',
+      'preview' => '',
+      'yjsData' => ''
+    }
+
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
+      .to_return(
+        status: 200,
+        body: {
+          id: 'rec_456',
+          transcript: smartdoc_field
+        }.to_json
+      )
+
+    result = client.get_record('tbl_123', 'rec_456')
+
+    # Should return empty string, not nil
+    assert_equal '', result['transcript'], 'Should return empty string for empty SmartDoc HTML'
+  end
+
+  # Test that non-SmartDoc Hash fields are not modified
+  def test_get_record_preserves_non_smartdoc_json
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    # Regular JSON object that has "html" key but not SmartDoc structure (missing "data" key)
+    regular_json = { 'html' => 'value', 'other' => 'data' }
+
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
+      .to_return(
+        status: 200,
+        body: {
+          id: 'rec_456',
+          metadata: regular_json
+        }.to_json
+      )
+
+    result = client.get_record('tbl_123', 'rec_456')
+
+    # Should not be modified (not a SmartDoc structure)
+    assert_equal regular_json, result['metadata'], 'Non-SmartDoc JSON should not be modified'
+    assert result['metadata'].is_a?(Hash), 'Should still be a Hash'
+  end
+
+  # Test SmartDoc with multiple fields
+  def test_get_record_extracts_multiple_smartdoc_fields
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    smartdoc1 = {
+      'data' => { 'type' => 'doc' },
+      'html' => '<p>Description content</p>',
+      'preview' => 'Description content',
+      'yjsData' => 'data1'
+    }
+
+    smartdoc2 = {
+      'data' => { 'type' => 'doc' },
+      'html' => '<p>Notes content</p>',
+      'preview' => 'Notes content',
+      'yjsData' => 'data2'
+    }
+
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
+      .to_return(
+        status: 200,
+        body: {
+          id: 'rec_456',
+          title: 'Regular field',
+          description: smartdoc1,
+          notes: smartdoc2
+        }.to_json
+      )
+
+    result = client.get_record('tbl_123', 'rec_456')
+
+    # Both SmartDoc fields should be extracted
+    assert_equal '<p>Description content</p>', result['description']
+    assert_equal '<p>Notes content</p>', result['notes']
+
+    # Regular field unchanged
+    assert_equal 'Regular field', result['title']
+  end
+
+  # ============================================================================
+  # REGRESSION TESTS: Filter Sanitization for API
+  # ============================================================================
+  # Bug: SmartSuite API rejects is_empty/is_not_empty filters with empty string value
+  # Error: "' is not allowed for the 'is_not_empty' comparison"
+  # Fix: Sanitize filters before sending to API - set value to null for empty check operators
+
+  # Test is_not_empty filter is sanitized to null value
+  def test_list_records_sanitizes_is_not_empty_filter
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    filter = {
+      'operator' => 'and',
+      'fields' => [
+        { 'field' => 'status', 'comparison' => 'is_not_empty', 'value' => '' }
+      ]
+    }
+
+    # Verify API receives sanitized filter with null value
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true')
+      .with(
+        body: hash_including(
+          'filter' => hash_including(
+            'fields' => [
+              hash_including('field' => 'status', 'comparison' => 'is_not_empty', 'value' => nil)
+            ]
+          )
+        )
+      )
+      .to_return(
+        status: 200,
+        body: { items: [] }.to_json
+      )
+
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['status'])
+
+    assert result.is_a?(String), 'Should return plain text'
+  end
+
+  # Test is_empty filter is sanitized to null value
+  def test_list_records_sanitizes_is_empty_filter
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    filter = {
+      'operator' => 'and',
+      'fields' => [
+        { 'field' => 'assigned_to', 'comparison' => 'is_empty', 'value' => '' }
+      ]
+    }
+
+    # Verify API receives sanitized filter with null value
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true')
+      .with(
+        body: hash_including(
+          'filter' => hash_including(
+            'fields' => [
+              hash_including('field' => 'assigned_to', 'comparison' => 'is_empty', 'value' => nil)
+            ]
+          )
+        )
+      )
+      .to_return(
+        status: 200,
+        body: { items: [] }.to_json
+      )
+
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['assigned_to'])
+
+    assert result.is_a?(String), 'Should return plain text'
+  end
+
+  # Test multiple filter fields with mixed operators
+  def test_list_records_sanitizes_mixed_filter_operators
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    filter = {
+      'operator' => 'and',
+      'fields' => [
+        { 'field' => 'status', 'comparison' => 'is', 'value' => 'Active' },
+        { 'field' => 'priority', 'comparison' => 'is_not_empty', 'value' => '' },
+        { 'field' => 'notes', 'comparison' => 'is_empty', 'value' => 'should_be_null' }
+      ]
+    }
+
+    # Verify only empty check operators are sanitized
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true')
+      .with(
+        body: hash_including(
+          'filter' => hash_including(
+            'fields' => [
+              hash_including('field' => 'status', 'comparison' => 'is', 'value' => 'Active'),
+              hash_including('field' => 'priority', 'comparison' => 'is_not_empty', 'value' => nil),
+              hash_including('field' => 'notes', 'comparison' => 'is_empty', 'value' => nil)
+            ]
+          )
+        )
+      )
+      .to_return(
+        status: 200,
+        body: { items: [] }.to_json
+      )
+
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: %w[status priority notes])
+
+    assert result.is_a?(String), 'Should return plain text'
+  end
+
+  # Test non-empty-check operators are not modified
+  def test_list_records_preserves_other_filter_operators
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    filter = {
+      'operator' => 'and',
+      'fields' => [
+        { 'field' => 'title', 'comparison' => 'contains', 'value' => 'test' },
+        { 'field' => 'amount', 'comparison' => 'is_greater_than', 'value' => 100 }
+      ]
+    }
+
+    # Verify other operators keep their values
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true')
+      .with(
+        body: hash_including(
+          'filter' => hash_including(
+            'fields' => [
+              hash_including('field' => 'title', 'comparison' => 'contains', 'value' => 'test'),
+              hash_including('field' => 'amount', 'comparison' => 'is_greater_than', 'value' => 100)
+            ]
+          )
+        )
+      )
+      .to_return(
+        status: 200,
+        body: { items: [] }.to_json
+      )
+
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: %w[title amount])
+
+    assert result.is_a?(String), 'Should return plain text'
   end
 end

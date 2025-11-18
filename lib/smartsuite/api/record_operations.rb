@@ -39,13 +39,11 @@ module SmartSuite
       # @param sort [Array<Hash>, nil] Sort criteria (field + direction)
       # @param fields [Array<String>, nil] Field slugs to include in response (recommended for token efficiency)
       # @param hydrated [Boolean] Fetch human-readable values for linked records, users, etc. (default: true)
-      # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
       # @return [String] Plain text formatted records with total/filtered counts
       # @raise [ArgumentError] If table_id is missing
       # @example
       #   list_records('tbl_123', 10, 0, fields: ['status', 'priority'])
-      def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, hydrated: true,
-                       bypass_cache: false)
+      def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, hydrated: true)
         validate_required_parameter!('table_id', table_id)
 
         # Handle nil values (when called via MCP with missing parameters)
@@ -62,16 +60,19 @@ module SmartSuite
         end
 
         # Try cache-first strategy if enabled
-        return list_records_from_cache(table_id, limit, offset, filter, fields, hydrated) unless should_bypass_cache?(bypass: bypass_cache)
+        unless should_bypass_cache?
+          return list_records_from_cache(table_id, limit, offset, filter, sort, fields,
+                                         hydrated)
+        end
 
-        # Fallback to direct API call (cache disabled or bypassed)
+        # Fallback to direct API call (cache disabled)
         list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
       end
 
       private
 
       # List records using cache (aggressive fetch strategy)
-      def list_records_from_cache(table_id, limit, offset, filter, fields, hydrated)
+      def list_records_from_cache(table_id, limit, offset, filter, sort, fields, hydrated)
         # Ensure cache is populated
         ensure_records_cached(table_id)
 
@@ -80,6 +81,9 @@ module SmartSuite
 
         # Apply filters if provided
         query = apply_filters_to_query(query, filter) if filter && filter['fields']&.any?
+
+        # Apply sorting if provided
+        query = apply_sorting_to_query(query, sort) if sort.is_a?(Array) && sort.any?
 
         # Get total record count (before limit/offset)
         total_count = query.count
@@ -115,6 +119,27 @@ module SmartSuite
         SmartSuite::FilterBuilder.apply_to_query(query, filter)
       end
 
+      # Apply SmartSuite sort criteria to cache query
+      #
+      # SmartSuite sort format: [{field: 'field_slug', direction: 'asc|desc'}, ...]
+      # Applies all sort criteria in order.
+      #
+      # @param query [SmartSuite::Cache::Query] Cache query builder instance
+      # @param sort [Array<Hash>] SmartSuite sort array
+      # @return [SmartSuite::Cache::Query] Query with sorting applied
+      def apply_sorting_to_query(query, sort)
+        return query unless sort.is_a?(Array) && sort.any?
+
+        # Apply all sort criteria in order
+        sort.each do |sort_criterion|
+          field_slug = sort_criterion['field'] || sort_criterion[:field]
+          direction = sort_criterion['direction'] || sort_criterion[:direction] || 'ASC'
+          query.order(field_slug, direction.upcase)
+        end
+
+        query
+      end
+
       # Direct API call (original behavior, used when cache disabled/bypassed)
       def list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
         # Build endpoint with query parameters using Base helper
@@ -123,7 +148,7 @@ module SmartSuite
 
         # Build body with filter and sort (if provided)
         body = {}
-        body[:filter] = filter if filter
+        body[:filter] = sanitize_filter_for_api(filter) if filter
         body[:sort] = sort if sort
 
         # Make request with endpoint and body
@@ -132,6 +157,30 @@ module SmartSuite
         # Apply aggressive filtering to reduce response size
         # Returns plain text format to save ~40% tokens vs JSON
         filter_records_response(response, fields, plain_text: true, hydrated: hydrated)
+      end
+
+      # Sanitize filter before sending to SmartSuite API.
+      #
+      # The SmartSuite API has specific requirements for certain comparison operators:
+      # - is_empty and is_not_empty must have null value (not empty string)
+      #
+      # @param filter [Hash] Filter criteria
+      # @return [Hash] Sanitized filter
+      def sanitize_filter_for_api(filter)
+        return filter unless filter.is_a?(Hash) && filter['fields']
+
+        sanitized_filter = filter.dup
+        sanitized_filter['fields'] = filter['fields'].map do |field_filter|
+          sanitized_field = field_filter.dup
+          comparison = sanitized_field['comparison']
+
+          # For empty check operators, ensure value is null
+          sanitized_field['value'] = nil if %w[is_empty is_not_empty].include?(comparison)
+
+          sanitized_field
+        end
+
+        sanitized_filter
       end
 
       # Ensure records are cached for a table
@@ -196,6 +245,7 @@ module SmartSuite
       # Retrieves a single record by ID.
       #
       # Returns complete record with all fields.
+      # Uses cache-first strategy - only makes API call if record not cached.
       #
       # @param table_id [String] Table identifier
       # @param record_id [String] Record identifier
@@ -207,7 +257,71 @@ module SmartSuite
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
 
-        api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
+        # Try to get from cache first
+        if @cache
+          cached_record = @cache.get_cached_record(table_id, record_id)
+          if cached_record
+            log_metric("✓ Retrieved record from cache: #{record_id}")
+            # Process SmartDoc fields to extract only HTML
+            return process_smartdoc_fields(cached_record)
+          end
+        end
+
+        # Cache miss or disabled - fetch from API
+        log_metric("→ Getting record from API: #{record_id}")
+        record = api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
+        # Process SmartDoc fields in API response too
+        process_smartdoc_fields(record)
+      end
+
+      # Process SmartDoc fields in a record to extract only HTML content.
+      #
+      # SmartDoc fields contain {data, html, preview, yjsData} but AI only needs HTML.
+      # This reduces token usage by ~60-70% for rich text fields.
+      #
+      # Cache stores these as JSON strings, so we parse them first before checking.
+      #
+      # @param record [Hash] Record with potential SmartDoc fields
+      # @return [Hash] Record with SmartDoc fields replaced by HTML strings
+      def process_smartdoc_fields(record)
+        return record unless record.is_a?(Hash)
+
+        record.transform_values do |value|
+          # Try to parse JSON strings
+          parsed_value = value.is_a?(String) ? parse_json_safe(value) : value
+
+          # Check if parsed value is a SmartDoc structure
+          if smartdoc_value?(parsed_value)
+            # Extract only HTML content
+            parsed_value['html'] || parsed_value[:html] || ''
+          else
+            value # Return original value if not SmartDoc
+          end
+        end
+      end
+
+      # Safely parse JSON string, returning nil if parsing fails.
+      #
+      # @param str [String] JSON string to parse
+      # @return [Object, nil] Parsed JSON or nil if invalid
+      def parse_json_safe(str)
+        JSON.parse(str)
+      rescue JSON::ParserError, TypeError
+        nil
+      end
+
+      # Determines if a value is a SmartDoc field.
+      #
+      # @param value [Object] Value to check
+      # @return [Boolean] True if value is a SmartDoc structure
+      def smartdoc_value?(value)
+        return false unless value.is_a?(Hash)
+
+        # SmartDoc has both 'data' and 'html' keys
+        has_data = value.key?('data') || value.key?(:data)
+        has_html = value.key?('html') || value.key?(:html)
+
+        has_data && has_html
       end
 
       # Creates a new record in a table.

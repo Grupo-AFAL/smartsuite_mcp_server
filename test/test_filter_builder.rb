@@ -61,7 +61,7 @@ class TestFilterBuilder < Minitest::Test
   end
 
   def test_convert_comparison_is_not_empty
-    assert_equal({ not_null: true }, SmartSuite::FilterBuilder.convert_comparison('is_not_empty', nil))
+    assert_equal({ is_not_null: true }, SmartSuite::FilterBuilder.convert_comparison('is_not_empty', nil))
   end
 
   # Test array operators
@@ -168,7 +168,7 @@ class TestFilterBuilder < Minitest::Test
     assert_equal({ title: { contains: 'Important' } }, @query.conditions[0])
     assert_equal({ tags: { has_any_of: %w[urgent critical] } }, @query.conditions[1])
     assert_equal({ due_date: { gte: '2025-01-01' } }, @query.conditions[2])
-    assert_equal({ assigned_to: { not_null: true } }, @query.conditions[3])
+    assert_equal({ assigned_to: { is_not_null: true } }, @query.conditions[3])
   end
 
   # Test that field names are converted to symbols
@@ -220,5 +220,117 @@ class TestFilterBuilder < Minitest::Test
     date_value = { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-01-01' }
     result = SmartSuite::FilterBuilder.convert_comparison('is', date_value)
     assert_equal date_value, result
+  end
+
+  # ============================================================================
+  # REGRESSION TESTS: is_not_empty Filter Integration
+  # ============================================================================
+  # Bug: FilterBuilder returned {not_null: true} but Cache::Query expected
+  # {is_not_null: true}, causing "can't prepare TrueClass" SQL binding error.
+  # Fix: Changed FilterBuilder to return {is_not_null: true}
+
+  # Test that is_not_empty produces the correct operator for Cache::Query
+  def test_is_not_empty_returns_correct_operator
+    result = SmartSuite::FilterBuilder.convert_comparison('is_not_empty', nil)
+
+    # CRITICAL: Must be :is_not_null, not :not_null
+    assert result.is_a?(Hash), 'Should return Hash'
+    assert result.key?(:is_not_null), 'Should have :is_not_null key'
+    refute result.key?(:not_null), 'Should NOT have :not_null key (causes SQL binding error)'
+    assert_equal true, result[:is_not_null], 'Value should be true'
+  end
+
+  # Test that is_empty still works correctly
+  def test_is_empty_returns_nil
+    result = SmartSuite::FilterBuilder.convert_comparison('is_empty', nil)
+    assert_nil result, 'is_empty should return nil'
+  end
+
+  # Test comprehensive filter operator integration to prevent similar bugs
+  def test_all_operators_return_valid_query_conditions
+    # Map of SmartSuite operators to expected Cache::Query operators
+    test_cases = {
+      # Equality
+      'is' => 'value',
+      'is_not' => { ne: 'value' },
+
+      # Numeric comparisons
+      'is_greater_than' => { gt: 5 },
+      'is_less_than' => { lt: 5 },
+      'is_equal_or_greater_than' => { gte: 5 },
+      'is_equal_or_less_than' => { lte: 5 },
+
+      # Text operators
+      'contains' => { contains: 'text' },
+      'not_contains' => { not_contains: 'text' },
+
+      # Null operators (CRITICAL for regression)
+      'is_empty' => nil,
+      'is_not_empty' => { is_not_null: true },
+
+      # Array operators
+      'has_any_of' => { has_any_of: ['a'] },
+      'has_all_of' => { has_all_of: ['a'] },
+      'is_exactly' => { is_exactly: ['a'] },
+      'has_none_of' => { has_none_of: ['a'] },
+
+      # Date operators
+      'is_before' => { lt: '2025-01-01' },
+      'is_after' => { gt: '2025-01-01' },
+      'is_on_or_before' => { lte: '2025-01-01' },
+      'is_on_or_after' => { gte: '2025-01-01' }
+    }
+
+    test_cases.each do |operator, expected|
+      value = case operator
+              when 'is_greater_than', 'is_less_than', 'is_equal_or_greater_than', 'is_equal_or_less_than'
+                5
+              when 'has_any_of', 'has_all_of', 'is_exactly', 'has_none_of'
+                ['a']
+              when 'is_before', 'is_after', 'is_on_or_before', 'is_on_or_after'
+                '2025-01-01'
+              when 'is_empty', 'is_not_empty'
+                nil
+              when 'contains', 'not_contains'
+                'text'
+              else
+                'value'
+              end
+
+      result = SmartSuite::FilterBuilder.convert_comparison(operator, value)
+      assert_equal expected, result, "Operator '#{operator}' failed"
+    end
+  end
+
+  # Test that no operators produce invalid conditions that would cause SQL errors
+  def test_no_operators_produce_unprepared_types
+    # The original bug: FilterBuilder returned {not_null: true} which tried to bind
+    # `true` directly as SQL parameter. Now it returns {is_not_null: true} which
+    # Cache::Query correctly interprets as "IS NOT NULL" SQL (no boolean binding).
+
+    all_operators = %w[
+      is is_not is_greater_than is_less_than is_equal_or_greater_than is_equal_or_less_than
+      contains not_contains is_empty is_not_empty has_any_of has_all_of is_exactly has_none_of
+      is_before is_after is_on_or_before is_on_or_after
+    ]
+
+    all_operators.each do |operator|
+      value = operator.include?('empty') ? nil : 'test'
+      result = SmartSuite::FilterBuilder.convert_comparison(operator, value)
+
+      # Result should be either a simple value, nil, or a Hash with operator keys
+      next unless result.is_a?(Hash)
+
+      # Verify the hash has valid Cache::Query operator keys
+      # These are the operator symbols Cache::Query.build_complex_condition recognizes
+      valid_operators = %i[eq ne gt gte lt lte contains not_contains starts_with ends_with
+                           in not_in between is_null is_not_null is_empty is_not_empty
+                           has_any_of has_all_of is_exactly has_none_of]
+
+      result.each_key do |key|
+        assert valid_operators.include?(key),
+               "Operator '#{operator}' produced unknown key :#{key}"
+      end
+    end
   end
 end

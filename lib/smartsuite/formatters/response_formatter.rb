@@ -22,6 +22,9 @@ module SmartSuite
       # Removes UI/display metadata while keeping functional field data.
       # Achieves ~83.8% token reduction on table structures.
       #
+      # Also adds hints for fields that typically contain large amounts of data,
+      # helping AI be more selective about which fields to request.
+      #
       # @param field [Hash] Raw field definition from API
       # @return [Hash] Filtered field with only slug, label, type, and essential params
       def filter_field_structure(field)
@@ -31,6 +34,11 @@ module SmartSuite
           'label' => field['label'],
           'field_type' => field['field_type']
         }
+
+        # Add warning for fields that typically contain large content
+        if large_content_field?(field['field_type'])
+          filtered['large_content_warning'] = 'This field may contain extensive data (10K+ tokens). Request only when needed.'
+        end
 
         # Only include essential params if params exist
         return filtered unless field['params']
@@ -57,6 +65,25 @@ module SmartSuite
 
         filtered['params'] = params unless params.empty?
         filtered
+      end
+
+      # Determines if a field type typically contains large amounts of data.
+      #
+      # These fields should be requested selectively to avoid token limits.
+      #
+      # @param field_type [String] SmartSuite field type
+      # @return [Boolean] True if field typically contains large content
+      def large_content_field?(field_type)
+        return false unless field_type
+
+        large_types = %w[
+          textarea
+          richtextarea
+          comments
+          files
+        ]
+
+        large_types.include?(field_type.downcase)
       end
 
       # Filters and formats record list responses for minimal token usage.
@@ -262,15 +289,59 @@ module SmartSuite
         result
       end
 
-      # Returns field value without truncation.
+      # Processes field values for AI consumption.
       #
-      # Previously truncated values, but per user request we now return full values.
-      # AI should be encouraged to only fetch needed fields to control token usage.
+      # For SmartDoc fields (rich text with data/html/preview/yjsData keys),
+      # extracts only the HTML content to minimize tokens while preserving readability.
+      # Cache stores the complete JSON structure as JSON strings, so we parse them first.
+      #
+      # Previously truncated values, but per user request we now return full values
+      # except for SmartDoc optimization.
       #
       # @param value [Object] Field value
-      # @return [Object] The value as-is
+      # @return [Object] Processed value (HTML string for SmartDoc, original value otherwise)
       def truncate_value(value)
-        value
+        # Try to parse JSON strings (cache stores complex values as JSON)
+        parsed_value = value.is_a?(String) ? parse_json_safe(value) : value
+
+        # Detect SmartDoc structure (has data, html, preview, yjsData keys)
+        if smartdoc_value?(parsed_value)
+          # Return only HTML content for AI
+          # Cache still stores complete JSON with all keys
+          parsed_value['html'] || parsed_value[:html] || ''
+        else
+          value # Return original value if not SmartDoc
+        end
+      end
+
+      # Safely parse JSON string, returning nil if parsing fails.
+      #
+      # @param str [String] JSON string to parse
+      # @return [Object, nil] Parsed JSON or nil if invalid
+      def parse_json_safe(str)
+        JSON.parse(str)
+      rescue JSON::ParserError, TypeError
+        nil
+      end
+
+      # Determines if a value is a SmartDoc field.
+      #
+      # SmartDoc fields contain rich text with structure:
+      # - data: TipTap/ProseMirror document structure
+      # - html: Rendered HTML content
+      # - preview: Plain text preview
+      # - yjsData: Collaborative editing data
+      #
+      # @param value [Object] Field value to check
+      # @return [Boolean] True if value is a SmartDoc structure
+      def smartdoc_value?(value)
+        return false unless value.is_a?(Hash)
+
+        # Check for SmartDoc signature keys
+        has_data = value.key?('data') || value.key?(:data)
+        has_html = value.key?('html') || value.key?(:html)
+
+        has_data && has_html
       end
     end
   end

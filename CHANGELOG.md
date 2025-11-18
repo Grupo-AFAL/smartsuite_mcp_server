@@ -7,8 +7,203 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING: `bypass_cache` parameter removed** - Removed bypass_cache parameter from all operations
+  - Rationale: During development, bypass_cache served as an escape valve that masked cache implementation issues instead of fixing root causes
+  - Affected methods: `list_records`, `list_tables`, `list_solutions`
+  - Migration: Remove any `bypass_cache: true` arguments from tool calls
+  - Cache behavior: Cache expires naturally by TTL (4 hours default) - no manual bypass needed
+  - If cache issues occur, they should be investigated and fixed rather than bypassed
+
+### Fixed
+
+- **Sort behavior now consistent across cache states** - All sort criteria applied regardless of cache enabled/disabled
+  - **Breaking**: Previously, only first sort criterion was applied when cache enabled; now all criteria applied
+  - Updated `Cache::Query.order()` to support multiple ORDER BY clauses (appends instead of replacing)
+  - Updated `apply_sorting_to_query()` to iterate through all sort criteria, not just first
+  - SQL generation now joins multiple ORDER BY clauses: `ORDER BY field1 ASC, field2 DESC`
+  - Behavior now consistent: sort parameter works identically whether cache is enabled or disabled
+
+- **Simplified tool descriptions** - Removed cache implementation details from tool registry
+  - Tool descriptions now focus on WHAT tools do, not HOW they implement it
+  - Removed "cache-first strategy", "SQL WHERE clauses", "zero API cost" from descriptions
+  - Removed cache notes from CRUD operations (create/update/delete records, add/update/delete fields)
+  - AI and users no longer need to think about caching - parameters just work consistently
+  - Cache management tools (get_cache_status, refresh_cache, warm_cache) appropriately keep cache mentions
+
+- **CRITICAL: Fixed cache index creation bug for label-based column names** - Daterangefield and statusfield indexes now use correct column names
+  - **Root cause**: Column names are generated from field labels, but index creation was using field slugs
+  - **Example**: Field with slug `sf_daterange` and label "Date Range" creates columns `date_range_from` and `date_range_to`, but indexes tried to use `sf_daterange_from` (column doesn't exist → SQL error)
+  - **Affected field types**: daterangefield, duedatefield, statusfield, and all other fields with labels different from slugs
+  - **Fixed in 3 locations**:
+    1. `Cache::Metadata.create_indexes_for_table` (line 269-290): Now uses actual column names from field_mapping instead of regenerating from slug
+    2. `Cache::Metadata.handle_schema_evolution` (line 481-514): Fixed dynamic field addition to use correct column names for indexes
+    3. `Cache::Layer.extract_field_value` (line 388-400): Fixed to use field label (with slug fallback) matching `get_field_columns` naming
+    4. `Cache::Layer.find_matching_value` (line 338-350): Fixed statusfield matching to use label-based column names
+  - **Impact**: Tables with daterange, duedate, or status fields can now be cached successfully
+  - **Migration**: Restart MCP server and delete `~/.smartsuite_mcp_cache.db` to recreate tables with correct indexes
+
+- **CRITICAL: Fixed duedatefield and daterangefield filtering to match SmartSuite API behavior** - Cache now uses correct column for date comparisons
+  - **Root cause**: Cache was using `from_date` column for all comparisons, but SmartSuite API uses `to_date`
+  - **Discovery**: Created test record with date range (from: 2025-03-01, to: 2025-03-31) and compared cache vs API filtering results
+  - **SmartSuite API behavior** (verified via direct API testing):
+    - Standard field (e.g., `due_date`): ALL comparisons use `to_date` column
+      - `is_after value`: `to_date > value`
+      - `is_on_or_after value`: `to_date >= value`
+      - `is_before value`: `to_date < value`
+      - `is_on_or_before value`: `to_date <= value`
+    - Sub-field filtering (e.g., `due_date.from_date`): Uses specified column
+      - `due_date.from_date`: Filters by `from_date` column
+      - `due_date.to_date`: Filters by `to_date` column
+  - **Previous behavior**: Cache used `from_date` for all date comparisons → returned DIFFERENT results than API
+  - **Fixed behavior**: Cache now uses `to_date` by default (matching API), supports sub-field filtering
+  - **Example impact**:
+    - Record with due_date from 2025-03-01 to 2025-03-31
+    - Filter: `is_on_or_after 2025-03-15`
+    - **Before fix**: ❌ NOT returned (cache checked `from_date` 2025-03-01 >= 2025-03-15 = false)
+    - **After fix**: ✅ RETURNED (cache checks `to_date` 2025-03-31 >= 2025-03-15 = true)
+  - **Fixed in**:
+    1. `Cache::Query.build_condition` (line 219-251): Added special handling for duedatefield and daterangefield to select `to_date` column for filtering
+    2. `Cache::Query.order` (line 74-110): Added special handling for duedatefield and daterangefield to select `to_date` column for sorting
+  - **Impact**: Date filtering AND sorting now return identical results whether using cache or API
+  - **Migration**: Delete `~/.smartsuite_mcp_cache.db` and restart to rebuild cache with correct filtering and sorting
+
+- **CRITICAL: Fixed is_empty/is_not_empty filtering for JSON array fields** - Cache now correctly handles empty arrays for userfield, multipleselectfield, and linkedrecordfield
+  - **Root cause**: Cache was using `IS NULL` / `IS NOT NULL` checks, but SmartSuite API checks if array is empty `[]`
+  - **Discovery**: Direct API testing revealed cache returned different results for `assigned_to is_not_empty` filter
+  - **SmartSuite API behavior** (verified via direct API testing):
+    - `is_empty`: Returns records where array is empty `[]` (NOT just NULL)
+    - `is_not_empty`: Returns records where array has at least one element (NOT just NOT NULL)
+  - **Affected field types**: userfield, multipleselectfield, linkedrecordfield
+  - **Previous behavior**:
+    - `is_not_empty`: Returned ALL records with non-NULL values (including empty arrays `[]`) → WRONG
+    - `is_empty`: Only returned NULL records (not empty arrays `[]`) → WRONG
+  - **Fixed behavior**:
+    - `is_not_empty`: `(field IS NOT NULL AND field != '[]')` → Returns only records with elements
+    - `is_empty`: `(field IS NULL OR field = '[]')` → Returns only records with no elements
+  - **Example impact**:
+    - Record with `assigned_to: []` (empty array)
+    - Filter: `assigned_to is_not_empty`
+    - **Before fix**: ❌ RETURNED (cache checked IS NOT NULL → true for empty array)
+    - **After fix**: ✅ NOT returned (cache checks `!= '[]'` → false for empty array)
+  - **Fixed in**: `Cache::Query.build_complex_condition` (line 315-336)
+  - **Impact**: Array field filtering now returns identical results to SmartSuite API
+  - **Comprehensive testing**:
+    - Verified against API for statusfield, singleselectfield, multipleselectfield, userfield (7/7 tests pass)
+    - Verified all linkedrecordfield operators: has_any_of, has_all_of, has_none_of, is_empty, is_not_empty (8/8 tests pass)
+
+- **CRITICAL: Refactored field type detection to prevent regex pattern matching bugs** - Replaced fragile regex patterns with exact type checking
+  - **Root cause**: Field type `linkedrecordfield` contains substrings "text" and "link" which incorrectly matched text field regex `/text|email|phone|link/` BEFORE matching array field pattern
+  - **Discovery**: is_empty/is_not_empty tests for linkedrecordfield failed because it was being treated as text field (checking `= ''` instead of `= '[]'`)
+  - **Previous behavior**: Used regex patterns to categorize fields → substring matches caused incorrect behavior
+  - **Fixed behavior**: Uses whitelist constants with exact type matching → no false matches possible
+  - **Changes**:
+    - Added `JSON_ARRAY_FIELD_TYPES` constant (line 22-26): `%w[userfield multipleselectfield linkedrecordfield]`
+    - Added `TEXT_FIELD_TYPES` constant (line 28-35): `%w[textfield textareafield richtextareafield emailfield phonefield linkfield]`
+    - Added `json_array_field?(field_type)` helper method (line 48-50): Exact type checking for JSON arrays
+    - Added `text_field?(field_type)` helper method (line 53-55): Exact type checking for text fields
+    - Refactored is_empty/is_not_empty to use helper methods instead of regex (line 341-360)
+  - **Impact**: Eliminates entire class of bugs related to substring matching in field type detection
+  - **Benefits**: More maintainable, more explicit, easier to extend with new field types
+  - **Fixed in**: `Cache::Query` (lib/smartsuite/cache/query.rb)
+
+- **SmartDoc HTML extraction from cached records** - Fixed ResponseFormatter not extracting HTML from rich text fields when using cache
+  - Cache stores SmartDoc fields as JSON strings, but ResponseFormatter was only detecting Hash objects
+  - Added JSON string parsing to `truncate_value` method before SmartDoc detection
+  - Now correctly extracts HTML from both direct API responses (Hashes) and cached records (JSON strings)
+  - Mirrors the approach used in RecordOperations.process_smartdoc_fields
+  - Reduces token usage for rich text fields from ~25k to ~3-4k tokens (87-90% reduction)
+  - Added 12 comprehensive tests covering JSON string parsing, SmartDoc detection, and edge cases
+  - Fixes issue where list_records returned full TipTap/ProseMirror JSON instead of just HTML content
+- **is_empty/is_not_empty filter API rejection** - Fixed SmartSuite API rejecting empty check filters with non-null values
+  - Error: `"' is not allowed for the 'is_not_empty' comparison"` (API error 400)
+  - SmartSuite API requires `null` value for `is_empty` and `is_not_empty` operators, not empty string
+  - Added `sanitize_filter_for_api` method in RecordOperations to clean filters before sending to API
+  - Automatically converts empty string or any value to `null` for empty check operators
+  - Other filter operators are preserved unchanged
+  - Added 4 regression tests to verify sanitization logic
+  - Resolves MCP error -32603 when using empty check filters with `bypass_cache: true`
+- **SQLite type coercion errors** - Fixed "can't convert String into an exact number" errors in cache operations
+  - **COUNT() fix**: SQLite COUNT() returns strings in some configurations, calling `.positive?` on String fails
+    - Fixed 4 occurrences in cache/layer.rb: lines 531, 716, 916, 924
+    - Now converts to integer before calling `.positive?`: `result['count'].to_i.positive?`
+  - **Time.at() fix**: Removed incorrect `Time.at()` calls in `get_cached_table_list` (lines 888, 889, 892)
+    - Database stores ISO 8601 strings, not Unix timestamps
+    - `Time.at()` expects numeric timestamps, causing TypeError with string values
+    - Now returns ISO 8601 strings directly without conversion
+  - Resolves MCP error -32603 when calling list_tables with solution_id parameter
+- **list_solutions cache bypass** - Fixed list_solutions to use cache even when fields parameter is provided
+  - Previously bypassed cache when fields parameter was present (line 42: `|| fields` condition)
+  - Previously didn't cache responses when fields parameter was provided (line 60: `&& fields.nil?` condition)
+  - Now correctly uses cache and performs client-side filtering for all calls
+  - API endpoint doesn't respect fields parameter anyway, so client-side filtering is always required
+  - Added regression test to prevent future cache bypass bugs
+- **is_not_empty filter operator** - Fixed FilterBuilder mapping from `{not_null: true}` to `{is_not_null: true}`
+  - Resolves "can't prepare TrueClass" error when using `is_not_empty` filter
+  - Cache::Query expects `:is_not_null`, not `:not_null` operator
+  - Updated tests and documentation
+- **Empty field values column mapping** - Fixed column name mapping for empty/null fields in cache query results
+  - `map_column_names_to_field_slugs` now correctly handles all fields
+  - Prevents missing fields in query results
+  - Added comprehensive test coverage
+- **Spanish accent handling** - Column names with accents properly transliterated
+  - `"Título"` → `"titulo"`, prevents SQL insert failures
+  - Added comprehensive Spanish/Latin accent mappings with Unicode normalization
+  - Fixes cache insertion failures for tables with Spanish field names
+- **Cache column mapping** - Fixed `insert_record` to use stored column names from `field_mapping`
+  - Previously regenerated column names, causing SQL insert failures
+  - Added `find_matching_value` helper to map extracted values correctly
+  - Critical for tables with non-ASCII field names
+- **list_tables API response format** - Fixed to handle Array responses from `/applications/` endpoint
+  - Normalized `"solution"` field to `"solution_id"` for consistency
+  - Resolves issue where list_tables returned 0 results despite 519+ tables existing
+- **cached_tables schema** - Updated schema to match SmartSuite API field names
+  - Aligned with actual API response structure
+  - Improved cache reliability and consistency
+- **Broken documentation links** - Fixed 9 broken links across documentation:
+  - Fixed incorrect relative paths in `docs/guides/user-guide.md` (lines 594-595) - Changed `../../examples/` to `../examples/`
+  - Fixed examples directory reference in `README.md` (line 156) - Changed `examples/` to `docs/examples/`
+  - Created missing `docs/getting-started/configuration.md` (referenced in 3 locations)
+  - Created missing `docs/reference/filter-operators.md` (referenced in filtering guide)
+  - Created missing `docs/contributing/code-style.md`, `testing.md`, and `documentation.md` (referenced in README)
+
 ### Added
 
+- **is_exactly operator for JSON array fields** - New operator to check if array contains exactly specified values (no more, no less)
+  - **Implementation**: Combines JSON array length check with value presence checks
+  - **SQL generation**: `json_array_length(field) = ? AND json_extract(field, '$') LIKE ? AND ...`
+  - **Affected field types**: userfield, multipleselectfield, linkedrecordfield
+  - **Use case**: Find records where `tags` is exactly `['tag_a', 'tag_b']` (not `['tag_a']` or `['tag_a', 'tag_b', 'tag_c']`)
+  - **Example**: `.where(tags: { is_exactly: ['tag_a', 'tag_b'] })`
+  - **Testing**: Verified against SmartSuite API for linkedrecordfield and multipleselectfield (2/2 tests pass)
+  - **Added in**: `Cache::Query.build_complex_condition` (line 376-383)
+
+- **Fuzzy name search for solutions** - Filter solutions by name with typo tolerance
+  - Added `name` parameter to `list_solutions` tool with strong recommendation to use for token optimization
+  - Tool description emphasizes using `name` filter to significantly reduce token usage by returning only matching solutions
+  - Custom SQLite function `fuzzy_match()` registered for DB-layer filtering
+  - Supports partial matches, case-insensitive, accent-insensitive
+  - Allows up to 2 character typos using Levenshtein distance
+  - Examples: "desarollo" matches "Desarrollos de software", "gestion" matches "Gestión de Proyectos"
+  - Implemented in `FuzzyMatcher` module with comprehensive test coverage (19 tests, 57 assertions)
+  - Comprehensive accent support tested: all Spanish vowels (á,é,í,ó,ú), special chars (ñ,ü), uppercase, bidirectional matching
+
+### Changed
+
+- **Verified numeric field operators work correctly** - Comprehensive testing confirms all comparison operators match SmartSuite API
+  - **Operators tested**: gt, gte, lt, lte, eq (5 operators)
+  - **Field types tested**: numberfield, currencyfield, percentfield, ratingfield (4 field types)
+  - **Test coverage**: 11 test cases covering all operators across all numeric field types
+  - **Result**: 11/11 tests pass - cache returns identical results to SmartSuite API
+  - **Operators**:
+    - `:gt` → `is_greater_than` → `field > value`
+    - `:gte` → `is_equal_or_greater_than` → `field >= value`
+    - `:lt` → `is_less_than` → `field < value`
+    - `:lte` → `is_equal_or_less_than` → `field <= value`
+    - `:eq` → `is_equal_to` → `field = value`
+  - Cache-first strategy: fuzzy matching happens at SQLite layer when using cache
+  - Fallback client-side filtering for non-cached responses
 - **Missing documentation files** - Created comprehensive documentation to fix broken links:
   - `docs/getting-started/configuration.md` - Complete environment variable and cache configuration guide
   - `docs/reference/filter-operators.md` - Comprehensive filter operator reference organized by field type
@@ -51,9 +246,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Completion checklist: Documentation, Tests, Code Quality, Linting, Refactoring, GitHub Actions
   - Example completion workflow with all necessary commands
   - Ensures consistent quality and completeness for all future features
-
-### Changed
-
+- **Cache query sorting** - Added `order(field_slug, direction)` method to Cache::Query
+  - Supports ASC/DESC sorting on cached records
+  - Enables local sorting without API calls
+  - Applied via `apply_sorting_to_query` in RecordOperations
+- **get_record cache support** - `get_record` now uses cache-first strategy
+  - Only makes API call if record not cached
+  - Significant performance improvement for individual record lookups (~100ms → <10ms)
+  - Applies SmartDoc HTML extraction to both cached and API responses
+- **get_table caching** - Added caching support to `get_table` method
+  - Caches table structure with 12-hour TTL
+  - Reduces API calls for frequently accessed table metadata
+  - Improved `bypass_cache` documentation
+- **SmartDoc HTML extraction** - 60-70% token savings for rich text fields
+  - Extract only HTML content from SmartDoc/richtextarea fields
+  - SmartDoc fields contain `{data, html, preview, yjsData}` but AI only needs HTML
+  - Cache stores complete JSON, but `get_record` and `list_records` return only HTML
+  - Added JSON string parsing to handle cached values
+  - Reduces token usage by 60-70% for rich text fields (e.g., 100KB JSON → 3-4KB HTML)
+- **Color-coded logging** - ANSI color codes for different log types
+  - API operations: Cyan
+  - Database queries: Green
+  - Cache operations: Magenta
+  - Errors: Red
+  - Easier visual scanning of logs during development
+- **Separate test/production logs** - Environment-based log file separation
+  - Test logs: `~/.smartsuite_mcp_queries_test.log`
+  - Production logs: `~/.smartsuite_mcp_queries.log`
+  - Auto-detection based on environment
+  - Prevents test noise in production logs
 - **README.md** - Completely restructured Quick Start section:
   - **One-liner installation** now featured as primary method (easiest!)
   - Manual clone + script moved to "Alternative" section
@@ -61,15 +282,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Simplified and streamlined documentation
   - Focus on "paste one command, enter credentials, done"
 - **ROADMAP.md** - Updated v2.0 goals to focus on "Token optimization and ease of installation"
-
-### Fixed
-
-- **Broken documentation links** - Fixed 9 broken links across documentation:
-  - Fixed incorrect relative paths in `docs/guides/user-guide.md` (lines 594-595) - Changed `../../examples/` to `../examples/`
-  - Fixed examples directory reference in `README.md` (line 156) - Changed `examples/` to `docs/examples/`
-  - Created missing `docs/getting-started/configuration.md` (referenced in 3 locations)
-  - Created missing `docs/reference/filter-operators.md` (referenced in filtering guide)
-  - Created missing `docs/contributing/code-style.md`, `testing.md`, and `documentation.md` (referenced in README)
 
 ## [1.8.0] - 2025-11-16
 

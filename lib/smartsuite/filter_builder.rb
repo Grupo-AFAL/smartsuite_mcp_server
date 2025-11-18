@@ -83,7 +83,7 @@ module SmartSuite
     #
     # @example Null operators
     #   convert_comparison("is_empty", nil)           #=> nil
-    #   convert_comparison("is_not_empty", nil)       #=> {not_null: true}
+    #   convert_comparison("is_not_empty", nil)       #=> {is_not_null: true}
     #
     # @example Array operators (for multi-select, linked records, etc.)
     #   convert_comparison("has_any_of", ["a", "b"])  #=> {has_any_of: ["a", "b"]}
@@ -124,7 +124,7 @@ module SmartSuite
       when 'is_empty'
         nil
       when 'is_not_empty'
-        { not_null: true }
+        { is_not_null: true }
 
       # Array operators (multi-select, linked records, tags)
       when 'has_any_of'

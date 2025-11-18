@@ -471,4 +471,147 @@ class TestResponseFormatter < Minitest::Test
     assert_equal 'tbl_projects', result['params']['linked_application']
     refute result['params'].key?('entries_allowed')
   end
+
+  # Test truncate_value with SmartDoc structure (Hash)
+  def test_truncate_value_smartdoc_hash
+    smartdoc = {
+      'data' => {
+        'type' => 'doc',
+        'content' => [{ 'type' => 'paragraph', 'content' => [{ 'type' => 'text', 'text' => 'Hello' }] }]
+      },
+      'html' => '<p>Hello</p>',
+      'preview' => 'Hello'
+    }
+
+    result = truncate_value(smartdoc)
+
+    assert_equal '<p>Hello</p>', result, 'Should extract HTML from SmartDoc structure'
+  end
+
+  # Test truncate_value with SmartDoc as JSON string (cache scenario)
+  def test_truncate_value_smartdoc_json_string
+    smartdoc = {
+      'data' => {
+        'type' => 'doc',
+        'content' => [{ 'type' => 'paragraph', 'content' => [{ 'type' => 'text', 'text' => 'Hello' }] }]
+      },
+      'html' => '<p>Hello from JSON</p>',
+      'preview' => 'Hello from JSON'
+    }
+    json_string = smartdoc.to_json
+
+    result = truncate_value(json_string)
+
+    assert_equal '<p>Hello from JSON</p>', result, 'Should parse JSON string and extract HTML from SmartDoc'
+  end
+
+  # Test truncate_value with SmartDoc with empty HTML
+  def test_truncate_value_smartdoc_empty_html
+    smartdoc = {
+      'data' => {
+        'type' => 'doc',
+        'content' => []
+      },
+      'html' => '',
+      'preview' => ''
+    }
+
+    result = truncate_value(smartdoc)
+
+    assert_equal '', result, 'Should return empty string for empty HTML'
+  end
+
+  # Test truncate_value with SmartDoc with nil HTML
+  def test_truncate_value_smartdoc_nil_html
+    smartdoc = {
+      'data' => {
+        'type' => 'doc',
+        'content' => []
+      },
+      'html' => nil,
+      'preview' => ''
+    }
+
+    result = truncate_value(smartdoc)
+
+    assert_equal '', result, 'Should return empty string for nil HTML'
+  end
+
+  # Test truncate_value with non-SmartDoc hash (missing html key)
+  def test_truncate_value_non_smartdoc_hash
+    non_smartdoc = {
+      'data' => { 'some' => 'data' },
+      'preview' => 'Not a SmartDoc'
+    }
+
+    result = truncate_value(non_smartdoc)
+
+    assert_equal non_smartdoc, result, 'Should return original value if not a SmartDoc (missing html key)'
+  end
+
+  # Test truncate_value with non-SmartDoc JSON string
+  def test_truncate_value_non_smartdoc_json_string
+    non_smartdoc = { 'name' => 'Test', 'value' => 123 }
+    json_string = non_smartdoc.to_json
+
+    result = truncate_value(json_string)
+
+    assert_equal json_string, result, 'Should return original JSON string if not a SmartDoc'
+  end
+
+  # Test truncate_value with invalid JSON string
+  def test_truncate_value_invalid_json
+    invalid_json = 'This is not JSON {invalid'
+
+    result = truncate_value(invalid_json)
+
+    assert_equal invalid_json, result, 'Should return original string if JSON parsing fails'
+  end
+
+  # Test smartdoc_value? with valid SmartDoc
+  def test_smartdoc_value_valid
+    smartdoc = {
+      'data' => { 'type' => 'doc' },
+      'html' => '<p>Test</p>'
+    }
+
+    assert smartdoc_value?(smartdoc), 'Should detect valid SmartDoc structure'
+  end
+
+  # Test smartdoc_value? with symbol keys
+  def test_smartdoc_value_symbol_keys
+    smartdoc = {
+      data: { type: 'doc' },
+      html: '<p>Test</p>'
+    }
+
+    assert smartdoc_value?(smartdoc), 'Should detect SmartDoc with symbol keys'
+  end
+
+  # Test smartdoc_value? with missing html key
+  def test_smartdoc_value_missing_html
+    not_smartdoc = {
+      'data' => { 'type' => 'doc' },
+      'preview' => 'Test'
+    }
+
+    refute smartdoc_value?(not_smartdoc), 'Should not detect as SmartDoc without html key'
+  end
+
+  # Test smartdoc_value? with missing data key
+  def test_smartdoc_value_missing_data
+    not_smartdoc = {
+      'html' => '<p>Test</p>',
+      'preview' => 'Test'
+    }
+
+    refute smartdoc_value?(not_smartdoc), 'Should not detect as SmartDoc without data key'
+  end
+
+  # Test smartdoc_value? with non-hash value
+  def test_smartdoc_value_non_hash
+    refute smartdoc_value?('string'), 'Should not detect string as SmartDoc'
+    refute smartdoc_value?(123), 'Should not detect number as SmartDoc'
+    refute smartdoc_value?(nil), 'Should not detect nil as SmartDoc'
+  end
 end

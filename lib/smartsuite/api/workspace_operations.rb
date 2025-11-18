@@ -2,6 +2,7 @@
 
 require 'time'
 require_relative 'base'
+require_relative '../fuzzy_matcher'
 
 module SmartSuite
   module API
@@ -20,12 +21,13 @@ module SmartSuite
       #
       # Filters response to only include essential fields (id, name, logo) by default.
       # Set include_activity_data: true to include usage metrics for identifying inactive solutions.
-      # Or specify fields array to request specific fields from the API.
+      # Or specify fields array for client-side filtering (API doesn't support field selection).
+      # Supports fuzzy name search with typo tolerance.
       # Tracks token usage and logs metrics.
       #
       # @param include_activity_data [Boolean] Include activity/usage fields (default: false)
-      # @param fields [Array<String>] Specific fields to request from API (optional)
-      # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
+      # @param fields [Array<String>] Specific fields to return (client-side filtered, optional)
+      # @param name [String] Filter by solution name using fuzzy matching (optional)
       # @return [Hash] Solutions with count and filtered data
       # @example List all solutions
       #   list_solutions
@@ -35,13 +37,20 @@ module SmartSuite
       #
       # @example List with specific fields
       #   list_solutions(fields: ['id', 'name', 'permissions'])
-      def list_solutions(include_activity_data: false, fields: nil, bypass_cache: false)
-        # Try cache first if enabled and no custom fields specified
-        # (custom fields parameter doesn't work with API, so we fetch full data either way)
-        unless should_bypass_cache?(bypass: bypass_cache) || fields
-          cached_solutions = @cache.get_cached_solutions
+      #
+      # @example Fuzzy search by name
+      #   list_solutions(name: 'desarollo')  # Matches "Desarrollos de software"
+      #   list_solutions(name: 'gestion')    # Matches "Gestión de Proyectos"
+      def list_solutions(include_activity_data: false, fields: nil, name: nil)
+        # Try cache first if enabled
+        # Note: Even if fields parameter is specified, we use cache and filter client-side
+        # because the /solutions/ API endpoint doesn't respect the fields parameter anyway
+        # Note: Name filtering happens at DB layer using custom fuzzy_match SQLite function
+        unless should_bypass_cache?
+          cached_solutions = @cache.get_cached_solutions(name: name)
           if cached_solutions
             log_cache_hit('solutions', cached_solutions.size)
+            log_metric("→ Fuzzy matched #{cached_solutions.size} solutions for: #{name}") if name
             return format_solutions_response(cached_solutions, include_activity_data, fields)
           else
             log_cache_miss('solutions')
@@ -55,14 +64,16 @@ module SmartSuite
 
         response = api_request(:get, endpoint)
 
-        # Cache the full response if cache enabled and no custom fields
-        if cache_enabled? && !bypass_cache && fields.nil?
+        # Cache the full response if cache enabled
+        # Note: We cache regardless of fields parameter since API returns full data anyway
+        if cache_enabled?
           solutions_list = response.is_a?(Array) ? response : extract_items_from_response(response)
           @cache.cache_solutions(solutions_list)
           log_metric("✓ Cached #{solutions_list.size} solutions")
         end
 
-        format_solutions_response(response, include_activity_data, fields)
+        # Format and filter response (including name filtering for non-cached responses)
+        format_solutions_response(response, include_activity_data, fields, name)
       end
 
       private
@@ -73,13 +84,23 @@ module SmartSuite
       # @param include_activity_data [Boolean] Include activity/usage fields
       # @param fields [Array<String>] Specific fields to request
       # @return [Hash] Formatted solutions with count
-      def format_solutions_response(response, include_activity_data, fields)
+      def format_solutions_response(response, include_activity_data, fields, name = nil)
         # Handle both API response format and cached array format
         solutions_list = if response.is_a?(Array)
                            response
                          else
                            extract_items_from_response(response)
                          end
+
+        # Apply name filtering using fuzzy matching (for non-cached responses)
+        # Cached responses are already filtered at DB layer
+        if name && !solutions_list.empty?
+          original_count = solutions_list.size
+          solutions_list = solutions_list.select do |solution|
+            SmartSuite::FuzzyMatcher.match?(solution['name'], name)
+          end
+          log_metric("→ Fuzzy matched #{solutions_list.size}/#{original_count} solutions for: #{name}")
+        end
 
         # Debug: log what fields we got back
         if fields && !fields.empty? && solutions_list.is_a?(Array) && solutions_list.first

@@ -18,14 +18,40 @@ module SmartSuite
     class Query
       attr_reader :cache, :table_id
 
+      # Field type categorization for proper operator handling
+      JSON_ARRAY_FIELD_TYPES = %w[
+        userfield
+        multipleselectfield
+        linkedrecordfield
+      ].freeze
+
+      TEXT_FIELD_TYPES = %w[
+        textfield
+        textareafield
+        richtextareafield
+        emailfield
+        phonefield
+        linkfield
+      ].freeze
+
       def initialize(cache, table_id)
         @cache = cache
         @table_id = table_id
         @where_clauses = []
         @params = []
-        @order_clause = nil
+        @order_clauses = []
         @limit_clause = nil
         @offset_clause = nil
+      end
+
+      # Check if field type is a JSON array field
+      def json_array_field?(field_type)
+        JSON_ARRAY_FIELD_TYPES.include?(field_type)
+      end
+
+      # Check if field type is a text field
+      def text_field?(field_type)
+        TEXT_FIELD_TYPES.include?(field_type)
       end
 
       # Add WHERE conditions
@@ -66,6 +92,8 @@ module SmartSuite
 
       # Add ORDER BY clause
       #
+      # Can be called multiple times to add additional sort criteria.
+      #
       # @param field_slug [String, Symbol] Field to order by
       # @param direction [String] 'ASC' or 'DESC'
       # @return [CacheQuery] self for chaining
@@ -74,12 +102,34 @@ module SmartSuite
         return self unless schema
 
         field_mapping = schema['field_mapping']
+        structure = schema['structure']
+        fields_info = structure['structure'] || []
+
         columns = field_mapping[field_slug.to_s]
 
         if columns
-          # Use first column for ordering
-          col_name = columns.keys.first
-          @order_clause = "ORDER BY #{col_name} #{direction.upcase}"
+          # Find field info to check field type
+          field_info = fields_info.find { |f| f['slug'] == field_slug.to_s }
+          field_type = field_info ? field_info['field_type'].downcase : nil
+
+          # Select appropriate column based on field type (same logic as build_condition)
+          # For duedatefield and daterangefield, SmartSuite API uses to_date for sorting
+          col_name = if %w[duedatefield daterangefield].include?(field_type)
+                       # Check if sorting by sub-field (e.g., due_date.from_date)
+                       if field_slug.to_s.end_with?('.from_date')
+                         columns.keys.find { |k| k.end_with?('_from') } || columns.keys.first
+                       elsif field_slug.to_s.end_with?('.to_date')
+                         columns.keys.find { |k| k.end_with?('_to') } || columns.keys.first
+                       else
+                         # Default: use to_date column (matches SmartSuite API behavior)
+                         columns.keys.find { |k| k.end_with?('_to') } || columns.keys.first
+                       end
+                     else
+                       # For other field types, use first column
+                       columns.keys.first
+                     end
+
+          @order_clauses << "#{col_name} #{direction.upcase}"
         end
 
         self
@@ -105,7 +155,7 @@ module SmartSuite
 
       # Execute the query
       #
-      # @return [Array<Hash>] Query results
+      # @return [Array<Hash>] Query results with original field slugs as keys
       def execute
         schema = @cache.get_cached_table_schema(@table_id)
         return [] unless schema
@@ -118,8 +168,8 @@ module SmartSuite
         # Add WHERE clauses
         sql += " WHERE #{@where_clauses.join(' AND ')}" if @where_clauses.any?
 
-        # Add ORDER BY
-        sql += " #{@order_clause}" if @order_clause
+        # Add ORDER BY (support multiple sort criteria)
+        sql += " ORDER BY #{@order_clauses.join(', ')}" if @order_clauses.any?
 
         # Add LIMIT and OFFSET (OFFSET requires LIMIT in SQLite)
         if @offset_clause && !@limit_clause
@@ -139,7 +189,8 @@ module SmartSuite
         duration = Time.now - start_time
         QueryLogger.log_db_result(result.length, duration)
 
-        result
+        # Map transliterated column names back to original field slugs
+        map_column_names_to_field_slugs(result, schema['field_mapping'])
       rescue StandardError => e
         QueryLogger.log_error('Cache Query Execute', e)
         raise
@@ -178,6 +229,35 @@ module SmartSuite
 
       private
 
+      # Map transliterated column names back to original SmartSuite field slugs
+      #
+      # @param results [Array<Hash>] Query results with transliterated column names
+      # @param field_mapping [Hash] Mapping of field_slug => {column_name => type}
+      # @return [Array<Hash>] Results with original field slugs as keys
+      def map_column_names_to_field_slugs(results, field_mapping)
+        # Build reverse mapping: {column_name => field_slug}
+        reverse_mapping = {}
+        field_mapping.each do |field_slug, columns|
+          columns.each_key do |col_name|
+            reverse_mapping[col_name] = field_slug
+          end
+        end
+
+        # Transform each result row
+        results.map do |row|
+          mapped_row = {}
+          row.each do |col_name, value|
+            # Map column name to original field slug (or keep column name if no mapping)
+            field_slug = reverse_mapping[col_name] || col_name
+
+            # For fields with multiple columns (e.g., status has status + status_updated_on),
+            # prefer the first column value (don't overwrite)
+            mapped_row[field_slug] ||= value
+          end
+          mapped_row
+        end
+      end
+
       # Build SQL condition for a field
       #
       # @param field_info [Hash] Field definition
@@ -186,7 +266,27 @@ module SmartSuite
       # @return [Array<String, Array>] [SQL clause, parameters]
       def build_condition(field_info, columns, condition)
         field_type = field_info['field_type'].downcase
-        col_name = columns.keys.first # Primary column
+        field_slug = field_info['slug']
+
+        # Select appropriate column based on field type and slug
+        # For duedatefield and daterangefield, SmartSuite API uses to_date for all comparisons
+        # unless explicitly filtering by .from_date or .to_date sub-field
+        col_name = if %w[duedatefield daterangefield].include?(field_type)
+                     # Check if filtering by sub-field (e.g., due_date.from_date)
+                     if field_slug.end_with?('.from_date')
+                       # User explicitly requested from_date column
+                       columns.keys.find { |k| k.end_with?('_from') } || columns.keys.first
+                     elsif field_slug.end_with?('.to_date')
+                       # User explicitly requested to_date column
+                       columns.keys.find { |k| k.end_with?('_to') } || columns.keys.first
+                     else
+                       # Default: use to_date column (matches SmartSuite API behavior)
+                       columns.keys.find { |k| k.end_with?('_to') } || columns.keys.first
+                     end
+                   else
+                     # For other field types, use first column
+                     columns.keys.first
+                   end
 
         # Handle different condition formats
         if condition.is_a?(Hash)
@@ -239,15 +339,21 @@ module SmartSuite
         when :is_not_null
           ["#{col_name} IS NOT NULL", []]
         when :is_empty
+          # For JSON array fields (userfield, multipleselectfield, linkedrecordfield)
+          if json_array_field?(field_type)
+            ["(#{col_name} IS NULL OR #{col_name} = '[]')", []]
           # For text fields
-          if field_type =~ /text|email|phone|link/
+          elsif text_field?(field_type)
             ["(#{col_name} IS NULL OR #{col_name} = '')", []]
           else
             ["#{col_name} IS NULL", []]
           end
         when :is_not_empty
+          # For JSON array fields (userfield, multipleselectfield, linkedrecordfield)
+          if json_array_field?(field_type)
+            ["(#{col_name} IS NOT NULL AND #{col_name} != '[]')", []]
           # For text fields
-          if field_type =~ /text|email|phone|link/
+          elsif text_field?(field_type)
             ["(#{col_name} IS NOT NULL AND #{col_name} != '')", []]
           else
             ["#{col_name} IS NOT NULL", []]
@@ -267,6 +373,14 @@ module SmartSuite
           conditions = value.map { "json_extract(#{col_name}, '$') NOT LIKE ?" }
           params = value.map { |v| "%\"#{v}\"%" }
           ["(#{conditions.join(' AND ')})", params]
+        when :is_exactly
+          # Array must contain exactly these values (no more, no less)
+          # Check: (1) length matches AND (2) all values present
+          length_check = "json_array_length(#{col_name}) = ?"
+          value_checks = value.map { "json_extract(#{col_name}, '$') LIKE ?" }
+          all_conditions = [length_check] + value_checks
+          params = [value.length] + value.map { |v| "%\"#{v}\"%" }
+          ["(#{all_conditions.join(' AND ')})", params]
         else
           # Fallback: treat as equality
           ["#{col_name} = ?", [value]]

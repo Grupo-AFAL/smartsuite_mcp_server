@@ -338,6 +338,124 @@ class TestCacheQuery < Minitest::Test
     assert results.all? { |r| r['status'] == 'active' }, 'Should process valid fields'
   end
 
+  # ============================================================================
+  # REGRESSION TESTS: Empty Field Values in Query Results
+  # ============================================================================
+  # Bug: map_column_names_to_field_slugs didn't correctly preserve empty/null values
+  # Fix: Ensured all fields are present in results, even if nil, empty string, or zero
+
+  # Test that nil field values are preserved in query results
+  def test_empty_fields_preserved_nil_values
+    # Create table with records containing nil values
+    table_id = 'tbl_empty_test'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'description', 'label' => 'Description', 'field_type' => 'textarea' },
+        { 'slug' => 'priority', 'label' => 'Priority', 'field_type' => 'numberfield' }
+      ]
+    }
+    records = [
+      { 'id' => 'rec_1', 'title' => 'Task 1', 'description' => nil, 'priority' => nil }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    results = @cache.query(table_id).execute
+
+    # Verify all fields present
+    assert_equal 1, results.size
+    record = results.first
+
+    assert record.key?('title'), 'Should have title field'
+    assert record.key?('description'), 'Should have description field even if nil'
+    assert record.key?('priority'), 'Should have priority field even if nil'
+
+    # Verify nil values preserved
+    assert_equal 'Task 1', record['title']
+    assert_nil record['description'], 'Should preserve nil for description'
+    assert_nil record['priority'], 'Should preserve nil for priority'
+  end
+
+  # Test that empty string values are preserved
+  def test_empty_fields_preserved_empty_strings
+    table_id = 'tbl_empty_string_test'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'description', 'label' => 'Description', 'field_type' => 'textarea' }
+      ]
+    }
+    records = [
+      { 'id' => 'rec_1', 'title' => '', 'description' => '' }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    results = @cache.query(table_id).execute
+    record = results.first
+
+    assert record.key?('title'), 'Should have title field'
+    assert record.key?('description'), 'Should have description field'
+
+    assert_equal '', record['title'], 'Should preserve empty string for title'
+    assert_equal '', record['description'], 'Should preserve empty string for description'
+  end
+
+  # Test that zero values are preserved
+  def test_empty_fields_preserved_zero_values
+    table_id = 'tbl_zero_test'
+    structure = {
+      'structure' => [
+        { 'slug' => 'priority', 'label' => 'Priority', 'field_type' => 'numberfield' },
+        { 'slug' => 'count', 'label' => 'Count', 'field_type' => 'numberfield' }
+      ]
+    }
+    records = [
+      { 'id' => 'rec_1', 'priority' => 0, 'count' => 0 }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    results = @cache.query(table_id).execute
+    record = results.first
+
+    assert record.key?('priority'), 'Should have priority field'
+    assert record.key?('count'), 'Should have count field'
+
+    assert_equal 0, record['priority'], 'Should preserve zero for priority'
+    assert_equal 0, record['count'], 'Should preserve zero for count'
+  end
+
+  # Test mixed empty and non-empty values
+  def test_empty_fields_preserved_mixed_values
+    table_id = 'tbl_mixed_test'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'description', 'label' => 'Description', 'field_type' => 'textarea' },
+        { 'slug' => 'priority', 'label' => 'Priority', 'field_type' => 'numberfield' }
+      ]
+    }
+    records = [
+      { 'id' => 'rec_1', 'title' => 'Has title', 'description' => nil, 'priority' => 0 },
+      { 'id' => 'rec_2', 'title' => '', 'description' => 'Has description', 'priority' => nil }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    results = @cache.query(table_id).execute
+    assert_equal 2, results.size
+
+    # Check first record
+    rec1 = results.find { |r| r['id'] == 'rec_1' }
+    assert_equal 'Has title', rec1['title']
+    assert_nil rec1['description']
+    assert_equal 0, rec1['priority']
+
+    # Check second record
+    rec2 = results.find { |r| r['id'] == 'rec_2' }
+    assert_equal '', rec2['title']
+    assert_equal 'Has description', rec2['description']
+    assert_nil rec2['priority']
+  end
+
   # Test has_any_of operator (for JSON arrays)
   def test_where_has_any_of
     # Insert a record with JSON array field (tags)
@@ -393,6 +511,401 @@ class TestCacheQuery < Minitest::Test
     assert results.any? { |r| r['id'] == 'rec_clean' }, 'Should find record without specified tags'
   end
 
+  # ============================================================================
+  # REGRESSION TESTS: Date Field Operators (duedatefield/daterangefield)
+  # ============================================================================
+  # Critical fix: Cache was using from_date but API uses to_date for comparisons
+  # This ensures date filtering matches SmartSuite API behavior
+
+  def test_daterangefield_uses_to_date_for_filtering
+    # Create table with daterangefield
+    table_id = 'tbl_date_test'
+    structure = {
+      'name' => 'Date Test Table',
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'project_dates', 'label' => 'Project Dates', 'field_type' => 'daterangefield' }
+      ]
+    }
+
+    # Create cache table (creates project_dates_from and project_dates_to columns)
+    sql_table_name = @cache.create_cache_table(table_id, structure)
+
+    # Insert record with date range: March 1-31, 2025
+    now = Time.now.to_i
+    expires = now + 3600
+    @cache.db.execute(
+      "INSERT INTO #{sql_table_name} (id, title, project_dates_from, project_dates_to, cached_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?)",
+      ['rec_1', 'March Project', '2025-03-01', '2025-03-31', now, expires]
+    )
+
+    # Test: gte 2025-03-15 should MATCH (checks to_date: 2025-03-31 >= 2025-03-15)
+    results = @cache.query(table_id)
+                    .where(project_dates: { gte: '2025-03-15' })
+                    .execute
+
+    assert_equal 1, results.size, 'Should find record when to_date matches filter'
+    assert_equal 'rec_1', results[0]['id']
+
+    # Test: lt 2025-03-10 should NOT match (checks to_date: 2025-03-31 < 2025-03-10 = false)
+    results = @cache.query(table_id)
+                    .where(project_dates: { lt: '2025-03-10' })
+                    .execute
+
+    assert_equal 0, results.size, 'Should not find record when to_date does not match'
+  end
+
+  def test_duedatefield_uses_to_date_for_sorting
+    # Create table with duedatefield
+    table_id = 'tbl_duedate_sort'
+    structure = {
+      'name' => 'Due Date Test Table',
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'due_date', 'label' => 'Due Date', 'field_type' => 'duedatefield' }
+      ]
+    }
+
+    # Create cache table (creates due_date_from and due_date_to columns)
+    sql_table_name = @cache.create_cache_table(table_id, structure)
+
+    # Insert records with different date ranges
+    now = Time.now.to_i
+    expires = now + 3600
+
+    records_data = [
+      ['rec_1', 'Task A', '2025-01-01', '2025-01-31'],
+      ['rec_2', 'Task B', '2025-02-01', '2025-02-15'],
+      ['rec_3', 'Task C', '2025-01-15', '2025-01-20']
+    ]
+
+    records_data.each do |id, title, from_date, to_date|
+      @cache.db.execute(
+        "INSERT INTO #{sql_table_name} (id, title, due_date_from, due_date_to, cached_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?)",
+        [id, title, from_date, to_date, now, expires]
+      )
+    end
+
+    # Sort by due_date ASC should use to_date column
+    results = @cache.query(table_id)
+                    .order('due_date', 'ASC')
+                    .execute
+
+    # Expected order by to_date: Task C (01-20), Task A (01-31), Task B (02-15)
+    assert_equal 'rec_3', results[0]['id'], 'First should be Task C (to_date: 01-20)'
+    assert_equal 'rec_1', results[1]['id'], 'Second should be Task A (to_date: 01-31)'
+    assert_equal 'rec_2', results[2]['id'], 'Third should be Task B (to_date: 02-15)'
+  end
+
+  # ============================================================================
+  # REGRESSION TESTS: is_empty/is_not_empty for JSON Array Fields
+  # ============================================================================
+  # Critical fix: Cache was checking IS NULL but should check for empty array '[]'
+  # Affected: userfield, multipleselectfield, linkedrecordfield
+
+  def test_is_empty_for_json_array_fields
+    # Create table with array fields
+    table_id = 'tbl_array_empty'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'assigned_to', 'label' => 'Assigned To', 'field_type' => 'userfield' },
+        { 'slug' => 'tags', 'label' => 'Tags', 'field_type' => 'multipleselectfield' },
+        { 'slug' => 'linked_records', 'label' => 'Linked Records', 'field_type' => 'linkedrecordfield' }
+      ]
+    }
+
+    records = [
+      { 'id' => 'rec_empty', 'title' => 'Empty', 'assigned_to' => [], 'tags' => [], 'linked_records' => [] },
+      { 'id' => 'rec_null', 'title' => 'Null', 'assigned_to' => nil, 'tags' => nil, 'linked_records' => nil },
+      { 'id' => 'rec_filled', 'title' => 'Filled', 'assigned_to' => ['user_1'], 'tags' => ['tag_a'],
+        'linked_records' => ['rec_1'] }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    # is_empty should match BOTH empty arrays AND null values
+    results = @cache.query(table_id)
+                    .where(assigned_to: { is_empty: true })
+                    .execute
+
+    assert_equal 2, results.size, 'Should find both empty array and null records'
+    assert results.any? { |r| r['id'] == 'rec_empty' }, 'Should find record with empty array'
+    assert results.any? { |r| r['id'] == 'rec_null' }, 'Should find record with null value'
+
+    # Test for multipleselectfield
+    results = @cache.query(table_id)
+                    .where(tags: { is_empty: true })
+                    .execute
+
+    assert_equal 2, results.size, 'multipleselectfield: Should find both empty and null'
+
+    # Test for linkedrecordfield
+    results = @cache.query(table_id)
+                    .where(linked_records: { is_empty: true })
+                    .execute
+
+    assert_equal 2, results.size, 'linkedrecordfield: Should find both empty and null'
+  end
+
+  def test_is_not_empty_for_json_array_fields
+    # Create table with array fields
+    table_id = 'tbl_array_not_empty'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'assigned_to', 'label' => 'Assigned To', 'field_type' => 'userfield' },
+        { 'slug' => 'tags', 'label' => 'Tags', 'field_type' => 'multipleselectfield' },
+        { 'slug' => 'linked_records', 'label' => 'Linked Records', 'field_type' => 'linkedrecordfield' }
+      ]
+    }
+
+    records = [
+      { 'id' => 'rec_empty', 'title' => 'Empty', 'assigned_to' => [], 'tags' => [], 'linked_records' => [] },
+      { 'id' => 'rec_null', 'title' => 'Null', 'assigned_to' => nil, 'tags' => nil, 'linked_records' => nil },
+      { 'id' => 'rec_filled', 'title' => 'Filled', 'assigned_to' => ['user_1'], 'tags' => ['tag_a'],
+        'linked_records' => ['rec_1'] }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    # is_not_empty should match ONLY records with actual values (not empty array, not null)
+    results = @cache.query(table_id)
+                    .where(assigned_to: { is_not_empty: true })
+                    .execute
+
+    assert_equal 1, results.size, 'Should find only record with values'
+    assert_equal 'rec_filled', results[0]['id'], 'Should find only filled record'
+
+    # Test for multipleselectfield
+    results = @cache.query(table_id)
+                    .where(tags: { is_not_empty: true })
+                    .execute
+
+    assert_equal 1, results.size, 'multipleselectfield: Should find only filled record'
+    assert_equal 'rec_filled', results[0]['id']
+
+    # Test for linkedrecordfield
+    results = @cache.query(table_id)
+                    .where(linked_records: { is_not_empty: true })
+                    .execute
+
+    assert_equal 1, results.size, 'linkedrecordfield: Should find only filled record'
+    assert_equal 'rec_filled', results[0]['id']
+  end
+
+  # ============================================================================
+  # REGRESSION TESTS: is_exactly Operator for JSON Arrays
+  # ============================================================================
+  # New feature: Check if array contains exactly specified values (no more, no less)
+
+  def test_is_exactly_for_multipleselectfield
+    # Create table with tags
+    table_id = 'tbl_exactly_test'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'tags', 'label' => 'Tags', 'field_type' => 'multipleselectfield' }
+      ]
+    }
+
+    records = [
+      { 'id' => 'rec_1', 'title' => 'One Tag', 'tags' => ['tag_a'] },
+      { 'id' => 'rec_2', 'title' => 'Two Tags Exact', 'tags' => %w[tag_a tag_b] },
+      { 'id' => 'rec_3', 'title' => 'Three Tags', 'tags' => %w[tag_a tag_b tag_c] },
+      { 'id' => 'rec_4', 'title' => 'Two Tags Different', 'tags' => %w[tag_b tag_c] },
+      { 'id' => 'rec_5', 'title' => 'Empty', 'tags' => [] }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    # is_exactly should match ONLY records with exactly the specified tags
+    results = @cache.query(table_id)
+                    .where(tags: { is_exactly: %w[tag_a tag_b] })
+                    .execute
+
+    assert_equal 1, results.size, 'Should find only record with exactly [tag_a, tag_b]'
+    assert_equal 'rec_2', results[0]['id'], 'Should match Two Tags Exact'
+
+    # Test with single value
+    results = @cache.query(table_id)
+                    .where(tags: { is_exactly: ['tag_a'] })
+                    .execute
+
+    assert_equal 1, results.size, 'Should find only record with exactly [tag_a]'
+    assert_equal 'rec_1', results[0]['id']
+
+    # Test with empty array
+    results = @cache.query(table_id)
+                    .where(tags: { is_exactly: [] })
+                    .execute
+
+    assert_equal 1, results.size, 'Should find only empty record'
+    assert_equal 'rec_5', results[0]['id']
+  end
+
+  def test_is_exactly_for_linkedrecordfield
+    # Create table with linked records
+    table_id = 'tbl_linked_exactly'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'related', 'label' => 'Related Records', 'field_type' => 'linkedrecordfield' }
+      ]
+    }
+
+    records = [
+      { 'id' => 'rec_1', 'title' => 'One Link', 'related' => ['link_a'] },
+      { 'id' => 'rec_2', 'title' => 'Two Links Exact', 'related' => %w[link_a link_b] },
+      { 'id' => 'rec_3', 'title' => 'Three Links', 'related' => %w[link_a link_b link_c] }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    results = @cache.query(table_id)
+                    .where(related: { is_exactly: %w[link_a link_b] })
+                    .execute
+
+    assert_equal 1, results.size, 'linkedrecordfield: Should find exact match'
+    assert_equal 'rec_2', results[0]['id']
+  end
+
+  # ============================================================================
+  # REGRESSION TESTS: Field Type Detection Helpers
+  # ============================================================================
+  # Critical fix: Refactored regex patterns to exact type checking
+  # Prevents bugs where linkedrecordfield contains "text" substring
+
+  def test_json_array_field_detection
+    # Create query instance to access helper methods
+    query = @cache.query('tbl_test_123')
+
+    # Test JSON array field types
+    assert query.json_array_field?('userfield'), 'Should detect userfield'
+    assert query.json_array_field?('multipleselectfield'), 'Should detect multipleselectfield'
+    assert query.json_array_field?('linkedrecordfield'), 'Should detect linkedrecordfield'
+
+    # Test non-array field types
+    refute query.json_array_field?('textfield'), 'Should not detect textfield'
+    refute query.json_array_field?('numberfield'), 'Should not detect numberfield'
+    refute query.json_array_field?('statusfield'), 'Should not detect statusfield'
+
+    # Critical: linkedrecordfield contains "field" substring but should still be detected correctly
+    refute query.json_array_field?('textareafield'), 'Should not match textareafield'
+  end
+
+  def test_text_field_detection
+    query = @cache.query('tbl_test_123')
+
+    # Test text field types
+    assert query.text_field?('textfield'), 'Should detect textfield'
+    assert query.text_field?('textareafield'), 'Should detect textareafield'
+    assert query.text_field?('richtextareafield'), 'Should detect richtextareafield'
+    assert query.text_field?('emailfield'), 'Should detect emailfield'
+    assert query.text_field?('phonefield'), 'Should detect phonefield'
+    assert query.text_field?('linkfield'), 'Should detect linkfield'
+
+    # Test non-text field types
+    refute query.text_field?('numberfield'), 'Should not detect numberfield'
+    refute query.text_field?('linkedrecordfield'), 'Should not detect linkedrecordfield (critical test)'
+    refute query.text_field?('userfield'), 'Should not detect userfield'
+  end
+
+  # ============================================================================
+  # REGRESSION TESTS: Numeric Field Operators (All Field Types)
+  # ============================================================================
+  # Verification: All numeric operators work for number, currency, percent, rating
+
+  def test_numeric_operators_for_currency_field
+    # Create table with currency field
+    table_id = 'tbl_currency_ops'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'amount', 'label' => 'Amount', 'field_type' => 'currencyfield' }
+      ]
+    }
+
+    records = [
+      { 'id' => 'rec_1', 'title' => 'Low', 'amount' => 100.50 },
+      { 'id' => 'rec_2', 'title' => 'Mid', 'amount' => 500.00 },
+      { 'id' => 'rec_3', 'title' => 'High', 'amount' => 1000.75 }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    # Test gt
+    results = @cache.query(table_id).where(amount: { gt: 500 }).execute
+    assert_equal 1, results.size, 'gt: Should find values > 500'
+    assert_equal 'rec_3', results[0]['id']
+
+    # Test gte
+    results = @cache.query(table_id).where(amount: { gte: 500 }).execute
+    assert_equal 2, results.size, 'gte: Should find values >= 500'
+
+    # Test lt
+    results = @cache.query(table_id).where(amount: { lt: 500 }).execute
+    assert_equal 1, results.size, 'lt: Should find values < 500'
+    assert_equal 'rec_1', results[0]['id']
+
+    # Test lte
+    results = @cache.query(table_id).where(amount: { lte: 500 }).execute
+    assert_equal 2, results.size, 'lte: Should find values <= 500'
+
+    # Test eq
+    results = @cache.query(table_id).where(amount: { eq: 500 }).execute
+    assert_equal 1, results.size, 'eq: Should find exact value'
+    assert_equal 'rec_2', results[0]['id']
+  end
+
+  def test_numeric_operators_for_percent_field
+    table_id = 'tbl_percent_ops'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'progress', 'label' => 'Progress', 'field_type' => 'percentfield' }
+      ]
+    }
+
+    records = [
+      { 'id' => 'rec_1', 'title' => 'Started', 'progress' => 25 },
+      { 'id' => 'rec_2', 'title' => 'Half Done', 'progress' => 50 },
+      { 'id' => 'rec_3', 'title' => 'Almost Done', 'progress' => 90 }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    # Test gte
+    results = @cache.query(table_id).where(progress: { gte: 50 }).execute
+    assert_equal 2, results.size, 'percentfield gte: Should find >= 50'
+
+    # Test lt
+    results = @cache.query(table_id).where(progress: { lt: 50 }).execute
+    assert_equal 1, results.size, 'percentfield lt: Should find < 50'
+  end
+
+  def test_numeric_operators_for_rating_field
+    table_id = 'tbl_rating_ops'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'stars', 'label' => 'Stars', 'field_type' => 'ratingfield' }
+      ]
+    }
+
+    records = [
+      { 'id' => 'rec_1', 'title' => 'Poor', 'stars' => 1 },
+      { 'id' => 'rec_2', 'title' => 'Good', 'stars' => 3 },
+      { 'id' => 'rec_3', 'title' => 'Excellent', 'stars' => 5 }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    # Test gte
+    results = @cache.query(table_id).where(stars: { gte: 3 }).execute
+    assert_equal 2, results.size, 'ratingfield gte: Should find >= 3 stars'
+
+    # Test eq
+    results = @cache.query(table_id).where(stars: { eq: 5 }).execute
+    assert_equal 1, results.size, 'ratingfield eq: Should find exactly 5 stars'
+    assert_equal 'rec_3', results[0]['id']
+  end
+
   private
 
   # Create test table and populate with sample data
@@ -406,7 +919,7 @@ class TestCacheQuery < Minitest::Test
         { 'slug' => 'name', 'label' => 'Name', 'field_type' => 'textfield' },
         { 'slug' => 'status', 'label' => 'Status', 'field_type' => 'statusfield' },
         { 'slug' => 'priority', 'label' => 'Priority', 'field_type' => 'numberfield' },
-        { 'slug' => 'description', 'label' => 'Description', 'field_type' => 'textarea' },
+        { 'slug' => 'description', 'label' => 'Description', 'field_type' => 'textareafield' },
         { 'slug' => 'tags', 'label' => 'Tags', 'field_type' => 'multipleselectfield' }
       ]
     }

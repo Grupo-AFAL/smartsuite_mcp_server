@@ -369,30 +369,26 @@ Each solution includes:
 - `table_id` (required): Table identifier
 - `limit` (default: 10): Maximum records to return
 - `offset` (default: 0): Pagination offset
-- `filter` (optional): SmartSuite filter criteria (only used when cache disabled/bypassed)
-- `sort` (optional): Sort criteria (only used when cache disabled/bypassed)
+- `filter` (optional): Filter criteria to select records (SmartSuite filter format)
+- `sort` (optional): Sort criteria (array of {field, direction} pairs)
 - `fields` (required): Array of field slugs to return (e.g., `['status', 'priority']`)
 - `hydrated` (default: true): Fetch human-readable values for linked records, users, etc.
-- `bypass_cache` (default: false): Force direct API call even if cache enabled
 
 **Behavior:**
-- **Cache enabled** (default):
-  - Check if cache valid (not expired)
-  - If invalid: Fetch ALL records (paginated at 1000/batch), cache them, then query
-  - If valid: Query cached records directly
-  - Apply limit/offset to cached results
-  - Return plain text format showing "X of Y total records"
+- Filters, sorts, limits, and offsets work consistently regardless of cache state
+- Returns plain text format showing "X of Y filtered records (Z total)"
+- When cache is enabled (default), uses local SQLite queries for zero-latency filtering/sorting
+- When cache is disabled, sends filters/sort to SmartSuite API
 
-- **Cache disabled or bypass_cache: true**:
-  - Make direct API call with SmartSuite filters
-  - Apply limit/offset at API level
-  - Return plain text format
+**Implementation Details (for Claude Code):**
+- **Cache enabled**: Filters → SQL WHERE, Sort → SQL ORDER BY, then limit/offset
+- **Cache disabled**: All parameters sent to SmartSuite API
+- Cache is automatically populated on first access and expires after TTL (default 4 hours)
+- Mutations (create/update/delete) do NOT invalidate cache - it expires naturally
 
 **Important Notes:**
 - **Fields parameter is REQUIRED** - returns error if not specified
 - **No value truncation** - returns full field values (control tokens by specifying only needed fields)
-- **SmartSuite filters ignored when using cache** - all filtering done locally on cached data
-- **Cache never invalidated on mutations** - expires naturally by TTL (default 4 hours)
 - **Always shows total vs filtered counts** - helps AI make informed pagination decisions
 
 **Example:**
@@ -402,9 +398,6 @@ list_records('tbl_123', 10, 0, fields: ['status', 'priority', 'assigned_to'])
 
 # Returns error - missing fields
 list_records('tbl_123', 10, 0)  # ERROR
-
-# Bypass cache for fresh data
-list_records('tbl_123', 10, 0, fields: ['status'], bypass_cache: true)
 ```
 
 ### Available Prompt Templates
@@ -423,7 +416,7 @@ Each prompt generates a complete example with the correct filter structure, oper
 
 ### SmartSuite Filter Syntax
 
-**Note:** SmartSuite API filters are only used when cache is disabled or `bypass_cache: true`. When using cache (default), all filtering is done locally on cached records via SQL queries.
+**Note:** SmartSuite API filters are only used when cache is disabled. When using cache (default), all filtering is done locally on cached records via SQL queries.
 
 #### Filter Operators by Field Type
 

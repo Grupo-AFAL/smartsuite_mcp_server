@@ -9,6 +9,7 @@ require_relative 'migrations'
 require_relative 'metadata'
 require_relative 'performance'
 require_relative '../response_formats'
+require_relative '../fuzzy_matcher'
 require_relative '../../query_logger'
 
 module SmartSuite
@@ -52,6 +53,9 @@ module SmartSuite
         @db_path = db_path || File.expand_path('~/.smartsuite_mcp_cache.db')
         @db = SQLite3::Database.new(@db_path)
         @db.results_as_hash = true
+
+        # Register custom SQLite functions
+        register_custom_functions
 
         # Set file permissions (owner read/write only)
         File.chmod(0o600, @db_path) if File.exist?(@db_path)
@@ -168,15 +172,19 @@ module SmartSuite
           slug TEXT,
           name TEXT,
           solution_id TEXT,
-          description TEXT,
           structure TEXT,
           created TEXT,
-          updated TEXT,
           created_by TEXT,
-          updated_by TEXT,
-          deleted_date TEXT,
-          deleted_by TEXT,
-          record_count INTEGER,
+          status TEXT,
+          hidden INTEGER DEFAULT 0,
+          icon TEXT,
+          primary_field TEXT,
+          table_order INTEGER,
+          permissions TEXT,
+          field_permissions TEXT,
+          record_term TEXT,
+          fields_count_total INTEGER,
+          fields_count_linkedrecordfield INTEGER,
           cached_at TEXT NOT NULL,
           expires_at TEXT NOT NULL
         );
@@ -188,6 +196,9 @@ module SmartSuite
 
         # Migrate INTEGER timestamps to TEXT (ISO 8601)
         migrate_integer_timestamps_to_text
+
+        # Migrate cached_tables schema to match API response fields
+        migrate_cached_tables_schema
 
         # Create indexes after ensuring schema is up to date
         @db.execute_batch <<-SQL
@@ -273,10 +284,18 @@ module SmartSuite
           next unless field_mapping[field_slug]
 
           field_value = record[field_slug]
+
+          # Use stored column names from field_mapping instead of regenerating
+          stored_columns = field_mapping[field_slug]
           extracted_values = extract_field_value(field_info, field_value)
 
-          extracted_values.each do |col_name, val|
-            columns << col_name
+          # Map extracted values to stored column names
+          stored_columns.each_key do |stored_col_name|
+            # The extracted_values keys might differ from stored column names
+            # Find the corresponding value by matching the column purpose
+            val = find_matching_value(extracted_values, stored_col_name, field_info)
+
+            columns << stored_col_name
             values << val
             placeholders << '?'
           end
@@ -289,6 +308,84 @@ module SmartSuite
         @db.execute(sql, values)
       end
 
+      # Find matching value from extracted values for a stored column name
+      #
+      # @param extracted_values [Hash] Values extracted from field
+      # @param stored_col_name [String] Stored column name in database
+      # @param field_info [Hash] Field definition
+      # @return [Object] Matched value or nil
+      def find_matching_value(extracted_values, stored_col_name, field_info)
+        # For simple fields with one column, just return the first value
+        return extracted_values.values.first if extracted_values.size == 1
+
+        # For multi-column fields, match by suffix pattern
+        # e.g., stored "fecha_from" matches extracted "fecha_from"
+        # or stored "t_tulo" matches extracted column with similar purpose
+        field_type = field_info['field_type'].downcase
+        field_slug = field_info['slug']
+
+        # For special multi-column types, match by suffix
+        case field_type
+        when 'firstcreated'
+          return extracted_values['created_on'] if stored_col_name == 'created_on'
+          return extracted_values['created_by'] if stored_col_name == 'created_by'
+        when 'lastupdated'
+          return extracted_values['updated_on'] if stored_col_name == 'updated_on'
+          return extracted_values['updated_by'] if stored_col_name == 'updated_by'
+        when 'deleted_date'
+          return extracted_values['deleted_on'] if stored_col_name == 'deleted_on'
+          return extracted_values['deleted_by'] if stored_col_name == 'deleted_by'
+        when 'statusfield'
+          # Use label-based column name (same as get_field_columns)
+          field_label = field_info['label']
+          col_base = if field_label && !field_label.empty?
+                       sanitize_column_name(field_label)
+                     else
+                       sanitize_column_name(field_slug)
+                     end
+          return extracted_values[col_base] if stored_col_name.end_with?(col_base) && !stored_col_name.include?('_updated_on')
+          return extracted_values["#{col_base}_updated_on"] if stored_col_name.include?('_updated_on')
+        when 'daterangefield', 'duedatefield'
+          # Match by suffix pattern for daterange fields
+          extracted_values.each do |extracted_col, val|
+            # Match by suffix: "fecha_from" matches anything ending with "_from"
+            if extracted_col.end_with?('_from') && stored_col_name.include?('_from')
+              return val
+            elsif extracted_col.end_with?('_to') && stored_col_name.include?('_to')
+              return val
+            elsif extracted_col.include?('_is_overdue') && stored_col_name.include?('_is_overdue')
+              return val
+            elsif extracted_col.include?('_is_completed') && stored_col_name.include?('_is_completed')
+              return val
+            end
+          end
+        end
+
+        # For other complex types (address, fullname, smartdoc, etc.), match by suffix
+        extracted_values.each do |extracted_col, val|
+          # Try exact match first
+          return val if extracted_col == stored_col_name
+
+          # Try suffix match (e.g., "participantes_json" matches anything ending with "_json")
+          if extracted_col.end_with?('_text') && stored_col_name.include?('_text')
+            return val
+          elsif extracted_col.end_with?('_json') && stored_col_name.include?('_json')
+            return val
+          elsif extracted_col.end_with?('_preview') && stored_col_name.include?('_preview')
+            return val
+          elsif extracted_col.end_with?('_total') && stored_col_name.include?('_total')
+            return val
+          elsif extracted_col.end_with?('_completed') && stored_col_name.include?('_completed')
+            return val
+          elsif extracted_col.end_with?('_count') && stored_col_name.include?('_count')
+            return val
+          end
+        end
+
+        # Default: return first value or nil
+        extracted_values.values.first
+      end
+
       # Extract value(s) for a field (handles multi-column fields)
       #
       # @param field_info [Hash] Field definition
@@ -298,8 +395,15 @@ module SmartSuite
         return {} if value.nil?
 
         field_slug = field_info['slug']
+        field_label = field_info['label']
         field_type = field_info['field_type'].downcase
-        col_name = sanitize_column_name(field_slug)
+
+        # Use field label for column name, fallback to slug (same as get_field_columns)
+        col_name = if field_label && !field_label.empty?
+                     sanitize_column_name(field_label)
+                   else
+                     sanitize_column_name(field_slug)
+                   end
 
         case field_type
         when 'firstcreated'
@@ -441,7 +545,7 @@ module SmartSuite
           [Time.now.utc.iso8601]
         ).first
 
-        result && result['count'].positive?
+        result && result['count'].to_i.positive?
       end
 
       # Record cache statistics
@@ -474,6 +578,29 @@ module SmartSuite
       #     .execute
       def query(table_id)
         Query.new(self, table_id)
+      end
+
+      # Get a single record from cache by record ID
+      #
+      # @param table_id [String] SmartSuite table ID
+      # @param record_id [String] SmartSuite record ID
+      # @return [Hash, nil] Record data or nil if not found/expired
+      def get_cached_record(table_id, record_id)
+        # Check if cache is valid first
+        return nil unless cache_valid?(table_id)
+
+        # Query for the specific record
+        result = query(table_id).where(id: record_id).limit(1).execute.first
+
+        if result
+          QueryLogger.log_cache_operation('hit', "record:#{table_id}:#{record_id}")
+          record_stat('record_cached', 'hit', table_id)
+        end
+
+        result
+      rescue SQLite3::Exception => e
+        warn "[Cache] Error reading cached record #{record_id}: #{e.message}"
+        nil
       end
 
       # ========== Solution Caching ==========
@@ -546,15 +673,22 @@ module SmartSuite
       # Get cached solutions list
       #
       # @return [Array<Hash>, nil] Array of solutions or nil if cache invalid
-      def get_cached_solutions
+      def get_cached_solutions(name: nil)
         # Check if cache is valid
         return nil unless solutions_cache_valid?
 
-        # Fetch all solutions
-        results = db_execute(
-          'SELECT * FROM cached_solutions WHERE expires_at > ?',
-          Time.now.utc.iso8601
-        )
+        # Build query with optional name filter using fuzzy matching
+        results = if name
+                    db_execute(
+                      'SELECT * FROM cached_solutions WHERE expires_at > ? AND fuzzy_match(name, ?) = 1',
+                      Time.now.utc.iso8601, name
+                    )
+                  else
+                    db_execute(
+                      'SELECT * FROM cached_solutions WHERE expires_at > ?',
+                      Time.now.utc.iso8601
+                    )
+                  end
 
         return nil if results.empty?
 
@@ -603,7 +737,7 @@ module SmartSuite
           Time.now.utc.iso8601
         ).first
 
-        valid = result && result['count'].positive?
+        valid = result && result['count'].to_i.positive?
 
         QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'solutions')
 
@@ -641,25 +775,55 @@ module SmartSuite
           # Convert structure to JSON if it exists
           structure_json = table['structure']&.to_json
 
+          # API returns 'solution' but we normalize to 'solution_id'
+          solution_id_value = table['solution'] || table['solution_id']
+
+          # API returns first_created as object with 'by' and 'on'
+          created = table.dig('first_created', 'on')
+          created_by = table.dig('first_created', 'by')
+
+          # Convert permissions and field_permissions to JSON
+          permissions_json = table['permissions']&.to_json
+          field_permissions_json = table['field_permissions']&.to_json
+
+          # Extract fields_count values
+          fields_count_total = table.dig('fields_count', 'total')
+          fields_count_linked = table.dig('fields_count', 'linkedrecordfield')
+
+          # Convert hidden boolean to integer (0/1)
+          hidden = table['hidden'] ? 1 : 0
+
+          # Convert integer fields (default to nil if not present)
+          table_order = table['order']&.to_i if table['order']
+          fields_total = fields_count_total.to_i if fields_count_total
+          fields_linked = fields_count_linked.to_i if fields_count_linked
+
           db_execute(
             "INSERT INTO cached_tables (
-            id, slug, name, solution_id, description, structure,
-            created, updated, created_by, updated_by, deleted_date, deleted_by, record_count,
+            id, slug, name, solution_id, structure,
+            created, created_by,
+            status, hidden, icon, primary_field, table_order,
+            permissions, field_permissions, record_term,
+            fields_count_total, fields_count_linkedrecordfield,
             cached_at, expires_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             table['id'],
             table['slug'],
             table['name'],
-            table['solution_id'],
-            table['description'],
+            solution_id_value,
             structure_json,
-            table['created'] ? parse_timestamp(table['created']) : nil,
-            table['updated'] ? parse_timestamp(table['updated']) : nil,
-            table['created_by'],
-            table['updated_by'],
-            table['deleted_date'] ? parse_timestamp(table['deleted_date']) : nil,
-            table['deleted_by'],
-            table['record_count'],
+            created ? parse_timestamp(created) : nil,
+            created_by,
+            table['status'],
+            hidden,
+            table['icon'],
+            table['primary_field'],
+            table_order,
+            permissions_json,
+            field_permissions_json,
+            table['record_term'],
+            fields_total,
+            fields_linked,
             cached_at,
             expires_at
           )
@@ -676,6 +840,44 @@ module SmartSuite
       #
       # @param solution_id [String, nil] Solution ID (nil for all tables)
       # @return [Array<Hash>, nil] Array of tables or nil if cache invalid
+      # Get a single table from cache by table_id
+      #
+      # @param table_id [String] SmartSuite table ID
+      # @return [Hash, nil] Table data with structure, or nil if not cached/expired
+      def get_cached_table(table_id)
+        result = db_execute(
+          'SELECT id, name, solution_id, structure, slug, status, hidden, icon, primary_field,
+                  expires_at
+           FROM cached_tables
+           WHERE id = ? AND expires_at > ?',
+          table_id,
+          Time.now.utc.iso8601
+        ).first
+
+        return nil unless result
+
+        # Parse structure JSON back to array
+        structure = result['structure'] ? JSON.parse(result['structure']) : []
+
+        QueryLogger.log_cache_operation('hit', "table:#{table_id}")
+        record_stat('table_cached', 'hit', table_id)
+
+        {
+          'id' => result['id'],
+          'name' => result['name'],
+          'solution_id' => result['solution_id'],
+          'structure' => structure,
+          'slug' => result['slug'],
+          'status' => result['status'],
+          'hidden' => result['hidden'],
+          'icon' => result['icon'],
+          'primary_field' => result['primary_field']
+        }
+      rescue SQLite3::Exception => e
+        warn "[Cache] Error reading cached table #{table_id}: #{e.message}"
+        nil
+      end
+
       def get_cached_table_list(solution_id)
         # Check if cache is valid
         return nil unless table_list_cache_valid?(solution_id)
@@ -707,11 +909,8 @@ module SmartSuite
           table['slug'] = row['slug'] if row['slug']
           table['description'] = row['description'] if row['description']
           table['structure'] = JSON.parse(row['structure']) if row['structure']
-          table['created'] = Time.at(row['created']).utc.iso8601 if row['created']
-          table['updated'] = Time.at(row['updated']).utc.iso8601 if row['updated']
+          table['created'] = row['created'] if row['created']
           table['created_by'] = row['created_by'] if row['created_by']
-          table['updated_by'] = row['updated_by'] if row['updated_by']
-          table['deleted_date'] = Time.at(row['deleted_date']).utc.iso8601 if row['deleted_date']
           table['deleted_by'] = row['deleted_by'] if row['deleted_by']
           table['record_count'] = row['record_count'] if row['record_count']
 
@@ -735,7 +934,7 @@ module SmartSuite
             solution_id, Time.now.utc.iso8601
           ).first
 
-          valid = result && result['count'].positive?
+          valid = result && result['count'].to_i.positive?
           QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', "table_list:solution:#{solution_id}")
         else
           result = db_execute(
@@ -743,7 +942,7 @@ module SmartSuite
             Time.now.utc.iso8601
           ).first
 
-          valid = result && result['count'].positive?
+          valid = result && result['count'].to_i.positive?
           QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'table_list:all_tables')
         end
         valid
@@ -853,6 +1052,22 @@ module SmartSuite
       end
 
       private
+
+      # Register custom SQLite functions for advanced querying
+      #
+      # Registers:
+      # - fuzzy_match(text, query): Fuzzy string matching with typo tolerance
+      def register_custom_functions
+        # Register fuzzy_match function
+        # Returns 1 if text fuzzy matches query, 0 otherwise
+        @db.create_function('fuzzy_match', 2) do |_func, text, query|
+          # Handle NULL values
+          next 0 if text.nil? || query.nil?
+
+          # Use FuzzyMatcher module for matching logic
+          SmartSuite::FuzzyMatcher.match?(text, query) ? 1 : 0
+        end
+      end
 
       # Get solutions cache status
       def get_solutions_cache_status(now)
