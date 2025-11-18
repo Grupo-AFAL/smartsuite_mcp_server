@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+### Changed
+
+### Removed
+
+### Fixed
+
+## [1.9.0] - 2025-11-18
+
+### Added
+
 - **Bulk record operations** - Added 3 new bulk operations for efficient batch processing
   - `bulk_add_records`: Create multiple records in a single API call
   - `bulk_update_records`: Update multiple records in a single API call (each record must include 'id' field)
