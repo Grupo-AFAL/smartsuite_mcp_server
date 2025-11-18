@@ -8,6 +8,7 @@ require_relative 'lib/smartsuite/mcp/tool_registry'
 require_relative 'lib/smartsuite/mcp/prompt_registry'
 require_relative 'lib/smartsuite/mcp/resource_registry'
 
+# rubocop:disable Metrics/ClassLength
 class SmartSuiteServer
   def initialize
     @api_key = ENV.fetch('SMARTSUITE_API_KEY', nil)
@@ -343,6 +344,7 @@ class SmartSuiteServer
     @metrics_log.puts "[#{timestamp}] #{message}"
   end
 end
+# rubocop:enable Metrics/ClassLength
 
 if __FILE__ == $PROGRAM_NAME
   server = SmartSuiteServer.new

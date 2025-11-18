@@ -487,7 +487,7 @@ HTTP_FORBIDDEN = 403
 
 ### Consider for v2.0 (Medium Priority)
 
-3. **Schema Builder DSL** 🟡
+1. **Schema Builder DSL** 🟡
    - Optional enhancement to schema constants
    - Provides more ergonomic tool definition
    - Requires more design work
@@ -495,7 +495,7 @@ HTTP_FORBIDDEN = 403
 
 ### Do Not Implement (Low Priority)
 
-4. **SmartSuiteServer Metaprogramming** 🟢
+1. **SmartSuiteServer Metaprogramming** 🟢
    - Current case statement is appropriate
    - Would reduce clarity without significant benefit
    - **Decision:** Keep current implementation
@@ -552,4 +552,3 @@ The most impactful refactoring is **test helpers**, which would reduce ~400 line
 - Test coverage: Excellent (5/5)
 - Test maintainability: Good (3/5) ← Primary opportunity
 - Schema maintainability: Good (3/5) ← Secondary opportunity
-
