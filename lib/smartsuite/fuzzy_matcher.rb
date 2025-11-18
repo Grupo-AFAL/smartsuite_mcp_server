@@ -82,9 +82,7 @@ module SmartSuite
     # @return [Boolean] true if similar enough
     def self.similar_enough?(str1, str2, threshold = DEFAULT_THRESHOLD)
       # For very short strings, require exact match or very close
-      if str1.length <= 3 || str2.length <= 3
-        return str1 == str2 || levenshtein_distance(str1, str2) <= 1
-      end
+      return str1 == str2 || levenshtein_distance(str1, str2) <= 1 if str1.length <= 3 || str2.length <= 3
 
       # For longer strings, use edit distance with threshold
       distance = levenshtein_distance(str1, str2)

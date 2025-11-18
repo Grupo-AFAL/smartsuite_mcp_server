@@ -108,6 +108,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Benefits**: More maintainable, more explicit, easier to extend with new field types
   - **Fixed in**: `Cache::Query` (lib/smartsuite/cache/query.rb)
 
+- **SmartDoc HTML extraction from cached records** - Fixed ResponseFormatter not extracting HTML from rich text fields when using cache
+  - Cache stores SmartDoc fields as JSON strings, but ResponseFormatter was only detecting Hash objects
+  - Added JSON string parsing to `truncate_value` method before SmartDoc detection
+  - Now correctly extracts HTML from both direct API responses (Hashes) and cached records (JSON strings)
+  - Mirrors the approach used in RecordOperations.process_smartdoc_fields
+  - Reduces token usage for rich text fields from ~25k to ~3-4k tokens (87-90% reduction)
+  - Added 12 comprehensive tests covering JSON string parsing, SmartDoc detection, and edge cases
+  - Fixes issue where list_records returned full TipTap/ProseMirror JSON instead of just HTML content
+- **is_empty/is_not_empty filter API rejection** - Fixed SmartSuite API rejecting empty check filters with non-null values
+  - Error: `"' is not allowed for the 'is_not_empty' comparison"` (API error 400)
+  - SmartSuite API requires `null` value for `is_empty` and `is_not_empty` operators, not empty string
+  - Added `sanitize_filter_for_api` method in RecordOperations to clean filters before sending to API
+  - Automatically converts empty string or any value to `null` for empty check operators
+  - Other filter operators are preserved unchanged
+  - Added 4 regression tests to verify sanitization logic
+  - Resolves MCP error -32603 when using empty check filters with `bypass_cache: true`
+- **SQLite type coercion errors** - Fixed "can't convert String into an exact number" errors in cache operations
+  - **COUNT() fix**: SQLite COUNT() returns strings in some configurations, calling `.positive?` on String fails
+    - Fixed 4 occurrences in cache/layer.rb: lines 531, 716, 916, 924
+    - Now converts to integer before calling `.positive?`: `result['count'].to_i.positive?`
+  - **Time.at() fix**: Removed incorrect `Time.at()` calls in `get_cached_table_list` (lines 888, 889, 892)
+    - Database stores ISO 8601 strings, not Unix timestamps
+    - `Time.at()` expects numeric timestamps, causing TypeError with string values
+    - Now returns ISO 8601 strings directly without conversion
+  - Resolves MCP error -32603 when calling list_tables with solution_id parameter
+- **list_solutions cache bypass** - Fixed list_solutions to use cache even when fields parameter is provided
+  - Previously bypassed cache when fields parameter was present (line 42: `|| fields` condition)
+  - Previously didn't cache responses when fields parameter was provided (line 60: `&& fields.nil?` condition)
+  - Now correctly uses cache and performs client-side filtering for all calls
+  - API endpoint doesn't respect fields parameter anyway, so client-side filtering is always required
+  - Added regression test to prevent future cache bypass bugs
+- **is_not_empty filter operator** - Fixed FilterBuilder mapping from `{not_null: true}` to `{is_not_null: true}`
+  - Resolves "can't prepare TrueClass" error when using `is_not_empty` filter
+  - Cache::Query expects `:is_not_null`, not `:not_null` operator
+  - Updated tests and documentation
+- **Empty field values column mapping** - Fixed column name mapping for empty/null fields in cache query results
+  - `map_column_names_to_field_slugs` now correctly handles all fields
+  - Prevents missing fields in query results
+  - Added comprehensive test coverage
+- **Spanish accent handling** - Column names with accents properly transliterated
+  - `"Título"` → `"titulo"`, prevents SQL insert failures
+  - Added comprehensive Spanish/Latin accent mappings with Unicode normalization
+  - Fixes cache insertion failures for tables with Spanish field names
+- **Cache column mapping** - Fixed `insert_record` to use stored column names from `field_mapping`
+  - Previously regenerated column names, causing SQL insert failures
+  - Added `find_matching_value` helper to map extracted values correctly
+  - Critical for tables with non-ASCII field names
+- **list_tables API response format** - Fixed to handle Array responses from `/applications/` endpoint
+  - Normalized `"solution"` field to `"solution_id"` for consistency
+  - Resolves issue where list_tables returned 0 results despite 519+ tables existing
+- **cached_tables schema** - Updated schema to match SmartSuite API field names
+  - Aligned with actual API response structure
+  - Improved cache reliability and consistency
+- **Broken documentation links** - Fixed 9 broken links across documentation:
+  - Fixed incorrect relative paths in `docs/guides/user-guide.md` (lines 594-595) - Changed `../../examples/` to `../examples/`
+  - Fixed examples directory reference in `README.md` (line 156) - Changed `examples/` to `docs/examples/`
+  - Created missing `docs/getting-started/configuration.md` (referenced in 3 locations)
+  - Created missing `docs/reference/filter-operators.md` (referenced in filtering guide)
+  - Created missing `docs/contributing/code-style.md`, `testing.md`, and `documentation.md` (referenced in README)
+
 ### Added
 
 - **is_exactly operator for JSON array fields** - New operator to check if array contains exactly specified values (no more, no less)
@@ -215,9 +275,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Production logs: `~/.smartsuite_mcp_queries.log`
   - Auto-detection based on environment
   - Prevents test noise in production logs
-
-### Changed
-
 - **README.md** - Completely restructured Quick Start section:
   - **One-liner installation** now featured as primary method (easiest!)
   - Manual clone + script moved to "Alternative" section
@@ -225,68 +282,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Simplified and streamlined documentation
   - Focus on "paste one command, enter credentials, done"
 - **ROADMAP.md** - Updated v2.0 goals to focus on "Token optimization and ease of installation"
-
-### Fixed
-
-- **SmartDoc HTML extraction from cached records** - Fixed ResponseFormatter not extracting HTML from rich text fields when using cache
-  - Cache stores SmartDoc fields as JSON strings, but ResponseFormatter was only detecting Hash objects
-  - Added JSON string parsing to `truncate_value` method before SmartDoc detection
-  - Now correctly extracts HTML from both direct API responses (Hashes) and cached records (JSON strings)
-  - Mirrors the approach used in RecordOperations.process_smartdoc_fields
-  - Reduces token usage for rich text fields from ~25k to ~3-4k tokens (87-90% reduction)
-  - Added 12 comprehensive tests covering JSON string parsing, SmartDoc detection, and edge cases
-  - Fixes issue where list_records returned full TipTap/ProseMirror JSON instead of just HTML content
-- **is_empty/is_not_empty filter API rejection** - Fixed SmartSuite API rejecting empty check filters with non-null values
-  - Error: `"' is not allowed for the 'is_not_empty' comparison"` (API error 400)
-  - SmartSuite API requires `null` value for `is_empty` and `is_not_empty` operators, not empty string
-  - Added `sanitize_filter_for_api` method in RecordOperations to clean filters before sending to API
-  - Automatically converts empty string or any value to `null` for empty check operators
-  - Other filter operators are preserved unchanged
-  - Added 4 regression tests to verify sanitization logic
-  - Resolves MCP error -32603 when using empty check filters with `bypass_cache: true`
-- **SQLite type coercion errors** - Fixed "can't convert String into an exact number" errors in cache operations
-  - **COUNT() fix**: SQLite COUNT() returns strings in some configurations, calling `.positive?` on String fails
-    - Fixed 4 occurrences in cache/layer.rb: lines 531, 716, 916, 924
-    - Now converts to integer before calling `.positive?`: `result['count'].to_i.positive?`
-  - **Time.at() fix**: Removed incorrect `Time.at()` calls in `get_cached_table_list` (lines 888, 889, 892)
-    - Database stores ISO 8601 strings, not Unix timestamps
-    - `Time.at()` expects numeric timestamps, causing TypeError with string values
-    - Now returns ISO 8601 strings directly without conversion
-  - Resolves MCP error -32603 when calling list_tables with solution_id parameter
-- **list_solutions cache bypass** - Fixed list_solutions to use cache even when fields parameter is provided
-  - Previously bypassed cache when fields parameter was present (line 42: `|| fields` condition)
-  - Previously didn't cache responses when fields parameter was provided (line 60: `&& fields.nil?` condition)
-  - Now correctly uses cache and performs client-side filtering for all calls
-  - API endpoint doesn't respect fields parameter anyway, so client-side filtering is always required
-  - Added regression test to prevent future cache bypass bugs
-- **is_not_empty filter operator** - Fixed FilterBuilder mapping from `{not_null: true}` to `{is_not_null: true}`
-  - Resolves "can't prepare TrueClass" error when using `is_not_empty` filter
-  - Cache::Query expects `:is_not_null`, not `:not_null` operator
-  - Updated tests and documentation
-- **Empty field values column mapping** - Fixed column name mapping for empty/null fields in cache query results
-  - `map_column_names_to_field_slugs` now correctly handles all fields
-  - Prevents missing fields in query results
-  - Added comprehensive test coverage
-- **Spanish accent handling** - Column names with accents properly transliterated
-  - `"Título"` → `"titulo"`, prevents SQL insert failures
-  - Added comprehensive Spanish/Latin accent mappings with Unicode normalization
-  - Fixes cache insertion failures for tables with Spanish field names
-- **Cache column mapping** - Fixed `insert_record` to use stored column names from `field_mapping`
-  - Previously regenerated column names, causing SQL insert failures
-  - Added `find_matching_value` helper to map extracted values correctly
-  - Critical for tables with non-ASCII field names
-- **list_tables API response format** - Fixed to handle Array responses from `/applications/` endpoint
-  - Normalized `"solution"` field to `"solution_id"` for consistency
-  - Resolves issue where list_tables returned 0 results despite 519+ tables existing
-- **cached_tables schema** - Updated schema to match SmartSuite API field names
-  - Aligned with actual API response structure
-  - Improved cache reliability and consistency
-- **Broken documentation links** - Fixed 9 broken links across documentation:
-  - Fixed incorrect relative paths in `docs/guides/user-guide.md` (lines 594-595) - Changed `../../examples/` to `../examples/`
-  - Fixed examples directory reference in `README.md` (line 156) - Changed `examples/` to `docs/examples/`
-  - Created missing `docs/getting-started/configuration.md` (referenced in 3 locations)
-  - Created missing `docs/reference/filter-operators.md` (referenced in filtering guide)
-  - Created missing `docs/contributing/code-style.md`, `testing.md`, and `documentation.md` (referenced in README)
 
 ## [1.8.0] - 2025-11-16
 

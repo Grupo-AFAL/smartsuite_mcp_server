@@ -678,17 +678,17 @@ module SmartSuite
         return nil unless solutions_cache_valid?
 
         # Build query with optional name filter using fuzzy matching
-        if name
-          results = db_execute(
-            'SELECT * FROM cached_solutions WHERE expires_at > ? AND fuzzy_match(name, ?) = 1',
-            Time.now.utc.iso8601, name
-          )
-        else
-          results = db_execute(
-            'SELECT * FROM cached_solutions WHERE expires_at > ?',
-            Time.now.utc.iso8601
-          )
-        end
+        results = if name
+                    db_execute(
+                      'SELECT * FROM cached_solutions WHERE expires_at > ? AND fuzzy_match(name, ?) = 1',
+                      Time.now.utc.iso8601, name
+                    )
+                  else
+                    db_execute(
+                      'SELECT * FROM cached_solutions WHERE expires_at > ?',
+                      Time.now.utc.iso8601
+                    )
+                  end
 
         return nil if results.empty?
 
@@ -1060,7 +1060,7 @@ module SmartSuite
       def register_custom_functions
         # Register fuzzy_match function
         # Returns 1 if text fuzzy matches query, 0 otherwise
-        @db.create_function('fuzzy_match', 2) do |func, text, query|
+        @db.create_function('fuzzy_match', 2) do |_func, text, query|
           # Handle NULL values
           next 0 if text.nil? || query.nil?
 
