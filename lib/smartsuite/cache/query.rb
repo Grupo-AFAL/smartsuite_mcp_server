@@ -18,6 +18,22 @@ module SmartSuite
     class Query
       attr_reader :cache, :table_id
 
+      # Field type categorization for proper operator handling
+      JSON_ARRAY_FIELD_TYPES = %w[
+        userfield
+        multipleselectfield
+        linkedrecordfield
+      ].freeze
+
+      TEXT_FIELD_TYPES = %w[
+        textfield
+        textareafield
+        richtextareafield
+        emailfield
+        phonefield
+        linkfield
+      ].freeze
+
       def initialize(cache, table_id)
         @cache = cache
         @table_id = table_id
@@ -26,6 +42,16 @@ module SmartSuite
         @order_clauses = []
         @limit_clause = nil
         @offset_clause = nil
+      end
+
+      # Check if field type is a JSON array field
+      def json_array_field?(field_type)
+        JSON_ARRAY_FIELD_TYPES.include?(field_type)
+      end
+
+      # Check if field type is a text field
+      def text_field?(field_type)
+        TEXT_FIELD_TYPES.include?(field_type)
       end
 
       # Add WHERE conditions
@@ -314,22 +340,20 @@ module SmartSuite
           ["#{col_name} IS NOT NULL", []]
         when :is_empty
           # For JSON array fields (userfield, multipleselectfield, linkedrecordfield)
-          # NOTE: Check this BEFORE text fields because linkedrecordfield contains 'field' which matches /text/
-          if field_type =~ /userfield|multipleselectfield|linkedrecordfield/
+          if json_array_field?(field_type)
             ["(#{col_name} IS NULL OR #{col_name} = '[]')", []]
           # For text fields
-          elsif field_type =~ /text|email|phone|link/
+          elsif text_field?(field_type)
             ["(#{col_name} IS NULL OR #{col_name} = '')", []]
           else
             ["#{col_name} IS NULL", []]
           end
         when :is_not_empty
           # For JSON array fields (userfield, multipleselectfield, linkedrecordfield)
-          # NOTE: Check this BEFORE text fields because linkedrecordfield contains 'field' which matches /text/
-          if field_type =~ /userfield|multipleselectfield|linkedrecordfield/
+          if json_array_field?(field_type)
             ["(#{col_name} IS NOT NULL AND #{col_name} != '[]')", []]
           # For text fields
-          elsif field_type =~ /text|email|phone|link/
+          elsif text_field?(field_type)
             ["(#{col_name} IS NOT NULL AND #{col_name} != '')", []]
           else
             ["#{col_name} IS NOT NULL", []]
@@ -349,6 +373,14 @@ module SmartSuite
           conditions = value.map { "json_extract(#{col_name}, '$') NOT LIKE ?" }
           params = value.map { |v| "%\"#{v}\"%" }
           ["(#{conditions.join(' AND ')})", params]
+        when :is_exactly
+          # Array must contain exactly these values (no more, no less)
+          # Check: (1) length matches AND (2) all values present
+          length_check = "json_array_length(#{col_name}) = ?"
+          value_checks = value.map { "json_extract(#{col_name}, '$') LIKE ?" }
+          all_conditions = [length_check] + value_checks
+          params = [value.length] + value.map { |v| "%\"#{v}\"%" }
+          ["(#{all_conditions.join(' AND ')})", params]
         else
           # Fallback: treat as equality
           ["#{col_name} = ?", [value]]

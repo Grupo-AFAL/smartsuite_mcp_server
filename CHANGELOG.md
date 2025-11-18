@@ -88,13 +88,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - **Before fix**: ❌ RETURNED (cache checked IS NOT NULL → true for empty array)
     - **After fix**: ✅ NOT returned (cache checks `!= '[]'` → false for empty array)
   - **Fixed in**: `Cache::Query.build_complex_condition` (line 315-336)
-  - **Additional fix**: Reordered regex conditions to check JSON array fields BEFORE text fields (linkedrecordfield contains 'field' which matches `/text/`)
   - **Impact**: Array field filtering now returns identical results to SmartSuite API
   - **Comprehensive testing**:
     - Verified against API for statusfield, singleselectfield, multipleselectfield, userfield (7/7 tests pass)
     - Verified all linkedrecordfield operators: has_any_of, has_all_of, has_none_of, is_empty, is_not_empty (8/8 tests pass)
 
+- **CRITICAL: Refactored field type detection to prevent regex pattern matching bugs** - Replaced fragile regex patterns with exact type checking
+  - **Root cause**: Field type `linkedrecordfield` contains substrings "text" and "link" which incorrectly matched text field regex `/text|email|phone|link/` BEFORE matching array field pattern
+  - **Discovery**: is_empty/is_not_empty tests for linkedrecordfield failed because it was being treated as text field (checking `= ''` instead of `= '[]'`)
+  - **Previous behavior**: Used regex patterns to categorize fields → substring matches caused incorrect behavior
+  - **Fixed behavior**: Uses whitelist constants with exact type matching → no false matches possible
+  - **Changes**:
+    - Added `JSON_ARRAY_FIELD_TYPES` constant (line 22-26): `%w[userfield multipleselectfield linkedrecordfield]`
+    - Added `TEXT_FIELD_TYPES` constant (line 28-35): `%w[textfield textareafield richtextareafield emailfield phonefield linkfield]`
+    - Added `json_array_field?(field_type)` helper method (line 48-50): Exact type checking for JSON arrays
+    - Added `text_field?(field_type)` helper method (line 53-55): Exact type checking for text fields
+    - Refactored is_empty/is_not_empty to use helper methods instead of regex (line 341-360)
+  - **Impact**: Eliminates entire class of bugs related to substring matching in field type detection
+  - **Benefits**: More maintainable, more explicit, easier to extend with new field types
+  - **Fixed in**: `Cache::Query` (lib/smartsuite/cache/query.rb)
+
 ### Added
+
+- **is_exactly operator for JSON array fields** - New operator to check if array contains exactly specified values (no more, no less)
+  - **Implementation**: Combines JSON array length check with value presence checks
+  - **SQL generation**: `json_array_length(field) = ? AND json_extract(field, '$') LIKE ? AND ...`
+  - **Affected field types**: userfield, multipleselectfield, linkedrecordfield
+  - **Use case**: Find records where `tags` is exactly `['tag_a', 'tag_b']` (not `['tag_a']` or `['tag_a', 'tag_b', 'tag_c']`)
+  - **Example**: `.where(tags: { is_exactly: ['tag_a', 'tag_b'] })`
+  - **Testing**: Verified against SmartSuite API for linkedrecordfield and multipleselectfield (2/2 tests pass)
+  - **Added in**: `Cache::Query.build_complex_condition` (line 376-383)
 
 - **Fuzzy name search for solutions** - Filter solutions by name with typo tolerance
   - Added `name` parameter to `list_solutions` tool with strong recommendation to use for token optimization
@@ -105,6 +128,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Examples: "desarollo" matches "Desarrollos de software", "gestion" matches "Gestión de Proyectos"
   - Implemented in `FuzzyMatcher` module with comprehensive test coverage (19 tests, 57 assertions)
   - Comprehensive accent support tested: all Spanish vowels (á,é,í,ó,ú), special chars (ñ,ü), uppercase, bidirectional matching
+
+### Changed
+
+- **Verified numeric field operators work correctly** - Comprehensive testing confirms all comparison operators match SmartSuite API
+  - **Operators tested**: gt, gte, lt, lte, eq (5 operators)
+  - **Field types tested**: numberfield, currencyfield, percentfield, ratingfield (4 field types)
+  - **Test coverage**: 11 test cases covering all operators across all numeric field types
+  - **Result**: 11/11 tests pass - cache returns identical results to SmartSuite API
+  - **Operators**:
+    - `:gt` → `is_greater_than` → `field > value`
+    - `:gte` → `is_equal_or_greater_than` → `field >= value`
+    - `:lt` → `is_less_than` → `field < value`
+    - `:lte` → `is_equal_or_less_than` → `field <= value`
+    - `:eq` → `is_equal_to` → `field = value`
   - Cache-first strategy: fuzzy matching happens at SQLite layer when using cache
   - Fallback client-side filtering for non-cached responses
 - **Missing documentation files** - Created comprehensive documentation to fix broken links:
