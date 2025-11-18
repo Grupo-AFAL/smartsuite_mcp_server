@@ -528,7 +528,7 @@ module SmartSuite
           [Time.now.utc.iso8601]
         ).first
 
-        result && result['count'].positive?
+        result && result['count'].to_i.positive?
       end
 
       # Record cache statistics
@@ -713,7 +713,7 @@ module SmartSuite
           Time.now.utc.iso8601
         ).first
 
-        valid = result && result['count'].positive?
+        valid = result && result['count'].to_i.positive?
 
         QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'solutions')
 
@@ -913,7 +913,7 @@ module SmartSuite
             solution_id, Time.now.utc.iso8601
           ).first
 
-          valid = result && result['count'].positive?
+          valid = result && result['count'].to_i.positive?
           QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', "table_list:solution:#{solution_id}")
         else
           result = db_execute(
@@ -921,7 +921,7 @@ module SmartSuite
             Time.now.utc.iso8601
           ).first
 
-          valid = result && result['count'].positive?
+          valid = result && result['count'].to_i.positive?
           QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'table_list:all_tables')
         end
         valid

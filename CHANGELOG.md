@@ -93,6 +93,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **SQLite COUNT() type coercion** - Fixed "can't convert String into an exact number" error in cache validation
+  - SQLite COUNT() returns strings in some configurations, calling `.positive?` on String fails
+  - Fixed 4 occurrences in cache/layer.rb: lines 531, 716, 916, 924
+  - Now converts to integer before calling `.positive?`: `result['count'].to_i.positive?`
+  - Resolves MCP error -32603 when calling list_tables with solution_id parameter
 - **list_solutions cache bypass** - Fixed list_solutions to use cache even when fields parameter is provided
   - Previously bypassed cache when fields parameter was present (line 42: `|| fields` condition)
   - Previously didn't cache responses when fields parameter was provided (line 60: `&& fields.nil?` condition)
