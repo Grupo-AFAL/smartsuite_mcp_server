@@ -35,6 +35,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added MCP tool schemas in `ToolRegistry` (lines 371-406)
   - Added server handlers in `SmartSuiteServer` (lines 217-220)
 
+### Changed
+
+- **Test helper methods** - Extracted common test patterns to reduce duplication
+  - Added `create_client`: Eliminates repeated client instantiation in tests
+  - Added `assert_requires_parameter`: DRY pattern for parameter validation tests
+  - Added `assert_api_error`: DRY pattern for API error handling tests
+  - Applied to 16 new tests for bulk operations, file operations, and deleted records
+  - Reduced test file by 55 lines (1,016 → 961 lines, -5.4%)
+  - Improved test readability and maintainability
+
+- **Schema constants in ToolRegistry** - Extracted common parameter schemas
+  - Added 8 reusable schema constants (SCHEMA_TABLE_ID, SCHEMA_RECORD_ID, etc.)
+  - Applied to 6 new record operation tools
+  - Eliminates 35 lines of schema duplication
+  - Single source of truth for parameter definitions
+  - Frozen constants prevent accidental mutation
+
 ### Removed
 
 - **BREAKING: `bypass_cache` parameter removed** - Removed bypass_cache parameter from all operations
