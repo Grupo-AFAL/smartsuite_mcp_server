@@ -231,7 +231,7 @@ class SecureFileAttacher
     raise ArgumentError, 'record_id cannot be nil or empty' if record_id.nil? || record_id.empty?
     raise ArgumentError, 'field_slug cannot be nil or empty' if field_slug.nil? || field_slug.empty?
     raise ArgumentError, 'file_paths cannot be nil or empty' if file_paths.nil? ||
-                                                                 (file_paths.is_a?(Array) && file_paths.empty?)
+                                                                (file_paths.is_a?(Array) && file_paths.empty?)
   end
 
   # Validate all files exist
@@ -264,7 +264,7 @@ class SecureFileAttacher
   #
   # SmartSuite needs time to download files from the pre-signed URLs.
   # We wait to ensure files are fetched before deletion.
-  def wait_for_fetch(objects, timeout:)
+  def wait_for_fetch(_objects, timeout:)
     start = Time.now
     elapsed = 0
 
@@ -281,16 +281,14 @@ class SecureFileAttacher
   # Delete temporary files from S3
   def cleanup_temp_files(objects)
     objects.each do |obj|
-      begin
-        obj.delete
-        log_debug("Deleted temporary file: s3://#{@bucket_name}/#{obj.key}")
-      rescue Aws::S3::Errors::NoSuchKey
-        # Already deleted, ignore
-        log_debug("File already deleted: s3://#{@bucket_name}/#{obj.key}")
-      rescue Aws::S3::Errors::ServiceError => e
-        # Log error but don't fail - lifecycle policy will clean up
-        log_error("Failed to delete temporary file: #{e.message}")
-      end
+      obj.delete
+      log_debug("Deleted temporary file: s3://#{@bucket_name}/#{obj.key}")
+    rescue Aws::S3::Errors::NoSuchKey
+      # Already deleted, ignore
+      log_debug("File already deleted: s3://#{@bucket_name}/#{obj.key}")
+    rescue Aws::S3::Errors::ServiceError => e
+      # Log error but don't fail - lifecycle policy will clean up
+      log_error("Failed to delete temporary file: #{e.message}")
     end
   end
 

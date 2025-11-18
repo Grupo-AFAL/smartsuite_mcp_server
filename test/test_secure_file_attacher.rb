@@ -4,11 +4,26 @@ require 'minitest/autorun'
 require 'webmock/minitest'
 require 'json'
 require 'tempfile'
-require_relative '../lib/secure_file_attacher'
 require_relative '../lib/smartsuite_client'
+
+# Try to load SecureFileAttacher - skip all tests if aws-sdk-s3 not installed
+begin
+  require_relative '../lib/secure_file_attacher'
+  AWS_SDK_AVAILABLE = true
+rescue LoadError => e
+  AWS_SDK_AVAILABLE = false
+  warn "Skipping SecureFileAttacher tests: #{e.message}"
+end
 
 # Tests for SecureFileAttacher
 class TestSecureFileAttacher < Minitest::Test
+  def self.runnable_methods
+    # Skip all tests if AWS SDK not available
+    return [] unless defined?(AWS_SDK_AVAILABLE) && AWS_SDK_AVAILABLE
+
+    super
+  end
+
   def setup
     @api_key = 'test_api_key'
     @account_id = 'test_account_id'
@@ -29,8 +44,8 @@ class TestSecureFileAttacher < Minitest::Test
 
   def teardown
     # Clean up temporary files
-    @temp_file1.unlink if @temp_file1
-    @temp_file2.unlink if @temp_file2
+    @temp_file1&.unlink
+    @temp_file2&.unlink
   end
 
   # ==============================================================================
@@ -210,20 +225,18 @@ class TestSecureFileAttacher < Minitest::Test
 
   # Check if AWS credentials are available
   def aws_credentials_available?
-    begin
-      require 'aws-sdk-s3'
-      # Try to create an S3 resource - this will fail if credentials not available
-      Aws::S3::Resource.new(region: 'us-east-1', stub_responses: true)
-      true
-    rescue LoadError
-      # aws-sdk-s3 not installed
-      false
-    rescue Aws::Errors::MissingCredentialsError
-      # Credentials not configured
-      false
-    rescue StandardError
-      # Other errors - assume credentials might be available
-      true
-    end
+    require 'aws-sdk-s3'
+    # Try to create an S3 resource - this will fail if credentials not available
+    Aws::S3::Resource.new(region: 'us-east-1', stub_responses: true)
+    true
+  rescue LoadError
+    # aws-sdk-s3 not installed
+    false
+  rescue Aws::Errors::MissingCredentialsError
+    # Credentials not configured
+    false
+  rescue StandardError
+    # Other errors - assume credentials might be available
+    true
   end
 end
