@@ -247,7 +247,7 @@ module SmartSuite
         expires_at = (Time.now + ttl_seconds).utc.iso8601
 
         # Clear existing records (re-fetch strategy)
-        @db.execute("DELETE FROM #{sql_table_name}")
+        db_execute("DELETE FROM #{sql_table_name}")
 
         # Insert all records with same expiration time
         records.each do |record|
@@ -305,7 +305,7 @@ module SmartSuite
         sql = "INSERT OR REPLACE INTO #{sql_table_name} (#{columns.join(', ')})
              VALUES (#{placeholders.join(', ')})"
 
-        @db.execute(sql, values)
+        db_execute(sql, values)
       end
 
       # Find matching value from extracted values for a stored column name
@@ -517,7 +517,7 @@ module SmartSuite
         if schema
           sql_table_name = schema['sql_table_name']
           # Set expires_at to 0 to force re-fetch of cached records
-          @db.execute("UPDATE #{sql_table_name} SET expires_at = 0")
+          db_execute("UPDATE #{sql_table_name} SET expires_at = 0")
           record_stat('invalidation', 'table_records', table_id)
         end
 
@@ -540,7 +540,7 @@ module SmartSuite
         sql_table_name = schema['sql_table_name']
 
         # Check if any record exists and is not expired
-        result = @db.execute(
+        result = db_execute(
           "SELECT COUNT(*) as count FROM #{sql_table_name} WHERE expires_at > ?",
           [Time.now.utc.iso8601]
         ).first
@@ -745,7 +745,13 @@ module SmartSuite
       end
 
       # Invalidate solutions cache
+      #
+      # Cascades invalidation to all tables and their records
       def invalidate_solutions_cache
+        # Invalidate table list (which cascades to records)
+        invalidate_table_list_cache(nil)
+
+        # Invalidate solutions
         db_execute('UPDATE cached_solutions SET expires_at = 0')
         record_stat('invalidation', 'solutions', 'solutions')
         QueryLogger.log_cache_operation('invalidate', 'solutions')
@@ -950,8 +956,13 @@ module SmartSuite
 
       # Invalidate table list cache
       #
+      # Cascades invalidation to all records in the tables
       # @param solution_id [String, nil] Solution ID (nil for all tables)
       def invalidate_table_list_cache(solution_id)
+        # Invalidate cached records first (cascade)
+        invalidate_records_for_solution(solution_id)
+
+        # Then invalidate table metadata
         if solution_id
           db_execute('UPDATE cached_tables SET expires_at = 0 WHERE solution_id = ?', solution_id)
           record_stat('invalidation', 'table_list', solution_id)
@@ -1067,6 +1078,51 @@ module SmartSuite
           # Use FuzzyMatcher module for matching logic
           SmartSuite::FuzzyMatcher.match?(text, query) ? 1 : 0
         end
+      end
+
+      # Get all table IDs for a solution from cached_tables
+      #
+      # @param solution_id [String] Solution ID
+      # @return [Array<String>] Array of table IDs belonging to the solution
+      def get_table_ids_for_solution(solution_id)
+        results = db_execute(
+          'SELECT id FROM cached_tables WHERE solution_id = ?',
+          solution_id
+        )
+        results.map { |row| row['id'] }
+      end
+
+      # Invalidate all cached records for tables in a solution
+      #
+      # @param solution_id [String, nil] Solution ID (nil for all tables)
+      def invalidate_records_for_solution(solution_id)
+        table_ids = if solution_id
+                      get_table_ids_for_solution(solution_id)
+                    else
+                      # Get all table IDs from cache_table_registry
+                      schemas = db_execute('SELECT table_id FROM cache_table_registry')
+                      schemas.map { |row| row['table_id'] }
+                    end
+
+        return if table_ids.empty?
+
+        # Invalidate records for each table
+        invalidated_count = 0
+        table_ids.each do |table_id|
+          schema = get_cached_table_schema(table_id)
+          next unless schema
+
+          sql_table_name = schema['sql_table_name']
+          db_execute("UPDATE #{sql_table_name} SET expires_at = 0")
+          record_stat('invalidation', 'table_records', table_id)
+          invalidated_count += 1
+        end
+
+        QueryLogger.log_cache_operation(
+          'invalidate',
+          solution_id ? "records:solution:#{solution_id}" : 'records:all_tables',
+          count: invalidated_count
+        )
       end
 
       # Get solutions cache status
