@@ -36,9 +36,10 @@ module SmartSuite
       # @example List with specific fields
       #   list_solutions(fields: ['id', 'name', 'permissions'])
       def list_solutions(include_activity_data: false, fields: nil, bypass_cache: false)
-        # Try cache first if enabled and no custom fields specified
-        # (custom fields parameter doesn't work with API, so we fetch full data either way)
-        unless should_bypass_cache?(bypass: bypass_cache) || fields
+        # Try cache first if enabled
+        # Note: Even if fields parameter is specified, we use cache and filter client-side
+        # because the /solutions/ API endpoint doesn't respect the fields parameter anyway
+        unless should_bypass_cache?(bypass: bypass_cache)
           cached_solutions = @cache.get_cached_solutions
           if cached_solutions
             log_cache_hit('solutions', cached_solutions.size)
@@ -55,8 +56,9 @@ module SmartSuite
 
         response = api_request(:get, endpoint)
 
-        # Cache the full response if cache enabled and no custom fields
-        if cache_enabled? && !bypass_cache && fields.nil?
+        # Cache the full response if cache enabled
+        # Note: We cache regardless of fields parameter since API returns full data anyway
+        if cache_enabled? && !bypass_cache
           solutions_list = response.is_a?(Array) ? response : extract_items_from_response(response)
           @cache.cache_solutions(solutions_list)
           log_metric("✓ Cached #{solutions_list.size} solutions")

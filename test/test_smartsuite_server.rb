@@ -2050,7 +2050,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test list_solutions with fields parameter
   def test_list_solutions_with_fields_parameter
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -2222,6 +2222,76 @@ class SmartSuiteServerTest < Minitest::Test
 
       client.list_records('tbl_123', 10, 0, fields: ['title'], bypass_cache: true)
       assert_equal 2, api_call_count, 'Should make another API call when bypass_cache: true'
+    ensure
+      FileUtils.rm_f(cache_path)
+    end
+  end
+
+  # Regression test: list_solutions should use cache even when fields parameter is provided
+  # Bug fixed: Previously bypassed cache whenever fields parameter was present
+  def test_list_solutions_uses_cache_with_fields_parameter
+    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
+
+    begin
+      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
+
+      api_call_count = 0
+      mock_response = {
+        'items' => [
+          {
+            'id' => 'sol_1',
+            'name' => 'Solution 1',
+            'logo_icon' => 'star',
+            'logo_color' => '#FF0000',
+            'created' => '2025-01-01T00:00:00Z',
+            'status' => 'active'
+          },
+          {
+            'id' => 'sol_2',
+            'name' => 'Solution 2',
+            'logo_icon' => 'rocket',
+            'logo_color' => '#00FF00',
+            'created' => '2025-01-02T00:00:00Z',
+            'status' => 'active'
+          }
+        ]
+      }
+
+      # Mock api_request to track API calls
+      client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+        api_call_count += 1
+        mock_response
+      end
+
+      # First call should populate cache (1 API call)
+      result1 = client.list_solutions
+      assert_equal 1, api_call_count, 'Should make 1 API call to populate cache'
+      assert_equal 2, result1['count'], 'Should return 2 solutions'
+
+      # Second call WITH fields parameter should use cache (no additional API call)
+      # This is the regression test - previously this would bypass cache
+      result2 = client.list_solutions(fields: %w[id name created])
+      assert_equal 1, api_call_count, 'Should NOT make additional API call (cache hit)'
+      assert_equal 2, result2['count'], 'Should return 2 solutions from cache'
+
+      # Verify client-side filtering worked
+      solution = result2['solutions'][0]
+      assert_equal 'sol_1', solution['id']
+      assert_equal 'Solution 1', solution['name']
+      assert_equal '2025-01-01T00:00:00Z', solution['created']
+      refute solution.key?('logo_icon'), 'Should not include fields not requested (client-side filtered)'
+      refute solution.key?('status'), 'Should not include fields not requested (client-side filtered)'
+
+      # Third call with different fields should still use cache
+      result3 = client.list_solutions(fields: %w[id name])
+      assert_equal 1, api_call_count, 'Should still NOT make additional API call (cache hit)'
+      assert_equal 2, result3['count'], 'Should return 2 solutions from cache'
+
+      # Verify different client-side filtering
+      solution3 = result3['solutions'][0]
+      assert_equal 'sol_1', solution3['id']
+      assert_equal 'Solution 1', solution3['name']
+      refute solution3.key?('created'), 'Should not include fields not requested'
     ensure
       FileUtils.rm_f(cache_path)
     end

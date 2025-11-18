@@ -93,6 +93,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **list_solutions cache bypass** - Fixed list_solutions to use cache even when fields parameter is provided
+  - Previously bypassed cache when fields parameter was present (line 42: `|| fields` condition)
+  - Previously didn't cache responses when fields parameter was provided (line 60: `&& fields.nil?` condition)
+  - Now correctly uses cache and performs client-side filtering for all calls
+  - API endpoint doesn't respect fields parameter anyway, so client-side filtering is always required
+  - Added regression test to prevent future cache bypass bugs
 - **is_not_empty filter operator** - Fixed FilterBuilder mapping from `{not_null: true}` to `{is_not_null: true}`
   - Resolves "can't prepare TrueClass" error when using `is_not_empty` filter
   - Cache::Query expects `:is_not_null`, not `:not_null` operator
