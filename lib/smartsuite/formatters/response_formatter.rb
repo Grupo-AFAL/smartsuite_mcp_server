@@ -293,7 +293,7 @@ module SmartSuite
       #
       # For SmartDoc fields (rich text with data/html/preview/yjsData keys),
       # extracts only the HTML content to minimize tokens while preserving readability.
-      # Cache stores the complete JSON structure.
+      # Cache stores the complete JSON structure as JSON strings, so we parse them first.
       #
       # Previously truncated values, but per user request we now return full values
       # except for SmartDoc optimization.
@@ -301,14 +301,27 @@ module SmartSuite
       # @param value [Object] Field value
       # @return [Object] Processed value (HTML string for SmartDoc, original value otherwise)
       def truncate_value(value)
+        # Try to parse JSON strings (cache stores complex values as JSON)
+        parsed_value = value.is_a?(String) ? parse_json_safe(value) : value
+
         # Detect SmartDoc structure (has data, html, preview, yjsData keys)
-        if smartdoc_value?(value)
+        if smartdoc_value?(parsed_value)
           # Return only HTML content for AI
           # Cache still stores complete JSON with all keys
-          value['html'] || value[:html] || ''
+          parsed_value['html'] || parsed_value[:html] || ''
         else
-          value
+          value # Return original value if not SmartDoc
         end
+      end
+
+      # Safely parse JSON string, returning nil if parsing fails.
+      #
+      # @param str [String] JSON string to parse
+      # @return [Object, nil] Parsed JSON or nil if invalid
+      def parse_json_safe(str)
+        JSON.parse(str)
+      rescue JSON::ParserError, TypeError
+        nil
       end
 
       # Determines if a value is a SmartDoc field.

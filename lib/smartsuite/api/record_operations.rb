@@ -39,13 +39,11 @@ module SmartSuite
       # @param sort [Array<Hash>, nil] Sort criteria (field + direction)
       # @param fields [Array<String>, nil] Field slugs to include in response (recommended for token efficiency)
       # @param hydrated [Boolean] Fetch human-readable values for linked records, users, etc. (default: true)
-      # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
       # @return [String] Plain text formatted records with total/filtered counts
       # @raise [ArgumentError] If table_id is missing
       # @example
       #   list_records('tbl_123', 10, 0, fields: ['status', 'priority'])
-      def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, hydrated: true,
-                       bypass_cache: false)
+      def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, hydrated: true)
         validate_required_parameter!('table_id', table_id)
 
         # Handle nil values (when called via MCP with missing parameters)
@@ -62,12 +60,12 @@ module SmartSuite
         end
 
         # Try cache-first strategy if enabled
-        unless should_bypass_cache?(bypass: bypass_cache)
+        unless should_bypass_cache?
           return list_records_from_cache(table_id, limit, offset, filter, sort, fields,
                                          hydrated)
         end
 
-        # Fallback to direct API call (cache disabled or bypassed)
+        # Fallback to direct API call (cache disabled)
         list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
       end
 
@@ -124,7 +122,7 @@ module SmartSuite
       # Apply SmartSuite sort criteria to cache query
       #
       # SmartSuite sort format: [{field: 'field_slug', direction: 'asc|desc'}, ...]
-      # Currently only supports single field sorting (uses first sort criterion).
+      # Applies all sort criteria in order.
       #
       # @param query [SmartSuite::Cache::Query] Cache query builder instance
       # @param sort [Array<Hash>] SmartSuite sort array
@@ -132,12 +130,14 @@ module SmartSuite
       def apply_sorting_to_query(query, sort)
         return query unless sort.is_a?(Array) && sort.any?
 
-        # Get first sort criterion (Query.order currently only supports single field)
-        first_sort = sort.first
-        field_slug = first_sort['field'] || first_sort[:field]
-        direction = first_sort['direction'] || first_sort[:direction] || 'ASC'
+        # Apply all sort criteria in order
+        sort.each do |sort_criterion|
+          field_slug = sort_criterion['field'] || sort_criterion[:field]
+          direction = sort_criterion['direction'] || sort_criterion[:direction] || 'ASC'
+          query.order(field_slug, direction.upcase)
+        end
 
-        query.order(field_slug, direction.upcase)
+        query
       end
 
       # Direct API call (original behavior, used when cache disabled/bypassed)

@@ -336,11 +336,17 @@ module SmartSuite
           return extracted_values['deleted_on'] if stored_col_name == 'deleted_on'
           return extracted_values['deleted_by'] if stored_col_name == 'deleted_by'
         when 'statusfield'
-          col_base = sanitize_column_name(field_slug)
+          # Use label-based column name (same as get_field_columns)
+          field_label = field_info['label']
+          col_base = if field_label && !field_label.empty?
+                       sanitize_column_name(field_label)
+                     else
+                       sanitize_column_name(field_slug)
+                     end
           return extracted_values[col_base] if stored_col_name.end_with?(col_base) && !stored_col_name.include?('_updated_on')
           return extracted_values["#{col_base}_updated_on"] if stored_col_name.include?('_updated_on')
         when 'daterangefield', 'duedatefield'
-          sanitize_column_name(field_slug)
+          # Match by suffix pattern for daterange fields
           extracted_values.each do |extracted_col, val|
             # Match by suffix: "fecha_from" matches anything ending with "_from"
             if extracted_col.end_with?('_from') && stored_col_name.include?('_from')
@@ -389,8 +395,15 @@ module SmartSuite
         return {} if value.nil?
 
         field_slug = field_info['slug']
+        field_label = field_info['label']
         field_type = field_info['field_type'].downcase
-        col_name = sanitize_column_name(field_slug)
+
+        # Use field label for column name, fallback to slug (same as get_field_columns)
+        col_name = if field_label && !field_label.empty?
+                     sanitize_column_name(field_label)
+                   else
+                     sanitize_column_name(field_slug)
+                   end
 
         case field_type
         when 'firstcreated'

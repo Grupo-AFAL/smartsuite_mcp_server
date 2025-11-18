@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING: `bypass_cache` parameter removed** - Removed bypass_cache parameter from all operations
+  - Rationale: During development, bypass_cache served as an escape valve that masked cache implementation issues instead of fixing root causes
+  - Affected methods: `list_records`, `list_tables`, `list_solutions`
+  - Migration: Remove any `bypass_cache: true` arguments from tool calls
+  - Cache behavior: Cache expires naturally by TTL (4 hours default) - no manual bypass needed
+  - If cache issues occur, they should be investigated and fixed rather than bypassed
+
+### Fixed
+
+- **Sort behavior now consistent across cache states** - All sort criteria applied regardless of cache enabled/disabled
+  - **Breaking**: Previously, only first sort criterion was applied when cache enabled; now all criteria applied
+  - Updated `Cache::Query.order()` to support multiple ORDER BY clauses (appends instead of replacing)
+  - Updated `apply_sorting_to_query()` to iterate through all sort criteria, not just first
+  - SQL generation now joins multiple ORDER BY clauses: `ORDER BY field1 ASC, field2 DESC`
+  - Behavior now consistent: sort parameter works identically whether cache is enabled or disabled
+
+- **Simplified tool descriptions** - Removed cache implementation details from tool registry
+  - Tool descriptions now focus on WHAT tools do, not HOW they implement it
+  - Removed "cache-first strategy", "SQL WHERE clauses", "zero API cost" from descriptions
+  - Removed cache notes from CRUD operations (create/update/delete records, add/update/delete fields)
+  - AI and users no longer need to think about caching - parameters just work consistently
+  - Cache management tools (get_cache_status, refresh_cache, warm_cache) appropriately keep cache mentions
+
+- **CRITICAL: Fixed cache index creation bug for label-based column names** - Daterangefield and statusfield indexes now use correct column names
+  - **Root cause**: Column names are generated from field labels, but index creation was using field slugs
+  - **Example**: Field with slug `sf_daterange` and label "Date Range" creates columns `date_range_from` and `date_range_to`, but indexes tried to use `sf_daterange_from` (column doesn't exist → SQL error)
+  - **Affected field types**: daterangefield, duedatefield, statusfield, and all other fields with labels different from slugs
+  - **Fixed in 3 locations**:
+    1. `Cache::Metadata.create_indexes_for_table` (line 269-290): Now uses actual column names from field_mapping instead of regenerating from slug
+    2. `Cache::Metadata.handle_schema_evolution` (line 481-514): Fixed dynamic field addition to use correct column names for indexes
+    3. `Cache::Layer.extract_field_value` (line 388-400): Fixed to use field label (with slug fallback) matching `get_field_columns` naming
+    4. `Cache::Layer.find_matching_value` (line 338-350): Fixed statusfield matching to use label-based column names
+  - **Impact**: Tables with daterange, duedate, or status fields can now be cached successfully
+  - **Migration**: Restart MCP server and delete `~/.smartsuite_mcp_cache.db` to recreate tables with correct indexes
+
+- **CRITICAL: Fixed duedatefield and daterangefield filtering to match SmartSuite API behavior** - Cache now uses correct column for date comparisons
+  - **Root cause**: Cache was using `from_date` column for all comparisons, but SmartSuite API uses `to_date`
+  - **Discovery**: Created test record with date range (from: 2025-03-01, to: 2025-03-31) and compared cache vs API filtering results
+  - **SmartSuite API behavior** (verified via direct API testing):
+    - Standard field (e.g., `due_date`): ALL comparisons use `to_date` column
+      - `is_after value`: `to_date > value`
+      - `is_on_or_after value`: `to_date >= value`
+      - `is_before value`: `to_date < value`
+      - `is_on_or_before value`: `to_date <= value`
+    - Sub-field filtering (e.g., `due_date.from_date`): Uses specified column
+      - `due_date.from_date`: Filters by `from_date` column
+      - `due_date.to_date`: Filters by `to_date` column
+  - **Previous behavior**: Cache used `from_date` for all date comparisons → returned DIFFERENT results than API
+  - **Fixed behavior**: Cache now uses `to_date` by default (matching API), supports sub-field filtering
+  - **Example impact**:
+    - Record with due_date from 2025-03-01 to 2025-03-31
+    - Filter: `is_on_or_after 2025-03-15`
+    - **Before fix**: ❌ NOT returned (cache checked `from_date` 2025-03-01 >= 2025-03-15 = false)
+    - **After fix**: ✅ RETURNED (cache checks `to_date` 2025-03-31 >= 2025-03-15 = true)
+  - **Fixed in**:
+    1. `Cache::Query.build_condition` (line 219-251): Added special handling for duedatefield and daterangefield to select `to_date` column for filtering
+    2. `Cache::Query.order` (line 74-110): Added special handling for duedatefield and daterangefield to select `to_date` column for sorting
+  - **Impact**: Date filtering AND sorting now return identical results whether using cache or API
+  - **Migration**: Delete `~/.smartsuite_mcp_cache.db` and restart to rebuild cache with correct filtering and sorting
+
 ### Added
 
 - **Fuzzy name search for solutions** - Filter solutions by name with typo tolerance
@@ -104,6 +166,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **SmartDoc HTML extraction from cached records** - Fixed ResponseFormatter not extracting HTML from rich text fields when using cache
+  - Cache stores SmartDoc fields as JSON strings, but ResponseFormatter was only detecting Hash objects
+  - Added JSON string parsing to `truncate_value` method before SmartDoc detection
+  - Now correctly extracts HTML from both direct API responses (Hashes) and cached records (JSON strings)
+  - Mirrors the approach used in RecordOperations.process_smartdoc_fields
+  - Reduces token usage for rich text fields from ~25k to ~3-4k tokens (87-90% reduction)
+  - Added 12 comprehensive tests covering JSON string parsing, SmartDoc detection, and edge cases
+  - Fixes issue where list_records returned full TipTap/ProseMirror JSON instead of just HTML content
 - **is_empty/is_not_empty filter API rejection** - Fixed SmartSuite API rejecting empty check filters with non-null values
   - Error: `"' is not allowed for the 'is_not_empty' comparison"` (API error 400)
   - SmartSuite API requires `null` value for `is_empty` and `is_not_empty` operators, not empty string

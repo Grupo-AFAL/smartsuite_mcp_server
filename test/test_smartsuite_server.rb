@@ -236,7 +236,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test SmartSuiteClient data formatting
   def test_client_list_solutions_formats_hash_response
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -261,7 +261,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions(bypass_cache: true)
+    result = client.list_solutions
 
     assert_equal 2, result['count']
     assert_equal 2, result['solutions'].length
@@ -271,7 +271,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_solutions_formats_array_response
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = [
       {
@@ -287,14 +287,14 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions(bypass_cache: true)
+    result = client.list_solutions
 
     assert_equal 1, result['count']
     assert_equal 1, result['solutions'].length
   end
 
   def test_client_list_tables_formats_response
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -312,7 +312,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_tables(bypass_cache: true)
+    result = client.list_tables
 
     assert_equal 1, result['count']
     assert_equal 'tbl_1', result['tables'][0]['id']
@@ -322,7 +322,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_tables_filters_by_solution_id
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     # Track the endpoint that was called
     called_endpoint = nil
@@ -350,7 +350,7 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     # Test filtering by solution_id
-    result = client.list_tables(solution_id: 'sol_1', bypass_cache: true)
+    result = client.list_tables(solution_id: 'sol_1')
 
     # Verify the API was called with the solution query parameter
     assert_equal '/applications/?solution=sol_1', called_endpoint, 'Should use solution query parameter'
@@ -386,7 +386,7 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     # Test with fields parameter
-    result = client.list_tables(fields: %w[name id structure], bypass_cache: true)
+    result = client.list_tables(fields: %w[name id structure])
 
     # Verify the API was called with fields query parameters
     assert_includes called_endpoint, 'fields=name', 'Should include fields=name'
@@ -2200,31 +2200,6 @@ class SmartSuiteServerTest < Minitest::Test
 
     client.list_records('tbl_123', 10, 0, fields: ['title'])
     assert_equal 2, api_call_count, 'Should make another API call (no cache)'
-  end
-
-  def test_list_records_with_bypass_cache_parameter
-    cache_path = File.join(Dir.tmpdir, "test_cache_#{Time.now.to_i}.db")
-
-    begin
-      client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: true, cache_path: cache_path)
-
-      api_call_count = 0
-
-      # Mock api_request for direct API calls
-      client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
-        api_call_count += 1
-        { 'items' => [], 'total_count' => 0 }
-      end
-
-      # Call with bypass_cache should always hit API
-      client.list_records('tbl_123', 10, 0, fields: ['title'], bypass_cache: true)
-      assert_equal 1, api_call_count, 'Should make API call when bypass_cache: true'
-
-      client.list_records('tbl_123', 10, 0, fields: ['title'], bypass_cache: true)
-      assert_equal 2, api_call_count, 'Should make another API call when bypass_cache: true'
-    ensure
-      FileUtils.rm_f(cache_path)
-    end
   end
 
   # Regression test: list_solutions should use cache even when fields parameter is provided

@@ -24,7 +24,6 @@ module SmartSuite
       #
       # @param solution_id [String, nil] Optional solution ID to filter tables
       # @param fields [Array<String>, nil] Optional array of field slugs to include in response
-      # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
       # @return [Hash] Tables with count and filtered data
       # @example List all tables
       #   list_tables
@@ -34,11 +33,11 @@ module SmartSuite
       #
       # @example List with specific fields
       #   list_tables(fields: ["id", "name", "structure"])
-      def list_tables(solution_id: nil, fields: nil, bypass_cache: false)
+      def list_tables(solution_id: nil, fields: nil)
         validate_optional_parameter!('fields', fields, Array) if fields
 
         # Try cache first if enabled and no custom fields specified
-        unless should_bypass_cache?(bypass: bypass_cache) || fields&.any?
+        unless should_bypass_cache? || fields&.any?
           cached_tables = @cache.get_cached_table_list(solution_id)
           cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
 
@@ -60,7 +59,7 @@ module SmartSuite
         response = api_request(:get, endpoint)
 
         # Cache the response if cache enabled and no custom fields
-        if cache_enabled? && !bypass_cache && fields.nil?
+        if cache_enabled? && fields.nil?
           # /applications/ endpoint returns an Array directly
           tables_list = response.is_a?(Array) ? response : extract_items_from_response(response)
           @cache.cache_table_list(solution_id, tables_list)

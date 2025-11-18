@@ -28,7 +28,6 @@ module SmartSuite
       # @param include_activity_data [Boolean] Include activity/usage fields (default: false)
       # @param fields [Array<String>] Specific fields to return (client-side filtered, optional)
       # @param name [String] Filter by solution name using fuzzy matching (optional)
-      # @param bypass_cache [Boolean] Force API call even if cache enabled (default: false)
       # @return [Hash] Solutions with count and filtered data
       # @example List all solutions
       #   list_solutions
@@ -42,12 +41,12 @@ module SmartSuite
       # @example Fuzzy search by name
       #   list_solutions(name: 'desarollo')  # Matches "Desarrollos de software"
       #   list_solutions(name: 'gestion')    # Matches "Gestión de Proyectos"
-      def list_solutions(include_activity_data: false, fields: nil, name: nil, bypass_cache: false)
+      def list_solutions(include_activity_data: false, fields: nil, name: nil)
         # Try cache first if enabled
         # Note: Even if fields parameter is specified, we use cache and filter client-side
         # because the /solutions/ API endpoint doesn't respect the fields parameter anyway
         # Note: Name filtering happens at DB layer using custom fuzzy_match SQLite function
-        unless should_bypass_cache?(bypass: bypass_cache)
+        unless should_bypass_cache?
           cached_solutions = @cache.get_cached_solutions(name: name)
           if cached_solutions
             log_cache_hit('solutions', cached_solutions.size)
@@ -67,7 +66,7 @@ module SmartSuite
 
         # Cache the full response if cache enabled
         # Note: We cache regardless of fields parameter since API returns full data anyway
-        if cache_enabled? && !bypass_cache
+        if cache_enabled?
           solutions_list = response.is_a?(Array) ? response : extract_items_from_response(response)
           @cache.cache_solutions(solutions_list)
           log_metric("✓ Cached #{solutions_list.size} solutions")
