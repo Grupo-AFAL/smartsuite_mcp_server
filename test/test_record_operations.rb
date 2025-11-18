@@ -40,8 +40,8 @@ class TestRecordOperations < Minitest::Test
     assert_includes result, 'fields', 'Should mention missing fields parameter'
   end
 
-  # Test list_records with bypass_cache
-  def test_list_records_bypass_cache
+  # Test list_records with cache disabled
+  def test_list_records_cache_disabled
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
 
     # Stub direct API call
@@ -51,7 +51,7 @@ class TestRecordOperations < Minitest::Test
         body: { items: [{ id: 'rec_1', status: 'active' }] }.to_json
       )
 
-    result = client.list_records('tbl_123', 10, 0, fields: ['status'], bypass_cache: true)
+    result = client.list_records('tbl_123', 10, 0, fields: ['status'])
 
     assert result.is_a?(String), 'Should return plain text'
   end
@@ -72,7 +72,7 @@ class TestRecordOperations < Minitest::Test
       )
 
     sort = [{ 'field' => 'priority', 'direction' => 'desc' }]
-    result = client.list_records('tbl_123', 10, 0, sort: sort, fields: ['priority'], bypass_cache: true)
+    result = client.list_records('tbl_123', 10, 0, sort: sort, fields: ['priority'])
 
     assert result.is_a?(String), 'Should return plain text'
   end
@@ -87,7 +87,7 @@ class TestRecordOperations < Minitest::Test
         body: { items: [] }.to_json
       )
 
-    result = client.list_records('tbl_123', 5, 10, fields: ['status'], bypass_cache: true)
+    result = client.list_records('tbl_123', 5, 10, fields: ['status'])
 
     assert result.is_a?(String), 'Should handle pagination'
   end
@@ -504,7 +504,7 @@ class TestRecordOperations < Minitest::Test
         body: { items: [] }.to_json
       )
 
-    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['status'], bypass_cache: true)
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['status'])
 
     assert result.is_a?(String), 'Should return plain text'
   end
@@ -536,7 +536,7 @@ class TestRecordOperations < Minitest::Test
         body: { items: [] }.to_json
       )
 
-    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['assigned_to'], bypass_cache: true)
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['assigned_to'])
 
     assert result.is_a?(String), 'Should return plain text'
   end
@@ -572,8 +572,7 @@ class TestRecordOperations < Minitest::Test
         body: { items: [] }.to_json
       )
 
-    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['status', 'priority', 'notes'],
-                                  bypass_cache: true)
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['status', 'priority', 'notes'])
 
     assert result.is_a?(String), 'Should return plain text'
   end
@@ -607,7 +606,7 @@ class TestRecordOperations < Minitest::Test
         body: { items: [] }.to_json
       )
 
-    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['title', 'amount'], bypass_cache: true)
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['title', 'amount'])
 
     assert result.is_a?(String), 'Should return plain text'
   end

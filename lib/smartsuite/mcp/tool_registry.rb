@@ -162,7 +162,7 @@ module SmartSuite
       RECORD_TOOLS = [
         {
           'name' => 'list_records',
-          'description' => 'List records from a SmartSuite table using CACHE-FIRST strategy with LOCAL SQL FILTERING. ⚠️ CRITICAL FOR EFFICIENCY: (1) ALWAYS use filter parameter to request only relevant records - do NOT fetch all records and filter manually! (2) ALWAYS specify MINIMAL fields - only request fields you actually need. Field values are NOT truncated, so requesting unnecessary fields wastes tokens. (3) Use small limit values (5-10) initially to preview data, then increase if needed. FILTERING: When cache enabled (default), all records are cached locally and filter parameter applies SQL WHERE clauses on cached data for instant filtering at zero API cost. Returns plain text format showing "X of Y filtered records (Z total)" to help you understand the data. REQUIRED: Must specify fields parameter.',
+          'description' => 'List records from a SmartSuite table with filtering, sorting, and field selection. ⚠️ CRITICAL FOR EFFICIENCY: (1) ALWAYS use filter parameter to request only relevant records - do NOT fetch all records and filter manually! (2) ALWAYS specify MINIMAL fields - only request fields you actually need. Field values are NOT truncated, so requesting unnecessary fields wastes tokens. (3) Use small limit values (5-10) initially to preview data, then increase if needed. Returns plain text format showing "X of Y filtered records (Z total)" to help you understand the data. REQUIRED: Must specify fields parameter.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -176,15 +176,15 @@ module SmartSuite
               },
               'offset' => {
                 'type' => 'number',
-                'description' => 'Number of records to skip for pagination (default: 0). Applied after local filtering when using cache.'
+                'description' => 'Number of records to skip for pagination (default: 0).'
               },
               'filter' => {
                 'type' => 'object',
-                'description' => '⚠️ STRONGLY RECOMMENDED: Filter criteria to request only relevant records. When cache enabled (default), filters are applied as SQL WHERE clauses on cached data for instant, zero-cost filtering - ALWAYS use this instead of fetching all records! STRUCTURE: {"operator": "and|or", "fields": [{"field": "field_slug", "comparison": "operator", "value": "value"}]}. EXAMPLES: 1) Status filter: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}]}. 2) Multiple conditions: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}, {"field": "priority", "comparison": "is_greater_than", "value": 3}]}. 3) Date range: {"operator": "and", "fields": [{"field": "due_date", "comparison": "is_after", "value": {"date_mode": "exact_date", "date_mode_value": "2025-01-01"}}]}. OPERATORS: is, is_not, contains, is_greater_than, is_less_than, is_equal_or_greater_than, is_equal_or_less_than, is_empty, is_not_empty, has_any_of, has_all_of, is_exactly, is_before, is_after. NOTE: Date fields require value as object with date_mode and date_mode_value.'
+                'description' => '⚠️ STRONGLY RECOMMENDED: Filter criteria to request only relevant records - ALWAYS use this instead of fetching all records! STRUCTURE: {"operator": "and|or", "fields": [{"field": "field_slug", "comparison": "operator", "value": "value"}]}. EXAMPLES: 1) Status filter: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}]}. 2) Multiple conditions: {"operator": "and", "fields": [{"field": "status", "comparison": "is", "value": "active"}, {"field": "priority", "comparison": "is_greater_than", "value": 3}]}. 3) Date range: {"operator": "and", "fields": [{"field": "due_date", "comparison": "is_after", "value": {"date_mode": "exact_date", "date_mode_value": "2025-01-01"}}]}. OPERATORS: is, is_not, contains, is_greater_than, is_less_than, is_equal_or_greater_than, is_equal_or_less_than, is_empty, is_not_empty, has_any_of, has_all_of, is_exactly, is_before, is_after. NOTE: Date fields require value as object with date_mode and date_mode_value.'
               },
               'sort' => {
                 'type' => 'array',
-                'description' => 'SmartSuite API sort criteria - ONLY used when cache disabled or bypass_cache=true. Ignored when using cache. Array of field-direction pairs. Example: [{"field": "created_on", "direction": "desc"}]',
+                'description' => 'Sort criteria applied to results. Array of field-direction pairs. Example: [{"field": "created_on", "direction": "desc"}].',
                 'items' => {
                   'type' => 'object',
                   'properties' => {
@@ -210,10 +210,6 @@ module SmartSuite
               'hydrated' => {
                 'type' => 'boolean',
                 'description' => 'Optional: If true (default), fetches human-readable values for linked records, users, and other reference fields. If false, returns raw IDs. Default: true.'
-              },
-              'bypass_cache' => {
-                'type' => 'boolean',
-                'description' => 'Optional: If true, forces a direct API call and updates cache. ⚠️ ONLY use when you have created/updated/deleted records IN THIS SAME SESSION and need to see those changes immediately. DO NOT use for read-only queries - the cache is automatically kept fresh. Default: false.'
               }
             },
             'required' => %w[table_id fields]
@@ -239,7 +235,7 @@ module SmartSuite
         },
         {
           'name' => 'create_record',
-          'description' => 'Create a new record in a SmartSuite table. CACHE NOTE: Newly created record will not appear in list_records results until you use bypass_cache=true in your NEXT list_records call (only needed if you want to see this new record immediately in the same session).',
+          'description' => 'Create a new record in a SmartSuite table.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -257,7 +253,7 @@ module SmartSuite
         },
         {
           'name' => 'update_record',
-          'description' => 'Update an existing record in a SmartSuite table. CACHE NOTE: Updates will not appear in list_records results until you use bypass_cache=true in your NEXT list_records call (only needed if you want to see the updated values immediately in the same session).',
+          'description' => 'Update an existing record in a SmartSuite table.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -279,7 +275,7 @@ module SmartSuite
         },
         {
           'name' => 'delete_record',
-          'description' => 'Delete a record from a SmartSuite table. CACHE NOTE: Deleted record will still appear in list_records results until you use bypass_cache=true in your NEXT list_records call (only needed if you want to verify deletion immediately in the same session).',
+          'description' => 'Delete a record from a SmartSuite table.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -302,7 +298,7 @@ module SmartSuite
       FIELD_TOOLS = [
         {
           'name' => 'add_field',
-          'description' => 'Add a new field to a SmartSuite table. Returns the created field object. CACHE NOTE: Does NOT invalidate table structure cache - use get_table with fresh data or wait for cache expiration if you need updated structure immediately.',
+          'description' => 'Add a new field to a SmartSuite table. Returns the created field object.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -328,7 +324,7 @@ module SmartSuite
         },
         {
           'name' => 'bulk_add_fields',
-          'description' => 'Add multiple fields to a SmartSuite table in one request. Note: Certain field types are not supported in bulk operations (e.g., Formula, Count, TimeTracking). CACHE NOTE: Does NOT invalidate table structure cache.',
+          'description' => 'Add multiple fields to a SmartSuite table in one request. Note: Certain field types are not supported in bulk operations (e.g., Formula, Count, TimeTracking).',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -356,7 +352,7 @@ module SmartSuite
         },
         {
           'name' => 'update_field',
-          'description' => 'Update an existing field in a SmartSuite table. Returns the updated field object. CACHE NOTE: Does NOT invalidate table structure cache.',
+          'description' => 'Update an existing field in a SmartSuite table. Returns the updated field object.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -378,7 +374,7 @@ module SmartSuite
         },
         {
           'name' => 'delete_field',
-          'description' => 'Delete a field from a SmartSuite table. Returns the deleted field object. CACHE NOTE: Does NOT invalidate table structure cache.',
+          'description' => 'Delete a field from a SmartSuite table. Returns the deleted field object.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {

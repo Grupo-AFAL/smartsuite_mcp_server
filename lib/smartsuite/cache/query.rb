@@ -23,7 +23,7 @@ module SmartSuite
         @table_id = table_id
         @where_clauses = []
         @params = []
-        @order_clause = nil
+        @order_clauses = []
         @limit_clause = nil
         @offset_clause = nil
       end
@@ -66,6 +66,8 @@ module SmartSuite
 
       # Add ORDER BY clause
       #
+      # Can be called multiple times to add additional sort criteria.
+      #
       # @param field_slug [String, Symbol] Field to order by
       # @param direction [String] 'ASC' or 'DESC'
       # @return [CacheQuery] self for chaining
@@ -74,12 +76,34 @@ module SmartSuite
         return self unless schema
 
         field_mapping = schema['field_mapping']
+        structure = schema['structure']
+        fields_info = structure['structure'] || []
+
         columns = field_mapping[field_slug.to_s]
 
         if columns
-          # Use first column for ordering
-          col_name = columns.keys.first
-          @order_clause = "ORDER BY #{col_name} #{direction.upcase}"
+          # Find field info to check field type
+          field_info = fields_info.find { |f| f['slug'] == field_slug.to_s }
+          field_type = field_info ? field_info['field_type'].downcase : nil
+
+          # Select appropriate column based on field type (same logic as build_condition)
+          # For duedatefield and daterangefield, SmartSuite API uses to_date for sorting
+          col_name = if (field_type == 'duedatefield' || field_type == 'daterangefield')
+                       # Check if sorting by sub-field (e.g., due_date.from_date)
+                       if field_slug.to_s.end_with?('.from_date')
+                         columns.keys.find { |k| k.end_with?('_from') } || columns.keys.first
+                       elsif field_slug.to_s.end_with?('.to_date')
+                         columns.keys.find { |k| k.end_with?('_to') } || columns.keys.first
+                       else
+                         # Default: use to_date column (matches SmartSuite API behavior)
+                         columns.keys.find { |k| k.end_with?('_to') } || columns.keys.first
+                       end
+                     else
+                       # For other field types, use first column
+                       columns.keys.first
+                     end
+
+          @order_clauses << "#{col_name} #{direction.upcase}"
         end
 
         self
@@ -118,8 +142,8 @@ module SmartSuite
         # Add WHERE clauses
         sql += " WHERE #{@where_clauses.join(' AND ')}" if @where_clauses.any?
 
-        # Add ORDER BY
-        sql += " #{@order_clause}" if @order_clause
+        # Add ORDER BY (support multiple sort criteria)
+        sql += " ORDER BY #{@order_clauses.join(', ')}" if @order_clauses.any?
 
         # Add LIMIT and OFFSET (OFFSET requires LIMIT in SQLite)
         if @offset_clause && !@limit_clause
@@ -216,7 +240,27 @@ module SmartSuite
       # @return [Array<String, Array>] [SQL clause, parameters]
       def build_condition(field_info, columns, condition)
         field_type = field_info['field_type'].downcase
-        col_name = columns.keys.first # Primary column
+        field_slug = field_info['slug']
+
+        # Select appropriate column based on field type and slug
+        # For duedatefield and daterangefield, SmartSuite API uses to_date for all comparisons
+        # unless explicitly filtering by .from_date or .to_date sub-field
+        col_name = if (field_type == 'duedatefield' || field_type == 'daterangefield')
+                     # Check if filtering by sub-field (e.g., due_date.from_date)
+                     if field_slug.end_with?('.from_date')
+                       # User explicitly requested from_date column
+                       columns.keys.find { |k| k.end_with?('_from') } || columns.keys.first
+                     elsif field_slug.end_with?('.to_date')
+                       # User explicitly requested to_date column
+                       columns.keys.find { |k| k.end_with?('_to') } || columns.keys.first
+                     else
+                       # Default: use to_date column (matches SmartSuite API behavior)
+                       columns.keys.find { |k| k.end_with?('_to') } || columns.keys.first
+                     end
+                   else
+                     # For other field types, use first column
+                     columns.keys.first
+                   end
 
         # Handle different condition formats
         if condition.is_a?(Hash)

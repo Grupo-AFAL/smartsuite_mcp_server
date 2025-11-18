@@ -269,15 +269,24 @@ module SmartSuite
           # For multi-column fields, index the main columns
           case field_type
           when 'statusfield'
-            col_name = sanitize_column_name(field_slug)
+            # Use actual column name from field_mapping (label-based, not slug-based)
+            col_name = columns.keys.first
             @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}
                        ON #{sql_table_name}(#{col_name})")
           when 'daterangefield', 'duedatefield'
-            col_name = sanitize_column_name(field_slug)
-            @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}_from
-                       ON #{sql_table_name}(#{col_name}_from)")
-            @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}_to
-                       ON #{sql_table_name}(#{col_name}_to)")
+            # Use actual column names from field_mapping instead of regenerating
+            col_names = columns.keys
+            from_col = col_names.find { |c| c.end_with?('_from') }
+            to_col = col_names.find { |c| c.end_with?('_to') }
+
+            if from_col
+              @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{from_col}
+                         ON #{sql_table_name}(#{from_col})")
+            end
+            if to_col
+              @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{to_col}
+                         ON #{sql_table_name}(#{to_col})")
+            end
           when 'lastupdated'
             @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_updated_on
                        ON #{sql_table_name}(updated_on)")
@@ -472,9 +481,37 @@ module SmartSuite
           # Create index if needed
           next unless should_index_field?(field_info)
 
-          col_name = sanitize_column_name(field_slug)
-          @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}
-                     ON #{sql_table_name}(#{col_name})")
+          # Use actual column names from field_mapping (same logic as create_indexes_for_table)
+          columns = field_mapping[field_slug]
+          field_type = field_info['field_type'].downcase
+
+          case field_type
+          when 'statusfield'
+            col_name = columns.keys.first
+            @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}
+                       ON #{sql_table_name}(#{col_name})")
+          when 'daterangefield', 'duedatefield'
+            col_names = columns.keys
+            from_col = col_names.find { |c| c.end_with?('_from') }
+            to_col = col_names.find { |c| c.end_with?('_to') }
+
+            if from_col
+              @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{from_col}
+                         ON #{sql_table_name}(#{from_col})")
+            end
+            if to_col
+              @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{to_col}
+                         ON #{sql_table_name}(#{to_col})")
+            end
+          when 'lastupdated'
+            @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_updated_on
+                       ON #{sql_table_name}(updated_on)")
+          else
+            # Single column index
+            col_name = columns.keys.first
+            @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}
+                       ON #{sql_table_name}(#{col_name})")
+          end
         end
 
         # Update schema metadata

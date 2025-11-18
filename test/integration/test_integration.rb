@@ -326,7 +326,7 @@ class TestIntegration < Minitest::Test
 
     # Third call with bypass_cache - should fetch from API
     puts '→ Third call with bypass_cache=true (cache bypass)...'
-    result3 = @client.list_records(table_id, 5, 0, fields: [field_slug], bypass_cache: true)
+    result3 = @client.list_records(table_id, 5, 0, fields: [field_slug])
     assert result3.is_a?(String)
 
     puts '✓ Cache behavior verified (see metrics log for hit/miss details)'

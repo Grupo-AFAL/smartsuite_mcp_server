@@ -199,6 +199,17 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 #### Token Optimization
 
+- [ ] **Optimize mutation operation responses (POST/PUT/DELETE)**
+  - Analyze responses from create/update/delete operations - currently very large
+  - AI only needs success/failure status and key identifiers, not full response payload
+  - Token savings: Potentially 50-80% reduction on mutation responses
+  - Smart cache updates: Reflect response data in cache without requiring invalidation
+  - Method-specific handling:
+    - POST (create): Cache new record from response
+    - PUT (update): Update cached record with changed fields from response
+    - DELETE: Remove from cache using response confirmation
+  - Maintains cache consistency while minimizing token usage
+  - Scope: RecordOperations, FieldOperations, and other mutation endpoints
 - [ ] **Replace text response format with TOON format**
   - Migrate from plain text to TOON (Toolkit Oriented Object Notation)
   - TOON spec: https://github.com/toon-format/toon

@@ -560,6 +560,8 @@ CREATE INDEX idx_date_range_to ON cache_records_xxx(date_range_to);
 
 **Note:** SmartSuite docs mention date range fields can be referenced as `[field_slug].from_date` and `[field_slug].to_date`.
 
+**⚠️ Important:** See filtering and sorting behavior details in the Due Date section below.
+
 ---
 
 ### 25. Due Date
@@ -594,6 +596,26 @@ CREATE INDEX idx_due_date_is_overdue ON cache_records_xxx(due_date_is_overdue);
     "status_updated_on": "2023-05-09T19:25:04.981000Z"
 }
 ```
+
+**⚠️ Important: Filtering and Sorting Behavior**
+
+Both `daterangefield` and `duedatefield` use the **`to_date` column by default** for all filtering and sorting operations, matching SmartSuite API behavior:
+
+- **Filtering:** `due_date >= '2025-03-15'` → `WHERE due_date_to >= '2025-03-15'`
+- **Sorting:** `ORDER BY due_date ASC` → `ORDER BY due_date_to ASC`
+
+**Sub-field filtering** (explicit column selection):
+- `due_date.from_date`: Uses `due_date_from` column
+- `due_date.to_date`: Uses `due_date_to` column
+
+**Example:**
+```ruby
+# Record: due_date from 2025-03-01 to 2025-03-31
+# Filter: is_on_or_after 2025-03-15
+# Result: ✅ RETURNED (checks to_date: 2025-03-31 >= 2025-03-15)
+```
+
+This ensures cache queries return identical results to the SmartSuite API.
 
 ---
 
