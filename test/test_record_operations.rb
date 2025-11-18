@@ -469,4 +469,146 @@ class TestRecordOperations < Minitest::Test
     # Regular field unchanged
     assert_equal 'Regular field', result['title']
   end
+
+  # ============================================================================
+  # REGRESSION TESTS: Filter Sanitization for API
+  # ============================================================================
+  # Bug: SmartSuite API rejects is_empty/is_not_empty filters with empty string value
+  # Error: "' is not allowed for the 'is_not_empty' comparison"
+  # Fix: Sanitize filters before sending to API - set value to null for empty check operators
+
+  # Test is_not_empty filter is sanitized to null value
+  def test_list_records_sanitizes_is_not_empty_filter
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    filter = {
+      'operator' => 'and',
+      'fields' => [
+        { 'field' => 'status', 'comparison' => 'is_not_empty', 'value' => '' }
+      ]
+    }
+
+    # Verify API receives sanitized filter with null value
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true')
+      .with(
+        body: hash_including(
+          'filter' => hash_including(
+            'fields' => [
+              hash_including('field' => 'status', 'comparison' => 'is_not_empty', 'value' => nil)
+            ]
+          )
+        )
+      )
+      .to_return(
+        status: 200,
+        body: { items: [] }.to_json
+      )
+
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['status'], bypass_cache: true)
+
+    assert result.is_a?(String), 'Should return plain text'
+  end
+
+  # Test is_empty filter is sanitized to null value
+  def test_list_records_sanitizes_is_empty_filter
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    filter = {
+      'operator' => 'and',
+      'fields' => [
+        { 'field' => 'assigned_to', 'comparison' => 'is_empty', 'value' => '' }
+      ]
+    }
+
+    # Verify API receives sanitized filter with null value
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true')
+      .with(
+        body: hash_including(
+          'filter' => hash_including(
+            'fields' => [
+              hash_including('field' => 'assigned_to', 'comparison' => 'is_empty', 'value' => nil)
+            ]
+          )
+        )
+      )
+      .to_return(
+        status: 200,
+        body: { items: [] }.to_json
+      )
+
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['assigned_to'], bypass_cache: true)
+
+    assert result.is_a?(String), 'Should return plain text'
+  end
+
+  # Test multiple filter fields with mixed operators
+  def test_list_records_sanitizes_mixed_filter_operators
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    filter = {
+      'operator' => 'and',
+      'fields' => [
+        { 'field' => 'status', 'comparison' => 'is', 'value' => 'Active' },
+        { 'field' => 'priority', 'comparison' => 'is_not_empty', 'value' => '' },
+        { 'field' => 'notes', 'comparison' => 'is_empty', 'value' => 'should_be_null' }
+      ]
+    }
+
+    # Verify only empty check operators are sanitized
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true')
+      .with(
+        body: hash_including(
+          'filter' => hash_including(
+            'fields' => [
+              hash_including('field' => 'status', 'comparison' => 'is', 'value' => 'Active'),
+              hash_including('field' => 'priority', 'comparison' => 'is_not_empty', 'value' => nil),
+              hash_including('field' => 'notes', 'comparison' => 'is_empty', 'value' => nil)
+            ]
+          )
+        )
+      )
+      .to_return(
+        status: 200,
+        body: { items: [] }.to_json
+      )
+
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['status', 'priority', 'notes'],
+                                  bypass_cache: true)
+
+    assert result.is_a?(String), 'Should return plain text'
+  end
+
+  # Test non-empty-check operators are not modified
+  def test_list_records_preserves_other_filter_operators
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    filter = {
+      'operator' => 'and',
+      'fields' => [
+        { 'field' => 'title', 'comparison' => 'contains', 'value' => 'test' },
+        { 'field' => 'amount', 'comparison' => 'is_greater_than', 'value' => 100 }
+      ]
+    }
+
+    # Verify other operators keep their values
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true')
+      .with(
+        body: hash_including(
+          'filter' => hash_including(
+            'fields' => [
+              hash_including('field' => 'title', 'comparison' => 'contains', 'value' => 'test'),
+              hash_including('field' => 'amount', 'comparison' => 'is_greater_than', 'value' => 100)
+            ]
+          )
+        )
+      )
+      .to_return(
+        status: 200,
+        body: { items: [] }.to_json
+      )
+
+    result = client.list_records('tbl_123', 10, 0, filter: filter, fields: ['title', 'amount'], bypass_cache: true)
+
+    assert result.is_a?(String), 'Should return plain text'
+  end
 end
