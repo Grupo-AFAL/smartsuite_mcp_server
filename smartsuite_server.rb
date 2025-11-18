@@ -206,6 +206,18 @@ class SmartSuiteServer
                @client.update_record(arguments['table_id'], arguments['record_id'], arguments['data'])
              when 'delete_record'
                @client.delete_record(arguments['table_id'], arguments['record_id'])
+             when 'bulk_add_records'
+               @client.bulk_add_records(arguments['table_id'], arguments['records'])
+             when 'bulk_update_records'
+               @client.bulk_update_records(arguments['table_id'], arguments['records'])
+             when 'bulk_delete_records'
+               @client.bulk_delete_records(arguments['table_id'], arguments['record_ids'])
+             when 'get_file_url'
+               @client.get_file_url(arguments['file_handle'])
+             when 'list_deleted_records'
+               @client.list_deleted_records(arguments['solution_id'], preview: arguments['preview'])
+             when 'restore_deleted_record'
+               @client.restore_deleted_record(arguments['table_id'], arguments['record_id'])
              when 'add_field'
                @client.add_field(
                  arguments['table_id'],

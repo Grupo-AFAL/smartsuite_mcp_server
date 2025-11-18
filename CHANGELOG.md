@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Bulk record operations** - Added 3 new bulk operations for efficient batch processing
+  - `bulk_add_records`: Create multiple records in a single API call
+  - `bulk_update_records`: Update multiple records in a single API call (each record must include 'id' field)
+  - `bulk_delete_records`: Soft delete multiple records in a single API call
+  - All bulk operations are more efficient than multiple individual calls when working with many records
+  - Implemented in `RecordOperations` module (lines 374-432)
+  - Added MCP tool schemas in `ToolRegistry` (lines 294-356)
+  - Added server handlers in `SmartSuiteServer` (lines 209-214)
+
+- **File URL retrieval** - Added operation to get public URLs for attached files
+  - `get_file_url`: Returns a public URL for a file attachment (20-year lifetime)
+  - Accepts file handle from file/image field values
+  - Implemented in `RecordOperations` module (lines 434-449)
+  - Added MCP tool schema in `ToolRegistry` (lines 357-370)
+  - Added server handler in `SmartSuiteServer` (line 215-216)
+
+- **Deleted records management** - Added operations for working with soft-deleted records
+  - `list_deleted_records`: List all soft-deleted records from a solution
+    - Accepts `preview` parameter to limit returned fields (default: true)
+    - Returns records with deletion metadata
+  - `restore_deleted_record`: Restore a soft-deleted record back to the table
+    - Appends "(Restored)" to the record title
+  - Implemented in `RecordOperations` module (lines 451-490)
+  - Added MCP tool schemas in `ToolRegistry` (lines 371-406)
+  - Added server handlers in `SmartSuiteServer` (lines 217-220)
+
 ### Removed
 
 - **BREAKING: `bypass_cache` parameter removed** - Removed bypass_cache parameter from all operations
