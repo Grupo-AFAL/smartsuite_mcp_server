@@ -1,7 +1,7 @@
 # SmartSuite MCP Server - Product Roadmap
 
-**Last Updated:** November 16, 2025
-**Current Version:** 1.8.0
+**Last Updated:** November 17, 2025
+**Current Version:** 1.9.0
 **Next Release:** 2.0.0 (Q2 2026)
 **Decision Log:** See ROADMAP_DECISIONS.md for detailed analysis and decisions
 
@@ -93,6 +93,48 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 - ✅ Input validation comprehensive at API layer
 - ✅ CI/CD workflows for quality assurance
 - ✅ Security scanning, code quality checks, markdown linting
+
+### v1.9 - Extended Record Operations (Completed - Nov 2025)
+
+**Goal:** Complete record management API coverage with bulk operations and deleted records support
+
+#### Record Operations
+
+- ✅ **Bulk Operations** - Efficient batch processing for multiple records
+  - `bulk_add_records`: Create multiple records in a single API call
+  - `bulk_update_records`: Update multiple records at once (each must include 'id' field)
+  - `bulk_delete_records`: Soft delete multiple records in one operation
+  - Significantly more efficient than individual operations when working with many records
+
+- ✅ **File Operations** - Public URL retrieval for file attachments
+  - `get_file_url`: Get public URLs for files attached to records (20-year lifetime)
+  - Accepts file handle from file/image field values
+  - Enables direct file access without additional API calls
+
+- ✅ **Deleted Records Management** - Work with soft-deleted records
+  - `list_deleted_records`: List all soft-deleted records from a solution
+  - `restore_deleted_record`: Restore deleted records back to tables
+  - Support for preview mode to limit returned fields
+  - Restored records include "(Restored)" suffix in title
+
+#### Testing & Quality
+
+- ✅ 27 comprehensive tests covering all new operations
+  - Parameter validation tests for all required fields
+  - Type validation for array/hash parameters
+  - API error handling for various HTTP error codes
+  - Success case verification with proper HTTP mocking
+- ✅ Total test suite: 492 tests, 1,715 assertions (all passing)
+- ✅ Code coverage: 81.11% (improved from 80.25%)
+- ✅ Tool count increased from 22 to 28 MCP tools
+
+#### Implementation
+
+- ✅ Added 6 new methods in RecordOperations module
+- ✅ Added 6 new MCP tool schemas in ToolRegistry
+- ✅ Added server handlers in SmartSuiteServer
+- ✅ Full YARD documentation for all new methods
+- ✅ Updated CHANGELOG with comprehensive change documentation
 
 ---
 
@@ -260,7 +302,6 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 ### High Impact
 
-- [ ] **Bulk operations** - Create/update/delete multiple records in one call
 - [ ] **Template system** - Pre-defined table structures and workflows
 - [ ] **Data validation** - Client-side validation before API calls
 - [ ] **Rate limiting** - Smart throttling to respect SmartSuite limits
@@ -271,7 +312,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 - [ ] **Export/Import** - Backup and restore tables (CSV, JSON, Excel)
 - [ ] **Data migrations** - Move data between solutions/tables
 - [ ] **Formula support** - Evaluate formulas client-side
-- [ ] **File attachments** - Upload/download file fields
+- [ ] **File upload** - Upload files to file/image fields (download via `get_file_url` completed in v1.9)
 - [ ] **Custom views** - Save and reuse complex queries
 
 ### Low Impact
@@ -430,10 +471,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | v1.6    | ✅ Released | Nov 2025    | 100%       |
 | v1.7    | ✅ Released | Nov 2025    | 100%       |
 | v1.8    | ✅ Released | Nov 2025    | 100%       |
-| v2.0    | 📋 Planned  | Q4 2025     | 0%         |
-| v2.1    | 📋 Planned  | Q4 2025     | 0%         |
-| v2.2    | 📋 Planned  | Q4 2025     | 0%         |
-| v3.0    | 💭 Ideation | Q1 2026     | 0%         |
+| v1.9    | ✅ Released | Nov 2025    | 100%       |
+| v2.0    | 📋 Planned  | Q2 2026     | 0%         |
+| v2.1    | 📋 Planned  | Q2 2026     | 0%         |
+| v2.2    | 📋 Planned  | Q2 2026     | 0%         |
+| v3.0    | 💭 Ideation | Q3 2026     | 0%         |
 
 ---
 

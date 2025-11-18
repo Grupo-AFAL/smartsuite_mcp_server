@@ -2,15 +2,15 @@
 
 A Model Context Protocol (MCP) server for SmartSuite that enables AI assistants like Claude to interact with your SmartSuite workspace through natural language.
 
-[![Version](https://img.shields.io/badge/version-1.8.0-blue)]()
+[![Version](https://img.shields.io/badge/version-1.9.0-blue)]()
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-82.77%25-yellow)]()
+[![Coverage](https://img.shields.io/badge/coverage-81.11%25-yellow)]()
 [![Ruby](https://img.shields.io/badge/ruby-3.0+-red)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
 
 ## ✨ Features
 
-- **Full SmartSuite API Coverage** - Solutions, tables, records, fields, members, comments, and views
+- **Comprehensive SmartSuite API Coverage** - Solutions, tables, records (including bulk operations), fields, members, comments, views, and deleted records management
 - **Aggressive SQLite Caching** - 4-hour TTL with cache-first strategy (75%+ API call reduction)
 - **Token Optimization** - Plain text responses and filtered structures (60%+ token savings)
 - **Session Tracking** - Monitor API usage by user, solution, table, and endpoint
@@ -119,7 +119,7 @@ Then manually add to your Claude Desktop config (`~/Library/Application Support/
 ### API Reference
 - [Workspace Operations](docs/api/workspace.md) - Solutions and usage analysis
 - [Table Operations](docs/api/tables.md) - Tables and schemas
-- [Record Operations](docs/api/records.md) - CRUD operations
+- [Record Operations](docs/api/records.md) - CRUD operations, bulk operations, file URLs, deleted records
 - [Field Operations](docs/api/fields.md) - Schema management
 - [Member Operations](docs/api/members.md) - Users and teams
 - [Complete API Documentation](docs/api/)
