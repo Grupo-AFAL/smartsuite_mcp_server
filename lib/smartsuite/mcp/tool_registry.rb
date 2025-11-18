@@ -12,6 +12,80 @@ module SmartSuite
     # - description: Human-readable description
     # - inputSchema: JSON Schema for parameters
     module ToolRegistry
+      # ========================================================================
+      # COMMON SCHEMA CONSTANTS
+      # ========================================================================
+      # These constants reduce duplication across 28 tool definitions.
+      # Each parameter schema is used in multiple tools.
+
+      # Table identifier parameter (used in 18+ tools)
+      SCHEMA_TABLE_ID = {
+        'type' => 'string',
+        'description' => 'The ID of the table'
+      }.freeze
+
+      # Record identifier parameter (used in 8+ tools)
+      SCHEMA_RECORD_ID = {
+        'type' => 'string',
+        'description' => 'The ID of the record'
+      }.freeze
+
+      # Solution identifier parameter (used in 6+ tools)
+      SCHEMA_SOLUTION_ID = {
+        'type' => 'string',
+        'description' => 'The ID of the solution'
+      }.freeze
+
+      # Array of record data for bulk add (used in bulk_add_records)
+      SCHEMA_RECORDS_ARRAY = {
+        'type' => 'array',
+        'description' => 'Array of record data hashes (field_slug: value pairs)',
+        'items' => { 'type' => 'object' }
+      }.freeze
+
+      # Array of record updates for bulk update (used in bulk_update_records)
+      SCHEMA_RECORDS_UPDATE_ARRAY = {
+        'type' => 'array',
+        'description' => 'Array of record hashes with \'id\' and fields to update',
+        'items' => { 'type' => 'object' }
+      }.freeze
+
+      # Array of record IDs for bulk delete (used in bulk_delete_records)
+      SCHEMA_RECORD_IDS_ARRAY = {
+        'type' => 'array',
+        'description' => 'Array of record IDs to delete',
+        'items' => { 'type' => 'string' }
+      }.freeze
+
+      # File handle parameter (used in get_file_url)
+      SCHEMA_FILE_HANDLE = {
+        'type' => 'string',
+        'description' => 'File handle from a file/image field'
+      }.freeze
+
+      # Preview parameter for deleted records (used in list_deleted_records)
+      SCHEMA_PREVIEW = {
+        'type' => 'boolean',
+        'description' => 'Optional: If true, returns limited fields (default: true)'
+      }.freeze
+
+      # File field slug parameter (used in attach_file)
+      SCHEMA_FILE_FIELD_SLUG = {
+        'type' => 'string',
+        'description' => 'The slug of the file/image field to attach files to'
+      }.freeze
+
+      # Array of file URLs for attach (used in attach_file)
+      SCHEMA_FILE_URLS = {
+        'type' => 'array',
+        'description' => 'Array of publicly accessible URLs to files. SmartSuite will download and attach these files.',
+        'items' => { 'type' => 'string' }
+      }.freeze
+
+      # ========================================================================
+      # TOOL DEFINITIONS
+      # ========================================================================
+
       # Workspace operation tools for solutions
       # Includes: list_solutions, analyze_solution_usage
       WORKSPACE_TOOLS = [
@@ -158,7 +232,9 @@ module SmartSuite
       ].freeze
 
       # Record operation tools for CRUD operations on table records
-      # Includes: list_records, get_record, create_record, update_record, delete_record
+      # Includes: list_records, get_record, create_record, update_record, delete_record,
+      #           bulk_add_records, bulk_update_records, bulk_delete_records,
+      #           get_file_url, list_deleted_records, restore_deleted_record
       RECORD_TOOLS = [
         {
           'name' => 'list_records',
@@ -289,6 +365,91 @@ module SmartSuite
               }
             },
             'required' => %w[table_id record_id]
+          }
+        },
+        {
+          'name' => 'bulk_add_records',
+          'description' => 'Create multiple records in a single request (bulk operation). More efficient than multiple create_record calls when adding many records.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => SCHEMA_TABLE_ID,
+              'records' => SCHEMA_RECORDS_ARRAY
+            },
+            'required' => %w[table_id records]
+          }
+        },
+        {
+          'name' => 'bulk_update_records',
+          'description' => 'Update multiple records in a single request (bulk operation). More efficient than multiple update_record calls. Each record hash must include \'id\' field along with fields to update.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => SCHEMA_TABLE_ID,
+              'records' => SCHEMA_RECORDS_UPDATE_ARRAY
+            },
+            'required' => %w[table_id records]
+          }
+        },
+        {
+          'name' => 'bulk_delete_records',
+          'description' => 'Delete multiple records in a single request (bulk operation). More efficient than multiple delete_record calls. Performs soft delete - records can be restored using restore_deleted_record.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => SCHEMA_TABLE_ID,
+              'record_ids' => SCHEMA_RECORD_IDS_ARRAY
+            },
+            'required' => %w[table_id record_ids]
+          }
+        },
+        {
+          'name' => 'get_file_url',
+          'description' => 'Get a public URL for a file attached to a record. The file handle can be found in file/image field values. Returns a public URL with a 20-year lifetime.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'file_handle' => SCHEMA_FILE_HANDLE
+            },
+            'required' => ['file_handle']
+          }
+        },
+        {
+          'name' => 'list_deleted_records',
+          'description' => 'List deleted records from a solution. Returns records that have been soft-deleted and can be restored.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'solution_id' => SCHEMA_SOLUTION_ID,
+              'preview' => SCHEMA_PREVIEW
+            },
+            'required' => ['solution_id']
+          }
+        },
+        {
+          'name' => 'restore_deleted_record',
+          'description' => 'Restore a deleted record. Restores a soft-deleted record back to the table. The restored record will have "(Restored)" appended to its title.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => SCHEMA_TABLE_ID,
+              'record_id' => SCHEMA_RECORD_ID
+            },
+            'required' => %w[table_id record_id]
+          }
+        },
+        {
+          'name' => 'attach_file',
+          'description' => 'Attach files to a record by providing URLs. SmartSuite downloads files from the provided URLs and attaches them to the specified file/image field. The URLs must be publicly accessible.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => SCHEMA_TABLE_ID,
+              'record_id' => SCHEMA_RECORD_ID,
+              'file_field_slug' => SCHEMA_FILE_FIELD_SLUG,
+              'file_urls' => SCHEMA_FILE_URLS
+            },
+            'required' => %w[table_id record_id file_field_slug file_urls]
           }
         }
       ].freeze
@@ -686,7 +847,7 @@ module SmartSuite
       ].freeze
 
       # All tools combined into a single array for MCP protocol responses
-      # Total: 22 tools across 8 categories
+      # Total: 28 tools across 8 categories (4 workspace, 3 table, 11 record, 4 field, 4 member, 2 comment, 2 view, 5 stats)
       ALL_TOOLS = (WORKSPACE_TOOLS + TABLE_TOOLS + RECORD_TOOLS + FIELD_TOOLS + MEMBER_TOOLS + COMMENT_TOOLS + VIEW_TOOLS + STATS_TOOLS).freeze
 
       # Generates a JSON-RPC 2.0 response for the tools/list MCP method.

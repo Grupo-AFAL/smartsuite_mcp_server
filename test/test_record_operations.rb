@@ -19,6 +19,44 @@ class TestRecordOperations < Minitest::Test
     WebMock.allow_net_connect!
   end
 
+  # ============================================================================
+  # TEST HELPERS
+  # ============================================================================
+
+  # Creates a test client with cache disabled
+  # @return [SmartSuiteClient] Client instance for testing
+  def create_client
+    SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+  end
+
+  # Asserts that a method requires a specific parameter
+  # @param method_name [Symbol] Method to test
+  # @param param_name [String] Parameter name that should be required
+  # @param args [Array] Arguments to pass to method (with nil for missing param)
+  def assert_requires_parameter(method_name, param_name, *args)
+    client = create_client
+    error = assert_raises(ArgumentError) { client.send(method_name, *args) }
+    assert_includes error.message, param_name
+  end
+
+  # Asserts that a method handles API errors correctly
+  # @param method_name [Symbol] Method to test
+  # @param endpoint [String] API endpoint URL
+  # @param http_method [Symbol] HTTP method (:get, :post, :patch, :delete)
+  # @param status_code [Integer] HTTP status code to simulate
+  # @param args [Array] Arguments to pass to method
+  def assert_api_error(method_name, endpoint, http_method, status_code, *args)
+    client = create_client
+    stub_request(http_method, endpoint)
+      .to_return(status: status_code, body: { error: 'Error' }.to_json)
+    error = assert_raises(RuntimeError) { client.send(method_name, *args) }
+    assert_includes error.message, status_code.to_s
+  end
+
+  # ============================================================================
+  # EXISTING TESTS
+  # ============================================================================
+
   # Test list_records requires table_id
   def test_list_records_requires_table_id
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
@@ -609,5 +647,416 @@ class TestRecordOperations < Minitest::Test
     result = client.list_records('tbl_123', 10, 0, filter: filter, fields: %w[title amount])
 
     assert result.is_a?(String), 'Should return plain text'
+  end
+
+  # ============================================================================
+  # TESTS: Bulk Operations
+  # ============================================================================
+
+  # Test bulk_add_records success
+  def test_bulk_add_records_success
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    records = [
+      { 'title' => 'Task 1', 'status' => 'Active' },
+      { 'title' => 'Task 2', 'status' => 'Pending' }
+    ]
+
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/bulk/')
+      .with(body: { 'items' => records }.to_json)
+      .to_return(
+        status: 200,
+        body: [
+          { id: 'rec_1', title: 'Task 1', status: 'Active' },
+          { id: 'rec_2', title: 'Task 2', status: 'Pending' }
+        ].to_json
+      )
+
+    result = client.bulk_add_records('tbl_123', records)
+
+    assert result.is_a?(Array), 'Should return array'
+    assert_equal 2, result.length
+    assert_equal 'rec_1', result[0]['id']
+    assert_equal 'rec_2', result[1]['id']
+  end
+
+  # Test bulk_add_records requires table_id
+  def test_bulk_add_records_requires_table_id
+    assert_requires_parameter(:bulk_add_records, 'table_id', nil, [{ 'title' => 'Test' }])
+  end
+
+  # Test bulk_add_records requires records
+  def test_bulk_add_records_requires_records
+    assert_requires_parameter(:bulk_add_records, 'records', 'tbl_123', nil)
+  end
+
+  # Test bulk_add_records requires records to be array
+  def test_bulk_add_records_requires_records_array
+    assert_requires_parameter(:bulk_add_records, 'records', 'tbl_123', 'not an array')
+  end
+
+  # Test bulk_add_records API error
+  def test_bulk_add_records_api_error
+    assert_api_error(
+      :bulk_add_records,
+      'https://app.smartsuite.com/api/v1/applications/tbl_123/records/bulk/',
+      :post,
+      400,
+      'tbl_123',
+      [{ 'title' => 'Test' }]
+    )
+  end
+
+  # Test bulk_update_records success
+  def test_bulk_update_records_success
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    records = [
+      { 'id' => 'rec_1', 'status' => 'Completed' },
+      { 'id' => 'rec_2', 'status' => 'In Progress' }
+    ]
+
+    stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/bulk/')
+      .with(body: { 'items' => records }.to_json)
+      .to_return(
+        status: 200,
+        body: [
+          { id: 'rec_1', status: 'Completed' },
+          { id: 'rec_2', status: 'In Progress' }
+        ].to_json
+      )
+
+    result = client.bulk_update_records('tbl_123', records)
+
+    assert result.is_a?(Array), 'Should return array'
+    assert_equal 2, result.length
+    assert_equal 'Completed', result[0]['status']
+    assert_equal 'In Progress', result[1]['status']
+  end
+
+  # Test bulk_update_records requires table_id
+  def test_bulk_update_records_requires_table_id
+    assert_requires_parameter(:bulk_update_records, 'table_id', nil, [{ 'id' => 'rec_1', 'status' => 'Done' }])
+  end
+
+  # Test bulk_update_records requires records
+  def test_bulk_update_records_requires_records
+    assert_requires_parameter(:bulk_update_records, 'records', 'tbl_123', nil)
+  end
+
+  # Test bulk_update_records requires records to be array
+  def test_bulk_update_records_requires_records_array
+    assert_requires_parameter(:bulk_update_records, 'records', 'tbl_123', 'not an array')
+  end
+
+  # Test bulk_update_records API error
+  def test_bulk_update_records_api_error
+    assert_api_error(
+      :bulk_update_records,
+      'https://app.smartsuite.com/api/v1/applications/tbl_123/records/bulk/',
+      :patch,
+      500,
+      'tbl_123',
+      [{ 'id' => 'rec_1', 'status' => 'Done' }]
+    )
+  end
+
+  # Test bulk_delete_records success
+  def test_bulk_delete_records_success
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    record_ids = %w[rec_1 rec_2 rec_3]
+
+    stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/bulk_delete/')
+      .with(body: { 'items' => record_ids }.to_json)
+      .to_return(
+        status: 200,
+        body: { deleted: 3 }.to_json
+      )
+
+    result = client.bulk_delete_records('tbl_123', record_ids)
+
+    assert result.is_a?(Hash), 'Should return hash'
+    assert_equal 3, result['deleted']
+  end
+
+  # Test bulk_delete_records requires table_id
+  def test_bulk_delete_records_requires_table_id
+    assert_requires_parameter(:bulk_delete_records, 'table_id', nil, ['rec_1'])
+  end
+
+  # Test bulk_delete_records requires record_ids
+  def test_bulk_delete_records_requires_record_ids
+    assert_requires_parameter(:bulk_delete_records, 'record_ids', 'tbl_123', nil)
+  end
+
+  # Test bulk_delete_records requires record_ids to be array
+  def test_bulk_delete_records_requires_record_ids_array
+    assert_requires_parameter(:bulk_delete_records, 'record_ids', 'tbl_123', 'not an array')
+  end
+
+  # Test bulk_delete_records API error
+  def test_bulk_delete_records_api_error
+    assert_api_error(
+      :bulk_delete_records,
+      'https://app.smartsuite.com/api/v1/applications/tbl_123/records/bulk_delete/',
+      :patch,
+      403,
+      'tbl_123',
+      ['rec_1']
+    )
+  end
+
+  # ============================================================================
+  # TESTS: File Operations
+  # ============================================================================
+
+  # Test get_file_url success
+  def test_get_file_url_success
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    stub_request(:get, 'https://app.smartsuite.com/api/v1/shared-files/handle_xyz/url/')
+      .to_return(
+        status: 200,
+        body: { url: 'https://files.smartsuite.com/file/123/document.pdf' }.to_json
+      )
+
+    result = client.get_file_url('handle_xyz')
+
+    assert result.is_a?(Hash), 'Should return hash'
+    assert_equal 'https://files.smartsuite.com/file/123/document.pdf', result['url']
+  end
+
+  # Test get_file_url requires file_handle
+  def test_get_file_url_requires_file_handle
+    assert_requires_parameter(:get_file_url, 'file_handle', nil)
+  end
+
+  # Test get_file_url API error
+  def test_get_file_url_api_error
+    assert_api_error(
+      :get_file_url,
+      'https://app.smartsuite.com/api/v1/shared-files/handle_xyz/url/',
+      :get,
+      404,
+      'handle_xyz'
+    )
+  end
+
+  # ============================================================================
+  # TESTS: Deleted Records Management
+  # ============================================================================
+
+  # Test list_deleted_records success with preview
+  def test_list_deleted_records_success_with_preview
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/deleted-records/?preview=true')
+      .with(body: { solution_id: 'sol_123' }.to_json)
+      .to_return(
+        status: 200,
+        body: [
+          { id: 'rec_1', title: 'Deleted Task 1', deleted_at: '2025-01-01T00:00:00Z' },
+          { id: 'rec_2', title: 'Deleted Task 2', deleted_at: '2025-01-02T00:00:00Z' }
+        ].to_json
+      )
+
+    result = client.list_deleted_records('sol_123', preview: true)
+
+    assert result.is_a?(Array), 'Should return array'
+    assert_equal 2, result.length
+    assert_equal 'rec_1', result[0]['id']
+    assert_equal 'Deleted Task 1', result[0]['title']
+  end
+
+  # Test list_deleted_records success without preview
+  def test_list_deleted_records_success_without_preview
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/deleted-records/?preview=false')
+      .with(body: { solution_id: 'sol_123' }.to_json)
+      .to_return(
+        status: 200,
+        body: [
+          { id: 'rec_1', title: 'Deleted Task 1', deleted_at: '2025-01-01T00:00:00Z', all_fields: 'data' }
+        ].to_json
+      )
+
+    result = client.list_deleted_records('sol_123', preview: false)
+
+    assert result.is_a?(Array), 'Should return array'
+    assert_equal 1, result.length
+    assert result[0].key?('all_fields'), 'Should include all fields when preview is false'
+  end
+
+  # Test list_deleted_records default preview value
+  def test_list_deleted_records_default_preview
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    # Default preview should be true
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/deleted-records/?preview=true')
+      .with(body: { solution_id: 'sol_123' }.to_json)
+      .to_return(
+        status: 200,
+        body: [].to_json
+      )
+
+    result = client.list_deleted_records('sol_123')
+
+    assert result.is_a?(Array), 'Should return array'
+  end
+
+  # Test list_deleted_records requires solution_id
+  def test_list_deleted_records_requires_solution_id
+    assert_requires_parameter(:list_deleted_records, 'solution_id', nil)
+  end
+
+  # Test list_deleted_records API error
+  def test_list_deleted_records_api_error
+    assert_api_error(
+      :list_deleted_records,
+      'https://app.smartsuite.com/api/v1/deleted-records/?preview=true',
+      :post,
+      500,
+      'sol_123'
+    )
+  end
+
+  # Test restore_deleted_record success
+  def test_restore_deleted_record_success
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/restore/')
+      .with(body: {}.to_json)
+      .to_return(
+        status: 200,
+        body: { id: 'rec_456', title: 'Task 1 (Restored)', status: 'Active' }.to_json
+      )
+
+    result = client.restore_deleted_record('tbl_123', 'rec_456')
+
+    assert result.is_a?(Hash), 'Should return hash'
+    assert_equal 'rec_456', result['id']
+    assert_includes result['title'], '(Restored)', 'Title should include "(Restored)" suffix'
+  end
+
+  # Test restore_deleted_record requires table_id
+  def test_restore_deleted_record_requires_table_id
+    assert_requires_parameter(:restore_deleted_record, 'table_id', nil, 'rec_456')
+  end
+
+  # Test restore_deleted_record requires record_id
+  def test_restore_deleted_record_requires_record_id
+    assert_requires_parameter(:restore_deleted_record, 'record_id', 'tbl_123', nil)
+  end
+
+  # Test restore_deleted_record API error
+  def test_restore_deleted_record_api_error
+    assert_api_error(
+      :restore_deleted_record,
+      'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/restore/',
+      :post,
+      404,
+      'tbl_123',
+      'rec_456'
+    )
+  end
+
+  # ========================================================================
+  # attach_file tests
+  # ========================================================================
+
+  # Test attach_file success
+  def test_attach_file_success
+    client = create_client
+
+    stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
+      .with(
+        body: {
+          'id' => 'rec_456',
+          'attachments' => ['https://example.com/file.pdf', 'https://example.com/image.jpg']
+        }.to_json
+      )
+      .to_return(
+        status: 200,
+        body: {
+          'id' => 'rec_456',
+          'title' => 'Test Record',
+          'attachments' => [
+            { 'url' => 'https://example.com/file.pdf', 'name' => 'file.pdf' },
+            { 'url' => 'https://example.com/image.jpg', 'name' => 'image.jpg' }
+          ]
+        }.to_json
+      )
+
+    result = client.attach_file(
+      'tbl_123',
+      'rec_456',
+      'attachments',
+      ['https://example.com/file.pdf', 'https://example.com/image.jpg']
+    )
+
+    assert_equal 'rec_456', result['id']
+    assert_equal 'Test Record', result['title']
+    assert_equal 2, result['attachments'].length
+  end
+
+  # Test attach_file requires table_id
+  def test_attach_file_requires_table_id
+    assert_requires_parameter(
+      :attach_file,
+      'table_id',
+      nil,
+      'rec_456',
+      'attachments',
+      ['https://example.com/file.pdf']
+    )
+  end
+
+  # Test attach_file requires record_id
+  def test_attach_file_requires_record_id
+    assert_requires_parameter(
+      :attach_file,
+      'record_id',
+      'tbl_123',
+      nil,
+      'attachments',
+      ['https://example.com/file.pdf']
+    )
+  end
+
+  # Test attach_file requires file_field_slug
+  def test_attach_file_requires_file_field_slug
+    assert_requires_parameter(
+      :attach_file,
+      'file_field_slug',
+      'tbl_123',
+      'rec_456',
+      nil,
+      ['https://example.com/file.pdf']
+    )
+  end
+
+  # Test attach_file requires file_urls
+  def test_attach_file_requires_file_urls
+    assert_requires_parameter(
+      :attach_file,
+      'file_urls',
+      'tbl_123',
+      'rec_456',
+      'attachments',
+      nil
+    )
+  end
+
+  # Test attach_file API error
+  def test_attach_file_api_error
+    assert_api_error(
+      :attach_file,
+      'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/',
+      :patch,
+      400,
+      'tbl_123',
+      'rec_456',
+      'attachments',
+      ['https://invalid-url']
+    )
   end
 end

@@ -7,6 +7,207 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Removed
+
+### Fixed
+
+## [1.9.0] - 2025-11-18
+
+### Added
+
+- **Bulk record operations** - Added 3 new bulk operations for efficient batch processing
+  - `bulk_add_records`: Create multiple records in a single API call
+  - `bulk_update_records`: Update multiple records in a single API call (each record must include 'id' field)
+  - `bulk_delete_records`: Soft delete multiple records in a single API call
+  - All bulk operations are more efficient than multiple individual calls when working with many records
+  - Implemented in `RecordOperations` module (lines 374-432)
+  - Added MCP tool schemas in `ToolRegistry` (lines 294-356)
+  - Added server handlers in `SmartSuiteServer` (lines 209-214)
+
+- **File URL retrieval** - Added operation to get public URLs for attached files
+  - `get_file_url`: Returns a public URL for a file attachment (20-year lifetime)
+  - Accepts file handle from file/image field values
+  - Implemented in `RecordOperations` module (lines 434-449)
+  - Added MCP tool schema in `ToolRegistry` (lines 357-370)
+  - Added server handler in `SmartSuiteServer` (line 215-216)
+
+- **File attachment** - Added operation to attach files to records by URL
+  - `attach_file`: Attach files by providing publicly accessible URLs
+  - SmartSuite downloads files from provided URLs and attaches them to specified field
+  - Supports single or multiple files in one operation
+  - Implemented in `RecordOperations` module (lines 492-528)
+  - Added MCP tool schema in `ToolRegistry` (lines 441-454)
+  - Added server handler in `SmartSuiteServer` (lines 222-228)
+  - Added 6 comprehensive tests (success, parameter validation, API error)
+
+- **Secure file attachment helper** - Added `SecureFileAttacher` class for secure local file uploads
+  - Addresses security limitation of `attach_file` requiring public URLs
+  - Uses AWS S3 with short-lived pre-signed URLs (default: 2 minutes)
+  - Automatic file cleanup after SmartSuite fetches files
+  - Server-side encryption enabled by default
+  - Supports single or multiple file uploads
+  - Implemented in `lib/secure_file_attacher.rb` (389 lines)
+  - Added 13 comprehensive tests in `test/test_secure_file_attacher.rb`
+  - Added complete usage examples in `examples/secure_file_attachment.rb`
+  - Added detailed setup guide in `docs/guides/secure-file-attachment.md`
+  - Security features:
+    - Pre-signed URLs expire in 60-120 seconds
+    - Files deleted immediately after SmartSuite fetch
+    - Lifecycle policy for failsafe cleanup
+    - Minimal IAM permissions required
+    - Debug logging support
+
+- **Deleted records management** - Added operations for working with soft-deleted records
+  - `list_deleted_records`: List all soft-deleted records from a solution
+    - Accepts `preview` parameter to limit returned fields (default: true)
+    - Returns records with deletion metadata
+  - `restore_deleted_record`: Restore a soft-deleted record back to the table
+    - Appends "(Restored)" to the record title
+  - Implemented in `RecordOperations` module (lines 451-490)
+  - Added MCP tool schemas in `ToolRegistry` (lines 371-406)
+  - Added server handlers in `SmartSuiteServer` (lines 217-220)
+
+- **is_exactly operator for JSON array fields** - New operator to check if array contains exactly specified values (no more, no less)
+  - **Implementation**: Combines JSON array length check with value presence checks
+  - **SQL generation**: `json_array_length(field) = ? AND json_extract(field, '$') LIKE ? AND ...`
+  - **Affected field types**: userfield, multipleselectfield, linkedrecordfield
+  - **Use case**: Find records where `tags` is exactly `['tag_a', 'tag_b']` (not `['tag_a']` or `['tag_a', 'tag_b', 'tag_c']`)
+  - **Example**: `.where(tags: { is_exactly: ['tag_a', 'tag_b'] })`
+  - **Testing**: Verified against SmartSuite API for linkedrecordfield and multipleselectfield (2/2 tests pass)
+  - **Added in**: `Cache::Query.build_complex_condition` (line 376-383)
+
+- **Fuzzy name search for solutions** - Filter solutions by name with typo tolerance
+  - Added `name` parameter to `list_solutions` tool with strong recommendation to use for token optimization
+  - Tool description emphasizes using `name` filter to significantly reduce token usage by returning only matching solutions
+  - Custom SQLite function `fuzzy_match()` registered for DB-layer filtering
+  - Supports partial matches, case-insensitive, accent-insensitive
+  - Allows up to 2 character typos using Levenshtein distance
+  - Examples: "desarollo" matches "Desarrollos de software", "gestion" matches "Gestión de Proyectos"
+  - Implemented in `FuzzyMatcher` module with comprehensive test coverage (19 tests, 57 assertions)
+  - Comprehensive accent support tested: all Spanish vowels (á,é,í,ó,ú), special chars (ñ,ü), uppercase, bidirectional matching
+
+### Changed
+
+- **Test helper methods** - Extracted common test patterns to reduce duplication
+  - Added `create_client`: Eliminates repeated client instantiation in tests
+  - Added `assert_requires_parameter`: DRY pattern for parameter validation tests
+  - Added `assert_api_error`: DRY pattern for API error handling tests
+  - Applied to 22 new tests for bulk operations, file operations, and deleted records
+  - Reduced test file by 55 lines (1,022 → 967 lines, -5.4%)
+  - Improved test readability and maintainability
+
+- **Schema constants in ToolRegistry** - Extracted common parameter schemas
+  - Added 10 reusable schema constants (SCHEMA_TABLE_ID, SCHEMA_FILE_URLS, etc.)
+  - Applied to 7 new record operation tools
+  - Eliminates 40 lines of schema duplication
+  - Single source of truth for parameter definitions
+  - Frozen constants prevent accidental mutation
+
+- **Verified numeric field operators work correctly** - Comprehensive testing confirms all comparison operators match SmartSuite API
+  - **Operators tested**: gt, gte, lt, lte, eq (5 operators)
+  - **Field types tested**: numberfield, currencyfield, percentfield, ratingfield (4 field types)
+  - **Test coverage**: 11 test cases covering all operators across all numeric field types
+  - **Result**: 11/11 tests pass - cache returns identical results to SmartSuite API
+  - **Operators**:
+    - `:gt` → `is_greater_than` → `field > value`
+    - `:gte` → `is_equal_or_greater_than` → `field >= value`
+    - `:lt` → `is_less_than` → `field < value`
+    - `:lte` → `is_equal_or_less_than` → `field <= value`
+    - `:eq` → `is_equal_to` → `field = value`
+
+- **Missing documentation files** - Created comprehensive documentation to fix broken links:
+  - `docs/getting-started/configuration.md` - Complete environment variable and cache configuration guide
+  - `docs/reference/filter-operators.md` - Comprehensive filter operator reference organized by field type
+  - `docs/contributing/code-style.md` - Ruby coding standards and style guidelines
+  - `docs/contributing/testing.md` - Testing standards and best practices with Minitest
+  - `docs/contributing/documentation.md` - Documentation standards and writing guidelines
+
+- **One-liner installation** - Zero-friction installation with a single command:
+  - **macOS/Linux**: `curl -fsSL https://raw.githubusercontent.com/.../bootstrap.sh | bash`
+  - **Windows**: `irm https://raw.githubusercontent.com/.../bootstrap.ps1 | iex`
+  - Bootstrap scripts automatically:
+    - Clone repository to `~/.smartsuite_mcp`
+    - Run the full installation script
+    - Handle updates to existing installations
+    - No manual git clone required
+  - Users just paste one command and enter their API credentials
+  - Easiest possible installation experience
+
+- **Automated installation scripts** for non-technical users:
+  - **macOS/Linux**: `./install.sh` - Bash-based installer with Homebrew integration
+    - Automatic Homebrew installation on macOS (if not present)
+    - Automatic Ruby installation via Homebrew on macOS
+    - Support for Apple Silicon and Intel Macs
+    - Support for jq (if installed) for safer JSON manipulation
+  - **Windows**: `.\install.ps1` - PowerShell-based installer for Windows
+    - Automatic Ruby installation via WinGet (Windows Package Manager)
+    - Works on Windows 10 (version 1809+) and Windows 11
+    - Interactive prompt to install Ruby if not present
+    - Fallback to manual installation if WinGet unavailable
+  - One-command installation process across all platforms
+  - Automatic Ruby version checking (3.0+ required)
+  - Automatic dependency installation via Bundler
+  - Interactive prompts for SmartSuite API credentials
+  - Automatic Claude Desktop configuration with proper JSON formatting
+  - Backup of existing configuration before making changes
+  - Color-coded output for success/error/warning messages
+  - Comprehensive error handling and validation
+  - True cross-platform auto-installation: macOS, Linux, and Windows
+
+- **Development workflow guidelines** in CLAUDE.md:
+  - Feature branch workflow (always create branches before starting work)
+  - Branch naming conventions (feature/, fix/, refactor/, docs/)
+  - Completion checklist: Documentation, Tests, Code Quality, Linting, Refactoring, GitHub Actions
+  - Example completion workflow with all necessary commands
+  - Ensures consistent quality and completeness for all future features
+
+- **Cache query sorting** - Added `order(field_slug, direction)` method to Cache::Query
+  - Supports ASC/DESC sorting on cached records
+  - Enables local sorting without API calls
+  - Applied via `apply_sorting_to_query` in RecordOperations
+
+- **get_record cache support** - `get_record` now uses cache-first strategy
+  - Only makes API call if record not cached
+  - Significant performance improvement for individual record lookups (~100ms → <10ms)
+  - Applies SmartDoc HTML extraction to both cached and API responses
+
+- **get_table caching** - Added caching support to `get_table` method
+  - Caches table structure with 12-hour TTL
+  - Reduces API calls for frequently accessed table metadata
+
+- **SmartDoc HTML extraction** - 60-70% token savings for rich text fields
+  - Extract only HTML content from SmartDoc/richtextarea fields
+  - SmartDoc fields contain `{data, html, preview, yjsData}` but AI only needs HTML
+  - Cache stores complete JSON, but `get_record` and `list_records` return only HTML
+  - Added JSON string parsing to handle cached values
+  - Reduces token usage by 60-70% for rich text fields (e.g., 100KB JSON → 3-4KB HTML)
+
+- **Color-coded logging** - ANSI color codes for different log types
+  - API operations: Cyan
+  - Database queries: Green
+  - Cache operations: Magenta
+  - Errors: Red
+  - Easier visual scanning of logs during development
+
+- **Separate test/production logs** - Environment-based log file separation
+  - Test logs: `~/.smartsuite_mcp_queries_test.log`
+  - Production logs: `~/.smartsuite_mcp_queries.log`
+  - Auto-detection based on environment
+  - Prevents test noise in production logs
+
+- **README.md** - Completely restructured Quick Start section:
+  - **One-liner installation** now featured as primary method (easiest!)
+  - Manual clone + script moved to "Alternative" section
+  - Removed verbose prerequisites (bootstrap scripts handle git checks)
+  - Simplified and streamlined documentation
+  - Focus on "paste one command, enter credentials, done"
+
+- **ROADMAP.md** - Updated v2.0 goals to focus on "Token optimization and ease of installation"
+
 ### Removed
 
 - **BREAKING: `bypass_cache` parameter removed** - Removed bypass_cache parameter from all operations
@@ -167,121 +368,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Created missing `docs/getting-started/configuration.md` (referenced in 3 locations)
   - Created missing `docs/reference/filter-operators.md` (referenced in filtering guide)
   - Created missing `docs/contributing/code-style.md`, `testing.md`, and `documentation.md` (referenced in README)
-
-### Added
-
-- **is_exactly operator for JSON array fields** - New operator to check if array contains exactly specified values (no more, no less)
-  - **Implementation**: Combines JSON array length check with value presence checks
-  - **SQL generation**: `json_array_length(field) = ? AND json_extract(field, '$') LIKE ? AND ...`
-  - **Affected field types**: userfield, multipleselectfield, linkedrecordfield
-  - **Use case**: Find records where `tags` is exactly `['tag_a', 'tag_b']` (not `['tag_a']` or `['tag_a', 'tag_b', 'tag_c']`)
-  - **Example**: `.where(tags: { is_exactly: ['tag_a', 'tag_b'] })`
-  - **Testing**: Verified against SmartSuite API for linkedrecordfield and multipleselectfield (2/2 tests pass)
-  - **Added in**: `Cache::Query.build_complex_condition` (line 376-383)
-
-- **Fuzzy name search for solutions** - Filter solutions by name with typo tolerance
-  - Added `name` parameter to `list_solutions` tool with strong recommendation to use for token optimization
-  - Tool description emphasizes using `name` filter to significantly reduce token usage by returning only matching solutions
-  - Custom SQLite function `fuzzy_match()` registered for DB-layer filtering
-  - Supports partial matches, case-insensitive, accent-insensitive
-  - Allows up to 2 character typos using Levenshtein distance
-  - Examples: "desarollo" matches "Desarrollos de software", "gestion" matches "Gestión de Proyectos"
-  - Implemented in `FuzzyMatcher` module with comprehensive test coverage (19 tests, 57 assertions)
-  - Comprehensive accent support tested: all Spanish vowels (á,é,í,ó,ú), special chars (ñ,ü), uppercase, bidirectional matching
-
-### Changed
-
-- **Verified numeric field operators work correctly** - Comprehensive testing confirms all comparison operators match SmartSuite API
-  - **Operators tested**: gt, gte, lt, lte, eq (5 operators)
-  - **Field types tested**: numberfield, currencyfield, percentfield, ratingfield (4 field types)
-  - **Test coverage**: 11 test cases covering all operators across all numeric field types
-  - **Result**: 11/11 tests pass - cache returns identical results to SmartSuite API
-  - **Operators**:
-    - `:gt` → `is_greater_than` → `field > value`
-    - `:gte` → `is_equal_or_greater_than` → `field >= value`
-    - `:lt` → `is_less_than` → `field < value`
-    - `:lte` → `is_equal_or_less_than` → `field <= value`
-    - `:eq` → `is_equal_to` → `field = value`
-  - Cache-first strategy: fuzzy matching happens at SQLite layer when using cache
-  - Fallback client-side filtering for non-cached responses
-- **Missing documentation files** - Created comprehensive documentation to fix broken links:
-  - `docs/getting-started/configuration.md` - Complete environment variable and cache configuration guide
-  - `docs/reference/filter-operators.md` - Comprehensive filter operator reference organized by field type
-  - `docs/contributing/code-style.md` - Ruby coding standards and style guidelines
-  - `docs/contributing/testing.md` - Testing standards and best practices with Minitest
-  - `docs/contributing/documentation.md` - Documentation standards and writing guidelines
-- **One-liner installation** - Zero-friction installation with a single command:
-  - **macOS/Linux**: `curl -fsSL https://raw.githubusercontent.com/.../bootstrap.sh | bash`
-  - **Windows**: `irm https://raw.githubusercontent.com/.../bootstrap.ps1 | iex`
-  - Bootstrap scripts automatically:
-    - Clone repository to `~/.smartsuite_mcp`
-    - Run the full installation script
-    - Handle updates to existing installations
-    - No manual git clone required
-  - Users just paste one command and enter their API credentials
-  - Easiest possible installation experience
-- **Automated installation scripts** for non-technical users:
-  - **macOS/Linux**: `./install.sh` - Bash-based installer with Homebrew integration
-    - Automatic Homebrew installation on macOS (if not present)
-    - Automatic Ruby installation via Homebrew on macOS
-    - Support for Apple Silicon and Intel Macs
-    - Support for jq (if installed) for safer JSON manipulation
-  - **Windows**: `.\install.ps1` - PowerShell-based installer for Windows
-    - Automatic Ruby installation via WinGet (Windows Package Manager)
-    - Works on Windows 10 (version 1809+) and Windows 11
-    - Interactive prompt to install Ruby if not present
-    - Fallback to manual installation if WinGet unavailable
-  - One-command installation process across all platforms
-  - Automatic Ruby version checking (3.0+ required)
-  - Automatic dependency installation via Bundler
-  - Interactive prompts for SmartSuite API credentials
-  - Automatic Claude Desktop configuration with proper JSON formatting
-  - Backup of existing configuration before making changes
-  - Color-coded output for success/error/warning messages
-  - Comprehensive error handling and validation
-  - True cross-platform auto-installation: macOS, Linux, and Windows
-- **Development workflow guidelines** in CLAUDE.md:
-  - Feature branch workflow (always create branches before starting work)
-  - Branch naming conventions (feature/, fix/, refactor/, docs/)
-  - Completion checklist: Documentation, Tests, Code Quality, Linting, Refactoring, GitHub Actions
-  - Example completion workflow with all necessary commands
-  - Ensures consistent quality and completeness for all future features
-- **Cache query sorting** - Added `order(field_slug, direction)` method to Cache::Query
-  - Supports ASC/DESC sorting on cached records
-  - Enables local sorting without API calls
-  - Applied via `apply_sorting_to_query` in RecordOperations
-- **get_record cache support** - `get_record` now uses cache-first strategy
-  - Only makes API call if record not cached
-  - Significant performance improvement for individual record lookups (~100ms → <10ms)
-  - Applies SmartDoc HTML extraction to both cached and API responses
-- **get_table caching** - Added caching support to `get_table` method
-  - Caches table structure with 12-hour TTL
-  - Reduces API calls for frequently accessed table metadata
-  - Improved `bypass_cache` documentation
-- **SmartDoc HTML extraction** - 60-70% token savings for rich text fields
-  - Extract only HTML content from SmartDoc/richtextarea fields
-  - SmartDoc fields contain `{data, html, preview, yjsData}` but AI only needs HTML
-  - Cache stores complete JSON, but `get_record` and `list_records` return only HTML
-  - Added JSON string parsing to handle cached values
-  - Reduces token usage by 60-70% for rich text fields (e.g., 100KB JSON → 3-4KB HTML)
-- **Color-coded logging** - ANSI color codes for different log types
-  - API operations: Cyan
-  - Database queries: Green
-  - Cache operations: Magenta
-  - Errors: Red
-  - Easier visual scanning of logs during development
-- **Separate test/production logs** - Environment-based log file separation
-  - Test logs: `~/.smartsuite_mcp_queries_test.log`
-  - Production logs: `~/.smartsuite_mcp_queries.log`
-  - Auto-detection based on environment
-  - Prevents test noise in production logs
-- **README.md** - Completely restructured Quick Start section:
-  - **One-liner installation** now featured as primary method (easiest!)
-  - Manual clone + script moved to "Alternative" section
-  - Removed verbose prerequisites (bootstrap scripts handle git checks)
-  - Simplified and streamlined documentation
-  - Focus on "paste one command, enter credentials, done"
-- **ROADMAP.md** - Updated v2.0 goals to focus on "Token optimization and ease of installation"
 
 ## [1.8.0] - 2025-11-16
 
