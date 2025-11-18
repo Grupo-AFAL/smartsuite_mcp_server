@@ -247,7 +247,7 @@ module SmartSuite
         expires_at = (Time.now + ttl_seconds).utc.iso8601
 
         # Clear existing records (re-fetch strategy)
-        @db.execute("DELETE FROM #{sql_table_name}")
+        db_execute("DELETE FROM #{sql_table_name}")
 
         # Insert all records with same expiration time
         records.each do |record|
@@ -305,7 +305,7 @@ module SmartSuite
         sql = "INSERT OR REPLACE INTO #{sql_table_name} (#{columns.join(', ')})
              VALUES (#{placeholders.join(', ')})"
 
-        @db.execute(sql, values)
+        db_execute(sql, values)
       end
 
       # Find matching value from extracted values for a stored column name
@@ -517,7 +517,7 @@ module SmartSuite
         if schema
           sql_table_name = schema['sql_table_name']
           # Set expires_at to 0 to force re-fetch of cached records
-          @db.execute("UPDATE #{sql_table_name} SET expires_at = 0")
+          db_execute("UPDATE #{sql_table_name} SET expires_at = 0")
           record_stat('invalidation', 'table_records', table_id)
         end
 
@@ -540,7 +540,7 @@ module SmartSuite
         sql_table_name = schema['sql_table_name']
 
         # Check if any record exists and is not expired
-        result = @db.execute(
+        result = db_execute(
           "SELECT COUNT(*) as count FROM #{sql_table_name} WHERE expires_at > ?",
           [Time.now.utc.iso8601]
         ).first
@@ -1113,7 +1113,7 @@ module SmartSuite
           next unless schema
 
           sql_table_name = schema['sql_table_name']
-          @db.execute("UPDATE #{sql_table_name} SET expires_at = 0")
+          db_execute("UPDATE #{sql_table_name} SET expires_at = 0")
           record_stat('invalidation', 'table_records', table_id)
           invalidated_count += 1
         end
