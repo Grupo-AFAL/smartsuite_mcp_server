@@ -492,6 +492,129 @@ class TestCacheLayer < Minitest::Test
     assert_includes error.message.downcase, 'closed', 'Database should be closed'
   end
 
+  # Test cascading cache invalidation
+  def test_invalidate_table_list_cache_cascades_to_records
+    solution_id = 'sol_cascade_test'
+
+    # Cache tables for the solution
+    tables = [
+      { 'id' => 'tbl_cascade_1', 'name' => 'Table 1', 'solution_id' => solution_id },
+      { 'id' => 'tbl_cascade_2', 'name' => 'Table 2', 'solution_id' => solution_id }
+    ]
+    @cache.cache_table_list(solution_id, tables)
+
+    # Cache records for each table
+    structure = create_test_structure
+    records = create_test_records
+    @cache.cache_table_records('tbl_cascade_1', structure, records)
+    @cache.cache_table_records('tbl_cascade_2', structure, records)
+
+    # Verify caches are valid
+    assert @cache.send(:table_list_cache_valid?, solution_id), 'Table list cache should be valid'
+    assert @cache.cache_valid?('tbl_cascade_1'), 'Table 1 records cache should be valid'
+    assert @cache.cache_valid?('tbl_cascade_2'), 'Table 2 records cache should be valid'
+
+    # Invalidate table list for solution (should cascade to records)
+    @cache.send(:invalidate_table_list_cache, solution_id)
+
+    # Verify all caches are invalidated
+    refute @cache.send(:table_list_cache_valid?, solution_id), 'Table list cache should be invalid'
+    refute @cache.cache_valid?('tbl_cascade_1'), 'Table 1 records cache should be invalid'
+    refute @cache.cache_valid?('tbl_cascade_2'), 'Table 2 records cache should be invalid'
+  end
+
+  def test_invalidate_solutions_cache_cascades_to_tables_and_records
+    solution_id = 'sol_cascade_all'
+
+    # Cache solutions
+    solutions = [
+      { 'id' => solution_id, 'name' => 'Solution Cascade', 'logo_icon' => 'icon', 'logo_color' => '#000000' }
+    ]
+    @cache.cache_solutions(solutions)
+
+    # Cache tables for the solution
+    tables = [
+      { 'id' => 'tbl_sol_cascade_1', 'name' => 'Table 1', 'solution_id' => solution_id },
+      { 'id' => 'tbl_sol_cascade_2', 'name' => 'Table 2', 'solution_id' => solution_id }
+    ]
+    @cache.cache_table_list(solution_id, tables)
+
+    # Cache records for each table
+    structure = create_test_structure
+    records = create_test_records
+    @cache.cache_table_records('tbl_sol_cascade_1', structure, records)
+    @cache.cache_table_records('tbl_sol_cascade_2', structure, records)
+
+    # Verify all caches are valid
+    assert @cache.send(:solutions_cache_valid?), 'Solutions cache should be valid'
+    assert @cache.send(:table_list_cache_valid?, solution_id), 'Table list cache should be valid'
+    assert @cache.cache_valid?('tbl_sol_cascade_1'), 'Table 1 records cache should be valid'
+    assert @cache.cache_valid?('tbl_sol_cascade_2'), 'Table 2 records cache should be valid'
+
+    # Invalidate solutions (should cascade to tables and records)
+    @cache.send(:invalidate_solutions_cache)
+
+    # Verify all caches are invalidated
+    refute @cache.send(:solutions_cache_valid?), 'Solutions cache should be invalid'
+    refute @cache.send(:table_list_cache_valid?, solution_id), 'Table list cache should be invalid'
+    refute @cache.cache_valid?('tbl_sol_cascade_1'), 'Table 1 records cache should be invalid'
+    refute @cache.cache_valid?('tbl_sol_cascade_2'), 'Table 2 records cache should be invalid'
+  end
+
+  def test_refresh_cache_tables_cascades_to_records
+    solution_id = 'sol_refresh_cascade'
+
+    # Cache tables
+    tables = [
+      { 'id' => 'tbl_refresh_1', 'name' => 'Table 1', 'solution_id' => solution_id }
+    ]
+    @cache.cache_table_list(solution_id, tables)
+
+    # Cache records
+    structure = create_test_structure
+    records = create_test_records
+    @cache.cache_table_records('tbl_refresh_1', structure, records)
+
+    # Verify caches are valid
+    assert @cache.send(:table_list_cache_valid?, solution_id), 'Table list should be valid'
+    assert @cache.cache_valid?('tbl_refresh_1'), 'Records should be valid'
+
+    # Refresh table list (should cascade to records)
+    @cache.refresh_cache('tables', solution_id: solution_id)
+
+    # Verify both caches are invalidated
+    refute @cache.send(:table_list_cache_valid?, solution_id), 'Table list should be invalid after refresh'
+    refute @cache.cache_valid?('tbl_refresh_1'), 'Records should be invalid after refresh'
+  end
+
+  def test_refresh_cache_solutions_cascades_to_all
+    solution_id = 'sol_refresh_all'
+
+    # Cache everything
+    solutions = [{ 'id' => solution_id, 'name' => 'Solution', 'logo_icon' => 'icon', 'logo_color' => '#000' }]
+    @cache.cache_solutions(solutions)
+
+    tables = [{ 'id' => 'tbl_refresh_all', 'name' => 'Table', 'solution_id' => solution_id }]
+    @cache.cache_table_list(solution_id, tables)
+
+    structure = create_test_structure
+    records = create_test_records
+    @cache.cache_table_records('tbl_refresh_all', structure, records)
+
+    # Verify all valid
+    assert @cache.send(:solutions_cache_valid?), 'Solutions should be valid'
+    assert @cache.send(:table_list_cache_valid?, solution_id), 'Tables should be valid'
+    assert @cache.cache_valid?('tbl_refresh_all'), 'Records should be valid'
+
+    # Refresh solutions (should cascade to everything)
+    @cache.refresh_cache('solutions')
+
+    # Verify all invalid
+    refute @cache.send(:solutions_cache_valid?), 'Solutions should be invalid'
+    refute @cache.send(:table_list_cache_valid?, solution_id), 'Tables should be invalid'
+    refute @cache.cache_valid?('tbl_refresh_all'), 'Records should be invalid'
+  end
+
   private
 
   def create_test_structure

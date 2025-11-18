@@ -660,22 +660,22 @@ module SmartSuite
         },
         {
           'name' => 'refresh_cache',
-          'description' => 'Manually refresh (invalidate) cache for specific resources. Invalidates cache without refetching - data will be refreshed on next access. Useful for forcing fresh data when you know it has changed.',
+          'description' => 'Manually refresh (invalidate) cache for specific resources. Invalidates cache without refetching - data will be refreshed on next access. Useful for forcing fresh data when you know it has changed. IMPORTANT: Choose the right resource level based on what you want to refresh.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
               'resource' => {
                 'type' => 'string',
-                'description' => 'Resource type to refresh: "solutions" (all solutions), "tables" (table list), or "records" (table records)',
+                'description' => 'Resource type to refresh with cascading invalidation: (1) "solutions" = invalidates ALL solutions + ALL tables + ALL records (use only when refreshing entire workspace), (2) "tables" with solution_id = invalidates tables + records for ONE specific solution (use this to refresh a single solution), (3) "tables" without solution_id = invalidates ALL tables + ALL records, (4) "records" with table_id = invalidates records for ONE specific table. Examples: To refresh "ProductEK" solution use resource="tables" with solution_id="sol_123", NOT resource="solutions".',
                 'enum' => %w[solutions tables records]
               },
               'table_id' => {
                 'type' => 'string',
-                'description' => 'Table ID (required when resource is "records")'
+                'description' => 'Table ID (required when resource is "records"). Use this to refresh cache for a specific table only. Example: resource="records", table_id="tbl_456"'
               },
               'solution_id' => {
                 'type' => 'string',
-                'description' => 'Solution ID (optional when resource is "tables" - omit to refresh all tables)'
+                'description' => 'Solution ID (required when refreshing a specific solution). Use with resource="tables" to refresh one solution. Example: To refresh "ProductEK" solution, use resource="tables" with solution_id="sol_123". Omit to refresh all tables.'
               }
             },
             'required' => ['resource']

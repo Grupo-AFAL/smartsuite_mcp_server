@@ -11,9 +11,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Improved `refresh_cache` tool description** - Clarified resource parameter to prevent AI from refreshing entire workspace when user wants to refresh one solution
+  - Added explicit examples: "To refresh ProductEK solution use resource='tables' with solution_id='sol_123', NOT resource='solutions'"
+  - Enumerated all 4 use cases: (1) refresh all workspace, (2) refresh one solution, (3) refresh all tables, (4) refresh one table
+  - Changed `solution_id` description to say "required when refreshing a specific solution"
+  - Prevents confusion where AI would use `resource: "solutions"` (all solutions) instead of `resource: "tables", solution_id: "X"` (one solution)
+
 ### Removed
 
 ### Fixed
+
+- **Cache invalidation cascade** - Fixed bug where refreshing cache for solutions or tables didn't invalidate cached records
+  - `refresh_cache('solutions')` now invalidates solutions → tables → records (full cascade)
+  - `refresh_cache('tables', solution_id: 'sol_123')` now invalidates tables → records for that solution
+  - Added `invalidate_records_for_solution(solution_id)` private helper method
+  - Added `get_table_ids_for_solution(solution_id)` private helper method
+  - Modified `invalidate_solutions_cache` to cascade through `invalidate_table_list_cache`
+  - Modified `invalidate_table_list_cache` to call `invalidate_records_for_solution` first
+  - Bug reported: After refreshing cache, subsequent queries returned stale data from cache
+  - Added 4 comprehensive tests for cascading invalidation scenarios
+  - Fixes issue where `list_records` would return cached data even after `refresh_cache` was called
+  - **Improved cache logging** - Fixed missing query logs by using `db_execute` instead of `@db.execute`
+    - Changed 5 instances in `cache/layer.rb`: `insert_record` (line 308), `cache_table_records` (line 250), `invalidate_table_cache` (line 520), `cache_valid?` (line 543), `invalidate_records_for_solution` (line 1116)
+    - All cache INSERT, DELETE, UPDATE, and SELECT operations now logged to `~/.smartsuite_mcp_queries.log`
+    - Makes cache operations visible for debugging and monitoring
 
 ## [1.9.0] - 2025-11-18
 
