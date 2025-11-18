@@ -662,7 +662,7 @@ class TestRecordOperations < Minitest::Test
     ]
 
     stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/bulk/')
-      .with(body: records.to_json)
+      .with(body: { 'items' => records }.to_json)
       .to_return(
         status: 200,
         body: [
@@ -715,7 +715,7 @@ class TestRecordOperations < Minitest::Test
     ]
 
     stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/bulk/')
-      .with(body: records.to_json)
+      .with(body: { 'items' => records }.to_json)
       .to_return(
         status: 200,
         body: [
@@ -765,7 +765,7 @@ class TestRecordOperations < Minitest::Test
     record_ids = %w[rec_1 rec_2 rec_3]
 
     stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/bulk_delete/')
-      .with(body: record_ids.to_json)
+      .with(body: { 'items' => record_ids }.to_json)
       .to_return(
         status: 200,
         body: { deleted: 3 }.to_json

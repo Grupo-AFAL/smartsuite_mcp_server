@@ -389,7 +389,7 @@ module SmartSuite
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('records', records, Array)
 
-        api_request(:post, "/applications/#{table_id}/records/bulk/", records)
+        api_request(:post, "/applications/#{table_id}/records/bulk/", { 'items' => records })
       end
 
       # Updates multiple records in a single request (bulk operation).
@@ -410,7 +410,7 @@ module SmartSuite
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('records', records, Array)
 
-        api_request(:patch, "/applications/#{table_id}/records/bulk/", records)
+        api_request(:patch, "/applications/#{table_id}/records/bulk/", { 'items' => records })
       end
 
       # Deletes multiple records in a single request (bulk operation).
@@ -428,7 +428,7 @@ module SmartSuite
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_ids', record_ids, Array)
 
-        api_request(:patch, "/applications/#{table_id}/records/bulk_delete/", record_ids)
+        api_request(:patch, "/applications/#{table_id}/records/bulk_delete/", { 'items' => record_ids })
       end
 
       # Gets a public URL for a file attached to a record.
