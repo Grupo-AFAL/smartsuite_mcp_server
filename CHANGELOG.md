@@ -25,6 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added MCP tool schema in `ToolRegistry` (lines 357-370)
   - Added server handler in `SmartSuiteServer` (line 215-216)
 
+- **File attachment** - Added operation to attach files to records by URL
+  - `attach_file`: Attach files by providing publicly accessible URLs
+  - SmartSuite downloads files from provided URLs and attaches them to specified field
+  - Supports single or multiple files in one operation
+  - Implemented in `RecordOperations` module (lines 492-528)
+  - Added MCP tool schema in `ToolRegistry` (lines 441-454)
+  - Added server handler in `SmartSuiteServer` (lines 222-228)
+  - Added 6 comprehensive tests (success, parameter validation, API error)
+
 - **Deleted records management** - Added operations for working with soft-deleted records
   - `list_deleted_records`: List all soft-deleted records from a solution
     - Accepts `preview` parameter to limit returned fields (default: true)
@@ -41,14 +50,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `create_client`: Eliminates repeated client instantiation in tests
   - Added `assert_requires_parameter`: DRY pattern for parameter validation tests
   - Added `assert_api_error`: DRY pattern for API error handling tests
-  - Applied to 16 new tests for bulk operations, file operations, and deleted records
-  - Reduced test file by 55 lines (1,016 → 961 lines, -5.4%)
+  - Applied to 22 new tests for bulk operations, file operations, and deleted records
+  - Reduced test file by 55 lines (1,022 → 967 lines, -5.4%)
   - Improved test readability and maintainability
 
 - **Schema constants in ToolRegistry** - Extracted common parameter schemas
-  - Added 8 reusable schema constants (SCHEMA_TABLE_ID, SCHEMA_RECORD_ID, etc.)
-  - Applied to 6 new record operation tools
-  - Eliminates 35 lines of schema duplication
+  - Added 10 reusable schema constants (SCHEMA_TABLE_ID, SCHEMA_FILE_URLS, etc.)
+  - Applied to 7 new record operation tools
+  - Eliminates 40 lines of schema duplication
   - Single source of truth for parameter definitions
   - Frozen constants prevent accidental mutation
 

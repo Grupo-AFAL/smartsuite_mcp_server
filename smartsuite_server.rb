@@ -219,6 +219,13 @@ class SmartSuiteServer
                @client.list_deleted_records(arguments['solution_id'], preview: arguments['preview'])
              when 'restore_deleted_record'
                @client.restore_deleted_record(arguments['table_id'], arguments['record_id'])
+             when 'attach_file'
+               @client.attach_file(
+                 arguments['table_id'],
+                 arguments['record_id'],
+                 arguments['file_field_slug'],
+                 arguments['file_urls']
+               )
              when 'add_field'
                @client.add_field(
                  arguments['table_id'],

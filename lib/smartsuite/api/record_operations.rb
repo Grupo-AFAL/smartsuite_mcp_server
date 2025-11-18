@@ -488,6 +488,44 @@ module SmartSuite
 
         api_request(:post, "/applications/#{table_id}/records/#{record_id}/restore/", {})
       end
+
+      # Attach a file to a record by URL
+      #
+      # @param table_id [String] the ID of the table containing the record
+      # @param record_id [String] the ID of the record to attach the file to
+      # @param file_field_slug [String] the slug of the file/image field
+      # @param file_urls [Array<String>] array of URLs to files to attach
+      #   SmartSuite will download the files from these URLs and attach them to the record
+      # @return [Hash] the updated record object
+      # @raise [ArgumentError] if table_id, record_id, file_field_slug, or file_urls is missing
+      # @raise [RuntimeError] if the API request fails
+      #
+      # @example Attach a single file
+      #   attach_file('tbl_123', 'rec_456', 'attachments', ['https://example.com/file.pdf'])
+      #
+      # @example Attach multiple files
+      #   attach_file('tbl_123', 'rec_456', 'images', [
+      #     'https://example.com/image1.jpg',
+      #     'https://example.com/image2.jpg'
+      #   ])
+      #
+      # @note This operation uses the update_record endpoint (PATCH) but is specifically
+      #   designed for attaching files by URL. SmartSuite downloads the files from the
+      #   provided URLs and attaches them to the specified field.
+      # @note The file URLs must be publicly accessible for SmartSuite to download them.
+      def attach_file(table_id, record_id, file_field_slug, file_urls)
+        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!('record_id', record_id)
+        validate_required_parameter!('file_field_slug', file_field_slug)
+        validate_required_parameter!('file_urls', file_urls, Array)
+
+        body = {
+          'id' => record_id,
+          file_field_slug => file_urls
+        }
+
+        api_request(:patch, "/applications/#{table_id}/records/#{record_id}/", body)
+      end
     end
   end
 end
