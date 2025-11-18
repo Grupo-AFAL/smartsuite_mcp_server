@@ -154,7 +154,8 @@ class SmartSuiteServer
              when 'list_solutions'
                @client.list_solutions(
                  include_activity_data: arguments['include_activity_data'],
-                 fields: arguments['fields']
+                 fields: arguments['fields'],
+                 name: arguments['name']
                )
              when 'analyze_solution_usage'
                @client.analyze_solution_usage(
