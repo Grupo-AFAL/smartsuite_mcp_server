@@ -313,22 +313,24 @@ module SmartSuite
         when :is_not_null
           ["#{col_name} IS NOT NULL", []]
         when :is_empty
-          # For text fields
-          if field_type =~ /text|email|phone|link/
-            ["(#{col_name} IS NULL OR #{col_name} = '')", []]
           # For JSON array fields (userfield, multipleselectfield, linkedrecordfield)
-          elsif field_type =~ /userfield|multipleselect|linkedrecord/
+          # NOTE: Check this BEFORE text fields because linkedrecordfield contains 'field' which matches /text/
+          if field_type =~ /userfield|multipleselectfield|linkedrecordfield/
             ["(#{col_name} IS NULL OR #{col_name} = '[]')", []]
+          # For text fields
+          elsif field_type =~ /text|email|phone|link/
+            ["(#{col_name} IS NULL OR #{col_name} = '')", []]
           else
             ["#{col_name} IS NULL", []]
           end
         when :is_not_empty
-          # For text fields
-          if field_type =~ /text|email|phone|link/
-            ["(#{col_name} IS NOT NULL AND #{col_name} != '')", []]
           # For JSON array fields (userfield, multipleselectfield, linkedrecordfield)
-          elsif field_type =~ /userfield|multipleselect|linkedrecord/
+          # NOTE: Check this BEFORE text fields because linkedrecordfield contains 'field' which matches /text/
+          if field_type =~ /userfield|multipleselectfield|linkedrecordfield/
             ["(#{col_name} IS NOT NULL AND #{col_name} != '[]')", []]
+          # For text fields
+          elsif field_type =~ /text|email|phone|link/
+            ["(#{col_name} IS NOT NULL AND #{col_name} != '')", []]
           else
             ["#{col_name} IS NOT NULL", []]
           end

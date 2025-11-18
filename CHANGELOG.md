@@ -87,9 +87,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Filter: `assigned_to is_not_empty`
     - **Before fix**: ❌ RETURNED (cache checked IS NOT NULL → true for empty array)
     - **After fix**: ✅ NOT returned (cache checks `!= '[]'` → false for empty array)
-  - **Fixed in**: `Cache::Query.build_complex_condition` (line 315-334)
+  - **Fixed in**: `Cache::Query.build_complex_condition` (line 315-336)
+  - **Additional fix**: Reordered regex conditions to check JSON array fields BEFORE text fields (linkedrecordfield contains 'field' which matches `/text/`)
   - **Impact**: Array field filtering now returns identical results to SmartSuite API
-  - **Comprehensive testing**: Verified against API for statusfield, singleselectfield, multipleselectfield, userfield (7/7 tests pass)
+  - **Comprehensive testing**:
+    - Verified against API for statusfield, singleselectfield, multipleselectfield, userfield (7/7 tests pass)
+    - Verified all linkedrecordfield operators: has_any_of, has_all_of, has_none_of, is_empty, is_not_empty (8/8 tests pass)
 
 ### Added
 
