@@ -69,6 +69,19 @@ module SmartSuite
         'description' => 'Optional: If true, returns limited fields (default: true)'
       }.freeze
 
+      # File field slug parameter (used in attach_file)
+      SCHEMA_FILE_FIELD_SLUG = {
+        'type' => 'string',
+        'description' => 'The slug of the file/image field to attach files to'
+      }.freeze
+
+      # Array of file URLs for attach (used in attach_file)
+      SCHEMA_FILE_URLS = {
+        'type' => 'array',
+        'description' => 'Array of publicly accessible URLs to files. SmartSuite will download and attach these files.',
+        'items' => { 'type' => 'string' }
+      }.freeze
+
       # ========================================================================
       # TOOL DEFINITIONS
       # ========================================================================
@@ -423,6 +436,20 @@ module SmartSuite
               'record_id' => SCHEMA_RECORD_ID
             },
             'required' => %w[table_id record_id]
+          }
+        },
+        {
+          'name' => 'attach_file',
+          'description' => 'Attach files to a record by providing URLs. SmartSuite downloads files from the provided URLs and attaches them to the specified file/image field. The URLs must be publicly accessible.',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'table_id' => SCHEMA_TABLE_ID,
+              'record_id' => SCHEMA_RECORD_ID,
+              'file_field_slug' => SCHEMA_FILE_FIELD_SLUG,
+              'file_urls' => SCHEMA_FILE_URLS
+            },
+            'required' => %w[table_id record_id file_field_slug file_urls]
           }
         }
       ].freeze

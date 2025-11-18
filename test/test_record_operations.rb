@@ -958,4 +958,105 @@ class TestRecordOperations < Minitest::Test
       'rec_456'
     )
   end
+
+  # ========================================================================
+  # attach_file tests
+  # ========================================================================
+
+  # Test attach_file success
+  def test_attach_file_success
+    client = create_client
+
+    stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
+      .with(
+        body: {
+          'id' => 'rec_456',
+          'attachments' => ['https://example.com/file.pdf', 'https://example.com/image.jpg']
+        }.to_json
+      )
+      .to_return(
+        status: 200,
+        body: {
+          'id' => 'rec_456',
+          'title' => 'Test Record',
+          'attachments' => [
+            { 'url' => 'https://example.com/file.pdf', 'name' => 'file.pdf' },
+            { 'url' => 'https://example.com/image.jpg', 'name' => 'image.jpg' }
+          ]
+        }.to_json
+      )
+
+    result = client.attach_file(
+      'tbl_123',
+      'rec_456',
+      'attachments',
+      ['https://example.com/file.pdf', 'https://example.com/image.jpg']
+    )
+
+    assert_equal 'rec_456', result['id']
+    assert_equal 'Test Record', result['title']
+    assert_equal 2, result['attachments'].length
+  end
+
+  # Test attach_file requires table_id
+  def test_attach_file_requires_table_id
+    assert_requires_parameter(
+      :attach_file,
+      'table_id',
+      nil,
+      'rec_456',
+      'attachments',
+      ['https://example.com/file.pdf']
+    )
+  end
+
+  # Test attach_file requires record_id
+  def test_attach_file_requires_record_id
+    assert_requires_parameter(
+      :attach_file,
+      'record_id',
+      'tbl_123',
+      nil,
+      'attachments',
+      ['https://example.com/file.pdf']
+    )
+  end
+
+  # Test attach_file requires file_field_slug
+  def test_attach_file_requires_file_field_slug
+    assert_requires_parameter(
+      :attach_file,
+      'file_field_slug',
+      'tbl_123',
+      'rec_456',
+      nil,
+      ['https://example.com/file.pdf']
+    )
+  end
+
+  # Test attach_file requires file_urls
+  def test_attach_file_requires_file_urls
+    assert_requires_parameter(
+      :attach_file,
+      'file_urls',
+      'tbl_123',
+      'rec_456',
+      'attachments',
+      nil
+    )
+  end
+
+  # Test attach_file API error
+  def test_attach_file_api_error
+    assert_api_error(
+      :attach_file,
+      'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/',
+      :patch,
+      400,
+      'tbl_123',
+      'rec_456',
+      'attachments',
+      ['https://invalid-url']
+    )
+  end
 end

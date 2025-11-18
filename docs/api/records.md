@@ -527,6 +527,70 @@ get_file_url('handle_abc123xyz')
 
 ---
 
+## attach_file
+
+Attach files to a record by providing URLs. SmartSuite downloads files from the provided URLs and attaches them to the specified file/image field.
+
+### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `table_id` | string | ✅ Yes | Table identifier |
+| `record_id` | string | ✅ Yes | Record identifier |
+| `file_field_slug` | string | ✅ Yes | Slug of the file/image field |
+| `file_urls` | array | ✅ Yes | Array of publicly accessible file URLs |
+
+### Example
+
+```ruby
+# Attach a single file
+attach_file(
+  'tbl_6796989a7ee3c6b731717836',
+  'rec_68e3d5fb98c0282a4f1e2614',
+  'attachments',
+  ['https://example.com/document.pdf']
+)
+
+# Attach multiple files
+attach_file(
+  'tbl_6796989a7ee3c6b731717836',
+  'rec_68e3d5fb98c0282a4f1e2614',
+  'images',
+  [
+    'https://example.com/image1.jpg',
+    'https://example.com/image2.jpg',
+    'https://example.com/image3.png'
+  ]
+)
+```
+
+### Response
+
+```json
+{
+  "id": "rec_68e3d5fb98c0282a4f1e2614",
+  "title": "Document Record",
+  "attachments": [
+    {
+      "url": "https://files.smartsuite.com/...",
+      "name": "document.pdf",
+      "size": 1024000,
+      "type": "application/pdf"
+    }
+  ]
+}
+```
+
+### Notes
+
+- **Public URLs required:** File URLs must be publicly accessible for SmartSuite to download
+- **SmartSuite downloads files:** The API fetches files from provided URLs and stores them
+- **Supported formats:** All file types supported by SmartSuite file/image fields
+- **Uses update endpoint:** Internally uses PATCH to update the file field
+- **Cache not invalidated:** Updated record may not appear in cache until TTL expires
+
+---
+
 ## list_deleted_records
 
 List all soft-deleted records from a solution. Useful for recovery or cleanup.
