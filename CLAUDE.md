@@ -170,7 +170,7 @@ Handles SmartSuite API communication:
 - **HttpClient** (`http_client.rb`, 68 lines): HTTP request execution, authentication, logging
 - **WorkspaceOperations** (`workspace_operations.rb`, 344 lines): Solution management, usage analysis, owner filtering, and recent update tracking
 - **TableOperations** (`table_operations.rb`): Table/application management (list, get, create)
-- **RecordOperations** (`record_operations.rb`, 114 lines): Record CRUD operations
+- **RecordOperations** (`record_operations.rb`, 528 lines): Record CRUD operations, bulk operations, file attachment and URLs, deleted records management
 - **FieldOperations** (`field_operations.rb`, 103 lines): Table schema management (add/update/delete fields)
 - **MemberOperations** (`member_operations.rb`, 281 lines): User and team management, member search
 - **CommentOperations** (`comment_operations.rb`, 79 lines): Comment management (list, add comments)
@@ -294,7 +294,7 @@ The SmartSuite API requires specific parameter placement:
 The server implements:
 - `initialize`: MCP handshake and capability negotiation
 - `tools/list`: List all available SmartSuite tools
-- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_solutions_by_owner, list_tables, get_table, create_table, list_records, create_record, update_record, delete_record, add_field, bulk_add_fields, update_field, delete_field, list_members, search_member, list_teams, get_team, list_comments, add_comment, get_view_records, create_view, get_api_stats, reset_api_stats)
+- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_solutions_by_owner, list_tables, get_table, create_table, list_records, get_record, create_record, update_record, delete_record, bulk_add_records, bulk_update_records, bulk_delete_records, attach_file, get_file_url, list_deleted_records, restore_deleted_record, add_field, bulk_add_fields, update_field, delete_field, list_members, search_member, list_teams, get_team, list_comments, add_comment, get_view_records, create_view, get_api_stats, reset_api_stats, get_cache_status, refresh_cache, warm_cache)
 - `prompts/list`: List example prompts for filters
 - `prompts/get`: Get specific prompt templates
 - `resources/list`: List available resources (empty)
