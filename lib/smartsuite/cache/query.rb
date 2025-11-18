@@ -316,6 +316,9 @@ module SmartSuite
           # For text fields
           if field_type =~ /text|email|phone|link/
             ["(#{col_name} IS NULL OR #{col_name} = '')", []]
+          # For JSON array fields (userfield, multipleselectfield, linkedrecordfield)
+          elsif field_type =~ /userfield|multipleselect|linkedrecord/
+            ["(#{col_name} IS NULL OR #{col_name} = '[]')", []]
           else
             ["#{col_name} IS NULL", []]
           end
@@ -323,6 +326,9 @@ module SmartSuite
           # For text fields
           if field_type =~ /text|email|phone|link/
             ["(#{col_name} IS NOT NULL AND #{col_name} != '')", []]
+          # For JSON array fields (userfield, multipleselectfield, linkedrecordfield)
+          elsif field_type =~ /userfield|multipleselect|linkedrecord/
+            ["(#{col_name} IS NOT NULL AND #{col_name} != '[]')", []]
           else
             ["#{col_name} IS NOT NULL", []]
           end

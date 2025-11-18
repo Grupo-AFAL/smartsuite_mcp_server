@@ -69,6 +69,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact**: Date filtering AND sorting now return identical results whether using cache or API
   - **Migration**: Delete `~/.smartsuite_mcp_cache.db` and restart to rebuild cache with correct filtering and sorting
 
+- **CRITICAL: Fixed is_empty/is_not_empty filtering for JSON array fields** - Cache now correctly handles empty arrays for userfield, multipleselectfield, and linkedrecordfield
+  - **Root cause**: Cache was using `IS NULL` / `IS NOT NULL` checks, but SmartSuite API checks if array is empty `[]`
+  - **Discovery**: Direct API testing revealed cache returned different results for `assigned_to is_not_empty` filter
+  - **SmartSuite API behavior** (verified via direct API testing):
+    - `is_empty`: Returns records where array is empty `[]` (NOT just NULL)
+    - `is_not_empty`: Returns records where array has at least one element (NOT just NOT NULL)
+  - **Affected field types**: userfield, multipleselectfield, linkedrecordfield
+  - **Previous behavior**:
+    - `is_not_empty`: Returned ALL records with non-NULL values (including empty arrays `[]`) → WRONG
+    - `is_empty`: Only returned NULL records (not empty arrays `[]`) → WRONG
+  - **Fixed behavior**:
+    - `is_not_empty`: `(field IS NOT NULL AND field != '[]')` → Returns only records with elements
+    - `is_empty`: `(field IS NULL OR field = '[]')` → Returns only records with no elements
+  - **Example impact**:
+    - Record with `assigned_to: []` (empty array)
+    - Filter: `assigned_to is_not_empty`
+    - **Before fix**: ❌ RETURNED (cache checked IS NOT NULL → true for empty array)
+    - **After fix**: ✅ NOT returned (cache checks `!= '[]'` → false for empty array)
+  - **Fixed in**: `Cache::Query.build_complex_condition` (line 315-334)
+  - **Impact**: Array field filtering now returns identical results to SmartSuite API
+  - **Comprehensive testing**: Verified against API for statusfield, singleselectfield, multipleselectfield, userfield (7/7 tests pass)
+
 ### Added
 
 - **Fuzzy name search for solutions** - Filter solutions by name with typo tolerance
