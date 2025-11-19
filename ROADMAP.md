@@ -1,8 +1,8 @@
 # SmartSuite MCP Server - Product Roadmap
 
-**Last Updated:** November 17, 2025
+**Last Updated:** November 19, 2025
 **Current Version:** 1.9.0
-**Next Release:** 2.0.0 (Q2 2026)
+**Next Release:** 2.0.0 (Q1 2026)
 **Decision Log:** See ROADMAP_DECISIONS.md for detailed analysis and decisions
 
 ## Vision
@@ -142,134 +142,92 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 - ✅ Full YARD documentation for all new methods
 - ✅ Updated CHANGELOG with comprehensive change documentation
 
+### Post v1.9 - Documentation & Bug Fixes (Nov 2025)
+
+**Goal:** Complete SmartDoc documentation and fix critical field format bugs
+
+#### Documentation
+
+- ✅ **SmartDoc format documentation** - Complete rich text field formatting reference
+  - Added `docs/smartdoc_examples.md` - All 13 validated content types
+  - Added `docs/smartdoc_complete_reference.json` - Complete validated structure
+  - Added `docs/smartdoc_data_only.json` - Data-only structure
+  - Updated `create_record` and `update_record` tool descriptions with SmartDoc examples
+  - Documents correct mark types: `"strong"` for bold, `"em"` for italic
+  - Covers: paragraphs, headings, text formatting, lists, code blocks, tables, images, attachments, mentions, links, horizontal rules, callouts, emojis
+
+#### Bug Fixes
+
+- ✅ **Single select field format requirements** - Fixed empty/invisible dropdown options bug
+  - Root cause: Fields created with simple strings instead of UUIDs, missing color attributes
+  - Fixed 4 fields in "Incidentes de Tecnología" table with proper UUIDs and hex colors
+  - Added `docs/reference/single_select_field_format.md` - Comprehensive format reference
+  - Updated tool descriptions for `add_field`, `bulk_add_fields`, `update_field` with UUID warnings
+  - Required format: `{label, value: UUID, value_color: hex, icon_type: "icon", weight: 1}`
+  - Prevention: Clear documentation prevents future occurrences
+
+- ✅ **Cache invalidation cascade** - Fixed stale data after cache refresh
+  - `refresh_cache('solutions')` now invalidates solutions → tables → records (full cascade)
+  - `refresh_cache('tables', solution_id: 'X')` now invalidates tables → records for that solution
+  - Added helper methods for cascading invalidation
+
+- ✅ **Date filter with nested hash values** - Fixed SQLite binding error
+  - Added `extract_date_value` helper to handle nested date format
+  - Supports both `{"date_mode": "exact_date", "date_mode_value": "2025-11-18"}` and simple strings
+
 ---
 
 ## Current Focus 🎯
 
-### v2.0 - Performance & Scalability (Q2 2026)
+### v2.0 - Token Optimization & Usability (Q1 2026)
 
-**Goal:** Improve developer experience and code quality based on v1.7 learnings
+**Goal:** Massive token savings through mutation response optimization and improved installation experience
 
-**Note:** This release focuses on practical improvements deferred from v1.7
+**Note:** Based on TOON format analysis (see `docs/analysis/toon_format_evaluation.md`), we're prioritizing mutation response optimization (50-80% savings) over TOON format (10-15% savings). TOON deferred to v3.0.
 
-#### Code Quality
+#### Token Optimization (HIGH PRIORITY)
 
-- ✅ **Extract filter building into dedicated FilterBuilder module**
+- [ ] **Optimize mutation operation responses (POST/PUT/DELETE)** - **1 week**
 
-  - Created `lib/smartsuite/filter_builder.rb` with SmartSuite→SQL conversion
-  - Supports 20+ comparison operators
-  - 30 comprehensive test cases
-  - Reusable across operations, cleaner API
-  - **Status:** Complete
+  - **Problem:** Create/update/delete operations return full 2-3KB record objects
+  - **Solution:** Return minimal responses: `{success, id, title, operation, timestamp, cached}`
+  - **Expected savings:** 50-80% token reduction on all mutation operations
+  - **Benefits:**
+    - Smart cache updates (parse response to update cache, no invalidation needed)
+    - No breaking changes (add `minimal_response: true` parameter, default: false)
+    - Backward compatible migration path
+  - **Scope:** RecordOperations (create/update/delete/bulk operations)
+  - **Effort:** 3-5 days implementation + testing
+  - **ROI:** Very High - massive savings with minimal implementation cost
+  - **See:** `docs/analysis/toon_format_evaluation.md` for detailed analysis
 
-- ✅ **Refactor API module structure for consistency**
-  - Created `SmartSuite::API::Base` module with common helpers
-  - All 8 API operation modules refactored to use Base
-  - 35-40% code duplication eliminated
-  - Added 22 new parameter validation calls
-  - Standardized cache coordination, endpoint building, response tracking
-  - **Status:** Complete
+- [ ] **Smart field selection intelligence** - **2-3 weeks**
+  - Analyze usage patterns to recommend minimal field selections
+  - Help AI/users request only needed fields
+  - Reduce query response sizes
+  - Educational tooltips/warnings for large field requests
 
-#### Documentation
+#### Usability
 
-- ✅ **Create comprehensive troubleshooting guide**
+- [ ] **Installation script for non-technical users** - **1 week**
+  - Create automated installation script
+  - Interactive CLI setup wizard
+  - Automatic environment variable configuration
+  - Claude Desktop integration setup
+  - Troubleshooting diagnostics built-in
 
-  - Enhanced `docs/getting-started/troubleshooting.md` (345 new lines)
-  - Added 25+ FAQ entries covering common scenarios
-  - Documented v1.6-v1.8 cache features
-  - Included cache debugging techniques
-  - **Status:** Complete
+#### Performance
 
-- ✅ **Improve YARD documentation coverage**
-  - Added @example tags to all user-facing MCP modules (9 methods)
-  - 100% YARD coverage maintained (124 public methods)
-  - Generated HTML documentation in `doc/` directory
-  - Comprehensive @param, @return, @raise tags
-  - **Status:** Complete
+- [ ] **Query optimization for complex filters** - **1-2 weeks**
+  - Optimize SQL query generation for complex filter combinations
+  - Add query plan analysis
+  - Index recommendations for frequently queried fields
 
-#### Developer Experience
-
-- ❌ **Add input validation for all MCP tool parameters**
-
-  - **Decision:** Skipped - validation already comprehensive at API layer
-  - Current implementation uses Base module's `validate_required_parameter!` and `validate_optional_parameter!`
-  - 22 new validation calls added across API modules in v1.8
-  - MCP-level validation would duplicate logic without significant benefit
-  - See: `docs/architecture/response-formats-analysis.md` for analysis
-  - **Status:** Cancelled
-
-- ✅ **Standardize response formats across all tools**
-  - Created `SmartSuite::ResponseFormats` module with 4 builders:
-    - `operation_response` - For mutations/actions
-    - `error_response` - Structured errors with codes
-    - `query_response` - For read operations
-    - `collection_response` - For list operations
-  - Applied to cache operations (refresh_cache, warm_cache)
-  - All responses include ISO 8601 UTC timestamps
-  - 22 comprehensive tests (100% module coverage)
-  - Documented in `docs/architecture/response-formats-analysis.md`
-  - **Status:** Complete (core infrastructure + key methods)
-
-#### Testing
-
-- ✅ **Add integration tests with real SmartSuite API**
-
-  - Created `test/integration/` directory with manual integration tests
-  - Test harness for workspace, table, record, cache operations
-  - Validates API contract assumptions against real API
-  - Run manually with test credentials
-  - Documents real API behavior vs assumptions
-  - **Status:** Complete (manual tests ready)
-
-- ✅ **Improve test coverage for core modules**
-  - Added comprehensive tests for Cache Layer (44 tests)
-  - Added comprehensive tests for Prompt Registry (23 tests)
-  - Added comprehensive tests for Response Formatter (32 tests)
-  - Coverage improved: 68.38% → 82.93% (+14.55%)
-  - Total test suite: 404 tests, 1,419 assertions, all passing
-  - Remaining gap to 90% target: 7.07%
-  - **Status:** Complete (core modules), ongoing for edge cases
-
-**Total estimated effort:** 16-25 days (3-5 weeks)
+**Total estimated effort:** 4-6 weeks
 
 ---
 
 ## Upcoming Releases 📅
-
-### v2.0 - Performance & Scalability (Q2 2026)
-
-**Goal:** Token optimization and ease of installation
-
-#### Core Improvements
-
-- [ ] Query optimization for complex filters
-- [ ] Create script to install MCP for users without coding skills
-
-#### Token Optimization
-
-- [ ] **Optimize mutation operation responses (POST/PUT/DELETE)**
-  - Analyze responses from create/update/delete operations - currently very large
-  - AI only needs success/failure status and key identifiers, not full response payload
-  - Token savings: Potentially 50-80% reduction on mutation responses
-  - Smart cache updates: Reflect response data in cache without requiring invalidation
-  - Method-specific handling:
-    - POST (create): Cache new record from response
-    - PUT (update): Update cached record with changed fields from response
-    - DELETE: Remove from cache using response confirmation
-  - Maintains cache consistency while minimizing token usage
-  - Scope: RecordOperations, FieldOperations, and other mutation endpoints
-- [ ] **Replace text response format with TOON format**
-  - Migrate from plain text to TOON (Toolkit Oriented Object Notation)
-  - TOON spec: https://github.com/toon-format/toon
-  - Benefits: Better structured data, improved AI readability, reduced token usage
-  - Scope: Replace ResponseFormatter plain text output with TOON format
-  - Impact: Breaking change (response format), but more efficient for AI assistants
-- [ ] Smart field selection based on usage patterns
-- [ ] Automatic response compression
-
-#### Developer Experience
-
-- [ ] Debug mode with detailed logging
 
 ### v2.1 - Advanced Filtering & Search (Q2 2026)
 
@@ -292,15 +250,44 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 - [ ] Optimistic updates with rollback
 - [ ] Conflict resolution for concurrent edits
 
-### v3.0 - Multi-Workspace & Collaboration (Q3 2026)
+### v3.0 - Multi-Workspace & Breaking Changes (Q3 2026)
 
-**Goal:** Support teams and multiple workspaces
+**Goal:** Support teams, multiple workspaces, and complete token optimization (including TOON format)
+
+**Note:** This is a breaking changes release - opportunity to implement TOON format and other improvements deferred from v2.0
+
+#### Token Optimization (DEFERRED FROM v2.0)
+
+- [ ] **TOON format for response formatting** - **2-3 weeks**
+  - **Decision:** Deferred from v2.0 after mutation optimization proves value
+  - **Rationale:** Current plain text saves 30-50% vs JSON. TOON adds ~10-15% more but requires breaking changes
+  - Migrate from plain text to TOON (Toolkit Oriented Object Notation)
+  - TOON spec: https://github.com/toon-format/toon
+  - Expected benefits: +10-15% token savings, +5% parsing accuracy vs plain text
+  - Best for tabular/uniform data (SmartSuite records are ideal)
+  - **Prerequisites:**
+    - Mutation response optimization complete (v2.0)
+    - Measure actual token usage post-v2.0
+    - Ruby TOON library mature (>1k stars)
+    - Production usage examples available
+  - **Impact:** Breaking change - all response formats change
+  - **Migration:** Provide conversion guide, example responses
+  - **See:** `docs/analysis/toon_format_evaluation.md` for detailed cost-benefit analysis
+
+#### Multi-Workspace Support
 
 - [ ] Multi-workspace configuration
 - [ ] Workspace switching
 - [ ] Shared cache between team members (Redis option)
 - [ ] Role-based access control
 - [ ] Audit logging for compliance
+
+#### Other Breaking Changes
+
+- [ ] Move from environment variables to config file
+- [ ] Change cache database schema (migration provided)
+- [ ] Require `fields` parameter for all record queries (remove default)
+- [ ] Remove deprecated parameters and methods
 
 ---
 
@@ -478,10 +465,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 | v1.7    | ✅ Released | Nov 2025    | 100%       |
 | v1.8    | ✅ Released | Nov 2025    | 100%       |
 | v1.9    | ✅ Released | Nov 2025    | 100%       |
-| v2.0    | 📋 Planned  | Q2 2026     | 0%         |
+| v2.0    | 📋 Planned  | Q1 2026     | 0%         |
 | v2.1    | 📋 Planned  | Q2 2026     | 0%         |
 | v2.2    | 📋 Planned  | Q2 2026     | 0%         |
-| v3.0    | 💭 Ideation | Q3 2026     | 0%         |
+| v3.0    | 📋 Planned  | Q3 2026     | 0%         |
 
 ---
 
