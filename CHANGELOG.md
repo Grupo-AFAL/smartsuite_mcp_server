@@ -35,6 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Changed 5 instances in `cache/layer.rb`: `insert_record` (line 308), `cache_table_records` (line 250), `invalidate_table_cache` (line 520), `cache_valid?` (line 543), `invalidate_records_for_solution` (line 1116)
     - All cache INSERT, DELETE, UPDATE, and SELECT operations now logged to `~/.smartsuite_mcp_queries.log`
     - Makes cache operations visible for debugging and monitoring
+- **Date filter with nested hash values** - Fixed SQLite binding error when filtering by date fields with nested value objects
+  - Bug: When SmartSuite API sent date filters with nested format like `{"field": "due_date", "comparison": "is_after", "value": {"date_mode": "exact_date", "date_mode_value": "2025-11-18"}}`, FilterBuilder passed the entire hash to Cache::Query which tried to bind it as an SQL parameter, causing "no such bind parameter" SQLite error
+  - Fix: Added `extract_date_value` helper method to `FilterBuilder` to extract the actual date string from `value['date_mode_value']` when value is a nested hash
+  - Modified `convert_comparison` method to use `extract_date_value` for all date operators: `is_before`, `is_after`, `is_on_or_before`, `is_on_or_after`
+  - Maintains backward compatibility with simple date string format (e.g., "2025-11-18")
+  - Added 10 comprehensive regression tests in `test/test_filter_builder.rb` to prevent similar bugs:
+    - Tests for `extract_date_value` helper with simple string, nested hash, and nil values
+    - Tests for all date operators (`is_after`, `is_before`, `is_on_or_after`, `is_on_or_before`) with both nested hash and simple string formats
+    - Integration tests for `apply_to_query` with nested date filter and mixed date formats
 
 ## [1.9.0] - 2025-11-18
 

@@ -333,4 +333,111 @@ class TestFilterBuilder < Minitest::Test
       end
     end
   end
+
+  # ============================================================================
+  # REGRESSION TESTS: Date Filter with Nested Hash Values
+  # ============================================================================
+  # Bug: When date filters came with nested hash format from SmartSuite API:
+  # {"field":"due_date", "comparison":"is_after", "value":{"date_mode":"exact_date","date_mode_value":"2025-01-01"}}
+  # FilterBuilder passed the entire hash to Cache::Query which tried to bind it
+  # as an SQL parameter, causing "no such bind parameter" SQLite error.
+  # Fix: Added extract_date_value helper to extract date_mode_value from nested hash
+
+  # Test extract_date_value helper method
+  def test_extract_date_value_with_simple_string
+    result = SmartSuite::FilterBuilder.extract_date_value('2025-01-01')
+    assert_equal '2025-01-01', result
+  end
+
+  def test_extract_date_value_with_nested_hash
+    date_value = { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-11-18' }
+    result = SmartSuite::FilterBuilder.extract_date_value(date_value)
+    assert_equal '2025-11-18', result
+  end
+
+  def test_extract_date_value_with_nil
+    result = SmartSuite::FilterBuilder.extract_date_value(nil)
+    assert_nil result
+  end
+
+  # Test convert_comparison with nested date hash for all date operators
+  def test_is_after_with_nested_date_hash
+    date_value = { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-11-18' }
+    result = SmartSuite::FilterBuilder.convert_comparison('is_after', date_value)
+    # CRITICAL: Should extract the date string, not pass the entire hash
+    assert_equal({ gt: '2025-11-18' }, result)
+  end
+
+  def test_is_before_with_nested_date_hash
+    date_value = { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-11-18' }
+    result = SmartSuite::FilterBuilder.convert_comparison('is_before', date_value)
+    assert_equal({ lt: '2025-11-18' }, result)
+  end
+
+  def test_is_on_or_after_with_nested_date_hash
+    date_value = { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-11-18' }
+    result = SmartSuite::FilterBuilder.convert_comparison('is_on_or_after', date_value)
+    assert_equal({ gte: '2025-11-18' }, result)
+  end
+
+  def test_is_on_or_before_with_nested_date_hash
+    date_value = { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-11-18' }
+    result = SmartSuite::FilterBuilder.convert_comparison('is_on_or_before', date_value)
+    assert_equal({ lte: '2025-11-18' }, result)
+  end
+
+  # Test that simple date strings still work (backward compatibility)
+  def test_is_after_with_simple_date_string
+    result = SmartSuite::FilterBuilder.convert_comparison('is_after', '2025-11-18')
+    assert_equal({ gt: '2025-11-18' }, result)
+  end
+
+  def test_is_before_with_simple_date_string
+    result = SmartSuite::FilterBuilder.convert_comparison('is_before', '2025-11-18')
+    assert_equal({ lt: '2025-11-18' }, result)
+  end
+
+  # Integration test: apply_to_query with nested date filter
+  def test_apply_to_query_with_nested_date_filter
+    filter = {
+      'operator' => 'and',
+      'fields' => [
+        {
+          'field' => 'due_date',
+          'comparison' => 'is_after',
+          'value' => { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-11-18' }
+        }
+      ]
+    }
+
+    result = SmartSuite::FilterBuilder.apply_to_query(@query, filter)
+    assert_equal @query, result
+    assert_equal 1, @query.conditions.size
+    # Should extract date string from nested hash
+    assert_equal({ due_date: { gt: '2025-11-18' } }, @query.conditions.first)
+  end
+
+  # Integration test: multiple date filters with mixed formats
+  def test_apply_to_query_with_mixed_date_formats
+    filter = {
+      'operator' => 'and',
+      'fields' => [
+        {
+          'field' => 'start_date',
+          'comparison' => 'is_on_or_after',
+          'value' => { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-01-01' }
+        },
+        {
+          'field' => 'end_date',
+          'comparison' => 'is_on_or_before',
+          'value' => '2025-12-31' # Simple string format
+        }
+      ]
+    }
+
+    SmartSuite::FilterBuilder.apply_to_query(@query, filter)
+    assert_equal 2, @query.conditions.size
+    assert_equal({ start_date: { gte: '2025-01-01' } }, @query.conditions[0])
+    assert_equal({ end_date: { lte: '2025-12-31' } }, @query.conditions[1])
+  end
 end
