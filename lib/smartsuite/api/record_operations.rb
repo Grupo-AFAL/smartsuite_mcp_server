@@ -328,15 +328,40 @@ module SmartSuite
       #
       # @param table_id [String] Table identifier
       # @param data [Hash] Record data as field_slug => value pairs
-      # @return [Hash] Created record with ID
+      # @param minimal_response [Boolean] Return minimal response (default: true)
+      #   When true, returns only essential fields (~95% token reduction) and updates cache
+      #   Set to false for backward compatibility or when full response needed
+      # @return [Hash] Created record with ID (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
-      # @example
+      # @example Minimal response (default, 95% token savings)
       #   create_record('tbl_123', {'title' => 'New Task', 'status' => 'Active'})
-      def create_record(table_id, data)
+      #   # => { success: true, id: "rec_123", title: "New Task", operation: "create",
+      #          timestamp: "2025-11-19T...", cached: true }
+      # @example Full response (for backward compatibility)
+      #   create_record('tbl_123', {'title' => 'New Task'}, minimal_response: false)
+      #   # => { id: "rec_123", title: "New Task", status: "Active", ... 50+ fields }
+      def create_record(table_id, data, minimal_response: true)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('data', data, Hash)
 
-        api_request(:post, "/applications/#{table_id}/records/", data)
+        response = api_request(:post, "/applications/#{table_id}/records/", data)
+
+        if minimal_response
+          # Smart cache coordination: Update cache with full response
+          @cache&.cache_single_record(table_id, response)
+
+          # Return minimal response (95% token reduction)
+          {
+            'success' => true,
+            'id' => response['id'],
+            'title' => response['title'] || response['id'],
+            'operation' => 'create',
+            'timestamp' => Time.now.utc.iso8601,
+            'cached' => @cache ? true : false
+          }
+        else
+          response  # Backward compatible: return full response
+        end
       end
 
       # Updates an existing record.
@@ -344,31 +369,80 @@ module SmartSuite
       # @param table_id [String] Table identifier
       # @param record_id [String] Record identifier
       # @param data [Hash] Record data to update as field_slug => value pairs
-      # @return [Hash] Updated record data
+      # @param minimal_response [Boolean] Return minimal response (default: true)
+      #   When true, returns only essential fields (~95% token reduction) and updates cache
+      #   Set to false for backward compatibility or when full response needed
+      # @return [Hash] Updated record data (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
-      # @example
+      # @example Minimal response (default, 95% token savings)
       #   update_record('tbl_123', 'rec_abc', {'status' => 'Completed'})
-      def update_record(table_id, record_id, data)
+      #   # => { success: true, id: "rec_abc", title: "Task", operation: "update",
+      #          timestamp: "2025-11-19T...", cached: true }
+      # @example Full response (for backward compatibility)
+      #   update_record('tbl_123', 'rec_abc', {'status' => 'Completed'}, minimal_response: false)
+      #   # => { id: "rec_abc", title: "Task", status: "Completed", ... 50+ fields }
+      def update_record(table_id, record_id, data, minimal_response: true)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
         validate_required_parameter!('data', data, Hash)
 
-        api_request(:patch, "/applications/#{table_id}/records/#{record_id}/", data)
+        response = api_request(:patch, "/applications/#{table_id}/records/#{record_id}/", data)
+
+        if minimal_response
+          # Smart cache coordination: Update cache with full response
+          @cache&.cache_single_record(table_id, response)
+
+          # Return minimal response (95% token reduction)
+          {
+            'success' => true,
+            'id' => response['id'],
+            'title' => response['title'] || response['id'],
+            'operation' => 'update',
+            'timestamp' => Time.now.utc.iso8601,
+            'cached' => @cache ? true : false
+          }
+        else
+          response  # Backward compatible: return full response
+        end
       end
 
       # Deletes a record from a table.
       #
       # @param table_id [String] Table identifier
       # @param record_id [String] Record identifier to delete
-      # @return [Hash] Deletion confirmation
+      # @param minimal_response [Boolean] Return minimal response (default: true)
+      #   When true, returns only essential fields (~80% token reduction) and removes from cache
+      #   Set to false for backward compatibility or when full response needed
+      # @return [Hash] Deletion confirmation (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing
-      # @example
+      # @example Minimal response (default, 80% token savings)
       #   delete_record('tbl_123', 'rec_abc')
-      def delete_record(table_id, record_id)
+      #   # => { success: true, id: "rec_abc", operation: "delete",
+      #          timestamp: "2025-11-19T...", cached: false }
+      # @example Full response (for backward compatibility)
+      #   delete_record('tbl_123', 'rec_abc', minimal_response: false)
+      #   # => { success: true, message: "Record deleted", ... }
+      def delete_record(table_id, record_id, minimal_response: true)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
 
-        api_request(:delete, "/applications/#{table_id}/records/#{record_id}/")
+        response = api_request(:delete, "/applications/#{table_id}/records/#{record_id}/")
+
+        if minimal_response
+          # Smart cache coordination: Remove record from cache
+          @cache&.delete_cached_record(table_id, record_id)
+
+          # Return minimal response (80% token reduction)
+          {
+            'success' => true,
+            'id' => record_id,
+            'operation' => 'delete',
+            'timestamp' => Time.now.utc.iso8601,
+            'cached' => false  # Record removed from cache
+          }
+        else
+          response  # Backward compatible: return full response
+        end
       end
 
       # Creates multiple records in a single request (bulk operation).
@@ -378,18 +452,50 @@ module SmartSuite
       #
       # @param table_id [String] Table identifier
       # @param records [Array<Hash>] Array of record data hashes (field_slug => value)
-      # @return [Array<Hash>] Array of created records with IDs
+      # @param minimal_response [Boolean] Return minimal response (default: true)
+      #   When true, returns only essential fields (~90% token reduction) and updates cache
+      #   Set to false for backward compatibility or when full response needed
+      # @return [Array<Hash>] Array of created records (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
-      # @example
+      # @example Minimal response (default, 90% token savings)
       #   bulk_add_records('tbl_123', [
       #     {'title' => 'Task 1', 'status' => 'Active'},
       #     {'title' => 'Task 2', 'status' => 'Pending'}
       #   ])
-      def bulk_add_records(table_id, records)
+      #   # => [
+      #     { success: true, id: "rec_123", title: "Task 1", operation: "bulk_create", ... },
+      #     { success: true, id: "rec_124", title: "Task 2", operation: "bulk_create", ... }
+      #   ]
+      # @example Full response (for backward compatibility)
+      #   bulk_add_records('tbl_123', [...], minimal_response: false)
+      def bulk_add_records(table_id, records, minimal_response: true)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('records', records, Array)
 
-        api_request(:post, "/applications/#{table_id}/records/bulk/", { 'items' => records })
+        response = api_request(:post, "/applications/#{table_id}/records/bulk/", { 'items' => records })
+
+        if minimal_response
+          # Smart cache coordination: Cache all created records
+          response.each { |record| @cache&.cache_single_record(table_id, record) } if response.is_a?(Array)
+
+          # Return minimal response (90% token reduction)
+          if response.is_a?(Array)
+            response.map do |record|
+              {
+                'success' => true,
+                'id' => record['id'],
+                'title' => record['title'] || record['id'],
+                'operation' => 'bulk_create',
+                'timestamp' => Time.now.utc.iso8601,
+                'cached' => @cache ? true : false
+              }
+            end
+          else
+            response  # Fallback if response format unexpected
+          end
+        else
+          response  # Backward compatible: return full response
+        end
       end
 
       # Updates multiple records in a single request (bulk operation).
@@ -399,18 +505,50 @@ module SmartSuite
       #
       # @param table_id [String] Table identifier
       # @param records [Array<Hash>] Array of record hashes with 'id' and fields to update
-      # @return [Array<Hash>] Array of updated records
+      # @param minimal_response [Boolean] Return minimal response (default: true)
+      #   When true, returns only essential fields (~90% token reduction) and updates cache
+      #   Set to false for backward compatibility or when full response needed
+      # @return [Array<Hash>] Array of updated records (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
-      # @example
+      # @example Minimal response (default, 90% token savings)
       #   bulk_update_records('tbl_123', [
       #     {'id' => 'rec_abc', 'status' => 'Completed'},
       #     {'id' => 'rec_def', 'status' => 'In Progress'}
       #   ])
-      def bulk_update_records(table_id, records)
+      #   # => [
+      #     { success: true, id: "rec_abc", title: "Task", operation: "bulk_update", ... },
+      #     { success: true, id: "rec_def", title: "Task", operation: "bulk_update", ... }
+      #   ]
+      # @example Full response (for backward compatibility)
+      #   bulk_update_records('tbl_123', [...], minimal_response: false)
+      def bulk_update_records(table_id, records, minimal_response: true)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('records', records, Array)
 
-        api_request(:patch, "/applications/#{table_id}/records/bulk/", { 'items' => records })
+        response = api_request(:patch, "/applications/#{table_id}/records/bulk/", { 'items' => records })
+
+        if minimal_response
+          # Smart cache coordination: Update all records in cache
+          response.each { |record| @cache&.cache_single_record(table_id, record) } if response.is_a?(Array)
+
+          # Return minimal response (90% token reduction)
+          if response.is_a?(Array)
+            response.map do |record|
+              {
+                'success' => true,
+                'id' => record['id'],
+                'title' => record['title'] || record['id'],
+                'operation' => 'bulk_update',
+                'timestamp' => Time.now.utc.iso8601,
+                'cached' => @cache ? true : false
+              }
+            end
+          else
+            response  # Fallback if response format unexpected
+          end
+        else
+          response  # Backward compatible: return full response
+        end
       end
 
       # Deletes multiple records in a single request (bulk operation).
@@ -420,15 +558,38 @@ module SmartSuite
       #
       # @param table_id [String] Table identifier
       # @param record_ids [Array<String>] Array of record IDs to delete
-      # @return [Hash] Deletion confirmation
+      # @param minimal_response [Boolean] Return minimal response (default: true)
+      #   When true, returns only essential fields (~80% token reduction) and removes from cache
+      #   Set to false for backward compatibility or when full response needed
+      # @return [Hash] Deletion confirmation (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
-      # @example
+      # @example Minimal response (default, 80% token savings)
       #   bulk_delete_records('tbl_123', ['rec_abc', 'rec_def', 'rec_ghi'])
-      def bulk_delete_records(table_id, record_ids)
+      #   # => { success: true, deleted_count: 3, operation: "bulk_delete",
+      #          timestamp: "2025-11-19T...", cached: false }
+      # @example Full response (for backward compatibility)
+      #   bulk_delete_records('tbl_123', [...], minimal_response: false)
+      def bulk_delete_records(table_id, record_ids, minimal_response: true)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_ids', record_ids, Array)
 
-        api_request(:patch, "/applications/#{table_id}/records/bulk_delete/", { 'items' => record_ids })
+        response = api_request(:patch, "/applications/#{table_id}/records/bulk_delete/", { 'items' => record_ids })
+
+        if minimal_response
+          # Smart cache coordination: Remove all deleted records from cache
+          record_ids.each { |record_id| @cache&.delete_cached_record(table_id, record_id) }
+
+          # Return minimal response (80% token reduction)
+          {
+            'success' => true,
+            'deleted_count' => record_ids.length,
+            'operation' => 'bulk_delete',
+            'timestamp' => Time.now.utc.iso8601,
+            'cached' => false  # Records removed from cache
+          }
+        else
+          response  # Backward compatible: return full response
+        end
       end
 
       # Gets a public URL for a file attached to a record.

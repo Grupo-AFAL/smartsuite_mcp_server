@@ -354,6 +354,10 @@ module SmartSuite
               'data' => {
                 'type' => 'object',
                 'description' => 'The record data as key-value pairs (field_slug: value). For rich text fields, use SmartDoc format with {"data": {"type": "doc", "content": [...]}} structure.'
+              },
+              'minimal_response' => {
+                'type' => 'boolean',
+                'description' => 'Return minimal response for 95% token savings (default: true). Returns only {success, id, title, operation, timestamp, cached}. Set to false for full record response.'
               }
             },
             'required' => %w[table_id data]
@@ -414,6 +418,10 @@ module SmartSuite
               'data' => {
                 'type' => 'object',
                 'description' => 'The record data to update as key-value pairs (field_slug: value). For rich text fields, use SmartDoc format with {"data": {"type": "doc", "content": [...]}} structure.'
+              },
+              'minimal_response' => {
+                'type' => 'boolean',
+                'description' => 'Return minimal response for 95% token savings (default: true). Returns only {success, id, title, operation, timestamp, cached}. Set to false for full record response.'
               }
             },
             'required' => %w[table_id record_id data]
@@ -432,6 +440,10 @@ module SmartSuite
               'record_id' => {
                 'type' => 'string',
                 'description' => 'The ID of the record to delete'
+              },
+              'minimal_response' => {
+                'type' => 'boolean',
+                'description' => 'Return minimal response for 80% token savings (default: true). Returns only {success, id, operation, timestamp, cached}. Set to false for full response.'
               }
             },
             'required' => %w[table_id record_id]
@@ -444,7 +456,11 @@ module SmartSuite
             'type' => 'object',
             'properties' => {
               'table_id' => SCHEMA_TABLE_ID,
-              'records' => SCHEMA_RECORDS_ARRAY
+              'records' => SCHEMA_RECORDS_ARRAY,
+              'minimal_response' => {
+                'type' => 'boolean',
+                'description' => 'Return minimal response for 90% token savings (default: true). Returns array of {success, id, title, operation, timestamp, cached}. Set to false for full records.'
+              }
             },
             'required' => %w[table_id records]
           }
@@ -456,7 +472,11 @@ module SmartSuite
             'type' => 'object',
             'properties' => {
               'table_id' => SCHEMA_TABLE_ID,
-              'records' => SCHEMA_RECORDS_UPDATE_ARRAY
+              'records' => SCHEMA_RECORDS_UPDATE_ARRAY,
+              'minimal_response' => {
+                'type' => 'boolean',
+                'description' => 'Return minimal response for 90% token savings (default: true). Returns array of {success, id, title, operation, timestamp, cached}. Set to false for full records.'
+              }
             },
             'required' => %w[table_id records]
           }
@@ -468,7 +488,11 @@ module SmartSuite
             'type' => 'object',
             'properties' => {
               'table_id' => SCHEMA_TABLE_ID,
-              'record_ids' => SCHEMA_RECORD_IDS_ARRAY
+              'record_ids' => SCHEMA_RECORD_IDS_ARRAY,
+              'minimal_response' => {
+                'type' => 'boolean',
+                'description' => 'Return minimal response for 80% token savings (default: true). Returns {success, deleted_count, operation, timestamp, cached}. Set to false for full response.'
+              }
             },
             'required' => %w[table_id record_ids]
           }

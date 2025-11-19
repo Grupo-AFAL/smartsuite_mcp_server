@@ -202,17 +202,42 @@ class SmartSuiteServer
              when 'get_record'
                @client.get_record(arguments['table_id'], arguments['record_id'])
              when 'create_record'
-               @client.create_record(arguments['table_id'], arguments['data'])
+               @client.create_record(
+                 arguments['table_id'],
+                 arguments['data'],
+                 minimal_response: arguments['minimal_response']
+               )
              when 'update_record'
-               @client.update_record(arguments['table_id'], arguments['record_id'], arguments['data'])
+               @client.update_record(
+                 arguments['table_id'],
+                 arguments['record_id'],
+                 arguments['data'],
+                 minimal_response: arguments['minimal_response']
+               )
              when 'delete_record'
-               @client.delete_record(arguments['table_id'], arguments['record_id'])
+               @client.delete_record(
+                 arguments['table_id'],
+                 arguments['record_id'],
+                 minimal_response: arguments['minimal_response']
+               )
              when 'bulk_add_records'
-               @client.bulk_add_records(arguments['table_id'], arguments['records'])
+               @client.bulk_add_records(
+                 arguments['table_id'],
+                 arguments['records'],
+                 minimal_response: arguments['minimal_response']
+               )
              when 'bulk_update_records'
-               @client.bulk_update_records(arguments['table_id'], arguments['records'])
+               @client.bulk_update_records(
+                 arguments['table_id'],
+                 arguments['records'],
+                 minimal_response: arguments['minimal_response']
+               )
              when 'bulk_delete_records'
-               @client.bulk_delete_records(arguments['table_id'], arguments['record_ids'])
+               @client.bulk_delete_records(
+                 arguments['table_id'],
+                 arguments['record_ids'],
+                 minimal_response: arguments['minimal_response']
+               )
              when 'get_file_url'
                @client.get_file_url(arguments['file_handle'])
              when 'list_deleted_records'
