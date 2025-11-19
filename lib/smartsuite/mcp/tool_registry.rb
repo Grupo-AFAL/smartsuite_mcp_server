@@ -311,7 +311,39 @@ module SmartSuite
         },
         {
           'name' => 'create_record',
-          'description' => 'Create a new record in a SmartSuite table.',
+          'description' => 'Create a new record in a SmartSuite table. For rich text fields (richtextareafield), use SmartDoc format with TipTap/ProseMirror structure. See /Users/fede/code/ruby/smartsuite_mcp/docs/smartdoc_examples.md for complete examples.
+
+**SmartDoc Quick Reference:**
+- Always use `{"data": {"type": "doc", "content": [...]}}` structure
+- Bold: `{"type": "strong"}` mark (NOT "bold")
+- Italic: `{"type": "em"}` mark (NOT "italic")
+- Paragraphs: `{"type": "paragraph", "attrs": {"textAlign": "left", "size": "medium"}, "content": [...]}`
+- Lists: `{"type": "bullet_list"}` or `{"type": "ordered_list", "attrs": {"order": 1}}`
+- Links: `{"type": "link", "attrs": {"href": "url"}}` mark
+- Callouts: `{"type": "callout", "attrs": {"type": "info"}}`
+
+**Example - Simple rich text:**
+```json
+{
+  "title": "My Record",
+  "description": {
+    "data": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "paragraph",
+          "attrs": {"textAlign": "left", "size": "medium"},
+          "content": [
+            {"type": "text", "text": "This is "},
+            {"type": "text", "marks": [{"type": "strong"}], "text": "bold"},
+            {"type": "text", "text": " text."}
+          ]
+        }
+      ]
+    }
+  }
+}
+```',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -321,7 +353,7 @@ module SmartSuite
               },
               'data' => {
                 'type' => 'object',
-                'description' => 'The record data as key-value pairs (field_slug: value)'
+                'description' => 'The record data as key-value pairs (field_slug: value). For rich text fields, use SmartDoc format with {"data": {"type": "doc", "content": [...]}} structure.'
               }
             },
             'required' => %w[table_id data]
@@ -329,7 +361,45 @@ module SmartSuite
         },
         {
           'name' => 'update_record',
-          'description' => 'Update an existing record in a SmartSuite table.',
+          'description' => 'Update an existing record in a SmartSuite table. For rich text fields (richtextareafield), use SmartDoc format with TipTap/ProseMirror structure. See /Users/fede/code/ruby/smartsuite_mcp/docs/smartdoc_examples.md for complete examples.
+
+**SmartDoc Quick Reference:**
+- Always use `{"data": {"type": "doc", "content": [...]}}` structure
+- Bold: `{"type": "strong"}` mark (NOT "bold")
+- Italic: `{"type": "em"}` mark (NOT "italic")
+- Paragraphs: `{"type": "paragraph", "attrs": {"textAlign": "left", "size": "medium"}, "content": [...]}`
+- Lists: `{"type": "bullet_list"}` or `{"type": "ordered_list", "attrs": {"order": 1}}`
+- Checklists: `{"type": "check_list"}` with `{"type": "check_list_item", "attrs": {"checked": true/false}}`
+- Links: `{"type": "link", "attrs": {"href": "url"}}` mark
+- Callouts: `{"type": "callout", "attrs": {"type": "info|warning|success|error"}}`
+- Horizontal rule: `{"type": "horizontal_rule"}`
+
+**Example - Updating description with formatted text:**
+```json
+{
+  "description": {
+    "data": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "heading",
+          "attrs": {"level": 2},
+          "content": [{"type": "text", "text": "Updated Summary"}]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {"textAlign": "left", "size": "medium"},
+          "content": [
+            {"type": "text", "text": "Updated with "},
+            {"type": "text", "marks": [{"type": "em"}], "text": "italic"},
+            {"type": "text", "text": " formatting."}
+          ]
+        }
+      ]
+    }
+  }
+}
+```',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -343,7 +413,7 @@ module SmartSuite
               },
               'data' => {
                 'type' => 'object',
-                'description' => 'The record data to update as key-value pairs (field_slug: value)'
+                'description' => 'The record data to update as key-value pairs (field_slug: value). For rich text fields, use SmartDoc format with {"data": {"type": "doc", "content": [...]}} structure.'
               }
             },
             'required' => %w[table_id record_id data]
