@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **SmartDoc format documentation and examples** - Added comprehensive documentation for rich text field formatting with validated examples
+  - Added `docs/smartdoc_examples.md` - Complete SmartDoc format reference with all 13 validated content types
+  - Added `docs/smartdoc_complete_reference.json` - Complete validated structure from actual SmartSuite record
+  - Added `docs/smartdoc_data_only.json` - Data-only structure for easier analysis
+  - Updated `create_record` tool description with SmartDoc quick reference and examples
+  - Updated `update_record` tool description with SmartDoc quick reference and examples
+  - Documents correct mark types: `"strong"` for bold (NOT "bold"), `"em"` for italic (NOT "italic")
+  - Includes examples for: paragraphs, headings, text formatting (bold, italic, underline, strikethrough, colors, highlights), lists (bullet, ordered, checklist), code blocks, tables, images, attachments, mentions (records and members), links, horizontal rules, callouts, and emojis
+  - Teaches AI to generate proper TipTap/ProseMirror structure instead of HTML for rich text fields
+  - Enables Claude to create/update SmartSuite records with properly formatted rich text content
+
 ### Changed
 
 - **Improved `refresh_cache` tool description** - Clarified resource parameter to prevent AI from refreshing entire workspace when user wants to refresh one solution

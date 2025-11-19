@@ -1,0 +1,1084 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1,
+        "id": "vfwvh57er5",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "SmartDoc Content Types Reference"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "This demonstrates all validated SmartDoc content types that work via the API."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "un59kiiqn5q",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Paragraphs"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "This is a simple paragraph with plain text."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "25f469kxs2q",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Bullet Lists"
+        }
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "content": [
+        {
+          "type": "list_item",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "textAlign": "left",
+                "size": "medium"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "First bullet point"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "list_item",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "textAlign": "left",
+                "size": "medium"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Second bullet point"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "list_item",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "textAlign": "left",
+                "size": "medium"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Third bullet point"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "npdaoxxkgni",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Ordered Lists"
+        }
+      ]
+    },
+    {
+      "type": "ordered_list",
+      "attrs": {
+        "order": 1
+      },
+      "content": [
+        {
+          "type": "list_item",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "textAlign": "left",
+                "size": "medium"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "First step"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "list_item",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "textAlign": "left",
+                "size": "medium"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Second step"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "list_item",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "textAlign": "left",
+                "size": "medium"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Third step"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 3,
+        "id": "g9dmmp3rfb",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Heading Level 3"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Different heading levels are supported (1-6)."
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "gnci7ralsjt",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Text Formatting"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Bold text",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Italic text",
+          "marks": [
+            {
+              "type": "em"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Yellow Colored text",
+          "marks": [
+            {
+              "type": "color",
+              "attrs": {
+                "color": "yellow"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Red colored text",
+          "marks": [
+            {
+              "type": "color",
+              "attrs": {
+                "color": "red"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Blue colored text",
+          "marks": [
+            {
+              "type": "color",
+              "attrs": {
+                "color": "blue"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Highlited color yellow",
+          "marks": [
+            {
+              "type": "highlight",
+              "attrs": {
+                "color": "yellow"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Highlighted color red",
+          "marks": [
+            {
+              "type": "color",
+              "attrs": {
+                "color": "default"
+              }
+            },
+            {
+              "type": "highlight",
+              "attrs": {
+                "color": "red"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "3qqz19t7n3f",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Checklist"
+        }
+      ]
+    },
+    {
+      "type": "check_list",
+      "content": [
+        {
+          "type": "check_list_item",
+          "attrs": {
+            "checked": true
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "textAlign": "left",
+                "size": "medium"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Checked item"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "check_list_item",
+          "attrs": {
+            "checked": false
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "textAlign": "left",
+                "size": "medium"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Unchecked item"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "ntz3s9afjm",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Code Block"
+        }
+      ]
+    },
+    {
+      "type": "code_block",
+      "attrs": {
+        "language": "javascript",
+        "lineWrapping": true
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "  function example() {"
+        },
+        {
+          "type": "hard_break"
+        },
+        {
+          "type": "text",
+          "text": "    return \"test\";"
+        },
+        {
+          "type": "hard_break"
+        },
+        {
+          "type": "text",
+          "text": "  }"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "d9fys0ti7lg",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Table"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "content": [
+        {
+          "type": "table_row",
+          "content": [
+            {
+              "type": "table_header",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": null,
+                "background": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "textAlign": "left",
+                    "size": "medium"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Header column 1"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "table_header",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": null,
+                "background": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "textAlign": "left",
+                    "size": "medium"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Header column 2"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "table_row",
+          "content": [
+            {
+              "type": "table_cell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": null,
+                "background": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "textAlign": "left",
+                    "size": "medium"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Content column 1"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "table_cell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": null,
+                "background": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "textAlign": "left",
+                    "size": "medium"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Content column 2"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "f9dlc347xmr",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Link"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Google.com",
+          "marks": [
+            {
+              "type": "link",
+              "attrs": {
+                "href": "https://google.com"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "ud8o8c1rrs",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Mixed Paragraph"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "This is a mixed paragraph with "
+        },
+        {
+          "type": "text",
+          "text": "bold",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ","
+        },
+        {
+          "type": "text",
+          "text": " ",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "italics",
+          "marks": [
+            {
+              "type": "em"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ",",
+          "marks": [
+            {
+              "type": "strong"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": " "
+        },
+        {
+          "type": "text",
+          "text": "underline",
+          "marks": [
+            {
+              "type": "strong"
+            },
+            {
+              "type": "underline"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "strikethrough",
+          "marks": [
+            {
+              "type": "strikethrough"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", "
+        },
+        {
+          "type": "text",
+          "text": "colored",
+          "marks": [
+            {
+              "type": "color",
+              "attrs": {
+                "color": "brown"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": ", ",
+          "marks": [
+            {
+              "type": "color",
+              "attrs": {
+                "color": "default"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "highlighted",
+          "marks": [
+            {
+              "type": "color",
+              "attrs": {
+                "color": "default"
+              }
+            },
+            {
+              "type": "highlight",
+              "attrs": {
+                "color": "yellow"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": "  text"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "taqyorzv8dg",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Image"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "file": {
+          "handle": "caARVkSNS4mdU4gArwdA",
+          "metadata": {
+            "container": "smart-suite-media",
+            "filename": "Screenshot 2023-11-14 at 9.37.54 a.m..png",
+            "key": "MAAIlbXVSCumH3WWKQIS_Screenshot 2023-11-14 at 9.37.54 a.m..png",
+            "mimetype": "image/png",
+            "size": 8952
+          },
+          "transform_options": {},
+          "author": 41226,
+          "security": {
+            "policy": "eyJjYWxsIjogWyJyZWFkIiwgImNvbnZlcnQiXSwgImV4cGlyeSI6IDE3NjM2NjgyNjQuNDAxMDk0LCAiaGFuZGxlIjogImNhQVJWa1NOUzRtZFU0Z0Fyd2RBIiwgIm1heFNpemUiOiA1MDAwMDAwMDAwfQ==",
+            "signature": "455b5db066d64bc9cb556e84eaf6d6e71dedff127c5c6dddc0f8f7adbf8227e0"
+          },
+          "file_type": "image",
+          "icon": "image",
+          "video_conversion_status": "none",
+          "video_thumbnail_handle": "",
+          "converted_video_handle": null
+        },
+        "alignment": "left",
+        "size": {
+          "width": 400
+        },
+        "caption": "caption"
+      }
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "r9bhusgr1zj",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Link to record"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "68ed1c75dcc0e13b911a695b",
+            "application": {
+              "id": "6796989a7ee3c6b73171780c",
+              "name": "User Stories",
+              "slug": "shnqgk36"
+            },
+            "title": "Actualizar UI de ordenes de compra a Tabla",
+            "prefix": "#"
+          }
+        },
+        {
+          "type": "text",
+          "text": " "
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "qxky48f66is",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Mention"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "mention",
+          "attrs": {
+            "id": "652ed162190bc68edbdfb458",
+            "application": {
+              "id": "652ed162190bc68edbdfb457",
+              "name": "Members",
+              "slug": "members"
+            },
+            "title": "Federico Gonzalez",
+            "prefix": "@"
+          }
+        },
+        {
+          "type": "text",
+          "text": " "
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "r3nch3qej5",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Divider Line"
+        }
+      ]
+    },
+    {
+      "type": "horizontal_rule"
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "tsnetfwkolm",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Attachment"
+        }
+      ]
+    },
+    {
+      "type": "attachment",
+      "attrs": {
+        "file": {
+          "handle": "cXXzoZ1HQFyA0nkmPDaO",
+          "metadata": {
+            "container": "smart-suite-media",
+            "filename": "testing.txt",
+            "key": "M4O7mCm2TSqKEpXXSCNY_testing.txt",
+            "mimetype": "text/plain",
+            "size": 18
+          },
+          "transform_options": {},
+          "author": 41226,
+          "security": {
+            "policy": "eyJjYWxsIjogWyJyZWFkIiwgImNvbnZlcnQiXSwgImV4cGlyeSI6IDE3NjM2NjgzODkuMTE5NDQxLCAiaGFuZGxlIjogImNYWHpvWjFIUUZ5QTBua21QRGFPIiwgIm1heFNpemUiOiA1MDAwMDAwMDAwfQ==",
+            "signature": "108e70c8b1329d66cde86245aa0972ced02a34a1083b1ea12ff633c4ebbc1a00"
+          },
+          "file_type": "other",
+          "icon": "text",
+          "video_conversion_status": "none",
+          "video_thumbnail_handle": "",
+          "converted_video_handle": null
+        }
+      }
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "hhmwnk78rw",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Info Callout"
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "attrs": {
+        "type": "info"
+      },
+      "content": [
+        {
+          "type": "paragraph",
+          "attrs": {
+            "textAlign": "left",
+            "size": "medium"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Info callout"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 2,
+        "id": "2b38wevbt8f",
+        "collapse": false,
+        "textAlign": null,
+        "indentation": 0
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Emoji"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "textAlign": "left",
+        "size": "medium"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "😃"
+        }
+      ]
+    }
+  ]
+}
