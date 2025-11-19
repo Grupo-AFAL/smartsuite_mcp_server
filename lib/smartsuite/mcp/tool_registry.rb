@@ -529,7 +529,28 @@ module SmartSuite
       FIELD_TOOLS = [
         {
           'name' => 'add_field',
-          'description' => 'Add a new field to a SmartSuite table. Returns the created field object.',
+          'description' => 'Add a new field to a SmartSuite table. Returns the created field object.
+
+**IMPORTANT for Single Select Fields:** Each choice MUST include:
+- `value`: UUID string (use SecureRandom.uuid or similar)
+- `value_color`: Hex color code (e.g., "#FF5757")
+- `icon_type`: "icon"
+- `weight`: 1
+
+Example single select:
+```json
+{
+  "slug": "priority",
+  "label": "Priority",
+  "field_type": "singleselectfield",
+  "params": {
+    "choices": [
+      {"label": "High", "value": "uuid-here", "value_color": "#FF5757", "icon_type": "icon", "weight": 1},
+      {"label": "Low", "value": "uuid-here", "value_color": "#54D62C", "icon_type": "icon", "weight": 1}
+    ]
+  }
+}
+```',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -539,7 +560,7 @@ module SmartSuite
               },
               'field_data' => {
                 'type' => 'object',
-                'description' => 'Field configuration object with slug, label, field_type, and params. Example: {"slug": "abc123defg", "label": "My Field", "field_type": "textfield", "params": {"help_text": "Enter text"}, "is_new": true}'
+                'description' => 'Field configuration object with slug, label, field_type, and params. For single select fields, see description for required choice format.'
               },
               'field_position' => {
                 'type' => 'object',
@@ -555,7 +576,15 @@ module SmartSuite
         },
         {
           'name' => 'bulk_add_fields',
-          'description' => 'Add multiple fields to a SmartSuite table in one request. Note: Certain field types are not supported in bulk operations (e.g., Formula, Count, TimeTracking).',
+          'description' => 'Add multiple fields to a SmartSuite table in one request. Note: Certain field types are not supported in bulk operations (e.g., Formula, Count, TimeTracking).
+
+**IMPORTANT for Single Select Fields:** Each choice MUST include:
+- `value`: UUID string (use SecureRandom.uuid or similar)
+- `value_color`: Hex color code (e.g., "#FF5757")
+- `icon_type`: "icon"
+- `weight`: 1
+
+See `add_field` tool description for complete example.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -583,7 +612,15 @@ module SmartSuite
         },
         {
           'name' => 'update_field',
-          'description' => 'Update an existing field in a SmartSuite table. Returns the updated field object.',
+          'description' => 'Update an existing field in a SmartSuite table. Returns the updated field object.
+
+**IMPORTANT for Single Select Fields:** When updating choices, each choice MUST include:
+- `value`: UUID string (use SecureRandom.uuid or similar)
+- `value_color`: Hex color code (e.g., "#FF5757")
+- `icon_type`: "icon"
+- `weight`: 1
+
+See `add_field` tool description for complete example.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
