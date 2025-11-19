@@ -32,6 +32,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Single select field format requirements** - Fixed bug where single select fields displayed empty/invisible options in dropdown menus
+  - Root cause: Fields were created with simple string values instead of UUIDs, and missing color attributes
+  - Issue: Single select fields showed empty space in dropdowns though options appeared in edit view
+  - Solution: Updated all choice values to include required attributes:
+    - `value`: UUID string (generated with `SecureRandom.uuid`)
+    - `value_color`: Hex color code (e.g., "#FF5757") instead of color names
+    - `icon_type`: "icon"
+    - `weight`: 1
+  - Affected table: "Incidentes de Tecnología" (ID: 691d16fe6f3bee01a1c9fca9) in IT Incident Management solution
+  - Fixed 4 fields: s_tipoincid, s_impacto01, s_categoria1, s_escalacio
+  - Updated tool descriptions for `add_field`, `bulk_add_fields`, `update_field` with UUID requirement warnings
+  - Added comprehensive reference documentation: `docs/reference/single_select_field_format.md`
+  - Documentation includes: correct vs incorrect examples, common color codes, symptoms, and prevention strategy
 - **Cache invalidation cascade** - Fixed bug where refreshing cache for solutions or tables didn't invalidate cached records
   - `refresh_cache('solutions')` now invalidates solutions → tables → records (full cascade)
   - `refresh_cache('tables', solution_id: 'sol_123')` now invalidates tables → records for that solution
