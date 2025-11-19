@@ -351,16 +351,14 @@ module SmartSuite
           @cache&.cache_single_record(table_id, response)
 
           # Return minimal response (95% token reduction)
-          {
-            'success' => true,
-            'id' => response['id'],
-            'title' => response['title'] || response['id'],
-            'operation' => 'create',
-            'timestamp' => Time.now.utc.iso8601,
-            'cached' => @cache ? true : false
-          }
+          build_minimal_response(
+            operation: 'create',
+            record_id: response['id'],
+            title: response['title'],
+            cached: @cache ? true : false
+          )
         else
-          response  # Backward compatible: return full response
+          response # Backward compatible: return full response
         end
       end
 
@@ -393,16 +391,14 @@ module SmartSuite
           @cache&.cache_single_record(table_id, response)
 
           # Return minimal response (95% token reduction)
-          {
-            'success' => true,
-            'id' => response['id'],
-            'title' => response['title'] || response['id'],
-            'operation' => 'update',
-            'timestamp' => Time.now.utc.iso8601,
-            'cached' => @cache ? true : false
-          }
+          build_minimal_response(
+            operation: 'update',
+            record_id: response['id'],
+            title: response['title'],
+            cached: @cache ? true : false
+          )
         else
-          response  # Backward compatible: return full response
+          response # Backward compatible: return full response
         end
       end
 
@@ -433,15 +429,13 @@ module SmartSuite
           @cache&.delete_cached_record(table_id, record_id)
 
           # Return minimal response (80% token reduction)
-          {
-            'success' => true,
-            'id' => record_id,
-            'operation' => 'delete',
-            'timestamp' => Time.now.utc.iso8601,
-            'cached' => false  # Record removed from cache
-          }
+          build_minimal_response(
+            operation: 'delete',
+            record_id: record_id,
+            cached: false
+          )
         else
-          response  # Backward compatible: return full response
+          response # Backward compatible: return full response
         end
       end
 
@@ -481,20 +475,18 @@ module SmartSuite
           # Return minimal response (90% token reduction)
           if response.is_a?(Array)
             response.map do |record|
-              {
-                'success' => true,
-                'id' => record['id'],
-                'title' => record['title'] || record['id'],
-                'operation' => 'bulk_create',
-                'timestamp' => Time.now.utc.iso8601,
-                'cached' => @cache ? true : false
-              }
+              build_minimal_response(
+                operation: 'bulk_create',
+                record_id: record['id'],
+                title: record['title'],
+                cached: @cache ? true : false
+              )
             end
           else
-            response  # Fallback if response format unexpected
+            response # Fallback if response format unexpected
           end
         else
-          response  # Backward compatible: return full response
+          response # Backward compatible: return full response
         end
       end
 
@@ -534,20 +526,18 @@ module SmartSuite
           # Return minimal response (90% token reduction)
           if response.is_a?(Array)
             response.map do |record|
-              {
-                'success' => true,
-                'id' => record['id'],
-                'title' => record['title'] || record['id'],
-                'operation' => 'bulk_update',
-                'timestamp' => Time.now.utc.iso8601,
-                'cached' => @cache ? true : false
-              }
+              build_minimal_response(
+                operation: 'bulk_update',
+                record_id: record['id'],
+                title: record['title'],
+                cached: @cache ? true : false
+              )
             end
           else
-            response  # Fallback if response format unexpected
+            response # Fallback if response format unexpected
           end
         else
-          response  # Backward compatible: return full response
+          response # Backward compatible: return full response
         end
       end
 
@@ -585,10 +575,10 @@ module SmartSuite
             'deleted_count' => record_ids.length,
             'operation' => 'bulk_delete',
             'timestamp' => Time.now.utc.iso8601,
-            'cached' => false  # Records removed from cache
+            'cached' => false # Records removed from cache
           }
         else
-          response  # Backward compatible: return full response
+          response # Backward compatible: return full response
         end
       end
 
@@ -686,6 +676,30 @@ module SmartSuite
         }
 
         api_request(:patch, "/applications/#{table_id}/records/#{record_id}/", body)
+      end
+
+      private
+
+      # Builds a minimal response hash for mutation operations.
+      #
+      # This helper method provides a consistent minimal response format across
+      # all create/update/delete operations, eliminating code duplication.
+      #
+      # @param operation [String] The operation type: 'create', 'update', or 'delete'
+      # @param record_id [String] The record ID
+      # @param title [String, nil] The record title (optional, defaults to record_id)
+      # @param cached [Boolean] Whether the record is cached (true for create/update, false for delete)
+      # @return [Hash] Minimal response with success, id, title, operation, timestamp, and cached status
+      # @api private
+      def build_minimal_response(operation:, record_id:, title: nil, cached: true)
+        {
+          'success' => true,
+          'id' => record_id,
+          'title' => title || record_id,
+          'operation' => operation,
+          'timestamp' => Time.now.utc.iso8601,
+          'cached' => cached
+        }
       end
     end
   end
