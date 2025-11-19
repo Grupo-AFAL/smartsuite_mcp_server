@@ -603,6 +603,59 @@ module SmartSuite
         nil
       end
 
+      # Cache or update a single record (used by mutation operations)
+      #
+      # @param table_id [String] SmartSuite table ID
+      # @param record [Hash] Record data from API response
+      # @return [Boolean] True if cached successfully, false otherwise
+      def cache_single_record(table_id, record)
+        return false unless record && record['id']
+
+        # Get table structure and schema
+        structure = get_cached_table(table_id)
+        return false unless structure
+
+        sql_table_name = get_or_create_cache_table(table_id, structure)
+        ttl_seconds = get_table_ttl(table_id)
+        expires_at = (Time.now + ttl_seconds).utc.iso8601
+
+        # Delete existing record if present (will re-insert)
+        db_execute("DELETE FROM #{sql_table_name} WHERE id = ?", record['id'])
+
+        # Insert updated record
+        insert_record(sql_table_name, table_id, structure, record, expires_at)
+
+        record_stat('record_cached', 'single_upsert', table_id, { record_id: record['id'] })
+        true
+      rescue SQLite3::Exception => e
+        warn "[Cache] Error caching single record #{record['id']}: #{e.message}"
+        false
+      end
+
+      # Delete a single record from cache (used by delete operations)
+      #
+      # @param table_id [String] SmartSuite table ID
+      # @param record_id [String] Record ID to delete
+      # @return [Boolean] True if deleted successfully, false otherwise
+      def delete_cached_record(table_id, record_id)
+        return false unless record_id
+
+        # Get table structure and SQL table name
+        structure = get_cached_table(table_id)
+        return false unless structure
+
+        sql_table_name = Metadata.table_name_for(table_id)
+
+        # Delete the record
+        db_execute("DELETE FROM #{sql_table_name} WHERE id = ?", record_id)
+
+        record_stat('record_cached', 'single_delete', table_id, { record_id: record_id })
+        true
+      rescue SQLite3::Exception => e
+        warn "[Cache] Error deleting cached record #{record_id}: #{e.message}"
+        false
+      end
+
       # ========== Solution Caching ==========
 
       # Cache solutions list
