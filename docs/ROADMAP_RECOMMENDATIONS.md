@@ -305,14 +305,14 @@ Re-evaluate TOON if:
 
 ### Usability (1 week)
 
-3. **Installation script** (1 week)
+1. **Installation script** (1 week)
    - Interactive CLI setup
    - Auto-configuration
    - Built-in diagnostics
 
 ### Performance (1-2 weeks)
 
-4. **Query optimization** (1-2 weeks)
+1. **Query optimization** (1-2 weeks)
    - Complex filter optimization
    - Query plan analysis
    - Index recommendations
