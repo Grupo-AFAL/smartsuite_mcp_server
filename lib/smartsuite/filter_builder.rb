@@ -137,16 +137,38 @@ module SmartSuite
         { has_none_of: value }
 
       # Date operators (map to numeric comparisons)
+      # Extract actual date value if value is a hash with date_mode_value
       when 'is_before'
-        { lt: value }
+        { lt: extract_date_value(value) }
       when 'is_after'
-        { gt: value }
+        { gt: extract_date_value(value) }
       when 'is_on_or_before'
-        { lte: value }
+        { lte: extract_date_value(value) }
       when 'is_on_or_after'
-        { gte: value }
+        { gte: extract_date_value(value) }
 
       # Default: equality
+      else
+        value
+      end
+    end
+
+    # Extract date value from SmartSuite date object format.
+    #
+    # SmartSuite date filters can come in two formats:
+    # 1. Simple string: "2025-01-01"
+    # 2. Date object: {"date_mode" => "exact_date", "date_mode_value" => "2025-01-01"}
+    #
+    # This method normalizes both formats to return the actual date string.
+    #
+    # @param value [String, Hash] Date value (simple string or nested hash)
+    # @return [String] Actual date string
+    # @example
+    #   extract_date_value("2025-01-01")                                     #=> "2025-01-01"
+    #   extract_date_value({"date_mode" => "exact_date", "date_mode_value" => "2025-01-01"}) #=> "2025-01-01"
+    def self.extract_date_value(value)
+      if value.is_a?(Hash) && value['date_mode_value']
+        value['date_mode_value']
       else
         value
       end
