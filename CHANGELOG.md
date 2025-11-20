@@ -69,6 +69,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **CRITICAL: firstcreated and lastupdated fields not split into separate columns** - Fixed cache schema to properly split timestamp fields into `_on` and `_by` columns
+  - **Root cause**: Field types checked for `'firstcreated'` and `'lastupdated'` but actual types are `'firstcreatedfield'` and `'lastupdatedfield'`
+  - **Impact**: These fields were stored as JSON text instead of separate queryable columns
+  - **Problem**: Couldn't filter by creation/update date or user - filters returned incorrect results
+  - **Fix**:
+    - Updated `get_field_columns` to match `'firstcreatedfield'` and `'lastupdatedfield'` (lib/smartsuite/cache/metadata.rb:120-129)
+    - Updated `extract_field_value` to use column name prefix (lib/smartsuite/cache/layer.rb:423-432)
+    - Updated `find_matching_value` to match new column names (lib/smartsuite/cache/layer.rb:329-348)
+    - Updated test to use correct field type
+  - **New schema**: Creates `first_created_on`, `first_created_by`, `last_updated_on`, `last_updated_by` columns
+  - **Migration**: Delete `~/.smartsuite_mcp_cache.db` to recreate with new schema
+  - **Result**: Can now filter by creation/update date and user properly
+  - All 513 tests passing
+
 - **CRITICAL: Default minimal_response parameter not applied** - Fixed server handlers not properly defaulting to `minimal_response: true`
   - **Root cause**: When MCP tools didn't pass `minimal_response` parameter, `arguments['minimal_response']` was `nil`
   - Server passed `minimal_response: nil` to methods, which Ruby treats as falsy, so methods defaulted to full response

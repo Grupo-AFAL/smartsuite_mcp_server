@@ -326,12 +326,26 @@ module SmartSuite
 
         # For special multi-column types, match by suffix
         case field_type
-        when 'firstcreated'
-          return extracted_values['created_on'] if stored_col_name == 'created_on'
-          return extracted_values['created_by'] if stored_col_name == 'created_by'
-        when 'lastupdated'
-          return extracted_values['updated_on'] if stored_col_name == 'updated_on'
-          return extracted_values['updated_by'] if stored_col_name == 'updated_by'
+        when 'firstcreatedfield'
+          # Use label-based column name
+          field_label = field_info['label']
+          col_base = if field_label && !field_label.empty?
+                       sanitize_column_name(field_label)
+                     else
+                       sanitize_column_name(field_slug)
+                     end
+          return extracted_values["#{col_base}_on"] if stored_col_name == "#{col_base}_on"
+          return extracted_values["#{col_base}_by"] if stored_col_name == "#{col_base}_by"
+        when 'lastupdatedfield'
+          # Use label-based column name
+          field_label = field_info['label']
+          col_base = if field_label && !field_label.empty?
+                       sanitize_column_name(field_label)
+                     else
+                       sanitize_column_name(field_slug)
+                     end
+          return extracted_values["#{col_base}_on"] if stored_col_name == "#{col_base}_on"
+          return extracted_values["#{col_base}_by"] if stored_col_name == "#{col_base}_by"
         when 'deleted_date'
           return extracted_values['deleted_on'] if stored_col_name == 'deleted_on'
           return extracted_values['deleted_by'] if stored_col_name == 'deleted_by'
@@ -406,15 +420,15 @@ module SmartSuite
                    end
 
         case field_type
-        when 'firstcreated'
+        when 'firstcreatedfield'
           {
-            'created_on' => parse_timestamp(value['on']),
-            'created_by' => value['by']
+            "#{col_name}_on" => parse_timestamp(value['on']),
+            "#{col_name}_by" => value['by']
           }
-        when 'lastupdated'
+        when 'lastupdatedfield'
           {
-            'updated_on' => parse_timestamp(value['on']),
-            'updated_by' => value['by']
+            "#{col_name}_on" => parse_timestamp(value['on']),
+            "#{col_name}_by" => value['by']
           }
         when 'deleted_date'
           {
