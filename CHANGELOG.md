@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- **Merge conflict resolution** - Resolved merge conflicts between main and feature branches
-
 ### Added
 
 - **SmartDoc format documentation and examples** - Added comprehensive documentation for rich text field formatting with validated examples
@@ -73,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Merge conflict resolution** - Resolved merge conflicts between main and feature branches
 - **CRITICAL: firstcreated and lastupdated fields not split into separate columns** - Fixed cache schema to properly split timestamp fields into `_on` and `_by` columns
   - **Root cause**: Field types checked for `'firstcreated'` and `'lastupdated'` but actual types are `'firstcreatedfield'` and `'lastupdatedfield'`
   - **Impact**: These fields were stored as JSON text instead of separate queryable columns
