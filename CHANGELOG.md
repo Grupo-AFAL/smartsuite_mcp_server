@@ -93,6 +93,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Result**: v2.0 now properly returns minimal responses by default, achieving 50-95% token savings
   - All 513 tests passing with proper default behavior
 
+- **CRITICAL: get_record returns wrong record when filtering by ID** - Fixed cache query builder not handling built-in 'id' field
+  - **Root cause**: `Cache::Query.where()` only processed fields in table structure, but 'id' is a built-in field not in structure
+  - **Impact**: WHERE clause never added to SQL query for 'id' field, causing query to return first record with LIMIT 1
+  - **Example**:
+    - Requested: Record ID `68f2c7d5c60a17bb05524112` ("Presentación de Comité de TI")
+    - Returned: Record ID `6674c77f3636d0b05182235e` ("RPA: CXP Output") - WRONG RECORD
+    - SQL generated: `SELECT * FROM cache_records_... LIMIT 1` (NO WHERE CLAUSE!)
+    - Expected SQL: `SELECT * FROM cache_records_... WHERE id = ? LIMIT 1`
+  - **Fix**: Added special handling for 'id' field before structure lookup in `Cache::Query.where()` (lib/smartsuite/cache/query.rb:78-83)
+    ```ruby
+    if field_slug_str == 'id'
+      @where_clauses << 'id = ?'
+      @params << condition
+      next
+    end
+    ```
+  - **Testing**: Added comprehensive regression test with 9 assertions covering:
+    - Filter by specific ID (returns correct record)
+    - Filter by multiple different IDs
+    - Filter by non-existent ID (returns empty array)
+    - Combined ID + status filter (both conditions applied)
+  - **Result**: get_record now returns correct record when filtering by ID
+  - All 514 tests passing (added 1 regression test)
+
 - **Single select field format requirements** - Fixed bug where single select fields displayed empty/invisible options in dropdown menus
   - Root cause: Fields were created with simple string values instead of UUIDs, and missing color attributes
   - Issue: Single select fields showed empty space in dropdowns though options appeared in edit view
