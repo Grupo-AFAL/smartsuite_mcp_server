@@ -117,15 +117,15 @@ module SmartSuite
                    end
 
         case field_type
-        when 'firstcreated'
+        when 'firstcreatedfield'
           {
-            'created_on' => 'TEXT',
-            'created_by' => 'TEXT'
+            "#{col_name}_on" => 'TEXT',
+            "#{col_name}_by" => 'TEXT'
           }
-        when 'lastupdated'
+        when 'lastupdatedfield'
           {
-            'updated_on' => 'TEXT',
-            'updated_by' => 'TEXT'
+            "#{col_name}_on" => 'TEXT',
+            "#{col_name}_by" => 'TEXT'
           }
         when 'deleted_date'
           {

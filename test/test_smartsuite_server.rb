@@ -1009,7 +1009,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.delete_record('tbl_123', 'rec_456')
+    result = client.delete_record('tbl_123', 'rec_456', minimal_response: false)
 
     assert_equal :delete, api_method, 'Should use DELETE method'
     assert_equal '/applications/tbl_123/records/rec_456/', api_endpoint
@@ -1024,7 +1024,7 @@ class SmartSuiteServerTest < Minitest::Test
     table_id_param = nil
     record_id_param = nil
 
-    client.define_singleton_method(:delete_record) do |table_id, record_id|
+    client.define_singleton_method(:delete_record) do |table_id, record_id, minimal_response: true|
       delete_called = true
       table_id_param = table_id
       record_id_param = record_id

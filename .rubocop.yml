@@ -46,6 +46,7 @@ Metrics/PerceivedComplexity:
     - 'lib/smartsuite/api/workspace_operations.rb'
     - 'lib/smartsuite/mcp/prompt_registry.rb'
     - 'lib/smartsuite/cache/**/*'
+    - 'smartsuite_server.rb'
     - 'test/**/*'
 
 Metrics/ClassLength:

@@ -411,7 +411,7 @@ class TestCacheLayer < Minitest::Test
   end
 
   def test_extract_field_value_firstcreated_field
-    field_info = { 'slug' => 's123', 'field_type' => 'firstcreated', 'label' => 'Created' }
+    field_info = { 'slug' => 's123', 'field_type' => 'firstcreatedfield', 'label' => 'Created' }
     value = { 'on' => '2025-01-15T10:00:00Z', 'by' => 'user_123' }
 
     result = @cache.send(:extract_field_value, field_info, value)
