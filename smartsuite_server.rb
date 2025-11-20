@@ -205,38 +205,38 @@ class SmartSuiteServer
                @client.create_record(
                  arguments['table_id'],
                  arguments['data'],
-                 minimal_response: arguments['minimal_response']
+                 minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
                )
              when 'update_record'
                @client.update_record(
                  arguments['table_id'],
                  arguments['record_id'],
                  arguments['data'],
-                 minimal_response: arguments['minimal_response']
+                 minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
                )
              when 'delete_record'
                @client.delete_record(
                  arguments['table_id'],
                  arguments['record_id'],
-                 minimal_response: arguments['minimal_response']
+                 minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
                )
              when 'bulk_add_records'
                @client.bulk_add_records(
                  arguments['table_id'],
                  arguments['records'],
-                 minimal_response: arguments['minimal_response']
+                 minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
                )
              when 'bulk_update_records'
                @client.bulk_update_records(
                  arguments['table_id'],
                  arguments['records'],
-                 minimal_response: arguments['minimal_response']
+                 minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
                )
              when 'bulk_delete_records'
                @client.bulk_delete_records(
                  arguments['table_id'],
                  arguments['record_ids'],
-                 minimal_response: arguments['minimal_response']
+                 minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
                )
              when 'get_file_url'
                @client.get_file_url(arguments['file_handle'])

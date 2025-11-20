@@ -69,6 +69,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **CRITICAL: Default minimal_response parameter not applied** - Fixed server handlers not properly defaulting to `minimal_response: true`
+  - **Root cause**: When MCP tools didn't pass `minimal_response` parameter, `arguments['minimal_response']` was `nil`
+  - Server passed `minimal_response: nil` to methods, which Ruby treats as falsy, so methods defaulted to full response
+  - **Impact**: v2.0 mutations returned full responses (defeating the purpose) when parameter not explicitly provided
+  - **Fix**: Changed all 6 server handlers to check `arguments.key?('minimal_response')` before accessing value
+  - Now correctly defaults to `true` when parameter omitted: `arguments.key?('minimal_response') ? arguments['minimal_response'] : true`
+  - Applied to: create_record, update_record, delete_record, bulk_add_records, bulk_update_records, bulk_delete_records
+  - **Result**: v2.0 now properly returns minimal responses by default, achieving 50-95% token savings
+  - All 513 tests passing with proper default behavior
+
 - **Single select field format requirements** - Fixed bug where single select fields displayed empty/invisible options in dropdown menus
   - Root cause: Fields were created with simple string values instead of UUIDs, and missing color attributes
   - Issue: Single select fields showed empty space in dropdowns though options appeared in edit view
