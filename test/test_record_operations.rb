@@ -233,7 +233,7 @@ class TestRecordOperations < Minitest::Test
         body: { id: 'rec_456', status: 'Completed' }.to_json
       )
 
-    result = client.update_record('tbl_123', 'rec_456', data)
+    result = client.update_record('tbl_123', 'rec_456', data, minimal_response: false)
 
     assert result.is_a?(Hash), 'Should return hash'
     assert_equal 'Completed', result['status']
@@ -293,7 +293,7 @@ class TestRecordOperations < Minitest::Test
         body: { deleted: true }.to_json
       )
 
-    result = client.delete_record('tbl_123', 'rec_456')
+    result = client.delete_record('tbl_123', 'rec_456', minimal_response: false)
 
     assert result.is_a?(Hash), 'Should return hash'
     assert_equal true, result['deleted']
@@ -724,7 +724,7 @@ class TestRecordOperations < Minitest::Test
         ].to_json
       )
 
-    result = client.bulk_update_records('tbl_123', records)
+    result = client.bulk_update_records('tbl_123', records, minimal_response: false)
 
     assert result.is_a?(Array), 'Should return array'
     assert_equal 2, result.length
@@ -771,7 +771,7 @@ class TestRecordOperations < Minitest::Test
         body: { deleted: 3 }.to_json
       )
 
-    result = client.bulk_delete_records('tbl_123', record_ids)
+    result = client.bulk_delete_records('tbl_123', record_ids, minimal_response: false)
 
     assert result.is_a?(Hash), 'Should return hash'
     assert_equal 3, result['deleted']

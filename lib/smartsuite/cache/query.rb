@@ -73,12 +73,21 @@ module SmartSuite
         fields_info = structure['structure'] || []
 
         conditions.each do |field_slug, condition|
+          field_slug_str = field_slug.to_s
+
+          # Special handling for built-in 'id' field
+          if field_slug_str == 'id'
+            @where_clauses << 'id = ?'
+            @params << condition
+            next
+          end
+
           # Find field info
-          field_info = fields_info.find { |f| f['slug'] == field_slug.to_s }
+          field_info = fields_info.find { |f| f['slug'] == field_slug_str }
           next unless field_info # Skip unknown fields
 
           # Get SQL column name(s)
-          columns = field_mapping[field_slug.to_s]
+          columns = field_mapping[field_slug_str]
           next unless columns
 
           # Build condition

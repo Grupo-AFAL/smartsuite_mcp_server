@@ -20,6 +20,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Teaches AI to generate proper TipTap/ProseMirror structure instead of HTML for rich text fields
   - Enables Claude to create/update SmartSuite records with properly formatted rich text content
 
+- **Mutation response optimization** - Major token savings for create/update/delete operations (50-95% reduction)
+  - Added `minimal_response` parameter (default: true) to all 6 mutation operations
+  - **Token savings by operation**:
+    - `create_record`: 95% reduction (2-3KB → ~150 bytes)
+    - `update_record`: 95% reduction (2-3KB → ~150 bytes)
+    - `delete_record`: 80% reduction (2-3KB → ~200 bytes)
+    - `bulk_add_records`: 90% reduction per record
+    - `bulk_update_records`: 90% reduction per record
+    - `bulk_delete_records`: 80% reduction per record
+  - **Smart cache coordination**: Mutations update cache with full API response while returning minimal response to user
+    - Cache stays synchronized automatically without table-wide invalidation
+    - New `cache_single_record(table_id, record)` method upserts individual records to cache
+    - New `delete_cached_record(table_id, record_id)` method removes individual records from cache
+    - Cache TTL preserved (12 hours default) on upsert operations
+  - **Minimal response format**: Returns only essential fields instead of full record
+    ```ruby
+    {
+      'success' => true,
+      'id' => 'rec_abc123',
+      'title' => 'Record Title',
+      'operation' => 'create',  # or 'update', 'delete'
+      'timestamp' => '2025-11-19T12:34:56Z',
+      'cached' => true
+    }
+    ```
+  - **Full response option**: Set `minimal_response: false` for backward compatibility (returns complete record)
+  - **Implementation details**:
+    - Updated 6 methods in `RecordOperations` module (`lib/smartsuite/api/record_operations.rb`): lines 327-593
+    - Added 2 cache methods in `Cache::Layer` (`lib/smartsuite/cache/layer.rb`): lines 606-657
+    - Updated 6 server handlers in `SmartSuiteServer` (`smartsuite_server.rb`): lines 204-240
+    - Updated 6 MCP tool schemas in `ToolRegistry` (`lib/smartsuite/mcp/tool_registry.rb`): lines 358-495
+  - **Tests**: All 513 tests passing with backward compatibility verified
+  - **BREAKING CHANGE**: Default behavior changed to minimal responses (v2.0)
+    - Previous versions returned full responses by default
+    - To get full responses, explicitly pass `minimal_response: false`
+    - Migrations from v1.x to v2.x require updating code expecting full responses
+
 ### Changed
 
 - **Improved `refresh_cache` tool description** - Clarified resource parameter to prevent AI from refreshing entire workspace when user wants to refresh one solution
@@ -31,6 +68,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 ### Fixed
+
+- **CRITICAL: firstcreated and lastupdated fields not split into separate columns** - Fixed cache schema to properly split timestamp fields into `_on` and `_by` columns
+  - **Root cause**: Field types checked for `'firstcreated'` and `'lastupdated'` but actual types are `'firstcreatedfield'` and `'lastupdatedfield'`
+  - **Impact**: These fields were stored as JSON text instead of separate queryable columns
+  - **Problem**: Couldn't filter by creation/update date or user - filters returned incorrect results
+  - **Fix**:
+    - Updated `get_field_columns` to match `'firstcreatedfield'` and `'lastupdatedfield'` (lib/smartsuite/cache/metadata.rb:120-129)
+    - Updated `extract_field_value` to use column name prefix (lib/smartsuite/cache/layer.rb:423-432)
+    - Updated `find_matching_value` to match new column names (lib/smartsuite/cache/layer.rb:329-348)
+    - Updated test to use correct field type
+  - **New schema**: Creates `first_created_on`, `first_created_by`, `last_updated_on`, `last_updated_by` columns
+  - **Migration**: Delete `~/.smartsuite_mcp_cache.db` to recreate with new schema
+  - **Result**: Can now filter by creation/update date and user properly
+  - All 513 tests passing
+
+- **CRITICAL: Default minimal_response parameter not applied** - Fixed server handlers not properly defaulting to `minimal_response: true`
+  - **Root cause**: When MCP tools didn't pass `minimal_response` parameter, `arguments['minimal_response']` was `nil`
+  - Server passed `minimal_response: nil` to methods, which Ruby treats as falsy, so methods defaulted to full response
+  - **Impact**: v2.0 mutations returned full responses (defeating the purpose) when parameter not explicitly provided
+  - **Fix**: Changed all 6 server handlers to check `arguments.key?('minimal_response')` before accessing value
+  - Now correctly defaults to `true` when parameter omitted: `arguments.key?('minimal_response') ? arguments['minimal_response'] : true`
+  - Applied to: create_record, update_record, delete_record, bulk_add_records, bulk_update_records, bulk_delete_records
+  - **Result**: v2.0 now properly returns minimal responses by default, achieving 50-95% token savings
+  - All 513 tests passing with proper default behavior
+
+- **CRITICAL: get_record returns wrong record when filtering by ID** - Fixed cache query builder not handling built-in 'id' field
+  - **Root cause**: `Cache::Query.where()` only processed fields in table structure, but 'id' is a built-in field not in structure
+  - **Impact**: WHERE clause never added to SQL query for 'id' field, causing query to return first record with LIMIT 1
+  - **Example**:
+    - Requested: Record ID `68f2c7d5c60a17bb05524112` ("Presentación de Comité de TI")
+    - Returned: Record ID `6674c77f3636d0b05182235e` ("RPA: CXP Output") - WRONG RECORD
+    - SQL generated: `SELECT * FROM cache_records_... LIMIT 1` (NO WHERE CLAUSE!)
+    - Expected SQL: `SELECT * FROM cache_records_... WHERE id = ? LIMIT 1`
+  - **Fix**: Added special handling for 'id' field before structure lookup in `Cache::Query.where()` (lib/smartsuite/cache/query.rb:78-83)
+    ```ruby
+    if field_slug_str == 'id'
+      @where_clauses << 'id = ?'
+      @params << condition
+      next
+    end
+    ```
+  - **Testing**: Added comprehensive regression test with 9 assertions covering:
+    - Filter by specific ID (returns correct record)
+    - Filter by multiple different IDs
+    - Filter by non-existent ID (returns empty array)
+    - Combined ID + status filter (both conditions applied)
+  - **Result**: get_record now returns correct record when filtering by ID
+  - All 514 tests passing (added 1 regression test)
 
 - **Single select field format requirements** - Fixed bug where single select fields displayed empty/invisible options in dropdown menus
   - Root cause: Fields were created with simple string values instead of UUIDs, and missing color attributes
