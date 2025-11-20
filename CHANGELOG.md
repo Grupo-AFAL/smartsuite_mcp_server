@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Merge conflict resolution** - Resolved merge conflicts between main and feature branches
+
 ### Added
 
 - **SmartDoc format documentation and examples** - Added comprehensive documentation for rich text field formatting with validated examples
