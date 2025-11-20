@@ -906,6 +906,55 @@ class TestCacheQuery < Minitest::Test
     assert_equal 'rec_3', results[0]['id']
   end
 
+  # Regression test for bug where get_record returned wrong record
+  # Bug: Query.where() didn't handle built-in 'id' field, so WHERE clause was never added
+  # Result: get_record() returned first cached record instead of requested record
+  def test_where_filters_by_id_field
+    table_id = 'tbl_id_filter_test'
+    structure = {
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'status', 'label' => 'Status', 'field_type' => 'statusfield' }
+      ]
+    }
+
+    # Create records with specific IDs
+    # Note: statusfield stores as { 'value' => '...', 'updated_on' => '...' }
+    records = [
+      { 'id' => '68f2c7d5c60a17bb05524112', 'title' => 'Presentación de Comité de TI',
+        'status' => { 'value' => 'active', 'updated_on' => '2024-01-01T00:00:00Z' } },
+      { 'id' => '6674c77f3636d0b05182235e', 'title' => 'RPA: CXP Output',
+        'status' => { 'value' => 'complete', 'updated_on' => '2024-01-02T00:00:00Z' } },
+      { 'id' => 'abc123def456', 'title' => 'Another Session',
+        'status' => { 'value' => 'pending', 'updated_on' => '2024-01-03T00:00:00Z' } }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    # Test: Filter by specific ID should return only that record
+    results = @cache.query(table_id).where(id: '68f2c7d5c60a17bb05524112').execute
+    assert_equal 1, results.size, 'Should return exactly 1 record'
+    assert_equal '68f2c7d5c60a17bb05524112', results[0]['id'], 'Should return correct record ID'
+    assert_equal 'Presentación de Comité de TI', results[0]['title'], 'Should return correct record title'
+
+    # Test: Filter by different ID
+    results = @cache.query(table_id).where(id: '6674c77f3636d0b05182235e').execute
+    assert_equal 1, results.size, 'Should return exactly 1 record'
+    assert_equal '6674c77f3636d0b05182235e', results[0]['id'], 'Should return correct record ID'
+    assert_equal 'RPA: CXP Output', results[0]['title'], 'Should return correct record title'
+
+    # Test: Filter by non-existent ID
+    results = @cache.query(table_id).where(id: 'nonexistent123').execute
+    assert_equal 0, results.size, 'Should return no records for non-existent ID'
+
+    # Test: Combine ID filter with other conditions
+    results = @cache.query(table_id)
+                    .where(id: '68f2c7d5c60a17bb05524112')
+                    .where(status: 'active')
+                    .execute
+    assert_equal 1, results.size, 'Should return record matching both ID and status'
+    assert_equal 'Presentación de Comité de TI', results[0]['title']
+  end
+
   private
 
   # Create test table and populate with sample data
