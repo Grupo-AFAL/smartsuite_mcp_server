@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Documentation: Local Verification** - Updated Git Workflow in `GEMINI.md` to explicitly require local RuboCop, Changelog, and Markdown Lint checks before creating PRs.
+
 - **Refactor: Simplify MemberOperations** - Extracted private helper methods to reduce complexity and duplication
   - `format_member_list`: Centralized logic for formatting member API responses
   - `fetch_solution_member_ids`: Encapsulated complex permission traversal for solution filtering

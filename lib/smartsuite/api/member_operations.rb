@@ -191,9 +191,7 @@ module SmartSuite
         member_ids = []
 
         # Add members from permissions.members (array of {access, entity})
-        if solution['permissions']['members']
-          member_ids += solution['permissions']['members'].map { |m| m['entity'] }
-        end
+        member_ids += solution['permissions']['members'].map { |m| m['entity'] } if solution['permissions']['members']
 
         # Add members from permissions.owners (array of IDs)
         member_ids += solution['permissions']['owners'] if solution['permissions']['owners']
