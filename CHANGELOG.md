@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **AWS profile support for S3 credentials** - `SMARTSUITE_AWS_PROFILE` environment variable for credential isolation
+  - Recommended approach for security: use dedicated AWS profile instead of shared environment variables
+  - Profile references credentials in `~/.aws/credentials` file
+  - Prevents other programs from accidentally using SmartSuite S3 bucket credentials
+
+- **S3 operation logging via QueryLogger** - All S3 actions now log to `~/.smartsuite_mcp_queries.log`
+  - Consistent logging alongside API and cache operations
+  - Blue color coding for S3 operations in terminal
+  - Actions logged: UPLOAD, UPLOAD_COMPLETE, PRESIGN, ATTACH, ATTACH_COMPLETE, WAIT, CLEANUP, DELETE
+
 - **Transparent local file attachment support** - `attach_file` tool now automatically handles local file paths
   - Detects whether inputs are URLs or local file paths
   - URLs are passed directly to SmartSuite API (existing behavior)
@@ -143,6 +153,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`attach_file` returns structured status object** - Now returns detailed response instead of raw API response
+  - Returns: `{success, record_id, attached_count, local_files, url_files, details}`
+  - `details` array contains type (local/url), files list, and API result for each batch
+  - Previously returned `nil` for local file attachments, raw API response for URLs
+
 - **Extracted cache-first pattern to Base module** - DRY refactoring reducing ~50 lines of duplicate code across API modules
   - Added `with_cache_check` helper method for centralized cache checking with automatic logging
   - Added `extract_items_safely` helper for consistent response normalization (Array vs Hash with items)
@@ -168,6 +183,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 ### Fixed
+
+- **`list_comments` returning null count** - Now correctly calculates count from results array
+  - SmartSuite API returns `count: null` in the response
+  - Fixed by calculating count from `results.length` before returning
 
 - **update_field API error when params not provided** - `update_field` now automatically adds empty `params: {}` if not provided
   - SmartSuite API requires the `params` object even for simple field renames
