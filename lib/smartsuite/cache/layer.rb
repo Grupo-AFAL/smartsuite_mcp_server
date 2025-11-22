@@ -121,6 +121,14 @@ module SmartSuite
         raise
       end
 
+      # Log a warning message (suppressed in test mode to reduce noise)
+      # @param message [String] Warning message to log
+      def log_warning(message)
+        return if SmartSuite::Paths.test_mode?
+
+        warn message
+      end
+
       # Cache all records from a SmartSuite table
       #
       # @param table_id [String] SmartSuite table ID
@@ -463,7 +471,7 @@ module SmartSuite
         )
       rescue StandardError => e
         # Silent failure - stats are nice-to-have
-        warn "Cache stat recording failed: #{e.message}"
+        log_warning "Cache stat recording failed: #{e.message}"
       end
 
       # Create a query builder for a table
@@ -500,7 +508,7 @@ module SmartSuite
 
         result
       rescue SQLite3::Exception => e
-        warn "[Cache] Error reading cached record #{record_id}: #{e.message}"
+        log_warning "[Cache] Error reading cached record #{record_id}: #{e.message}"
         nil
       end
 
@@ -529,7 +537,7 @@ module SmartSuite
         record_stat('record_cached', 'single_upsert', table_id, { record_id: record['id'] })
         true
       rescue SQLite3::Exception => e
-        warn "[Cache] Error caching single record #{record['id']}: #{e.message}"
+        log_warning "[Cache] Error caching single record #{record['id']}: #{e.message}"
         false
       end
 
@@ -556,7 +564,7 @@ module SmartSuite
         record_stat('record_cached', 'single_delete', table_id, { record_id: record_id })
         true
       rescue SQLite3::Exception => e
-        warn "[Cache] Error deleting cached record #{record_id}: #{e.message}"
+        log_warning "[Cache] Error deleting cached record #{record_id}: #{e.message}"
         false
       end
 
@@ -837,7 +845,7 @@ module SmartSuite
           'primary_field' => result['primary_field']
         }
       rescue SQLite3::Exception => e
-        warn "[Cache] Error reading cached table #{table_id}: #{e.message}"
+        log_warning "[Cache] Error reading cached table #{table_id}: #{e.message}"
         nil
       end
 
@@ -1371,7 +1379,7 @@ module SmartSuite
         }
       rescue ArgumentError => e
         # If time parsing fails, return nil (invalid cache state)
-        warn "Warning: Invalid timestamp in cached_solutions: #{result['first_expires']} - #{e.message}"
+        log_warning "Warning: Invalid timestamp in cached_solutions: #{result['first_expires']} - #{e.message}"
         nil
       end
 
@@ -1392,7 +1400,7 @@ module SmartSuite
         }
       rescue ArgumentError => e
         # If time parsing fails, return nil (invalid cache state)
-        warn "Warning: Invalid timestamp in cached_tables: #{result['first_expires']} - #{e.message}"
+        log_warning "Warning: Invalid timestamp in cached_tables: #{result['first_expires']} - #{e.message}"
         nil
       end
 
@@ -1413,7 +1421,7 @@ module SmartSuite
         }
       rescue ArgumentError => e
         # If time parsing fails, return nil (invalid cache state)
-        warn "Warning: Invalid timestamp in cached_members: #{result['first_expires']} - #{e.message}"
+        log_warning "Warning: Invalid timestamp in cached_members: #{result['first_expires']} - #{e.message}"
         nil
       end
 
@@ -1434,7 +1442,7 @@ module SmartSuite
         }
       rescue ArgumentError => e
         # If time parsing fails, return nil (invalid cache state)
-        warn "Warning: Invalid timestamp in cached_teams: #{result['first_expires']} - #{e.message}"
+        log_warning "Warning: Invalid timestamp in cached_teams: #{result['first_expires']} - #{e.message}"
         nil
       end
 
