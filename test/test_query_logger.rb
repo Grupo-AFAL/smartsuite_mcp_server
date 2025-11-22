@@ -179,4 +179,26 @@ class TestQueryLogger < Minitest::Test
 
     assert_same logger1, logger2, 'Should return same logger instance'
   end
+
+  # ========== log_s3_operation tests ==========
+
+  def test_log_s3_operation_logs_with_s3_prefix
+    mock_logger = Minitest::Mock.new
+    mock_logger.expect :info, nil, [/S3 UPLOAD \| Test message/]
+
+    QueryLogger.instance_variable_set(:@logger, mock_logger)
+    QueryLogger.log_s3_operation('UPLOAD', 'Test message')
+
+    mock_logger.verify
+  end
+
+  def test_log_s3_operation_includes_action_and_message
+    mock_logger = Minitest::Mock.new
+    mock_logger.expect :info, nil, [/S3 DELETE \| Deleted file\.txt/]
+
+    QueryLogger.instance_variable_set(:@logger, mock_logger)
+    QueryLogger.log_s3_operation('DELETE', 'Deleted file.txt')
+
+    mock_logger.verify
+  end
 end
