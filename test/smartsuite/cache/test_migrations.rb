@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
+require_relative '../../test_helper'
 require 'sqlite3'
 require 'fileutils'
-require_relative '../lib/smartsuite/cache/layer'
+require_relative '../../../lib/smartsuite/cache/layer'
 
 class TestCacheMigrations < Minitest::Test
   def setup

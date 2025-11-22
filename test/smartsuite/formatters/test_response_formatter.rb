@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
-require_relative '../lib/smartsuite/formatters/response_formatter'
+require_relative '../../test_helper'
+require_relative '../../../lib/smartsuite/formatters/response_formatter'
 require 'json'
 
 class TestResponseFormatter < Minitest::Test

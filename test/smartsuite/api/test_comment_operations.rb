@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
+require_relative '../../test_helper'
 require 'net/http'
-require_relative '../lib/smartsuite_client'
+require_relative '../../../lib/smartsuite_client'
 
 class TestCommentOperations < Minitest::Test
   def setup

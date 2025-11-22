@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
+require_relative '../../test_helper'
 require 'net/http'
 require 'fileutils'
-require_relative '../lib/smartsuite_client'
+require_relative '../../../lib/smartsuite_client'
 
 class TestWorkspaceOperations < Minitest::Test
   def setup

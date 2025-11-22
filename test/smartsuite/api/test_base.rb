@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
-require_relative '../lib/smartsuite/api/base'
+require_relative '../../test_helper'
+require_relative '../../../lib/smartsuite/api/base'
 
 class TestApiBase < Minitest::Test
   # Test class that includes Base module
