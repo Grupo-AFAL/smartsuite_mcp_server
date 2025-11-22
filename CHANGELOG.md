@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Provides `database_path` and `metrics_log_path` methods with automatic test isolation
   - Ensures tests never write to production database or log files
 
+- **SmartSuite::Cache::Schema module** - Centralized SQLite table schema definitions
+  - Single source of truth for all table CREATE statements
+  - Eliminates duplication between `Cache::Layer` and `ApiStatsTracker`
+  - Methods: `api_stats_tables_sql`, `cache_registry_tables_sql`, `cached_data_tables_sql`, `all_metadata_tables_sql`
+  - Both modules now use Schema for consistent table definitions
+
 - **aws-sdk-s3 test dependency** - Added optional dependency for testing SecureFileAttacher
   - Uses AWS SDK's built-in stubbing (`stub_responses: true`) for mocking without real credentials
   - Enables comprehensive testing of S3-based file attachment functionality

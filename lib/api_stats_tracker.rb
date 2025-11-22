@@ -4,6 +4,7 @@ require 'digest'
 require 'time'
 require 'sqlite3'
 require_relative 'smartsuite/paths'
+require_relative 'smartsuite/cache/schema'
 
 # ApiStatsTracker tracks API usage statistics in SQLite database
 #
@@ -36,42 +37,8 @@ class ApiStatsTracker
   # These are normally created by CacheLayer.setup_metadata_tables, but we need them
   # if ApiStatsTracker is used standalone without CacheLayer
   def setup_tables
-    @db.execute_batch <<-SQL
-      -- API call tracking
-      CREATE TABLE IF NOT EXISTS api_call_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_hash TEXT NOT NULL,
-        method TEXT NOT NULL,
-        endpoint TEXT NOT NULL,
-        solution_id TEXT,
-        table_id TEXT,
-        timestamp TEXT NOT NULL,
-        session_id TEXT DEFAULT 'legacy'
-      );
-
-      -- API statistics summary
-      CREATE TABLE IF NOT EXISTS api_stats_summary (
-        user_hash TEXT PRIMARY KEY,
-        total_calls INTEGER DEFAULT 0,
-        first_call TEXT,
-        last_call TEXT
-      );
-
-      -- Cache performance tracking (needed for get_cache_stats)
-      CREATE TABLE IF NOT EXISTS cache_performance (
-        table_id TEXT PRIMARY KEY,
-        hit_count INTEGER DEFAULT 0,
-        miss_count INTEGER DEFAULT 0,
-        last_access_time TEXT,
-        record_count INTEGER DEFAULT 0,
-        cache_size_bytes INTEGER DEFAULT 0,
-        updated_at TEXT NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_api_call_log_user ON api_call_log(user_hash);
-      CREATE INDEX IF NOT EXISTS idx_api_call_log_session ON api_call_log(session_id);
-      CREATE INDEX IF NOT EXISTS idx_api_call_log_timestamp ON api_call_log(timestamp);
-    SQL
+    # Use centralized schema definitions for API stats tables
+    @db.execute_batch(SmartSuite::Cache::Schema.api_stats_tables_sql)
   end
 
   public
