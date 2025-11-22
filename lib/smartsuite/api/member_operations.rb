@@ -116,32 +116,24 @@ module SmartSuite
       end
 
       # Retrieves a specific team by ID, using cache if available.
-      # Returns full team data including member IDs array (for internal use).
+      # Returns team data with enriched member details (name, email, etc.)
+      # instead of just member IDs.
       #
       # Checks SQLite cache first. If not found, fetches all teams and
       # populates the cache.
       #
       # @param team_id [String] Team identifier
-      # @return [Hash, nil] Team object or nil if not found
+      # @return [Hash, nil] Team object with enriched members or nil if not found
       # @raise [ArgumentError] If team_id is missing
       # @example
       #   get_team('team_abc')
       def get_team(team_id)
         validate_required_parameter!('team_id', team_id)
 
-        # Try to get specific team from cache first
-        unless should_bypass_cache?
-          cached_team = @cache.get_cached_team(team_id)
-          if cached_team
-            log_cache_hit('team', team_id)
-            return cached_team
-          end
-        end
+        team = fetch_team_by_id(team_id)
+        return nil unless team
 
-        # Fetch all teams (which will cache them) and find the specific one
-        log_metric("→ Fetching team from teams list: #{team_id}")
-        teams = fetch_teams_with_cache
-        teams&.find { |t| t['id'] == team_id }
+        enrich_team_with_members(team)
       end
 
       private
@@ -291,6 +283,67 @@ module SmartSuite
         teams
       end
 
+      # Fetches a team by ID from cache or API (raw data, not enriched).
+      # Used internally for permission lookups.
+      #
+      # @param team_id [String] Team identifier
+      # @return [Hash, nil] Raw team object or nil if not found
+      def fetch_team_by_id(team_id)
+        # Try to get specific team from cache first
+        unless should_bypass_cache?
+          cached_team = @cache.get_cached_team(team_id)
+          if cached_team
+            log_cache_hit('team', team_id)
+            return cached_team
+          end
+        end
+
+        # Fetch all teams (which will cache them) and find the specific one
+        log_metric("→ Fetching team from teams list: #{team_id}")
+        teams = fetch_teams_with_cache
+        teams&.find { |t| t['id'] == team_id }
+      end
+
+      # Enriches a team with member details instead of just IDs.
+      #
+      # @param team [Hash] Team object with member IDs array
+      # @return [Hash] Team with enriched member details
+      def enrich_team_with_members(team)
+        return team unless team['members'].is_a?(Array)
+
+        member_ids = team['members']
+
+        # Get all members from cache
+        all_members = @cache.get_cached_members(include_inactive: true) || []
+
+        # Build a lookup hash for quick access
+        members_by_id = all_members.each_with_object({}) { |m, h| h[m['id']] = m }
+
+        # Enrich member IDs with details
+        enriched_members = member_ids.map do |member_id|
+          member = members_by_id[member_id]
+          if member
+            {
+              'id' => member['id'],
+              'email' => member['email'],
+              'full_name' => member['full_name'],
+              'first_name' => member['first_name'],
+              'last_name' => member['last_name']
+            }.compact
+          else
+            { 'id' => member_id }
+          end
+        end
+
+        {
+          'id' => team['id'],
+          'name' => team['name'],
+          'description' => team['description'],
+          'member_count' => member_ids.size,
+          'members' => enriched_members
+        }
+      end
+
       # Fetches solution details and extracts unique member IDs from permissions.
       # Includes direct members, owners, and members of assigned teams.
       #
@@ -315,7 +368,7 @@ module SmartSuite
           log_metric("→ Found #{team_ids.size} team(s), fetching team members...")
 
           team_ids.each do |team_id|
-            team = get_team(team_id)
+            team = fetch_team_by_id(team_id)
             if team && team['members'].is_a?(Array)
               member_ids += team['members']
               log_metric("  Team #{team['name'] || team_id}: added #{team['members'].size} member(s)")
