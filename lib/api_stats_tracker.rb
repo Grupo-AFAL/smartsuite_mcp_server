@@ -3,6 +3,8 @@
 require 'digest'
 require 'time'
 require 'sqlite3'
+require_relative 'smartsuite/paths'
+require_relative 'smartsuite/cache/schema'
 
 # ApiStatsTracker tracks API usage statistics in SQLite database
 #
@@ -21,11 +23,25 @@ class ApiStatsTracker
     return unless @owns_db
 
     # Create our own database if none provided
-    db_path = File.join(Dir.home, '.smartsuite_mcp_cache.db')
-    @db = SQLite3::Database.new(db_path)
+    # Uses SmartSuite::Paths for consistent path handling (test mode vs production)
+    @db = SQLite3::Database.new(SmartSuite::Paths.database_path)
     @db.results_as_hash = true
-    # Tables will be created by CacheLayer setup_metadata_tables
+
+    # Create tables if we own the database (they may not exist if CacheLayer wasn't used)
+    setup_tables
   end
+
+  private
+
+  # Create required tables if they don't exist
+  # These are normally created by CacheLayer.setup_metadata_tables, but we need them
+  # if ApiStatsTracker is used standalone without CacheLayer
+  def setup_tables
+    # Use centralized schema definitions for API stats tables
+    @db.execute_batch(SmartSuite::Cache::Schema.api_stats_tables_sql)
+  end
+
+  public
 
   # Generate a unique session identifier
   #

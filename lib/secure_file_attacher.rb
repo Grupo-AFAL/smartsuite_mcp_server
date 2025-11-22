@@ -2,6 +2,7 @@
 
 require 'aws-sdk-s3'
 require 'securerandom'
+require_relative 'query_logger'
 
 # SecureFileAttacher provides a secure way to attach local files to SmartSuite records.
 #
@@ -91,7 +92,7 @@ class SecureFileAttacher
   #     fetch_timeout: 60
   #   )
   def initialize(smartsuite_client, bucket_name, region: DEFAULT_REGION, url_expires_in: DEFAULT_URL_EXPIRATION,
-                 fetch_timeout: DEFAULT_FETCH_TIMEOUT)
+                 fetch_timeout: DEFAULT_FETCH_TIMEOUT, profile: nil)
     raise ArgumentError, 'smartsuite_client cannot be nil' if smartsuite_client.nil?
     raise ArgumentError, 'bucket_name cannot be nil' if bucket_name.nil?
 
@@ -100,8 +101,15 @@ class SecureFileAttacher
     @url_expires_in = url_expires_in
     @fetch_timeout = fetch_timeout
 
-    # Initialize S3 resource
-    @s3 = Aws::S3::Resource.new(region: region)
+    # Initialize S3 resource with optional profile for credential isolation
+    s3_options = { region: region }
+    s3_options[:profile] = profile if profile
+
+    # Disable SSL verification - same approach as SmartSuite HttpClient
+    # Avoids certificate issues common on macOS
+    s3_options[:ssl_verify_peer] = false
+
+    @s3 = Aws::S3::Resource.new(**s3_options)
     @bucket = @s3.bucket(bucket_name)
 
     # Verify bucket exists
@@ -158,11 +166,17 @@ class SecureFileAttacher
       file_paths.each do |path|
         key = generate_temp_key(path)
         obj = @bucket.object(key)
+        file_size = File.size(path)
 
-        log_debug("Uploading file to S3: #{path} -> s3://#{@bucket_name}/#{key}")
+        log_s3('UPLOAD', "#{File.basename(path)} (#{format_size(file_size)}) -> s3://#{@bucket_name}/#{key}")
 
         # Upload with server-side encryption
-        obj.upload_file(path, server_side_encryption: 'AES256')
+        # Using put with File.open instead of deprecated upload_file
+        File.open(path, 'rb') do |file|
+          obj.put(body: file, server_side_encryption: 'AES256')
+        end
+
+        log_s3('UPLOAD_COMPLETE', "#{File.basename(path)} uploaded successfully")
 
         # Generate short-lived pre-signed URL
         url = obj.presigned_url(:get, expires_in: @url_expires_in)
@@ -170,20 +184,21 @@ class SecureFileAttacher
         temp_urls << url
         temp_objects << obj
 
-        log_debug("Generated pre-signed URL (expires in #{@url_expires_in}s)")
+        log_s3('PRESIGN', "Generated URL for #{File.basename(path)} (expires in #{@url_expires_in}s)")
       end
 
-      log_debug("Attaching #{file_paths.length} file(s) to SmartSuite record #{record_id}")
+      log_s3('ATTACH', "Sending #{file_paths.length} file(s) to SmartSuite record #{record_id}")
 
       # Attach to SmartSuite
       result = @client.attach_file(table_id, record_id, field_slug, temp_urls)
 
-      log_debug('SmartSuite attach successful, waiting for fetch...')
+      log_s3('ATTACH_COMPLETE', "SmartSuite accepted #{file_paths.length} file(s)")
 
       # Wait for SmartSuite to fetch files
+      log_s3('WAIT', "Waiting #{@fetch_timeout}s for SmartSuite to fetch files...")
       wait_for_fetch(temp_objects, timeout: @fetch_timeout)
 
-      log_debug('File fetch complete')
+      log_s3('WAIT_COMPLETE', 'Fetch period complete')
 
       result
     ensure
@@ -280,16 +295,32 @@ class SecureFileAttacher
 
   # Delete temporary files from S3
   def cleanup_temp_files(objects)
+    return if objects.empty?
+
+    log_s3('CLEANUP', "Deleting #{objects.length} temporary file(s) from S3")
+
     objects.each do |obj|
       obj.delete
-      log_debug("Deleted temporary file: s3://#{@bucket_name}/#{obj.key}")
+      log_s3('DELETE', "Deleted s3://#{@bucket_name}/#{obj.key}")
     rescue Aws::S3::Errors::NoSuchKey
       # Already deleted, ignore
-      log_debug("File already deleted: s3://#{@bucket_name}/#{obj.key}")
+      log_s3('DELETE_SKIP', "Already deleted: #{obj.key}")
     rescue Aws::S3::Errors::ServiceError => e
       # Log error but don't fail - lifecycle policy will clean up
-      log_error("Failed to delete temporary file: #{e.message}")
+      log_error("Failed to delete #{obj.key}: #{e.message}")
     end
+
+    log_s3('CLEANUP_COMPLETE', 'Temporary files cleaned up')
+  end
+
+  # Format file size in human-readable format
+  def format_size(bytes)
+    return '0 B' if bytes.zero?
+
+    units = %w[B KB MB GB]
+    exp = (Math.log(bytes) / Math.log(1024)).to_i
+    exp = [exp, units.length - 1].min
+    format('%<size>.1f %<unit>s', size: bytes.to_f / (1024**exp), unit: units[exp])
   end
 
   # Simple debug logging (can be enhanced with proper logger)
@@ -297,6 +328,11 @@ class SecureFileAttacher
     return unless ENV['SECURE_FILE_ATTACHER_DEBUG']
 
     warn "[SecureFileAttacher] #{message}"
+  end
+
+  # S3 action logging - uses QueryLogger for consistent logging to queries log
+  def log_s3(action, message)
+    QueryLogger.log_s3_operation(action, message)
   end
 
   # Simple error logging

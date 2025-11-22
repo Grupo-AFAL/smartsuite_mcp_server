@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
-require_relative '../lib/smartsuite/filter_builder'
-require_relative '../lib/smartsuite/cache/query'
+require_relative '../test_helper'
+require_relative '../../lib/smartsuite/filter_builder'
+require_relative '../../lib/smartsuite/cache/query'
 
 class TestFilterBuilder < Minitest::Test
   def setup
@@ -298,7 +298,11 @@ class TestFilterBuilder < Minitest::Test
               end
 
       result = SmartSuite::FilterBuilder.convert_comparison(operator, value)
-      assert_equal expected, result, "Operator '#{operator}' failed"
+      if expected.nil?
+        assert_nil result, "Operator '#{operator}' should return nil"
+      else
+        assert_equal expected, result, "Operator '#{operator}' failed"
+      end
     end
   end
 

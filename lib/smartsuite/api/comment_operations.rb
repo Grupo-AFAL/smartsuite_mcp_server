@@ -14,7 +14,7 @@ module SmartSuite
       # List all comments for a specific record.
       #
       # @param record_id [String] The ID of the record
-      # @return [Hash] API response containing array of comment objects
+      # @return [Hash] API response containing array of comment objects with accurate count
       # @raise [ArgumentError] If record_id is nil or empty
       # @raise [RuntimeError] If the API request fails
       # @example
@@ -23,7 +23,12 @@ module SmartSuite
         validate_required_parameter!('record_id', record_id)
 
         endpoint = build_endpoint('/comments/', record: record_id)
-        api_request(:get, endpoint)
+        response = api_request(:get, endpoint)
+
+        # SmartSuite API returns count: null, so calculate from results
+        response['count'] = response['results'].length if response.is_a?(Hash) && response['results'].is_a?(Array)
+
+        response
       end
 
       # Add a comment to a record.

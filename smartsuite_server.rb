@@ -4,6 +4,7 @@
 require 'json'
 require_relative 'lib/smartsuite_client'
 require_relative 'lib/api_stats_tracker'
+require_relative 'lib/smartsuite/paths'
 require_relative 'lib/smartsuite/mcp/tool_registry'
 require_relative 'lib/smartsuite/mcp/prompt_registry'
 require_relative 'lib/smartsuite/mcp/resource_registry'
@@ -21,7 +22,8 @@ class SmartSuiteServer
     @client = SmartSuiteClient.new(@api_key, @account_id)
 
     # Open metrics log file
-    @metrics_log = File.open(File.join(Dir.home, '.smartsuite_mcp_metrics.log'), 'a')
+    # Uses SmartSuite::Paths for consistent path handling (test mode vs production)
+    @metrics_log = File.open(SmartSuite::Paths.metrics_log_path, 'a')
     @metrics_log.sync = true
   end
 
@@ -171,9 +173,17 @@ class SmartSuiteServer
              when 'get_solution_most_recent_record_update'
                @client.get_solution_most_recent_record_update(arguments['solution_id'])
              when 'list_members'
-               @client.list_members(limit: arguments['limit'], offset: arguments['offset'], solution_id: arguments['solution_id'])
+               @client.list_members(**{
+                 limit: arguments['limit'],
+                 offset: arguments['offset'],
+                 solution_id: arguments['solution_id'],
+                 include_inactive: arguments['include_inactive']
+               }.compact)
              when 'search_member'
-               @client.search_member(arguments['query'])
+               @client.search_member(
+                 arguments['query'],
+                 include_inactive: arguments['include_inactive'] || false
+               )
              when 'list_teams'
                @client.list_teams
              when 'get_team'
