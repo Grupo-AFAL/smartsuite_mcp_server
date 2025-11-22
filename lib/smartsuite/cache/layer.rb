@@ -87,6 +87,9 @@ module SmartSuite
         # Migrate cached_members schema to add deleted_date column
         migrate_cached_members_schema
 
+        # Migrate cache_ttl_config schema to add expires_at column
+        migrate_cache_ttl_config_schema
+
         # Create indexes after ensuring schema is up to date
         @db.execute_batch <<-SQL
         CREATE INDEX IF NOT EXISTS idx_api_call_log_user ON api_call_log(user_hash);
@@ -749,6 +752,8 @@ module SmartSuite
           db_execute('DELETE FROM cached_tables WHERE solution_id = ?', solution_id)
         else
           db_execute('DELETE FROM cached_tables')
+          # Set the "all_tables" scope marker so we know this is a complete cache
+          set_table_list_scope('all_tables', expires_at)
         end
 
         # Insert all tables with fixed columns
@@ -918,6 +923,24 @@ module SmartSuite
           valid = result && result['count'].to_i.positive?
           QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', "table_list:solution:#{solution_id}")
         else
+          # For "all tables" request, we must verify we have a complete cache
+          # Check if we have the "all_tables" scope marker set and not expired
+          scope_result = db_execute(
+            "SELECT expires_at FROM cache_ttl_config WHERE table_id = '__table_list_scope__' AND notes = 'all_tables'"
+          ).first
+
+          if scope_result.nil? || scope_result['expires_at'].nil?
+            QueryLogger.log_cache_operation('expired', 'table_list:all_tables (no scope marker)')
+            return false
+          end
+
+          scope_expires = Time.parse(scope_result['expires_at']) rescue nil
+          if scope_expires.nil? || scope_expires <= Time.now.utc
+            QueryLogger.log_cache_operation('expired', 'table_list:all_tables (scope expired)')
+            return false
+          end
+
+          # Also verify we have actual tables cached
           result = db_execute(
             'SELECT COUNT(*) as count FROM cached_tables WHERE expires_at > ?',
             Time.now.utc.iso8601
@@ -944,9 +967,31 @@ module SmartSuite
           QueryLogger.log_cache_operation('invalidate', "table_list:solution:#{solution_id}")
         else
           db_execute('UPDATE cached_tables SET expires_at = 0')
+          # Also clear the "all_tables" scope marker
+          clear_table_list_scope
           record_stat('invalidation', 'table_list', 'all_tables')
           QueryLogger.log_cache_operation('invalidate', 'table_list:all_tables')
         end
+      end
+
+      # Set table list cache scope marker
+      #
+      # Records that we have cached "all tables" (not just solution-specific)
+      # @param scope [String] Scope identifier ('all_tables')
+      # @param expires_at [String] Expiration timestamp (ISO 8601)
+      def set_table_list_scope(scope, expires_at)
+        db_execute(
+          "INSERT OR REPLACE INTO cache_ttl_config (table_id, ttl_seconds, notes, expires_at, updated_at)
+           VALUES ('__table_list_scope__', 0, ?, ?, ?)",
+          scope, expires_at, Time.now.utc.iso8601
+        )
+        QueryLogger.log_cache_operation('set_scope', "table_list:#{scope}")
+      end
+
+      # Clear table list cache scope marker
+      def clear_table_list_scope
+        db_execute("DELETE FROM cache_ttl_config WHERE table_id = '__table_list_scope__'")
+        QueryLogger.log_cache_operation('clear_scope', 'table_list')
       end
 
       # ========== Member Caching ==========

@@ -227,6 +227,42 @@ class TestFieldOperations < Minitest::Test
     assert_equal 'New Label', captured_body['label']
   end
 
+  def test_update_field_adds_empty_params_when_not_provided
+    table_id = 'tbl_123'
+    slug = 'my_field'
+    # field_data without params - API requires params to be present
+    field_data = { 'label' => 'New Label', 'field_type' => 'textareafield' }
+
+    captured_body = nil
+    @client.define_singleton_method(:api_request) do |_method, _endpoint, body|
+      captured_body = body
+      {}
+    end
+
+    @client.update_field(table_id, slug, field_data)
+
+    # Verify params is added as empty hash when not provided
+    assert_equal({}, captured_body['params'])
+    assert_equal 'New Label', captured_body['label']
+  end
+
+  def test_update_field_preserves_existing_params
+    table_id = 'tbl_123'
+    slug = 'my_field'
+    field_data = { 'label' => 'New Label', 'params' => { 'required' => true } }
+
+    captured_body = nil
+    @client.define_singleton_method(:api_request) do |_method, _endpoint, body|
+      captured_body = body
+      {}
+    end
+
+    @client.update_field(table_id, slug, field_data)
+
+    # Verify existing params are preserved
+    assert_equal({ 'required' => true }, captured_body['params'])
+  end
+
   def test_update_field_missing_table_id
     assert_raises(ArgumentError) do
       @client.update_field(nil, 'slug', { 'label' => 'Test' })

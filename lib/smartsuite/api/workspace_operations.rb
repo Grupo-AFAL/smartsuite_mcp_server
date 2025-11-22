@@ -228,8 +228,9 @@ module SmartSuite
 
       # Gets the most recent record update timestamp across all tables in a solution.
       #
-      # Queries each table in the solution to find the most recently updated record,
-      # returning the latest update timestamp across all tables.
+      # Uses cache-first strategy: populates cache with ALL records for each table,
+      # then queries the cache to find the most recent update. This ensures records
+      # are available for subsequent queries without additional API calls.
       #
       # @param solution_id [String] Solution identifier
       # @return [String, nil] ISO8601 timestamp of most recent record update, or nil if no records
@@ -247,25 +248,75 @@ module SmartSuite
         most_recent_update = nil
 
         tables_response['tables'].each do |table|
-          # Call API directly to get raw JSON response (list_records returns plain text by default)
-          base_path = "/applications/#{table['id']}/records/list/"
-          endpoint = build_endpoint(base_path, limit: 1, offset: 0)
-          body = {
-            sort: [{ 'field' => 'last_updated', 'direction' => 'desc' }]
-          }
+          table_id = table['id']
 
-          records_response = api_request(:post, endpoint, body)
+          # Use cache-first strategy: populate cache with ALL records
+          # This ensures records are available for subsequent queries
+          if cache_enabled?
+            ensure_records_cached(table_id)
 
-          # Records are in items array, last_updated date is at last_updated.on
-          next unless records_response['items']&.first
+            # Query the cache for the most recent record
+            query = @cache.query(table_id)
+                          .order('last_updated', 'DESC')
+                          .limit(1)
+            results = query.execute
 
-          record = records_response['items'].first
-          record_update = record.dig('last_updated', 'on')
+            next if results.empty?
+
+            record = results.first
+            # Extract last_updated timestamp - cache stores it as JSON string
+            last_updated = record['last_updated']
+            record_update = extract_last_updated_timestamp(last_updated)
+          else
+            # Fallback: direct API call (original behavior when cache disabled)
+            base_path = "/applications/#{table_id}/records/list/"
+            endpoint = build_endpoint(base_path, limit: 1, offset: 0)
+            body = { sort: [{ 'field' => 'last_updated', 'direction' => 'desc' }] }
+
+            records_response = api_request(:post, endpoint, body)
+
+            next unless records_response['items']&.first
+
+            record = records_response['items'].first
+            record_update = record.dig('last_updated', 'on')
+          end
+
           most_recent_update = record_update if record_update && (most_recent_update.nil? || record_update > most_recent_update)
         end
 
         most_recent_update
       end
+
+      private
+
+      # Extract timestamp from last_updated field value.
+      #
+      # Cache stores last_updated as JSON string with 'on' key.
+      # API returns it as Hash with 'on' key.
+      #
+      # @param last_updated [String, Hash, nil] Last updated field value
+      # @return [String, nil] ISO8601 timestamp or nil
+      def extract_last_updated_timestamp(last_updated)
+        return nil if last_updated.nil?
+
+        # If it's a string, try to parse as JSON
+        if last_updated.is_a?(String)
+          begin
+            parsed = JSON.parse(last_updated)
+            return parsed['on'] if parsed.is_a?(Hash)
+          rescue JSON::ParserError
+            # Not JSON, return as-is if it looks like a timestamp
+            return last_updated if last_updated.match?(/^\d{4}-\d{2}-\d{2}/)
+          end
+        end
+
+        # If it's a Hash, extract 'on' key
+        return last_updated['on'] if last_updated.is_a?(Hash)
+
+        nil
+      end
+
+      public
 
       # Analyzes solution usage to identify inactive solutions.
       #

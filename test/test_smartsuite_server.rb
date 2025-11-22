@@ -1713,7 +1713,8 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test get_solution_most_recent_record_update
   def test_get_solution_most_recent_record_update_returns_latest_date
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    # Use cache_enabled: false to test the fallback API path
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     # Mock responses
     mock_tables_response = {
@@ -1763,7 +1764,8 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_get_solution_most_recent_record_update_returns_nil_when_no_records
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    # Use cache_enabled: false to test the fallback API path
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_tables_response = {
       'tables' => [
@@ -1786,7 +1788,8 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_get_solution_most_recent_record_update_returns_nil_when_no_tables
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    # Use cache_enabled: false to test the fallback API path
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     client.define_singleton_method(:list_tables) do |solution_id: nil|
       { 'tables' => [], 'count' => 0 }

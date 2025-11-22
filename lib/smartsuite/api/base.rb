@@ -292,6 +292,77 @@ module SmartSuite
       def extract_items_safely(response, items_key = 'items')
         response.is_a?(Array) ? response : extract_items_from_response(response, items_key)
       end
+
+      # Ensure records are cached for a table, populating cache if needed.
+      #
+      # This helper centralizes the cache-first aggressive fetch strategy.
+      # When cache is invalid/expired, fetches ALL records and caches them.
+      # This enables efficient local querying and reduces subsequent API calls.
+      #
+      # @param table_id [String] Table identifier
+      # @return [void]
+      # @example
+      #   ensure_records_cached('tbl_123')
+      #   # Cache is now populated, subsequent queries are local
+      def ensure_records_cached(table_id)
+        return unless cache_enabled?
+
+        # Check if cache is valid
+        if @cache.cache_valid?(table_id)
+          # Track cache hit
+          @cache.track_cache_hit(table_id)
+          return
+        end
+
+        # Track cache miss
+        @cache.track_cache_miss(table_id)
+        log_metric("→ Cache miss for #{table_id}, fetching all records...")
+
+        # Fetch table structure
+        structure = get_table(table_id)
+
+        # Fetch ALL records (aggressive strategy)
+        all_records = fetch_all_records(table_id)
+
+        # Cache records
+        @cache.cache_table_records(table_id, structure, all_records)
+
+        log_metric("✓ Cached #{all_records.size} records for #{table_id}")
+      end
+
+      # Fetch all records from a table using paginated API calls.
+      #
+      # Uses list endpoint with hydrated=true to get complete data including
+      # linked records, users, and other reference fields. This eliminates the
+      # need for separate get_record calls.
+      #
+      # @param table_id [String] Table identifier
+      # @return [Array<Hash>] Array of complete record hashes
+      # @example
+      #   records = fetch_all_records('tbl_123')
+      def fetch_all_records(table_id)
+        all_records = []
+        offset = 0
+        limit = Pagination::FETCH_ALL_LIMIT
+
+        loop do
+          # Build endpoint with query parameters
+          base_path = "/applications/#{table_id}/records/list/"
+          endpoint = build_endpoint(base_path, limit: limit, offset: offset, hydrated: true)
+          response = api_request(:post, endpoint, nil)
+
+          records = response['items'] || []
+          break if records.empty?
+
+          all_records.concat(records)
+          offset += limit
+
+          # Break if we got fewer records than requested (last page)
+          break if records.size < limit
+        end
+
+        all_records
+      end
     end
   end
 end
