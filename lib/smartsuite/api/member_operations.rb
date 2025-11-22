@@ -71,8 +71,9 @@ module SmartSuite
           cached_members = @cache.get_cached_members(query: query, include_inactive: include_inactive)
           if cached_members
             log_cache_hit('members', cached_members.size, "query:#{query}")
-            result = build_collection_response(cached_members, :members, query: query)
-            return track_response_size(result, "Found #{cached_members.size} matching members (cached)")
+            sorted_members = sort_members_by_match_score(cached_members, query)
+            result = build_collection_response(sorted_members, :members, query: query)
+            return track_response_size(result, "Found #{sorted_members.size} matching members (cached)")
           else
             log_cache_miss('members', "query:#{query}")
           end
@@ -97,8 +98,11 @@ module SmartSuite
           match_member_formatted?(member, query_lower)
         end
 
-        result = build_collection_response(matching_members, :members, query: query)
-        track_response_size(result, "Found #{matching_members.size} matching members")
+        # Sort by match score (best matches first)
+        sorted_members = sort_members_by_match_score(matching_members, query)
+
+        result = build_collection_response(sorted_members, :members, query: query)
+        track_response_size(result, "Found #{sorted_members.size} matching members")
       end
 
       # Lists all teams in the workspace with caching.
@@ -446,6 +450,33 @@ module SmartSuite
         end
 
         email_match || name_match
+      end
+
+      # Sorts members by match score (best matches first).
+      #
+      # @param members [Array<Hash>] Array of member objects
+      # @param query [String] The search query
+      # @return [Array<Hash>] Sorted members (best match first)
+      def sort_members_by_match_score(members, query)
+        members.sort_by do |member|
+          # Calculate score based on multiple fields, take the best
+          scores = []
+
+          # Check full_name
+          scores << FuzzyMatcher.match_score(member['full_name'].to_s, query) if member['full_name']
+
+          # Check first_name
+          scores << FuzzyMatcher.match_score(member['first_name'].to_s, query) if member['first_name']
+
+          # Check last_name
+          scores << FuzzyMatcher.match_score(member['last_name'].to_s, query) if member['last_name']
+
+          # Check email (but weight it slightly lower)
+          scores << (FuzzyMatcher.match_score(member['email'].to_s, query) * 0.9) if member['email']
+
+          # Return negative for descending sort (highest score first)
+          -(scores.max || 0)
+        end
       end
 
       # Checks if a formatted member object matches the search query.

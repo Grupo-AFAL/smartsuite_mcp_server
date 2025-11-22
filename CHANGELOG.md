@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Status field clarified: 1=active, 4=invited (pending), 2=unknown
   - Members with `deleted_date` set are hidden from UI and filtered by default
 
+- **Search results sorted by match quality** - `search_member` now returns results sorted by match score (best matches first)
+  - Added `match_score` method to FuzzyMatcher for calculating match quality
+  - Exact matches rank highest, followed by substring matches, then fuzzy matches
+  - Improves usability by showing most relevant results at the top
+
 - **Member caching with SQLite** - Implemented cache-first strategy for member operations, consistent with tables and solutions caching
   - Added `cached_members` SQLite table for persistent member caching (7-day TTL)
   - Added `cache_members`, `get_cached_members`, `members_cache_valid?`, and `invalidate_members_cache` methods to cache layer
