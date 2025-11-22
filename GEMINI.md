@@ -70,29 +70,29 @@ When implementing any change, adhere to the following workflow:
         -   `chore/` for maintenance tasks.
     -   Example: `git checkout -b feature/add-user-authentication`
 
-2.  **Implement and Commit:**
+1.  **Implement and Commit:**
     -   Make your changes in the branch.
     -   Commit changes with clear, concise messages.
 
-3.  **Verify (Local):**
+1.  **Verify (Local):**
     -   Ensure all tests pass: `bundle exec rake test`
     -   Verify code style/linting if applicable.
     -   Confirm that the changes meet the requirements.
 
-4.  **Push to Remote:**
+1.  **Push to Remote:**
     -   Push the commits to the origin: `git push origin <branch_name>`
 
-5.  **Create Pull Request (PR):**
+1.  **Create Pull Request (PR):**
     -   Create a Pull Request using the GitHub CLI (`gh pr create`) if available, or provide the link for the user to create it.
     -   Provide a clear title and description of the changes.
 
-6.  **Ensure Checks Pass:**
+1.  **Ensure Checks Pass:**
     -   Monitor the Pull Request checks (CI/CD, linting, tests).
     -   If any checks fail, analyze the errors, implement fixes, commit,
         and push updates to the branch.
     -   Repeat until all checks pass.
 
-7.  **Stop and Await Review:**
+1.  **Stop and Await Review:**
     -   **DO NOT MERGE.**
     -   Inform the user that the PR has been created (or the branch pushed) and is ready for review.
     -   The user will review the PR and merge it manually.
