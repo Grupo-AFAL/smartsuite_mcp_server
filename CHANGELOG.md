@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Test coverage for field_operations.rb** - 24 new tests covering all field CRUD operations
+  - Tests for `add_field`, `bulk_add_fields`, `update_field`, `delete_field`
+  - Parameter validation tests
+  - Cache invalidation verification tests
+
+- **Test coverage for view_operations.rb** - 15 new tests covering view/report operations
+  - Tests for `get_view_records` and `create_view`
+  - All view modes tested (grid, map, calendar, kanban, gallery, timeline, gantt)
+  - Optional parameter handling tests
+
 - **SmartSuite::Paths module** - Centralized path management for database and log files
   - Single source of truth for test mode detection (`SMARTSUITE_TEST_MODE` environment variable)
   - Provides `database_path` and `metrics_log_path` methods with automatic test isolation
@@ -123,6 +133,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Migrations from v1.x to v2.x require updating code expecting full responses
 
 ### Changed
+
+- **Refactored cache status methods** - Extracted `get_metadata_cache_status` helper to eliminate code duplication
+  - Consolidated 4 nearly-identical methods (`get_solutions_cache_status`, `get_tables_cache_status`, `get_members_cache_status`, `get_teams_cache_status`)
+  - Reduced ~80 lines of duplicate code to single 24-line helper method
+  - Original methods now delegate to helper with table name parameter
+
+- **Refactored cache invalidation methods** - Extracted `invalidate_simple_cache` helper
+  - Consolidated duplicate logic in `invalidate_members_cache` and `invalidate_teams_cache`
+  - Single helper method handles DB update, stat recording, and logging
 
 - **Improved `refresh_cache` tool description** - Clarified resource parameter to prevent AI from refreshing entire workspace when user wants to refresh one solution
   - Added explicit examples: "To refresh ProductEK solution use resource='tables' with solution_id='sol_123', NOT resource='solutions'"
