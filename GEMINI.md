@@ -5,6 +5,7 @@
 This project is a Model Context Protocol (MCP) server for SmartSuite. It's a Ruby application that acts as a bridge between an AI assistant (like Claude) and the SmartSuite API. The server allows the AI assistant to interact with a user's SmartSuite workspace using natural language.
 
 Key features include:
+
 - **Comprehensive SmartSuite API Coverage:** Provides an interface to most of the SmartSuite API, including managing solutions, tables, records, fields, and more.
 - **Aggressive Caching:** Uses a SQLite-based caching layer to reduce API calls and improve performance.
 - **Token Optimization:** Filters and formats responses to minimize token usage.
@@ -31,6 +32,7 @@ ruby smartsuite_server.rb
 ```
 
 The server requires two environment variables to be set for authentication with the SmartSuite API:
+
 - `SMARTSUITE_API_KEY`: Your SmartSuite API key.
 - `SMARTSUITE_ACCOUNT_ID`: Your SmartSuite account ID.
 
@@ -61,6 +63,7 @@ bundle exec rake test
 When implementing any change, adhere to the following workflow:
 
 1. **Create a Branch:**
+
    - Start by creating a new branch with a descriptive name and a prefix based on the type of work:
      - `feature/` for new capabilities.
      - `fix/` for bug repairs.
@@ -70,28 +73,33 @@ When implementing any change, adhere to the following workflow:
      - `chore/` for maintenance tasks.
    - Example: `git checkout -b feature/add-user-authentication`
 
-1. **Implement and Commit:**
+2. **Implement and Commit:**
+
    - Make your changes in the branch.
    - Commit changes with clear, concise messages.
 
-1. **Verify (Local):**
+3. **Verify (Local):**
+
    - Ensure all tests pass: `bundle exec rake test`
    - Verify code style/linting if applicable.
    - Confirm that the changes meet the requirements.
 
-1. **Push to Remote:**
+4. **Push to Remote:**
+
    - Push the commits to the origin: `git push origin <branch_name>`
 
-1. **Create Pull Request (PR):**
+5. **Create Pull Request (PR):**
+
    - Create a Pull Request using the GitHub CLI (`gh pr create`) if available, or provide the link for the user to create it.
    - Provide a clear title and description of the changes.
 
-1. **Ensure Checks Pass:**
+6. **Ensure Checks Pass:**
+
    - Monitor the Pull Request checks (CI/CD, linting, tests).
    - If any checks fail, analyze the errors, implement fixes, commit, and push updates to the branch.
    - Repeat until all checks pass.
 
-1. **Stop and Await Review:**
+7. **Stop and Await Review:**
    - **DO NOT MERGE.**
    - Inform the user that the PR has been created (or the branch pushed) and is ready for review.
    - The user will review the PR and merge it manually.
