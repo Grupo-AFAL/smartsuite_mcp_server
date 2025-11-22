@@ -113,14 +113,30 @@ aws s3api put-bucket-encryption \
 
 Configure AWS credentials using one of these methods:
 
-**Option A: Environment Variables** (Recommended for development)
+**Option A: Named AWS Profile** (Recommended for security)
+```bash
+# Set environment variable to use a dedicated profile
+export SMARTSUITE_AWS_PROFILE=smartsuite-mcp
+export SMARTSUITE_S3_BUCKET=my-smartsuite-temp-uploads
+export AWS_REGION=us-east-1
+
+# Configure the profile in ~/.aws/credentials
+[smartsuite-mcp]
+aws_access_key_id = your_access_key
+aws_secret_access_key = your_secret_key
+```
+
+This approach isolates credentials from other applications, preventing accidental access to your bucket.
+
+**Option B: Environment Variables** (For development)
 ```bash
 export AWS_ACCESS_KEY_ID=your_access_key
 export AWS_SECRET_ACCESS_KEY=your_secret_key
 export AWS_REGION=us-east-1
+export SMARTSUITE_S3_BUCKET=my-smartsuite-temp-uploads
 ```
 
-**Option B: Credentials File** (Recommended for personal use)
+**Option C: Credentials File** (Personal use)
 ```bash
 # ~/.aws/credentials
 [default]
@@ -132,7 +148,7 @@ aws_secret_access_key = your_secret_key
 region = us-east-1
 ```
 
-**Option C: IAM Instance Profile** (Recommended for EC2/ECS)
+**Option D: IAM Instance Profile** (Recommended for EC2/ECS)
 - Automatically provided when running on AWS infrastructure
 - No credentials needed in code
 
@@ -179,7 +195,36 @@ Create an IAM user/role with minimal permissions:
 
 ## Quick Start
 
-### Basic Usage
+### MCP Tool Usage (Recommended)
+
+The `attach_file` MCP tool transparently handles local files. Just pass local file paths and the tool automatically:
+1. Detects local files vs URLs
+2. Uploads local files to S3
+3. Attaches via temporary pre-signed URLs
+4. Cleans up S3 files after SmartSuite fetches them
+
+```json
+{
+  "table_id": "tbl_6796989a7ee3c6b731717836",
+  "record_id": "rec_68e3d5fb98c0282a4f1e2614",
+  "file_field_slug": "attachments",
+  "file_urls": ["/path/to/local/invoice.pdf", "https://example.com/remote.pdf"]
+}
+```
+
+The tool returns a structured status:
+```json
+{
+  "success": true,
+  "record_id": "rec_68e3d5fb98c0282a4f1e2614",
+  "attached_count": 2,
+  "local_files": 1,
+  "url_files": 1,
+  "details": [...]
+}
+```
+
+### Direct Ruby Usage
 
 ```ruby
 require_relative 'lib/smartsuite_client'
@@ -355,24 +400,41 @@ attacher = SecureFileAttacher.new(
 )
 ```
 
-### Example 5: With Debug Logging
+### Example 5: Monitoring S3 Operations
+
+All S3 operations are logged to `~/.smartsuite_mcp_queries.log` with blue color coding:
+
+```bash
+# Monitor S3 operations in real-time
+tail -f ~/.smartsuite_mcp_queries.log | grep S3
+```
+
+Example log output:
+```
+S3 UPLOAD | invoice.pdf (1.2 MB) -> s3://my-bucket/temp-uploads/...
+S3 UPLOAD_COMPLETE | invoice.pdf uploaded successfully
+S3 PRESIGN | Generated URL for invoice.pdf (expires in 120s)
+S3 ATTACH | Sending 1 file(s) to SmartSuite record rec_456
+S3 ATTACH_COMPLETE | SmartSuite accepted 1 file(s)
+S3 WAIT | Waiting 30s for SmartSuite to fetch files...
+S3 WAIT_COMPLETE | Fetch period complete
+S3 CLEANUP | Deleting 1 temporary file(s) from S3
+S3 DELETE | Deleted s3://my-bucket/temp-uploads/...
+S3 CLEANUP_COMPLETE | Temporary files cleaned up
+```
+
+### Example 6: With Debug Logging
+
+For additional verbose logging:
 
 ```ruby
 ENV['SECURE_FILE_ATTACHER_DEBUG'] = 'true'
 
 attacher = SecureFileAttacher.new(client, 'my-temp-bucket')
 attacher.attach_file_securely('tbl_123', 'rec_456', 'files', './test.pdf')
-
-# Output:
-# [SecureFileAttacher] Uploading file to S3: ./test.pdf -> s3://my-bucket/temp-uploads/...
-# [SecureFileAttacher] Generated pre-signed URL (expires in 120s)
-# [SecureFileAttacher] Attaching 1 file(s) to SmartSuite record rec_456
-# [SecureFileAttacher] SmartSuite attach successful, waiting for fetch...
-# [SecureFileAttacher] Waited 30.0s for SmartSuite to fetch files
-# [SecureFileAttacher] Deleted temporary file: s3://my-bucket/temp-uploads/...
 ```
 
-### Example 6: Error Handling
+### Example 7: Error Handling
 
 ```ruby
 begin
