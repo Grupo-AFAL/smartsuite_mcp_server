@@ -157,7 +157,7 @@ result = call_private_method(client, :format_solution, input)
 
 ### Coverage
 
-- Current: ~82%, Target: 90%
+- Current: **97.47%** (exceeded 90% target!)
 - Test public APIs, error handling, edge cases
 - Mock external dependencies (API calls)
 
