@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Refactor: Simplify MemberOperations** - Extracted private helper methods to reduce complexity and duplication
+  - `format_member_list`: Centralized logic for formatting member API responses
+  - `fetch_solution_member_ids`: Encapsulated complex permission traversal for solution filtering
+  - `match_member?`: Isolated search logic for member queries
+  - Reduced method complexity and improved readability in `list_members` and `search_member`
+
 - **Documentation: Git Workflow** - Added comprehensive Git workflow guidelines to `GEMINI.md`
   - Explicitly prohibits agent from merging Pull Requests
   - mandates CI checks verification before requesting review
