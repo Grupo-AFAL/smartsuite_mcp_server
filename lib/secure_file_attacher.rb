@@ -169,7 +169,10 @@ class SecureFileAttacher
         log_debug("Uploading file to S3: #{path} -> s3://#{@bucket_name}/#{key}")
 
         # Upload with server-side encryption
-        obj.upload_file(path, server_side_encryption: 'AES256')
+        # Using put with File.open instead of deprecated upload_file
+        File.open(path, 'rb') do |file|
+          obj.put(body: file, server_side_encryption: 'AES256')
+        end
 
         # Generate short-lived pre-signed URL
         url = obj.presigned_url(:get, expires_in: @url_expires_in)
