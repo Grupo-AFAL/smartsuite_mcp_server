@@ -75,10 +75,10 @@ module SmartSuite
         'description' => 'The slug of the file/image field to attach files to'
       }.freeze
 
-      # Array of file URLs for attach (used in attach_file)
+      # Array of file URLs or local paths for attach (used in attach_file)
       SCHEMA_FILE_URLS = {
         'type' => 'array',
-        'description' => 'Array of publicly accessible URLs to files. SmartSuite will download and attach these files.',
+        'description' => 'Array of file URLs or local file paths. URLs must be publicly accessible. Local files require S3 configuration (SMARTSUITE_S3_BUCKET env var).',
         'items' => { 'type' => 'string' }
       }.freeze
 
@@ -510,7 +510,18 @@ module SmartSuite
         },
         {
           'name' => 'attach_file',
-          'description' => 'Attach files to a record by providing URLs. SmartSuite downloads files from the provided URLs and attaches them to the specified file/image field. The URLs must be publicly accessible.',
+          'description' => 'Attach files to a record by providing URLs or local file paths.
+
+**URLs**: SmartSuite downloads files directly from publicly accessible URLs.
+
+**Local files**: Automatically uploaded to S3, then attached via temporary URLs. Requires:
+- `SMARTSUITE_S3_BUCKET` environment variable
+- AWS credentials via named profile (recommended) or environment variables:
+  - Option 1: `SMARTSUITE_AWS_PROFILE` pointing to a profile in ~/.aws/credentials
+  - Option 2: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION` (optional, defaults to us-east-1)
+
+You can mix URLs and local paths in the same request.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {

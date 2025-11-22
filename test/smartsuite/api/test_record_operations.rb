@@ -995,6 +995,76 @@ class TestRecordOperations < Minitest::Test
     )
   end
 
+  # Test attach_file detects URLs correctly
+  def test_attach_file_url_detection
+    client = create_client
+
+    # Test url? method
+    assert client.send(:url?, 'https://example.com/file.pdf')
+    assert client.send(:url?, 'http://example.com/file.pdf')
+    refute client.send(:url?, '/path/to/file.pdf')
+    refute client.send(:url?, './relative/file.pdf')
+    refute client.send(:url?, 'file.pdf')
+  end
+
+  # Test attach_file partitions files and URLs correctly
+  def test_attach_file_partition_files_and_urls
+    client = create_client
+
+    inputs = [
+      'https://example.com/image1.jpg',
+      '/local/path/document.pdf',
+      'http://cdn.example.com/file.zip',
+      './relative/file.txt'
+    ]
+
+    local_files, urls = client.send(:partition_files_and_urls, inputs)
+
+    assert_equal 2, urls.length
+    assert_includes urls, 'https://example.com/image1.jpg'
+    assert_includes urls, 'http://cdn.example.com/file.zip'
+
+    assert_equal 2, local_files.length
+    assert_includes local_files, '/local/path/document.pdf'
+    assert_includes local_files, './relative/file.txt'
+  end
+
+  # Test attach_file with local files requires S3 configuration
+  def test_attach_file_local_files_require_s3_config
+    client = create_client
+
+    # Ensure S3 env var is not set
+    original_bucket = ENV.fetch('SMARTSUITE_S3_BUCKET', nil)
+    ENV.delete('SMARTSUITE_S3_BUCKET')
+
+    error = assert_raises(ArgumentError) do
+      client.attach_file('tbl_123', 'rec_456', 'attachments', ['/local/file.pdf'])
+    end
+
+    assert_includes error.message, 'S3 configuration'
+    assert_includes error.message, 'SMARTSUITE_S3_BUCKET'
+  ensure
+    ENV['SMARTSUITE_S3_BUCKET'] = original_bucket if original_bucket
+  end
+
+  # Test attach_file with only URLs works without S3
+  def test_attach_file_urls_only_works_without_s3
+    client = create_client
+
+    # Ensure S3 env var is not set
+    original_bucket = ENV.fetch('SMARTSUITE_S3_BUCKET', nil)
+    ENV.delete('SMARTSUITE_S3_BUCKET')
+
+    stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
+      .to_return(status: 200, body: { 'id' => 'rec_456' }.to_json)
+
+    # Should work fine with only URLs
+    result = client.attach_file('tbl_123', 'rec_456', 'attachments', ['https://example.com/file.pdf'])
+    assert_equal 'rec_456', result['id']
+  ensure
+    ENV['SMARTSUITE_S3_BUCKET'] = original_bucket if original_bucket
+  end
+
   # ============================================================================
   # TESTS: Minimal Response Options
   # ============================================================================
