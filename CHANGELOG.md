@@ -9,6 +9,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **AWS profile support for S3 credentials** - `SMARTSUITE_AWS_PROFILE` environment variable for credential isolation
+  - Recommended approach for security: use dedicated AWS profile instead of shared environment variables
+  - Profile references credentials in `~/.aws/credentials` file
+  - Prevents other programs from accidentally using SmartSuite S3 bucket credentials
+
+- **S3 operation logging via QueryLogger** - All S3 actions now log to `~/.smartsuite_mcp_queries.log`
+  - Consistent logging alongside API and cache operations
+  - Blue color coding for S3 operations in terminal
+  - Actions logged: UPLOAD, UPLOAD_COMPLETE, PRESIGN, ATTACH, ATTACH_COMPLETE, WAIT, CLEANUP, DELETE
+
+- **Transparent local file attachment support** - `attach_file` tool now automatically handles local file paths
+  - Detects whether inputs are URLs or local file paths
+  - URLs are passed directly to SmartSuite API (existing behavior)
+  - Local files are automatically uploaded to S3 via `SecureFileAttacher`, then attached via temporary URLs
+  - Supports mixing URLs and local paths in the same request
+  - Requires `SMARTSUITE_S3_BUCKET` environment variable for local file uploads
+  - AWS credentials can be provided via environment variables or IAM role
+  - Lazy-loads `aws-sdk-s3` dependency only when local files are used
+
+- **Test coverage for field_operations.rb** - 24 new tests covering all field CRUD operations
+  - Tests for `add_field`, `bulk_add_fields`, `update_field`, `delete_field`
+  - Parameter validation tests
+  - Cache invalidation verification tests
+
+- **Test coverage for view_operations.rb** - 15 new tests covering view/report operations
+  - Tests for `get_view_records` and `create_view`
+  - All view modes tested (grid, map, calendar, kanban, gallery, timeline, gantt)
+  - Optional parameter handling tests
+
+- **SmartSuite::Paths module** - Centralized path management for database and log files
+  - Single source of truth for test mode detection (`SMARTSUITE_TEST_MODE` environment variable)
+  - Provides `database_path` and `metrics_log_path` methods with automatic test isolation
+  - Ensures tests never write to production database or log files
+
+- **SmartSuite::Cache::Schema module** - Centralized SQLite table schema definitions
+  - Single source of truth for all table CREATE statements
+  - Eliminates duplication between `Cache::Layer` and `ApiStatsTracker`
+  - Methods: `api_stats_tables_sql`, `cache_registry_tables_sql`, `cached_data_tables_sql`, `all_metadata_tables_sql`
+  - Both modules now use Schema for consistent table definitions
+
+- **aws-sdk-s3 test dependency** - Added optional dependency for testing SecureFileAttacher
+  - Uses AWS SDK's built-in stubbing (`stub_responses: true`) for mocking without real credentials
+  - Enables comprehensive testing of S3-based file attachment functionality
+
+- **Teams caching with SQLite** - Implemented cache-first strategy for team operations, consistent with members, tables and solutions caching
+  - Added `cached_teams` SQLite table for persistent team caching (7-day TTL)
+  - Added `cache_teams`, `get_cached_teams`, `get_cached_team`, `teams_cache_valid?`, and `invalidate_teams_cache` methods to cache layer
+  - Updated `list_teams` and `get_team` to use cache-first strategy with automatic fallback to API
+  - Added `teams` resource to `refresh_cache` tool for manual cache invalidation
+  - Added teams section to `get_cache_status` output for visibility into cache state
+  - **Token optimization**: `list_teams` returns `member_count` instead of full member IDs array (significant token savings)
+  - **Enriched get_team response**: `get_team` now returns member details (id, email, full_name) instead of just member IDs
+
+- **Deleted member filtering** - By default, soft-deleted members (those with `deleted_date` set) are filtered out from list_members and search_member results
+  - Added `include_inactive` parameter to `list_members` tool to optionally include deleted members
+  - Added `include_inactive` parameter to `search_member` tool to optionally include deleted members
+  - Added `deleted_date` column to `cached_members` table with migration for existing databases
+  - Cache layer filters by `deleted_date` in SQL for efficiency
+  - Status field clarified: 1=active, 4=invited (pending), 2=unknown
+  - Members with `deleted_date` set are hidden from UI and filtered by default
+
+- **Search results sorted by match quality** - `search_member` now returns results sorted by match score (best matches first)
+  - Added `match_score` method to FuzzyMatcher for calculating match quality
+  - Exact matches rank highest, followed by substring matches, then fuzzy matches
+  - Improves usability by showing most relevant results at the top
+
+- **Consistent fuzzy matching across cache/API paths** - `search_member` now uses FuzzyMatcher consistently
+  - Both cached and non-cached search paths use `FuzzyMatcher.match?` for name matching
+  - Previously, cache path used fuzzy matching while API path used substring matching
+  - Users will get identical search results regardless of cache hit/miss state
+
+- **Member caching with SQLite** - Implemented cache-first strategy for member operations, consistent with tables and solutions caching
+  - Added `cached_members` SQLite table for persistent member caching (7-day TTL)
+  - Added `cache_members`, `get_cached_members`, `members_cache_valid?`, and `invalidate_members_cache` methods to cache layer
+  - Updated `list_members` and `search_member` to use cache-first strategy with automatic fallback to API
+  - Added `members` resource to `refresh_cache` tool for manual cache invalidation
+  - Added members section to `get_cache_status` output for visibility into cache state
+  - Caching is transparent: first API call populates cache, subsequent calls use cached data
+  - Supports fuzzy search filtering on cached data for `search_member`
+
+- **Documentation: Local Verification** - Updated Git Workflow in `GEMINI.md` to explicitly require local RuboCop, Changelog, and Markdown Lint checks before creating PRs.
+
+- **Refactor: Simplify MemberOperations** - Extracted private helper methods to reduce complexity and duplication
+  - `format_member_list`: Centralized logic for formatting member API responses
+  - `fetch_solution_member_ids`: Encapsulated complex permission traversal for solution filtering
+  - `match_member?`: Isolated search logic for member queries
+  - Reduced method complexity and improved readability in `list_members` and `search_member`
+
 - **Documentation: Git Workflow** - Added comprehensive Git workflow guidelines to `GEMINI.md`
   - Explicitly prohibits agent from merging Pull Requests
   - mandates CI checks verification before requesting review
@@ -65,6 +153,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`attach_file` returns structured status object** - Now returns detailed response instead of raw API response
+  - Returns: `{success, record_id, attached_count, local_files, url_files, details}`
+  - `details` array contains type (local/url), files list, and API result for each batch
+  - Previously returned `nil` for local file attachments, raw API response for URLs
+
+- **Extracted cache-first pattern to Base module** - DRY refactoring reducing ~50 lines of duplicate code across API modules
+  - Added `with_cache_check` helper method for centralized cache checking with automatic logging
+  - Added `extract_items_safely` helper for consistent response normalization (Array vs Hash with items)
+  - Added `filter_members_by_status` helper in MemberOperations for consistent active/inactive filtering
+  - Updated `workspace_operations.rb`, `table_operations.rb`, and `member_operations.rb` to use new helpers
+  - Includes 16 new tests covering the helper methods
+
+- **Refactored cache status methods** - Extracted `get_metadata_cache_status` helper to eliminate code duplication
+  - Consolidated 4 nearly-identical methods (`get_solutions_cache_status`, `get_tables_cache_status`, `get_members_cache_status`, `get_teams_cache_status`)
+  - Reduced ~80 lines of duplicate code to single 24-line helper method
+  - Original methods now delegate to helper with table name parameter
+
+- **Refactored cache invalidation methods** - Extracted `invalidate_simple_cache` helper
+  - Consolidated duplicate logic in `invalidate_members_cache` and `invalidate_teams_cache`
+  - Single helper method handles DB update, stat recording, and logging
+
 - **Improved `refresh_cache` tool description** - Clarified resource parameter to prevent AI from refreshing entire workspace when user wants to refresh one solution
   - Added explicit examples: "To refresh ProductEK solution use resource='tables' with solution_id='sol_123', NOT resource='solutions'"
   - Enumerated all 4 use cases: (1) refresh all workspace, (2) refresh one solution, (3) refresh all tables, (4) refresh one table
@@ -74,6 +183,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 ### Fixed
+
+- **`list_comments` returning null count** - Now correctly calculates count from results array
+  - SmartSuite API returns `count: null` in the response
+  - Fixed by calculating count from `results.length` before returning
+
+- **update_field API error when params not provided** - `update_field` now automatically adds empty `params: {}` if not provided
+  - SmartSuite API requires the `params` object even for simple field renames
+  - Previously failed with `400 - {"params":["This field is required."]}`
+  - Now users can simply call `update_field(table_id, slug, {"label": "New Name", "field_type": "textareafield"})` without worrying about params
+
+- **Test isolation from production database** - Fixed tests writing to production database instead of test-specific paths
+  - Created `SmartSuite::Paths` module (`lib/smartsuite/paths.rb`) as single source of truth for file paths
+  - All components now use `SmartSuite::Paths.database_path` and `SmartSuite::Paths.metrics_log_path`
+  - In test mode (`SMARTSUITE_TEST_MODE=true`), uses temporary directory with process-specific filenames
+  - `ApiStatsTracker` now creates its own tables when used standalone (without `Cache::Layer`)
+  - This prevents test data from polluting production cache and statistics at `~/.smartsuite_mcp_cache.db`
+
+- **SQLite custom function return values** - Fixed `fuzzy_match` function not returning values correctly
+  - SQLite3 gem requires using `func.result=` to return values from custom functions
+  - Block return values were being ignored, causing fuzzy search to always return 0 results
+  - This affected `search_member` and `list_solutions` (with name filter) when using cached data
 
 - **Merge conflict resolution** - Resolved merge conflicts between main and feature branches
 - **CRITICAL: firstcreated and lastupdated fields not split into separate columns** - Fixed cache schema to properly split timestamp fields into `_on` and `_by` columns
@@ -525,7 +655,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added 32 tests for Response Formatter (`test/test_response_formatter.rb`)
   - Coverage improved from 68.38% to 82.93% (+14.55 percentage points)
   - Total test suite: 404 tests, 1,419 assertions, all passing
-  - Remaining gap to 90% target: 7.07%
+  - **Update (v2.0)**: Coverage further improved to **97.47%** (927 tests, 2,799 assertions), exceeding 90% target
 - **Comprehensive CI/CD workflows** for quality assurance:
   - Security scanning with Bundler Audit (weekly + on PR)
   - Code quality checks with Reek

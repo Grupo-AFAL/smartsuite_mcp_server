@@ -183,62 +183,8 @@ module SmartSuite
         sanitized_filter
       end
 
-      # Ensure records are cached for a table
-      def ensure_records_cached(table_id)
-        # Check if cache is valid
-        if @cache.cache_valid?(table_id)
-          # Track cache hit
-          @cache.track_cache_hit(table_id)
-          return
-        end
-
-        # Track cache miss
-        @cache.track_cache_miss(table_id)
-        log_metric("→ Cache miss for #{table_id}, fetching all records...")
-
-        # Fetch table structure
-        structure = get_table(table_id)
-
-        # Fetch ALL records (aggressive strategy)
-        all_records = fetch_all_records(table_id)
-
-        # Cache records
-        @cache.cache_table_records(table_id, structure, all_records)
-
-        log_metric("✓ Cached #{all_records.size} records for #{table_id}")
-      end
-
-      # Fetch all records from a table (paginated API calls)
-      #
-      # Uses list endpoint with hydrated=true to get complete data including
-      # linked records, users, and other reference fields. This eliminates the
-      # need for separate get_record calls.
-      #
-      # @param table_id [String] Table identifier
-      # @return [Array<Hash>] Array of complete record hashes
-      def fetch_all_records(table_id)
-        all_records = []
-        offset = 0
-        limit = Base::Pagination::FETCH_ALL_LIMIT # Use constant from Base
-
-        loop do
-          # Build endpoint with query parameters using Base helper
-          base_path = "/applications/#{table_id}/records/list/"
-          endpoint = build_endpoint(base_path, limit: limit, offset: offset, hydrated: true)
-          response = api_request(:post, endpoint, nil)
-
-          records = response['items'] || []
-          break if records.empty?
-
-          all_records.concat(records)
-          offset += limit
-
-          # Break if we got fewer records than requested (last page)
-          break if records.size < limit
-        end
-
-        all_records
-      end
+      # NOTE: ensure_records_cached and fetch_all_records are now in Base module
+      # for sharing across all API modules (WorkspaceOperations, RecordOperations, etc.)
 
       public
 
@@ -640,45 +586,193 @@ module SmartSuite
         api_request(:post, "/applications/#{table_id}/records/#{record_id}/restore/", {})
       end
 
-      # Attach a file to a record by URL
+      # Attach files to a record by URL or local file path.
+      #
+      # Automatically detects whether inputs are URLs or local file paths:
+      # - URLs: Passed directly to SmartSuite API for download
+      # - Local files: Uploaded to S3 first, then attached via temporary URLs
       #
       # @param table_id [String] the ID of the table containing the record
       # @param record_id [String] the ID of the record to attach the file to
       # @param file_field_slug [String] the slug of the file/image field
-      # @param file_urls [Array<String>] array of URLs to files to attach
-      #   SmartSuite will download the files from these URLs and attach them to the record
+      # @param file_urls [Array<String>] array of URLs or local file paths to attach
       # @return [Hash] the updated record object
-      # @raise [ArgumentError] if table_id, record_id, file_field_slug, or file_urls is missing
+      # @raise [ArgumentError] if required parameters are missing or S3 not configured for local files
       # @raise [RuntimeError] if the API request fails
       #
-      # @example Attach a single file
+      # @example Attach files by URL
       #   attach_file('tbl_123', 'rec_456', 'attachments', ['https://example.com/file.pdf'])
       #
-      # @example Attach multiple files
+      # @example Attach local files (requires S3 configuration)
+      #   attach_file('tbl_123', 'rec_456', 'attachments', ['/path/to/local/file.pdf'])
+      #
+      # @example Mix of URLs and local files
       #   attach_file('tbl_123', 'rec_456', 'images', [
       #     'https://example.com/image1.jpg',
-      #     'https://example.com/image2.jpg'
+      #     '/local/path/image2.jpg'
       #   ])
       #
-      # @note This operation uses the update_record endpoint (PATCH) but is specifically
-      #   designed for attaching files by URL. SmartSuite downloads the files from the
-      #   provided URLs and attaches them to the specified field.
-      # @note The file URLs must be publicly accessible for SmartSuite to download them.
+      # @note For local files, requires environment variables:
+      #   - SMARTSUITE_S3_BUCKET: S3 bucket name for temporary uploads
+      #   - AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY (or IAM role)
+      #   - AWS_REGION (optional, defaults to us-east-1)
       def attach_file(table_id, record_id, file_field_slug, file_urls)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
         validate_required_parameter!('file_field_slug', file_field_slug)
         validate_required_parameter!('file_urls', file_urls, Array)
 
+        # Separate local files from URLs
+        local_files, urls = partition_files_and_urls(file_urls)
+
+        # Validate we have something to attach
+        raise ArgumentError, 'file_urls array is empty or contains no valid files/URLs' if local_files.empty? && urls.empty?
+
+        results = []
+
+        # Handle local files via SecureFileAttacher
+        if local_files.any?
+          result = attach_local_files(table_id, record_id, file_field_slug, local_files)
+          results << { 'type' => 'local', 'files' => local_files.map { |f| File.basename(f) }, 'result' => result }
+        end
+
+        # Handle URLs directly via API
+        if urls.any?
+          result = attach_urls(table_id, record_id, file_field_slug, urls)
+          results << { 'type' => 'url', 'files' => urls, 'result' => result }
+        end
+
+        # Return combined status
+        {
+          'success' => true,
+          'record_id' => record_id,
+          'attached_count' => local_files.length + urls.length,
+          'local_files' => local_files.length,
+          'url_files' => urls.length,
+          'details' => results
+        }
+      end
+
+      private
+
+      # Partition input into local file paths and URLs
+      #
+      # @param inputs [Array<String>] mixed array of file paths and URLs
+      # @return [Array<Array<String>, Array<String>>] [local_files, urls]
+      def partition_files_and_urls(inputs)
+        local_files = []
+        urls = []
+
+        inputs.each do |input|
+          if url?(input)
+            urls << input
+          else
+            local_files << input
+          end
+        end
+
+        [local_files, urls]
+      end
+
+      # Check if a string is a URL
+      #
+      # @param str [String] string to check
+      # @return [Boolean] true if string looks like a URL
+      def url?(str)
+        str.start_with?('http://', 'https://')
+      end
+
+      # Attach local files using SecureFileAttacher
+      #
+      # @param table_id [String] table ID
+      # @param record_id [String] record ID
+      # @param field_slug [String] file field slug
+      # @param local_files [Array<String>] local file paths
+      # @return [Hash] API response
+      def attach_local_files(table_id, record_id, field_slug, local_files)
+        bucket_name = ENV.fetch('SMARTSUITE_S3_BUCKET', nil)
+        aws_profile = ENV.fetch('SMARTSUITE_AWS_PROFILE', nil)
+        has_aws_env_creds = ENV.fetch('AWS_ACCESS_KEY_ID', nil) && ENV.fetch('AWS_SECRET_ACCESS_KEY', nil)
+
+        # Check for missing S3 bucket
+        unless bucket_name
+          raise ArgumentError, <<~ERROR
+            Local file attachment requires S3 configuration.
+
+            Missing: SMARTSUITE_S3_BUCKET environment variable
+
+            Current settings detected:
+              SMARTSUITE_S3_BUCKET: (not set)
+              SMARTSUITE_AWS_PROFILE: #{aws_profile || '(not set)'}
+              AWS_ACCESS_KEY_ID: #{ENV['AWS_ACCESS_KEY_ID'] ? '(set)' : '(not set)'}
+              AWS_REGION: #{ENV.fetch('AWS_REGION', '(not set, will use us-east-1)')}
+
+            Required setup:
+              export SMARTSUITE_S3_BUCKET=your-bucket-name
+              export SMARTSUITE_AWS_PROFILE=your-profile-name
+              export AWS_REGION=your-region
+
+            Alternatively, provide publicly accessible URLs instead of local file paths.
+          ERROR
+        end
+
+        # Check for missing AWS credentials
+        unless aws_profile || has_aws_env_creds
+          raise ArgumentError, <<~ERROR
+            Local file attachment requires AWS credentials.
+
+            Missing: AWS credentials (no profile or access keys found)
+
+            Current settings detected:
+              SMARTSUITE_S3_BUCKET: #{bucket_name}
+              SMARTSUITE_AWS_PROFILE: (not set)
+              AWS_ACCESS_KEY_ID: (not set)
+              AWS_REGION: #{ENV.fetch('AWS_REGION', '(not set, will use us-east-1)')}
+
+            Set one of:
+              Option 1 - Named profile (recommended):
+                export SMARTSUITE_AWS_PROFILE=your-profile-name
+                (configure profile in ~/.aws/credentials)
+
+              Option 2 - Environment variables:
+                export AWS_ACCESS_KEY_ID=your-access-key
+                export AWS_SECRET_ACCESS_KEY=your-secret-key
+
+            Alternatively, provide publicly accessible URLs instead of local file paths.
+          ERROR
+        end
+
+        # Lazy-load SecureFileAttacher to avoid aws-sdk-s3 dependency when not needed
+        require_relative '../../secure_file_attacher'
+
+        # Build S3 options - use dedicated profile if specified
+        s3_options = { region: ENV.fetch('AWS_REGION', 'us-east-1') }
+        s3_options[:profile] = aws_profile if aws_profile
+
+        attacher = SecureFileAttacher.new(
+          self,
+          bucket_name,
+          **s3_options
+        )
+
+        attacher.attach_file_securely(table_id, record_id, field_slug, local_files)
+      end
+
+      # Attach files by URL directly via API
+      #
+      # @param table_id [String] table ID
+      # @param record_id [String] record ID
+      # @param field_slug [String] file field slug
+      # @param urls [Array<String>] file URLs
+      # @return [Hash] API response
+      def attach_urls(table_id, record_id, field_slug, urls)
         body = {
           'id' => record_id,
-          file_field_slug => file_urls
+          field_slug => urls
         }
 
         api_request(:patch, "/applications/#{table_id}/records/#{record_id}/", body)
       end
-
-      private
 
       # Builds a minimal response hash for mutation operations.
       #

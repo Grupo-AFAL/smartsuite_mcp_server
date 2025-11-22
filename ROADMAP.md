@@ -1,6 +1,6 @@
 # SmartSuite MCP Server - Product Roadmap
 
-**Last Updated:** November 19, 2025
+**Last Updated:** November 22, 2025
 **Current Version:** 1.9.0
 **Next Release:** 2.0.0 (Q1 2026)
 **Decision Log:** See ROADMAP_DECISIONS.md for detailed analysis and decisions
@@ -75,8 +75,8 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 #### Testing
 
-- ✅ Comprehensive test coverage: 68.38% → 82.93% (+14.55%)
-- ✅ 99 new tests across 7 test files (404 total tests, 1,419 assertions)
+- ✅ Comprehensive test coverage: 68.38% → 82.93% (+14.55%), then **97.47%** (v2.0)
+- ✅ 99 new tests across 7 test files, expanded to **927 tests, 2,799 assertions** (v2.0)
 - ✅ Integration tests with workspace confirmation and credential isolation
 - ✅ All GitHub Actions passing (Tests, RuboCop, Security, Documentation)
 
@@ -101,12 +101,14 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 #### Record Operations
 
 - ✅ **Bulk Operations** - Efficient batch processing for multiple records
+
   - `bulk_add_records`: Create multiple records in a single API call
   - `bulk_update_records`: Update multiple records at once (each must include 'id' field)
   - `bulk_delete_records`: Soft delete multiple records in one operation
   - Significantly more efficient than individual operations when working with many records
 
 - ✅ **File Operations** - File attachment and URL retrieval
+
   - `attach_file`: Attach files to records by providing publicly accessible URLs
     - SmartSuite downloads files from provided URLs and attaches them
     - Supports single or multiple files in one operation
@@ -130,7 +132,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - Success case verification with proper HTTP mocking
   - 13 additional tests for SecureFileAttacher helper
 - ✅ Total test suite: 498 tests, 1,733 assertions (all passing)
-- ✅ Code coverage: 78.22%
+- ✅ Code coverage: 78.22% → **97.47%** (v2.0)
 - ✅ Tool count increased from 22 to 29 MCP tools (+7 new record operations)
 
 #### Implementation
@@ -159,6 +161,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 #### Bug Fixes
 
 - ✅ **Single select field format requirements** - Fixed empty/invisible dropdown options bug
+
   - Root cause: Fields created with simple strings instead of UUIDs, missing color attributes
   - Fixed 4 fields in "Incidentes de Tecnología" table with proper UUIDs and hex colors
   - Added `docs/reference/single_select_field_format.md` - Comprehensive format reference
@@ -167,6 +170,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - Prevention: Clear documentation prevents future occurrences
 
 - ✅ **Cache invalidation cascade** - Fixed stale data after cache refresh
+
   - `refresh_cache('solutions')` now invalidates solutions → tables → records (full cascade)
   - `refresh_cache('tables', solution_id: 'X')` now invalidates tables → records for that solution
   - Added helper methods for cascading invalidation
@@ -179,27 +183,29 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 ## Current Focus 🎯
 
-### v2.0 - Token Optimization & Usability (Q1 2026)
+### v2.0 - Token Optimization & Usability (In Progress - Nov 2025)
 
 **Goal:** Massive token savings through mutation response optimization and improved installation experience
 
 **Note:** Based on TOON format analysis (see `docs/analysis/toon_format_evaluation.md`), we're prioritizing mutation response optimization (50-80% savings) over TOON format (10-15% savings). TOON deferred to v3.0.
 
-#### Token Optimization (HIGH PRIORITY)
+#### Token Optimization (HIGH PRIORITY) ✅
 
-- [ ] **Optimize mutation operation responses (POST/PUT/DELETE)** - **1 week**
+- ✅ **Optimize mutation operation responses (POST/PUT/DELETE)** - **COMPLETED**
 
   - **Problem:** Create/update/delete operations return full 2-3KB record objects
   - **Solution:** Return minimal responses: `{success, id, title, operation, timestamp, cached}`
-  - **Expected savings:** 50-80% token reduction on all mutation operations
+  - **Actual savings:** 50-95% token reduction on all mutation operations
   - **Benefits:**
     - Smart cache updates (parse response to update cache, no invalidation needed)
-    - No breaking changes (add `minimal_response: true` parameter, default: false)
-    - Backward compatible migration path
+    - `minimal_response: true` parameter (default) for all 6 mutation operations
+    - Backward compatible: set `minimal_response: false` for full responses
   - **Scope:** RecordOperations (create/update/delete/bulk operations)
-  - **Effort:** 3-5 days implementation + testing
-  - **ROI:** Very High - massive savings with minimal implementation cost
-  - **See:** `docs/analysis/toon_format_evaluation.md` for detailed analysis
+  - **Implementation details:**
+    - `cache_single_record(table_id, record)` upserts individual records to cache
+    - `delete_cached_record(table_id, record_id)` removes individual records from cache
+    - Cache stays synchronized without table-wide invalidation
+  - **BREAKING CHANGE:** Default changed to minimal responses (v2.0)
 
 - [ ] **Smart field selection intelligence** - **2-3 weeks**
   - Analyze usage patterns to recommend minimal field selections
@@ -207,14 +213,17 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - Reduce query response sizes
   - Educational tooltips/warnings for large field requests
 
-#### Usability
+#### Usability ✅
 
-- [ ] **Installation script for non-technical users** - **1 week**
-  - Create automated installation script
-  - Interactive CLI setup wizard
-  - Automatic environment variable configuration
-  - Claude Desktop integration setup
-  - Troubleshooting diagnostics built-in
+- ✅ **Installation script for non-technical users** - **COMPLETED**
+
+  - Automated installation scripts for macOS/Linux (`install.sh`) and Windows (`install.ps1`)
+  - One-liner bootstrap scripts for zero-friction installation
+  - Automatic Ruby installation via Homebrew (macOS) or WinGet (Windows)
+  - Claude Desktop configuration with proper JSON formatting
+  - Interactive prompts for SmartSuite API credentials
+
+- Convert UTC timestamps to local time in logs and reports
 
 #### Performance
 
@@ -223,7 +232,13 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - Add query plan analysis
   - Index recommendations for frequently queried fields
 
-**Total estimated effort:** 4-6 weeks
+#### Testing & Quality ✅
+
+- ✅ **Test coverage:** 97.47% (927 tests, 2,799 assertions) - **Exceeded 90% target**
+- ✅ **Cache::Schema module** - Centralized SQLite table schema definitions
+- ✅ **SmartSuite::Paths module** - Centralized path management for test isolation
+
+**Remaining effort:** 2-3 weeks (smart field selection + query optimization)
 
 ---
 
@@ -457,18 +472,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 
 ## Roadmap Status
 
-| Version | Status      | Target Date | Completion |
-| ------- | ----------- | ----------- | ---------- |
-| v1.0    | ✅ Released | Nov 2025    | 100%       |
-| v1.5    | ✅ Released | Nov 2025    | 100%       |
-| v1.6    | ✅ Released | Nov 2025    | 100%       |
-| v1.7    | ✅ Released | Nov 2025    | 100%       |
-| v1.8    | ✅ Released | Nov 2025    | 100%       |
-| v1.9    | ✅ Released | Nov 2025    | 100%       |
-| v2.0    | 📋 Planned  | Q1 2026     | 0%         |
-| v2.1    | 📋 Planned  | Q2 2026     | 0%         |
-| v2.2    | 📋 Planned  | Q2 2026     | 0%         |
-| v3.0    | 📋 Planned  | Q3 2026     | 0%         |
+| Version | Status         | Target Date | Completion |
+| ------- | -------------- | ----------- | ---------- |
+| v1.0    | ✅ Released    | Nov 2025    | 100%       |
+| v1.5    | ✅ Released    | Nov 2025    | 100%       |
+| v1.6    | ✅ Released    | Nov 2025    | 100%       |
+| v1.7    | ✅ Released    | Nov 2025    | 100%       |
+| v1.8    | ✅ Released    | Nov 2025    | 100%       |
+| v1.9    | ✅ Released    | Nov 2025    | 100%       |
+| v2.0    | 🚧 In Progress | Nov 2025    | 80%        |
+| v2.1    | 📋 Planned     | Q2 2026     | 0%         |
+| v2.2    | 📋 Planned     | Q2 2026     | 0%         |
+| v3.0    | 📋 Planned     | Q3 2026     | 0%         |
 
 ---
 

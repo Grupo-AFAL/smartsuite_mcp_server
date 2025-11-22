@@ -75,10 +75,10 @@ module SmartSuite
         'description' => 'The slug of the file/image field to attach files to'
       }.freeze
 
-      # Array of file URLs for attach (used in attach_file)
+      # Array of file URLs or local paths for attach (used in attach_file)
       SCHEMA_FILE_URLS = {
         'type' => 'array',
-        'description' => 'Array of publicly accessible URLs to files. SmartSuite will download and attach these files.',
+        'description' => 'Array of file URLs or local file paths. URLs must be publicly accessible. Local files require S3 configuration (SMARTSUITE_S3_BUCKET env var).',
         'items' => { 'type' => 'string' }
       }.freeze
 
@@ -510,7 +510,18 @@ module SmartSuite
         },
         {
           'name' => 'attach_file',
-          'description' => 'Attach files to a record by providing URLs. SmartSuite downloads files from the provided URLs and attaches them to the specified file/image field. The URLs must be publicly accessible.',
+          'description' => 'Attach files to a record by providing URLs or local file paths.
+
+**URLs**: SmartSuite downloads files directly from publicly accessible URLs.
+
+**Local files**: Automatically uploaded to S3, then attached via temporary URLs. Requires:
+- `SMARTSUITE_S3_BUCKET` environment variable
+- AWS credentials via named profile (recommended) or environment variables:
+  - Option 1: `SMARTSUITE_AWS_PROFILE` pointing to a profile in ~/.aws/credentials
+  - Option 2: `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION` (optional, defaults to us-east-1)
+
+You can mix URLs and local paths in the same request.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -653,7 +664,7 @@ See `add_field` tool description for complete example.',
       MEMBER_TOOLS = [
         {
           'name' => 'list_members',
-          'description' => 'List all members (users) in your SmartSuite workspace. Use this to get user IDs for assigning people to records. Optionally filter by solution_id to only show members who have access to that solution (saves tokens).',
+          'description' => 'List all members (users) in your SmartSuite workspace. Use this to get user IDs for assigning people to records. By default, only active members are returned (deleted members are filtered out). Optionally filter by solution_id to only show members who have access to that solution (saves tokens).',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -668,6 +679,10 @@ See `add_field` tool description for complete example.',
               'solution_id' => {
                 'type' => 'string',
                 'description' => 'Optional: Filter members by solution ID. Returns only members who have access to this solution. This saves tokens by filtering server-side.'
+              },
+              'include_inactive' => {
+                'type' => 'boolean',
+                'description' => 'Optional: Include deleted members in results. Default: false (only active members are returned).'
               }
             },
             'required' => []
@@ -698,13 +713,17 @@ See `add_field` tool description for complete example.',
         },
         {
           'name' => 'search_member',
-          'description' => 'Search for members by name or email. Performs case-insensitive search across email, first name, last name, and full name fields. Returns only matching members to minimize token usage.',
+          'description' => 'Search for members by name or email. Performs case-insensitive search across email, first name, last name, and full name fields. By default, only active members are returned (deleted members are filtered out). Returns only matching members to minimize token usage.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
               'query' => {
                 'type' => 'string',
                 'description' => 'Search query for name or email (case-insensitive)'
+              },
+              'include_inactive' => {
+                'type' => 'boolean',
+                'description' => 'Optional: Include deleted members in search results. Default: false (only active members are returned).'
               }
             },
             'required' => ['query']
@@ -761,8 +780,8 @@ See `add_field` tool description for complete example.',
             'properties' => {
               'resource' => {
                 'type' => 'string',
-                'description' => 'Resource type to refresh with cascading invalidation: (1) "solutions" = invalidates ALL solutions + ALL tables + ALL records (use only when refreshing entire workspace), (2) "tables" with solution_id = invalidates tables + records for ONE specific solution (use this to refresh a single solution), (3) "tables" without solution_id = invalidates ALL tables + ALL records, (4) "records" with table_id = invalidates records for ONE specific table. Examples: To refresh "ProductEK" solution use resource="tables" with solution_id="sol_123", NOT resource="solutions".',
-                'enum' => %w[solutions tables records]
+                'description' => 'Resource type to refresh with cascading invalidation: (1) "solutions" = invalidates ALL solutions + ALL tables + ALL records (use only when refreshing entire workspace), (2) "tables" with solution_id = invalidates tables + records for ONE specific solution (use this to refresh a single solution), (3) "tables" without solution_id = invalidates ALL tables + ALL records, (4) "records" with table_id = invalidates records for ONE specific table, (5) "members" = invalidates members cache, (6) "teams" = invalidates teams cache. Examples: To refresh "ProductEK" solution use resource="tables" with solution_id="sol_123", NOT resource="solutions".',
+                'enum' => %w[solutions tables records members teams]
               },
               'table_id' => {
                 'type' => 'string',

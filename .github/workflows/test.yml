@@ -32,16 +32,16 @@ jobs:
             GAP=$(echo "90 - $COVERAGE" | bc)
             echo "📈 Gap: ${GAP}%"
 
-            # Baseline: 82.77% (current coverage after v1.8 test improvements)
+            # Baseline: 97.47% (current coverage after v2.0 test improvements)
             # Don't fail build, just report status
-            if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
-              echo "🎉 Excellent coverage!"
-            elif (( $(echo "$COVERAGE >= 82.77" | bc -l) )); then
-              echo "✅ Good coverage - at or above baseline"
-            elif (( $(echo "$COVERAGE >= 75" | bc -l) )); then
-              echo "⚠️  Coverage acceptable but below baseline (82.77%)"
+            if (( $(echo "$COVERAGE >= 97" | bc -l) )); then
+              echo "🎉 Excellent coverage! At or above 97% baseline"
+            elif (( $(echo "$COVERAGE >= 90" | bc -l) )); then
+              echo "✅ Good coverage - above 90% target"
+            elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+              echo "⚠️  Coverage acceptable but below baseline (97.47%)"
             else
-              echo "❌ Coverage significantly below baseline (82.77%)"
+              echo "❌ Coverage significantly below baseline (97.47%)"
             fi
           else
             echo "⚠️  No coverage report found"

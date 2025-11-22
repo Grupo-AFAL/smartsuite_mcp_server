@@ -8,8 +8,10 @@ require_relative 'query'
 require_relative 'migrations'
 require_relative 'metadata'
 require_relative 'performance'
+require_relative 'schema'
 require_relative '../response_formats'
 require_relative '../fuzzy_matcher'
+require_relative '../paths'
 require_relative '../../query_logger'
 
 module SmartSuite
@@ -50,7 +52,7 @@ module SmartSuite
       }.freeze
 
       def initialize(db_path: nil)
-        @db_path = db_path || File.expand_path('~/.smartsuite_mcp_cache.db')
+        @db_path = db_path || default_db_path
         @db = SQLite3::Database.new(@db_path)
         @db.results_as_hash = true
 
@@ -73,132 +75,20 @@ module SmartSuite
         # Migrate old table name first if it exists
         migrate_table_rename_if_needed
 
-        @db.execute_batch <<-SQL
-        -- Internal registry for dynamically-created SQL cache tables
-        -- (not to be confused with SmartSuite table schema caching)
-        CREATE TABLE IF NOT EXISTS cache_table_registry (
-          table_id TEXT PRIMARY KEY,
-          sql_table_name TEXT NOT NULL UNIQUE,
-          table_name TEXT,
-          structure TEXT NOT NULL,
-          field_mapping TEXT NOT NULL,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
-        );
-
-        -- TTL configuration per table
-        CREATE TABLE IF NOT EXISTS cache_ttl_config (
-          table_id TEXT PRIMARY KEY,
-          ttl_seconds INTEGER NOT NULL DEFAULT #{DEFAULT_TTL},
-          mutation_level TEXT,
-          notes TEXT,
-          updated_at TEXT NOT NULL
-        );
-
-        -- Cache statistics
-        CREATE TABLE IF NOT EXISTS cache_stats (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          category TEXT NOT NULL,
-          operation TEXT NOT NULL,
-          key TEXT,
-          timestamp TEXT NOT NULL,
-          metadata TEXT
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON cache_stats(timestamp);
-        CREATE INDEX IF NOT EXISTS idx_stats_category ON cache_stats(category);
-
-        -- Cache performance tracking (v1.6+)
-        CREATE TABLE IF NOT EXISTS cache_performance (
-          table_id TEXT PRIMARY KEY,
-          hit_count INTEGER DEFAULT 0,
-          miss_count INTEGER DEFAULT 0,
-          last_access_time TEXT,
-          record_count INTEGER DEFAULT 0,
-          cache_size_bytes INTEGER DEFAULT 0,
-          updated_at TEXT NOT NULL
-        );
-
-        -- API call tracking (shared with ApiStatsTracker)
-        CREATE TABLE IF NOT EXISTS api_call_log (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          user_hash TEXT NOT NULL,
-          method TEXT NOT NULL,
-          endpoint TEXT NOT NULL,
-          solution_id TEXT,
-          table_id TEXT,
-          timestamp TEXT NOT NULL,
-          session_id TEXT DEFAULT 'legacy'
-        );
-
-        -- API statistics summary (shared with ApiStatsTracker)
-        CREATE TABLE IF NOT EXISTS api_stats_summary (
-          user_hash TEXT PRIMARY KEY,
-          total_calls INTEGER DEFAULT 0,
-          first_call TEXT,
-          last_call TEXT
-        );
-
-        -- Cache for solutions list
-        CREATE TABLE IF NOT EXISTS cached_solutions (
-          id TEXT PRIMARY KEY,
-          slug TEXT,
-          name TEXT,
-          logo_icon TEXT,
-          logo_color TEXT,
-          description TEXT,
-          status TEXT,
-          hidden INTEGER,
-          last_access TEXT,
-          updated TEXT,
-          created TEXT,
-          created_by TEXT,
-          records_count INTEGER,
-          members_count INTEGER,
-          applications_count INTEGER,
-          automation_count INTEGER,
-          has_demo_data INTEGER,
-          delete_date TEXT,
-          deleted_by TEXT,
-          updated_by TEXT,
-          permissions TEXT,
-          cached_at TEXT NOT NULL,
-          expires_at TEXT NOT NULL
-        );
-
-        -- Cache for tables list
-        CREATE TABLE IF NOT EXISTS cached_tables (
-          id TEXT PRIMARY KEY,
-          slug TEXT,
-          name TEXT,
-          solution_id TEXT,
-          structure TEXT,
-          created TEXT,
-          created_by TEXT,
-          status TEXT,
-          hidden INTEGER DEFAULT 0,
-          icon TEXT,
-          primary_field TEXT,
-          table_order INTEGER,
-          permissions TEXT,
-          field_permissions TEXT,
-          record_term TEXT,
-          fields_count_total INTEGER,
-          fields_count_linkedrecordfield INTEGER,
-          cached_at TEXT NOT NULL,
-          expires_at TEXT NOT NULL
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_cached_tables_solution ON cached_tables(solution_id);
-        CREATE INDEX IF NOT EXISTS idx_cached_tables_expires ON cached_tables(expires_at);
-        CREATE INDEX IF NOT EXISTS idx_cached_solutions_expires ON cached_solutions(expires_at);
-        SQL
+        # Use centralized schema definitions
+        @db.execute_batch(Schema.all_metadata_tables_sql(default_ttl: DEFAULT_TTL))
 
         # Migrate INTEGER timestamps to TEXT (ISO 8601)
         migrate_integer_timestamps_to_text
 
         # Migrate cached_tables schema to match API response fields
         migrate_cached_tables_schema
+
+        # Migrate cached_members schema to add deleted_date column
+        migrate_cached_members_schema
+
+        # Migrate cache_ttl_config schema to add expires_at column
+        migrate_cache_ttl_config_schema
 
         # Create indexes after ensuring schema is up to date
         @db.execute_batch <<-SQL
@@ -232,6 +122,24 @@ module SmartSuite
       rescue StandardError => e
         QueryLogger.log_error('DB Query', e)
         raise
+      end
+
+      # Log a warning message (suppressed in test mode to reduce noise)
+      # @param message [String] Warning message to log
+      def log_warning(message)
+        return if SmartSuite::Paths.test_mode?
+
+        warn message
+      end
+
+      # Invalidate a simple cache table (members, teams)
+      #
+      # @param table_name [String] SQL table name (e.g., 'cached_members')
+      # @param resource_type [String] Resource type for logging (e.g., 'members')
+      def invalidate_simple_cache(table_name, resource_type)
+        db_execute("UPDATE #{table_name} SET expires_at = 0")
+        record_stat('invalidation', resource_type, resource_type)
+        QueryLogger.log_cache_operation('invalidate', resource_type)
       end
 
       # Cache all records from a SmartSuite table
@@ -576,7 +484,7 @@ module SmartSuite
         )
       rescue StandardError => e
         # Silent failure - stats are nice-to-have
-        warn "Cache stat recording failed: #{e.message}"
+        log_warning "Cache stat recording failed: #{e.message}"
       end
 
       # Create a query builder for a table
@@ -613,7 +521,7 @@ module SmartSuite
 
         result
       rescue SQLite3::Exception => e
-        warn "[Cache] Error reading cached record #{record_id}: #{e.message}"
+        log_warning "[Cache] Error reading cached record #{record_id}: #{e.message}"
         nil
       end
 
@@ -642,7 +550,7 @@ module SmartSuite
         record_stat('record_cached', 'single_upsert', table_id, { record_id: record['id'] })
         true
       rescue SQLite3::Exception => e
-        warn "[Cache] Error caching single record #{record['id']}: #{e.message}"
+        log_warning "[Cache] Error caching single record #{record['id']}: #{e.message}"
         false
       end
 
@@ -658,7 +566,10 @@ module SmartSuite
         structure = get_cached_table(table_id)
         return false unless structure
 
-        sql_table_name = Metadata.table_name_for(table_id)
+        schema = get_cached_table_schema(table_id)
+        return false unless schema
+
+        sql_table_name = schema['sql_table_name']
 
         # Delete the record
         db_execute("DELETE FROM #{sql_table_name} WHERE id = ?", record_id)
@@ -666,7 +577,7 @@ module SmartSuite
         record_stat('record_cached', 'single_delete', table_id, { record_id: record_id })
         true
       rescue SQLite3::Exception => e
-        warn "[Cache] Error deleting cached record #{record_id}: #{e.message}"
+        log_warning "[Cache] Error deleting cached record #{record_id}: #{e.message}"
         false
       end
 
@@ -841,6 +752,8 @@ module SmartSuite
           db_execute('DELETE FROM cached_tables WHERE solution_id = ?', solution_id)
         else
           db_execute('DELETE FROM cached_tables')
+          # Set the "all_tables" scope marker so we know this is a complete cache
+          set_table_list_scope('all_tables', expires_at)
         end
 
         # Insert all tables with fixed columns
@@ -947,7 +860,7 @@ module SmartSuite
           'primary_field' => result['primary_field']
         }
       rescue SQLite3::Exception => e
-        warn "[Cache] Error reading cached table #{table_id}: #{e.message}"
+        log_warning "[Cache] Error reading cached table #{table_id}: #{e.message}"
         nil
       end
 
@@ -1010,6 +923,28 @@ module SmartSuite
           valid = result && result['count'].to_i.positive?
           QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', "table_list:solution:#{solution_id}")
         else
+          # For "all tables" request, we must verify we have a complete cache
+          # Check if we have the "all_tables" scope marker set and not expired
+          scope_result = db_execute(
+            "SELECT expires_at FROM cache_ttl_config WHERE table_id = '__table_list_scope__' AND notes = 'all_tables'"
+          ).first
+
+          if scope_result.nil? || scope_result['expires_at'].nil?
+            QueryLogger.log_cache_operation('expired', 'table_list:all_tables (no scope marker)')
+            return false
+          end
+
+          scope_expires = begin
+            Time.parse(scope_result['expires_at'])
+          rescue StandardError
+            nil
+          end
+          if scope_expires.nil? || scope_expires <= Time.now.utc
+            QueryLogger.log_cache_operation('expired', 'table_list:all_tables (scope expired)')
+            return false
+          end
+
+          # Also verify we have actual tables cached
           result = db_execute(
             'SELECT COUNT(*) as count FROM cached_tables WHERE expires_at > ?',
             Time.now.utc.iso8601
@@ -1036,9 +971,281 @@ module SmartSuite
           QueryLogger.log_cache_operation('invalidate', "table_list:solution:#{solution_id}")
         else
           db_execute('UPDATE cached_tables SET expires_at = 0')
+          # Also clear the "all_tables" scope marker
+          clear_table_list_scope
           record_stat('invalidation', 'table_list', 'all_tables')
           QueryLogger.log_cache_operation('invalidate', 'table_list:all_tables')
         end
+      end
+
+      # Set table list cache scope marker
+      #
+      # Records that we have cached "all tables" (not just solution-specific)
+      # @param scope [String] Scope identifier ('all_tables')
+      # @param expires_at [String] Expiration timestamp (ISO 8601)
+      def set_table_list_scope(scope, expires_at)
+        db_execute(
+          "INSERT OR REPLACE INTO cache_ttl_config (table_id, ttl_seconds, notes, expires_at, updated_at)
+           VALUES ('__table_list_scope__', 0, ?, ?, ?)",
+          scope, expires_at, Time.now.utc.iso8601
+        )
+        QueryLogger.log_cache_operation('set_scope', "table_list:#{scope}")
+      end
+
+      # Clear table list cache scope marker
+      def clear_table_list_scope
+        db_execute("DELETE FROM cache_ttl_config WHERE table_id = '__table_list_scope__'")
+        QueryLogger.log_cache_operation('clear_scope', 'table_list')
+      end
+
+      # ========== Member Caching ==========
+
+      # Cache members list
+      #
+      # @param members [Array<Hash>] Array of member hashes (already formatted with essential fields)
+      # @param ttl [Integer] Time-to-live in seconds (default: 7 days)
+      # @return [Integer] Number of members cached
+      def cache_members(members, ttl: 7 * 24 * 3600)
+        expires_at = (Time.now + ttl).utc.iso8601
+        cached_at = Time.now.utc.iso8601
+
+        # Clear existing cached members
+        db_execute('DELETE FROM cached_members')
+
+        # Insert all members
+        members.each do |member|
+          # Handle email - can be string or array
+          email = member['email'].is_a?(Array) ? member['email'].first : member['email']
+
+          # Handle status - can be hash or string
+          status_value = member['status'].is_a?(Hash) ? member['status']['value'] : member['status']
+          status_updated = member['status'].is_a?(Hash) ? member['status']['updated_on'] : nil
+
+          # Handle deleted_date - can be hash {"date": "..."} or string
+          deleted_date = member['deleted_date'].is_a?(Hash) ? member['deleted_date']['date'] : member['deleted_date']
+
+          db_execute(
+            "INSERT INTO cached_members (
+              id, email, role, status, status_updated_on, deleted_date,
+              first_name, last_name, full_name, job_title, department,
+              cached_at, expires_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            member['id'],
+            email,
+            member['role'],
+            status_value,
+            status_updated ? parse_timestamp(status_updated) : nil,
+            deleted_date,
+            member['first_name'],
+            member['last_name'],
+            member['full_name'],
+            member['job_title'],
+            member['department'],
+            cached_at,
+            expires_at
+          )
+        end
+
+        record_stat('members_cached', 'bulk_insert', 'members', { count: members.size, ttl: ttl })
+        QueryLogger.log_cache_operation('insert', 'members', count: members.size, ttl: ttl)
+
+        members.size
+      end
+
+      # Get cached members list
+      #
+      # @param query [String, nil] Optional search query for name/email filtering
+      # @param include_inactive [Boolean] Include soft-deleted members. Default: false
+      # @return [Array<Hash>, nil] Array of members or nil if cache invalid
+      def get_cached_members(query: nil, include_inactive: false)
+        # Check if cache is valid
+        return nil unless members_cache_valid?
+
+        # Filter out soft-deleted members (those with deleted_date set) unless include_inactive
+        deleted_filter = include_inactive ? '' : "AND (deleted_date IS NULL OR deleted_date = '')"
+
+        # Build query with optional search filter using fuzzy matching
+        results = if query
+                    db_execute(
+                      "SELECT * FROM cached_members WHERE expires_at > ? #{deleted_filter} AND (
+                        fuzzy_match(full_name, ?) = 1 OR
+                        fuzzy_match(first_name, ?) = 1 OR
+                        fuzzy_match(last_name, ?) = 1 OR
+                        email LIKE ?
+                      )",
+                      Time.now.utc.iso8601, query, query, query, "%#{query}%"
+                    )
+                  else
+                    db_execute(
+                      "SELECT * FROM cached_members WHERE expires_at > ? #{deleted_filter}",
+                      Time.now.utc.iso8601
+                    )
+                  end
+
+        return nil if results.empty?
+
+        # Reconstruct member hashes from fixed columns
+        members = results.map do |row|
+          member = {
+            'id' => row['id'],
+            'email' => row['email'],
+            'role' => row['role'],
+            'status' => row['status'],
+            'deleted_date' => row['deleted_date']
+          }
+
+          # Add name fields if present
+          member['first_name'] = row['first_name'] if row['first_name']
+          member['last_name'] = row['last_name'] if row['last_name']
+          member['full_name'] = row['full_name'] if row['full_name']
+
+          # Add other fields if present
+          member['job_title'] = row['job_title'] if row['job_title']
+          member['department'] = row['department'] if row['department']
+
+          member.compact
+        end
+
+        QueryLogger.log_cache_operation('hit', 'members', count: members.size)
+
+        members
+      end
+
+      # Check if members cache is valid (not expired)
+      #
+      # @return [Boolean] true if cache is valid
+      def members_cache_valid?
+        result = db_execute(
+          'SELECT COUNT(*) as count FROM cached_members WHERE expires_at > ?',
+          Time.now.utc.iso8601
+        ).first
+
+        valid = result && result['count'].to_i.positive?
+
+        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'members')
+
+        valid
+      end
+
+      # Invalidate members cache
+      def invalidate_members_cache
+        invalidate_simple_cache('cached_members', 'members')
+      end
+
+      # ========== Team Caching ==========
+
+      # Cache teams list
+      #
+      # @param teams [Array<Hash>] Array of team hashes from API
+      # @param ttl [Integer] Time-to-live in seconds (default: 7 days)
+      # @return [Integer] Number of teams cached
+      def cache_teams(teams, ttl: 7 * 24 * 3600)
+        expires_at = (Time.now + ttl).utc.iso8601
+        cached_at = Time.now.utc.iso8601
+
+        # Clear existing cached teams
+        db_execute('DELETE FROM cached_teams')
+
+        # Insert all teams
+        teams.each do |team|
+          # Store members as JSON array
+          members_json = team['members'].is_a?(Array) ? JSON.generate(team['members']) : nil
+
+          db_execute(
+            'INSERT INTO cached_teams (id, name, description, members, cached_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
+            team['id'],
+            team['name'],
+            team['description'],
+            members_json,
+            cached_at,
+            expires_at
+          )
+        end
+
+        record_stat('teams_cached', 'bulk_insert', 'teams', { count: teams.size, ttl: ttl })
+        QueryLogger.log_cache_operation('insert', 'teams', count: teams.size, ttl: ttl)
+
+        teams.size
+      end
+
+      # Get cached teams list
+      #
+      # @return [Array<Hash>, nil] Array of teams or nil if cache invalid
+      def get_cached_teams
+        # Check if cache is valid
+        return nil unless teams_cache_valid?
+
+        results = db_execute(
+          'SELECT * FROM cached_teams WHERE expires_at > ?',
+          Time.now.utc.iso8601
+        )
+
+        return nil if results.empty?
+
+        # Reconstruct team hashes from fixed columns
+        teams = results.map do |row|
+          team = {
+            'id' => row['id'],
+            'name' => row['name']
+          }
+
+          team['description'] = row['description'] if row['description']
+          team['members'] = JSON.parse(row['members']) if row['members']
+
+          team
+        end
+
+        QueryLogger.log_cache_operation('hit', 'teams', count: teams.size)
+
+        teams
+      end
+
+      # Get a specific team from cache by ID
+      #
+      # @param team_id [String] Team ID to retrieve
+      # @return [Hash, nil] Team object or nil if not found/expired
+      def get_cached_team(team_id)
+        return nil unless teams_cache_valid?
+
+        result = db_execute(
+          'SELECT * FROM cached_teams WHERE id = ? AND expires_at > ?',
+          team_id, Time.now.utc.iso8601
+        ).first
+
+        return nil unless result
+
+        team = {
+          'id' => result['id'],
+          'name' => result['name']
+        }
+
+        team['description'] = result['description'] if result['description']
+        team['members'] = JSON.parse(result['members']) if result['members']
+
+        QueryLogger.log_cache_operation('hit', "team:#{team_id}")
+
+        team
+      end
+
+      # Check if teams cache is valid (not expired)
+      #
+      # @return [Boolean] true if cache is valid
+      def teams_cache_valid?
+        result = db_execute(
+          'SELECT COUNT(*) as count FROM cached_teams WHERE expires_at > ?',
+          Time.now.utc.iso8601
+        ).first
+
+        valid = result && result['count'].to_i.positive?
+
+        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'teams')
+
+        valid
+      end
+
+      # Invalidate teams cache
+      def invalidate_teams_cache
+        invalidate_simple_cache('cached_teams', 'teams')
       end
 
       # Refresh (invalidate) cache for specific resources
@@ -1046,7 +1253,7 @@ module SmartSuite
       # Invalidates cache without refetching - data will be refreshed on next access.
       # Useful for forcing fresh data when you know it has changed.
       #
-      # @param resource [String] Resource type: 'solutions', 'tables', or 'records'
+      # @param resource [String] Resource type: 'solutions', 'tables', 'records', 'members', or 'teams'
       # @param table_id [String, nil] Table ID (required for 'records' resource)
       # @param solution_id [String, nil] Solution ID (optional for 'tables' resource)
       # @return [Hash] Refresh result with invalidated resource info
@@ -1078,8 +1285,22 @@ module SmartSuite
             resource: 'records',
             table_id: table_id
           )
+        when 'members'
+          invalidate_members_cache
+          operation_response(
+            'refresh',
+            'Members cache invalidated. Will refresh on next access.',
+            resource: 'members'
+          )
+        when 'teams'
+          invalidate_teams_cache
+          operation_response(
+            'refresh',
+            'Teams cache invalidated. Will refresh on next access.',
+            resource: 'teams'
+          )
         else
-          raise ArgumentError, "Unknown resource type: #{resource}. Use 'solutions', 'tables', or 'records'"
+          raise ArgumentError, "Unknown resource type: #{resource}. Use 'solutions', 'tables', 'records', 'members', or 'teams'"
         end
       end
 
@@ -1112,7 +1333,7 @@ module SmartSuite
         end
       end
 
-      # Get cache status for solutions, tables, and records
+      # Get cache status for solutions, tables, records, and members
       #
       # Shows cached_at, expires_at, time_remaining, record_count for each cached resource.
       # Helps users understand cache state and plan cache refreshes.
@@ -1125,6 +1346,8 @@ module SmartSuite
           'timestamp' => now.iso8601,
           'solutions' => get_solutions_cache_status(now),
           'tables' => get_tables_cache_status(now),
+          'members' => get_members_cache_status(now),
+          'teams' => get_teams_cache_status(now),
           'records' => get_records_cache_status(now, table_id: table_id)
         }
       end
@@ -1138,12 +1361,14 @@ module SmartSuite
       def register_custom_functions
         # Register fuzzy_match function
         # Returns 1 if text fuzzy matches query, 0 otherwise
-        @db.create_function('fuzzy_match', 2) do |_func, text, query|
-          # Handle NULL values
-          next 0 if text.nil? || query.nil?
-
-          # Use FuzzyMatcher module for matching logic
-          SmartSuite::FuzzyMatcher.match?(text, query) ? 1 : 0
+        @db.create_function('fuzzy_match', 2) do |func, text, query|
+          # Handle NULL values - must use func.result= to return values
+          func.result = if text.nil? || query.nil?
+                          0
+                        else
+                          # Use FuzzyMatcher module for matching logic
+                          SmartSuite::FuzzyMatcher.match?(text, query) ? 1 : 0
+                        end
         end
       end
 
@@ -1192,9 +1417,13 @@ module SmartSuite
         )
       end
 
-      # Get solutions cache status
-      def get_solutions_cache_status(now)
-        result = db_execute('SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_solutions').first
+      # Get cache status for a metadata table (solutions, tables, members, teams)
+      #
+      # @param table_name [String] SQL table name (e.g., 'cached_solutions')
+      # @param now [Time] Current time for expiration comparison
+      # @return [Hash, nil] Cache status or nil if empty/invalid
+      def get_metadata_cache_status(table_name, now)
+        result = db_execute("SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM #{table_name}").first
         return nil if result['count'].zero?
 
         # Handle invalid/missing timestamp gracefully
@@ -1209,29 +1438,28 @@ module SmartSuite
         }
       rescue ArgumentError => e
         # If time parsing fails, return nil (invalid cache state)
-        warn "Warning: Invalid timestamp in cached_solutions: #{result['first_expires']} - #{e.message}"
+        log_warning "Warning: Invalid timestamp in #{table_name}: #{result['first_expires']} - #{e.message}"
         nil
+      end
+
+      # Get solutions cache status
+      def get_solutions_cache_status(now)
+        get_metadata_cache_status('cached_solutions', now)
       end
 
       # Get tables cache status
       def get_tables_cache_status(now)
-        result = db_execute('SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_tables').first
-        return nil if result['count'].zero?
+        get_metadata_cache_status('cached_tables', now)
+      end
 
-        # Handle invalid/missing timestamp gracefully
-        return nil if result['first_expires'].nil? || result['first_expires'] == '0' || result['first_expires'].empty?
+      # Get members cache status
+      def get_members_cache_status(now)
+        get_metadata_cache_status('cached_members', now)
+      end
 
-        first_expires = Time.parse(result['first_expires'])
-        {
-          'count' => result['count'],
-          'expires_at' => first_expires.iso8601,
-          'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
-          'is_valid' => first_expires > now
-        }
-      rescue ArgumentError => e
-        # If time parsing fails, return nil (invalid cache state)
-        warn "Warning: Invalid timestamp in cached_tables: #{result['first_expires']} - #{e.message}"
-        nil
+      # Get teams cache status
+      def get_teams_cache_status(now)
+        get_metadata_cache_status('cached_teams', now)
       end
 
       # Get records cache status (all tables or specific table)
@@ -1256,7 +1484,13 @@ module SmartSuite
 
           next nil if result['count'].zero?
 
-          first_expires = Time.parse(result['first_expires'])
+          # Handle invalid/missing/expired timestamp gracefully
+          expires_str = result['first_expires']
+          # rubocop:disable Style/NumericPredicate -- expires_str can be String or Integer
+          next nil if expires_str.nil? || expires_str == '0' || expires_str == 0 || expires_str.to_s.empty?
+          # rubocop:enable Style/NumericPredicate
+
+          first_expires = Time.parse(expires_str.to_s)
           {
             'table_id' => schema['table_id'],
             'table_name' => schema['table_name'],
@@ -1276,6 +1510,16 @@ module SmartSuite
         # Flush any pending performance counters
         flush_performance_counters unless @perf_counters.empty?
         @db&.close
+      end
+
+      private
+
+      # Returns the default database path.
+      # Delegates to SmartSuite::Paths for consistent path handling across all components.
+      #
+      # @return [String] Database file path
+      def default_db_path
+        SmartSuite::Paths.database_path
       end
     end
   end

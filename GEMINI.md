@@ -80,8 +80,14 @@ When implementing any change, adhere to the following workflow:
 
 3. **Verify (Local):**
 
-   - Ensure all tests pass: `bundle exec rake test`
-   - Verify code style/linting if applicable.
+   - **Tests:** Ensure all tests pass: `bundle exec rake test`
+
+   - **Code Style:** Run RuboCop to ensure no style violations: `bundle exec rubocop`
+
+   - **Changelog:** Ensure `CHANGELOG.md` has been updated with an entry under `[Unreleased]`.
+
+   - **Documentation:** Run markdown lint to check for formatting issues (e.g., `npx markdownlint-cli2 "**/*.md" "#node_modules"`) or verify formatting manually.
+
    - Confirm that the changes meet the requirements.
 
 4. **Push to Remote:**
@@ -103,3 +109,50 @@ When implementing any change, adhere to the following workflow:
    - **DO NOT MERGE.**
    - Inform the user that the PR has been created (or the branch pushed) and is ready for review.
    - The user will review the PR and merge it manually.
+
+## Multi-Agent / Parallel Development Workflow
+
+When multiple agents or developers are working on the same file system simultaneously, to avoid interference (e.g., overwriting working tree files), use **Git Worktrees**.
+
+**Protocol for New Agents:**
+
+1. **Create a Worktree:**
+   Instead of checking out a branch in the current directory, create a new worktree in a sibling directory.
+
+   ```bash
+   # Syntax: git worktree add -b <new-branch-name> <path-to-new-worktree>
+   # Example: Agent B creating a feature branch
+   git worktree add -b feature/agent-b-task ../smartsuite_mcp_agent_b
+   ```
+
+2. **Switch Context:**
+   Move into the new directory.
+
+   ```bash
+   cd ../smartsuite_mcp_agent_b
+   ```
+
+3. **Setup Environment:**
+   Since this is a fresh checkout, ensure dependencies are available.
+
+   ```bash
+   bundle check || bundle install
+   ```
+
+4. **Execute Tasks:**
+   Perform all development, testing, and committing within this isolated directory.
+
+   ```bash
+   # Edit files...
+   bundle exec rake test
+   git add .
+   git commit -m "feat: implemented agent b task"
+   ```
+
+5. **Cleanup (Optional but Recommended):**
+   Once the task is complete and pushed/merged, remove the worktree.
+
+   ```bash
+   # From the main repo directory
+   git worktree remove ../smartsuite_mcp_agent_b
+   ```

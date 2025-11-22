@@ -130,7 +130,7 @@ module SmartSuite
         @db.execute_batch <<-SQL
         CREATE TABLE cache_ttl_config_new (
           table_id TEXT PRIMARY KEY,
-          ttl_seconds INTEGER NOT NULL DEFAULT #{CacheLayer::DEFAULT_TTL},
+          ttl_seconds INTEGER NOT NULL DEFAULT #{Layer::DEFAULT_TTL},
           mutation_level TEXT,
           notes TEXT,
           updated_at TEXT NOT NULL
@@ -277,6 +277,35 @@ module SmartSuite
         SQL
 
         log_metric('→ Migrated cached_tables schema: removed 6 unused fields, added 10 API fields')
+      end
+
+      # Migrate cached_members schema to add deleted_date column
+      #
+      # @return [void]
+      def migrate_cached_members_schema
+        cols = @db.execute('PRAGMA table_info(cached_members)')
+        deleted_date_col = cols.find { |c| c['name'] == 'deleted_date' }
+
+        # Only add column if it doesn't exist
+        return if deleted_date_col
+
+        @db.execute('ALTER TABLE cached_members ADD COLUMN deleted_date TEXT')
+        log_metric('→ Migrated cached_members schema: added deleted_date column')
+      end
+
+      # Migrate cache_ttl_config schema to add expires_at column
+      #
+      # Used for tracking table list cache scope expiration.
+      # @return [void]
+      def migrate_cache_ttl_config_schema
+        cols = @db.execute('PRAGMA table_info(cache_ttl_config)')
+        expires_at_col = cols.find { |c| c['name'] == 'expires_at' }
+
+        # Only add column if it doesn't exist
+        return if expires_at_col
+
+        @db.execute('ALTER TABLE cache_ttl_config ADD COLUMN expires_at TEXT')
+        log_metric('→ Migrated cache_ttl_config schema: added expires_at column')
       end
 
       private

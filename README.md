@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server for SmartSuite that enables AI assistants 
 
 [![Version](https://img.shields.io/badge/version-1.9.0-blue)]()
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-81.11%25-yellow)]()
+[![Coverage](https://img.shields.io/badge/coverage-97.47%25-brightgreen)]()
 [![Ruby](https://img.shields.io/badge/ruby-3.0+-red)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
 

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
-require_relative '../lib/smartsuite/response_formats'
+require_relative '../test_helper'
+require_relative '../../lib/smartsuite/response_formats'
 
 class TestResponseFormats < Minitest::Test
   # Test class that includes ResponseFormats module

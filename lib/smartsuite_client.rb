@@ -12,6 +12,7 @@ require_relative 'smartsuite/api/comment_operations'
 require_relative 'smartsuite/api/view_operations'
 require_relative 'smartsuite/formatters/response_formatter'
 require_relative 'smartsuite/response_formats'
+require_relative 'smartsuite/paths'
 require_relative 'smartsuite/cache/layer'
 
 # SmartSuiteClient is the main client for interacting with the SmartSuite API.
@@ -99,7 +100,8 @@ class SmartSuiteClient
     @session_id = session_id || "#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{rand(36**6).to_s(36)}"
 
     # Create a separate, clean log file for metrics (must be before any log_metric calls)
-    @metrics_log = File.open(File.join(Dir.home, '.smartsuite_mcp_metrics.log'), 'a')
+    # Uses SmartSuite::Paths for consistent path handling (test mode vs production)
+    @metrics_log = File.open(SmartSuite::Paths.metrics_log_path, 'a')
     @metrics_log.sync = true # Auto-flush
 
     # Token usage tracking

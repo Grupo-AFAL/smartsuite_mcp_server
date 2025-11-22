@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
-require_relative '../lib/smartsuite/api/base'
+require_relative '../../test_helper'
+require_relative '../../../lib/smartsuite/api/base'
 
 class TestApiBase < Minitest::Test
   # Test class that includes Base module
@@ -312,5 +312,88 @@ class TestApiBase < Minitest::Test
     assert_equal 123, result['numeric']
     assert_equal 'abc', result['string']
     assert_equal true, result['bool']
+  end
+
+  # Test with_cache_check
+  def test_with_cache_check_returns_nil_when_cache_disabled
+    @test_obj.cache_enabled = false
+    result = @test_obj.with_cache_check('solutions') { ['cached_data'] }
+
+    assert_nil result
+  end
+
+  def test_with_cache_check_returns_nil_when_bypassed
+    @test_obj.cache_enabled = true
+    result = @test_obj.with_cache_check('solutions', nil, bypass: true) { ['cached_data'] }
+
+    assert_nil result
+  end
+
+  def test_with_cache_check_returns_cached_data_on_hit
+    @test_obj.cache_enabled = true
+    cached_data = [{ 'id' => 1 }, { 'id' => 2 }]
+    result = @test_obj.with_cache_check('solutions') { cached_data }
+
+    assert_equal cached_data, result
+    assert_includes @test_obj.logged_messages.first, 'Cache hit: 2 solutions'
+  end
+
+  def test_with_cache_check_logs_cache_key_on_hit
+    @test_obj.cache_enabled = true
+    result = @test_obj.with_cache_check('tables', 'sol_123') { [{ 'id' => 1 }] }
+
+    assert_equal [{ 'id' => 1 }], result
+    assert_includes @test_obj.logged_messages.first, 'sol_123'
+  end
+
+  def test_with_cache_check_returns_nil_on_cache_miss
+    @test_obj.cache_enabled = true
+    result = @test_obj.with_cache_check('solutions') { nil }
+
+    assert_nil result
+    assert_includes @test_obj.logged_messages.first, 'Cache miss'
+  end
+
+  def test_with_cache_check_handles_single_item_cache
+    @test_obj.cache_enabled = true
+    single_item = { 'id' => 1 }
+    result = @test_obj.with_cache_check('record') { single_item }
+
+    assert_equal single_item, result
+    assert_includes @test_obj.logged_messages.first, 'Cache hit: 1 record'
+  end
+
+  # Test extract_items_safely
+  def test_extract_items_safely_with_array
+    data = [{ 'id' => 1 }, { 'id' => 2 }]
+    result = @test_obj.extract_items_safely(data)
+
+    assert_equal data, result
+  end
+
+  def test_extract_items_safely_with_hash_containing_items
+    data = { 'items' => [{ 'id' => 1 }, { 'id' => 2 }], 'count' => 2 }
+    result = @test_obj.extract_items_safely(data)
+
+    assert_equal [{ 'id' => 1 }, { 'id' => 2 }], result
+  end
+
+  def test_extract_items_safely_with_custom_key
+    data = { 'data' => [{ 'id' => 1 }] }
+    result = @test_obj.extract_items_safely(data, 'data')
+
+    assert_equal [{ 'id' => 1 }], result
+  end
+
+  def test_extract_items_safely_with_empty_hash
+    result = @test_obj.extract_items_safely({})
+
+    assert_equal [], result
+  end
+
+  def test_extract_items_safely_with_nil
+    result = @test_obj.extract_items_safely(nil)
+
+    assert_equal [], result
   end
 end
