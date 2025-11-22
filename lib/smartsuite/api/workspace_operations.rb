@@ -46,15 +46,10 @@ module SmartSuite
         # Note: Even if fields parameter is specified, we use cache and filter client-side
         # because the /solutions/ API endpoint doesn't respect the fields parameter anyway
         # Note: Name filtering happens at DB layer using custom fuzzy_match SQLite function
-        unless should_bypass_cache?
-          cached_solutions = @cache.get_cached_solutions(name: name)
-          if cached_solutions
-            log_cache_hit('solutions', cached_solutions.size)
-            log_metric("→ Fuzzy matched #{cached_solutions.size} solutions for: #{name}") if name
-            return format_solutions_response(cached_solutions, include_activity_data, fields)
-          else
-            log_cache_miss('solutions')
-          end
+        cached_solutions = with_cache_check('solutions') { @cache.get_cached_solutions(name: name) }
+        if cached_solutions
+          log_metric("→ Fuzzy matched #{cached_solutions.size} solutions for: #{name}") if name
+          return format_solutions_response(cached_solutions, include_activity_data, fields)
         end
 
         # Build endpoint with query parameters using Base helper
@@ -67,7 +62,7 @@ module SmartSuite
         # Cache the full response if cache enabled
         # Note: We cache regardless of fields parameter since API returns full data anyway
         if cache_enabled?
-          solutions_list = response.is_a?(Array) ? response : extract_items_from_response(response)
+          solutions_list = extract_items_safely(response)
           @cache.cache_solutions(solutions_list)
           log_metric("✓ Cached #{solutions_list.size} solutions")
         end
@@ -86,11 +81,7 @@ module SmartSuite
       # @return [Hash] Formatted solutions with count
       def format_solutions_response(response, include_activity_data, fields, name = nil)
         # Handle both API response format and cached array format
-        solutions_list = if response.is_a?(Array)
-                           response
-                         else
-                           extract_items_from_response(response)
-                         end
+        solutions_list = extract_items_safely(response)
 
         # Apply name filtering using fuzzy matching (for non-cached responses)
         # Cached responses are already filtered at DB layer
@@ -194,7 +185,7 @@ module SmartSuite
         # Fetch all solutions (this gets full data including permissions)
         response = api_request(:get, '/solutions/')
 
-        solutions_list = response.is_a?(Array) ? response : extract_items_from_response(response)
+        solutions_list = extract_items_safely(response)
 
         # Filter solutions where the user is in the owners array
         owned_solutions = solutions_list.select do |solution|

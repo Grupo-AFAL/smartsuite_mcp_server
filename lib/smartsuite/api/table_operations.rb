@@ -37,17 +37,11 @@ module SmartSuite
         validate_optional_parameter!('fields', fields, Array) if fields
 
         # Try cache first if enabled and no custom fields specified
-        unless should_bypass_cache? || fields&.any?
-          cached_tables = @cache.get_cached_table_list(solution_id)
-          cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
-
-          if cached_tables
-            log_cache_hit('tables', cached_tables.size, cache_key)
-            return format_tables_response(cached_tables, fields)
-          else
-            log_cache_miss('tables', cache_key)
-          end
+        cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
+        cached_tables = with_cache_check('tables', cache_key, bypass: fields&.any?) do
+          @cache.get_cached_table_list(solution_id)
         end
+        return format_tables_response(cached_tables, fields) if cached_tables
 
         # Log filtering info
         log_metric("→ Filtering tables by solution: #{solution_id}") if solution_id
@@ -61,9 +55,8 @@ module SmartSuite
         # Cache the response if cache enabled and no custom fields
         if cache_enabled? && fields.nil?
           # /applications/ endpoint returns an Array directly
-          tables_list = response.is_a?(Array) ? response : extract_items_from_response(response)
+          tables_list = extract_items_safely(response)
           @cache.cache_table_list(solution_id, tables_list)
-          cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
           log_metric("✓ Cached #{tables_list.size} tables (#{cache_key})")
         end
 
@@ -80,11 +73,7 @@ module SmartSuite
       def format_tables_response(response, fields)
         # Handle both API response format and cached array format
         # /applications/ endpoint returns an Array directly, not a Hash with 'items' key
-        tables_list = if response.is_a?(Array)
-                        response
-                      else
-                        extract_items_from_response(response) || response
-                      end
+        tables_list = extract_items_safely(response)
 
         # When fields are specified, return full response from API
         # When no fields specified, filter to essential fields only (client-side optimization)

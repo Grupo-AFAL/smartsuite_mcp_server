@@ -824,4 +824,66 @@ class TestMemberOperations < Minitest::Test
     result_all = client.search_member('User', include_inactive: true)
     assert_equal 2, result_all['count']
   end
+
+  # ========== filter_members_by_status tests ==========
+
+  def test_filter_members_by_status_filters_inactive_by_default
+    client = create_mock_client
+    members = [
+      formatted_member(id: 'mem_1', email: 'active@test.com', first_name: 'Active', last_name: 'User'),
+      formatted_member(id: 'mem_2', email: 'deleted@test.com', first_name: 'Deleted', last_name: 'User',
+                       deleted_date: '2024-01-01')
+    ]
+
+    result = client.send(:filter_members_by_status, members)
+
+    assert_equal 1, result.size
+    assert_equal 'mem_1', result[0]['id']
+  end
+
+  def test_filter_members_by_status_returns_all_when_include_inactive
+    client = create_mock_client
+    members = [
+      formatted_member(id: 'mem_1', email: 'active@test.com', first_name: 'Active', last_name: 'User'),
+      formatted_member(id: 'mem_2', email: 'deleted@test.com', first_name: 'Deleted', last_name: 'User',
+                       deleted_date: '2024-01-01')
+    ]
+
+    result = client.send(:filter_members_by_status, members, include_inactive: true)
+
+    assert_equal 2, result.size
+  end
+
+  def test_filter_members_by_status_with_empty_array
+    client = create_mock_client
+    result = client.send(:filter_members_by_status, [])
+
+    assert_equal [], result
+  end
+
+  def test_filter_members_by_status_with_all_active
+    client = create_mock_client
+    members = [
+      formatted_member(id: 'mem_1', email: 'user1@test.com', first_name: 'User', last_name: 'One'),
+      formatted_member(id: 'mem_2', email: 'user2@test.com', first_name: 'User', last_name: 'Two')
+    ]
+
+    result = client.send(:filter_members_by_status, members)
+
+    assert_equal 2, result.size
+  end
+
+  def test_filter_members_by_status_with_all_inactive
+    client = create_mock_client
+    members = [
+      formatted_member(id: 'mem_1', email: 'deleted1@test.com', first_name: 'Deleted', last_name: 'One',
+                       deleted_date: '2024-01-01'),
+      formatted_member(id: 'mem_2', email: 'deleted2@test.com', first_name: 'Deleted', last_name: 'Two',
+                       deleted_date: '2024-02-01')
+    ]
+
+    result = client.send(:filter_members_by_status, members)
+
+    assert_equal 0, result.size
+  end
 end

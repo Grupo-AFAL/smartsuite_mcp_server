@@ -240,6 +240,58 @@ module SmartSuite
         msg += ', fetching from API...'
         log_metric(msg)
       end
+
+      # Check cache and return cached data if available.
+      #
+      # This helper centralizes the cache-first pattern used across all API modules.
+      # It handles the cache check, logging, and returns cached data or nil.
+      #
+      # @param resource_type [String] Type of resource for logging (e.g., 'solutions', 'tables')
+      # @param cache_key [String, nil] Optional cache key for logging (e.g., 'sol_123')
+      # @param bypass [Boolean] Whether to bypass cache entirely (default: false)
+      # @yield Block that calls the cache getter method and returns cached data or nil
+      # @return [Object, nil] Cached data if hit, nil if miss or bypassed
+      # @example Basic usage
+      #   cached = with_cache_check('solutions') { @cache.get_cached_solutions }
+      #   return format_response(cached) if cached
+      #
+      # @example With cache key for logging
+      #   cached = with_cache_check('tables', solution_id) { @cache.get_cached_table_list(solution_id) }
+      #
+      # @example With bypass condition
+      #   cached = with_cache_check('tables', nil, bypass: fields&.any?) do
+      #     @cache.get_cached_table_list(solution_id)
+      #   end
+      def with_cache_check(resource_type, cache_key = nil, bypass: false)
+        return nil if should_bypass_cache? || bypass
+
+        cached_data = yield
+        if cached_data
+          count = cached_data.respond_to?(:size) ? cached_data.size : 1
+          log_cache_hit(resource_type, count, cache_key)
+          cached_data
+        else
+          log_cache_miss(resource_type, cache_key)
+          nil
+        end
+      end
+
+      # Extract items from response, handling both Array and Hash formats.
+      #
+      # SmartSuite API responses can be either:
+      # - Direct Array (e.g., /applications/ endpoint)
+      # - Hash with 'items' key (e.g., /solutions/ endpoint)
+      #
+      # This helper normalizes both formats to an Array.
+      #
+      # @param response [Array, Hash] API response
+      # @param items_key [String] Key for items in Hash response (default: 'items')
+      # @return [Array] Items array
+      # @example
+      #   items = extract_items_safely(response)
+      def extract_items_safely(response, items_key = 'items')
+        response.is_a?(Array) ? response : extract_items_from_response(response, items_key)
+      end
     end
   end
 end
