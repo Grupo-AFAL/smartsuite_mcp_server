@@ -298,7 +298,11 @@ class TestFilterBuilder < Minitest::Test
               end
 
       result = SmartSuite::FilterBuilder.convert_comparison(operator, value)
-      assert_equal expected, result, "Operator '#{operator}' failed"
+      if expected.nil?
+        assert_nil result, "Operator '#{operator}' should return nil"
+      else
+        assert_equal expected, result, "Operator '#{operator}' failed"
+      end
     end
   end
 
