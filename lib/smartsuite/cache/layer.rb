@@ -189,9 +189,38 @@ module SmartSuite
           expires_at TEXT NOT NULL
         );
 
+        -- Cache for members list
+        CREATE TABLE IF NOT EXISTS cached_members (
+          id TEXT PRIMARY KEY,
+          email TEXT,
+          role TEXT,
+          status TEXT,
+          status_updated_on TEXT,
+          deleted_date TEXT,
+          first_name TEXT,
+          last_name TEXT,
+          full_name TEXT,
+          job_title TEXT,
+          department TEXT,
+          cached_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL
+        );
+
+        -- Cache for teams list
+        CREATE TABLE IF NOT EXISTS cached_teams (
+          id TEXT PRIMARY KEY,
+          name TEXT,
+          description TEXT,
+          members TEXT,
+          cached_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_cached_tables_solution ON cached_tables(solution_id);
         CREATE INDEX IF NOT EXISTS idx_cached_tables_expires ON cached_tables(expires_at);
         CREATE INDEX IF NOT EXISTS idx_cached_solutions_expires ON cached_solutions(expires_at);
+        CREATE INDEX IF NOT EXISTS idx_cached_members_expires ON cached_members(expires_at);
+        CREATE INDEX IF NOT EXISTS idx_cached_teams_expires ON cached_teams(expires_at);
         SQL
 
         # Migrate INTEGER timestamps to TEXT (ISO 8601)
@@ -199,6 +228,9 @@ module SmartSuite
 
         # Migrate cached_tables schema to match API response fields
         migrate_cached_tables_schema
+
+        # Migrate cached_members schema to add deleted_date column
+        migrate_cached_members_schema
 
         # Create indexes after ensuring schema is up to date
         @db.execute_batch <<-SQL
@@ -1041,12 +1073,266 @@ module SmartSuite
         end
       end
 
+      # ========== Member Caching ==========
+
+      # Cache members list
+      #
+      # @param members [Array<Hash>] Array of member hashes (already formatted with essential fields)
+      # @param ttl [Integer] Time-to-live in seconds (default: 7 days)
+      # @return [Integer] Number of members cached
+      def cache_members(members, ttl: 7 * 24 * 3600)
+        expires_at = (Time.now + ttl).utc.iso8601
+        cached_at = Time.now.utc.iso8601
+
+        # Clear existing cached members
+        db_execute('DELETE FROM cached_members')
+
+        # Insert all members
+        members.each do |member|
+          # Handle email - can be string or array
+          email = member['email'].is_a?(Array) ? member['email'].first : member['email']
+
+          # Handle status - can be hash or string
+          status_value = member['status'].is_a?(Hash) ? member['status']['value'] : member['status']
+          status_updated = member['status'].is_a?(Hash) ? member['status']['updated_on'] : nil
+
+          # Handle deleted_date - can be hash {"date": "..."} or string
+          deleted_date = member['deleted_date'].is_a?(Hash) ? member['deleted_date']['date'] : member['deleted_date']
+
+          db_execute(
+            "INSERT INTO cached_members (
+              id, email, role, status, status_updated_on, deleted_date,
+              first_name, last_name, full_name, job_title, department,
+              cached_at, expires_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            member['id'],
+            email,
+            member['role'],
+            status_value,
+            status_updated ? parse_timestamp(status_updated) : nil,
+            deleted_date,
+            member['first_name'],
+            member['last_name'],
+            member['full_name'],
+            member['job_title'],
+            member['department'],
+            cached_at,
+            expires_at
+          )
+        end
+
+        record_stat('members_cached', 'bulk_insert', 'members', { count: members.size, ttl: ttl })
+        QueryLogger.log_cache_operation('insert', 'members', count: members.size, ttl: ttl)
+
+        members.size
+      end
+
+      # Get cached members list
+      #
+      # @param query [String, nil] Optional search query for name/email filtering
+      # @param include_inactive [Boolean] Include soft-deleted members. Default: false
+      # @return [Array<Hash>, nil] Array of members or nil if cache invalid
+      def get_cached_members(query: nil, include_inactive: false)
+        # Check if cache is valid
+        return nil unless members_cache_valid?
+
+        # Filter out soft-deleted members (those with deleted_date set) unless include_inactive
+        deleted_filter = include_inactive ? '' : "AND (deleted_date IS NULL OR deleted_date = '')"
+
+        # Build query with optional search filter using fuzzy matching
+        results = if query
+                    db_execute(
+                      "SELECT * FROM cached_members WHERE expires_at > ? #{deleted_filter} AND (
+                        fuzzy_match(full_name, ?) = 1 OR
+                        fuzzy_match(first_name, ?) = 1 OR
+                        fuzzy_match(last_name, ?) = 1 OR
+                        email LIKE ?
+                      )",
+                      Time.now.utc.iso8601, query, query, query, "%#{query}%"
+                    )
+                  else
+                    db_execute(
+                      "SELECT * FROM cached_members WHERE expires_at > ? #{deleted_filter}",
+                      Time.now.utc.iso8601
+                    )
+                  end
+
+        return nil if results.empty?
+
+        # Reconstruct member hashes from fixed columns
+        members = results.map do |row|
+          member = {
+            'id' => row['id'],
+            'email' => row['email'],
+            'role' => row['role'],
+            'status' => row['status'],
+            'deleted_date' => row['deleted_date']
+          }
+
+          # Add name fields if present
+          member['first_name'] = row['first_name'] if row['first_name']
+          member['last_name'] = row['last_name'] if row['last_name']
+          member['full_name'] = row['full_name'] if row['full_name']
+
+          # Add other fields if present
+          member['job_title'] = row['job_title'] if row['job_title']
+          member['department'] = row['department'] if row['department']
+
+          member.compact
+        end
+
+        QueryLogger.log_cache_operation('hit', 'members', count: members.size)
+
+        members
+      end
+
+      # Check if members cache is valid (not expired)
+      #
+      # @return [Boolean] true if cache is valid
+      def members_cache_valid?
+        result = db_execute(
+          'SELECT COUNT(*) as count FROM cached_members WHERE expires_at > ?',
+          Time.now.utc.iso8601
+        ).first
+
+        valid = result && result['count'].to_i.positive?
+
+        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'members')
+
+        valid
+      end
+
+      # Invalidate members cache
+      def invalidate_members_cache
+        db_execute('UPDATE cached_members SET expires_at = 0')
+        record_stat('invalidation', 'members', 'members')
+        QueryLogger.log_cache_operation('invalidate', 'members')
+      end
+
+      # ========== Team Caching ==========
+
+      # Cache teams list
+      #
+      # @param teams [Array<Hash>] Array of team hashes from API
+      # @param ttl [Integer] Time-to-live in seconds (default: 7 days)
+      # @return [Integer] Number of teams cached
+      def cache_teams(teams, ttl: 7 * 24 * 3600)
+        expires_at = (Time.now + ttl).utc.iso8601
+        cached_at = Time.now.utc.iso8601
+
+        # Clear existing cached teams
+        db_execute('DELETE FROM cached_teams')
+
+        # Insert all teams
+        teams.each do |team|
+          # Store members as JSON array
+          members_json = team['members'].is_a?(Array) ? JSON.generate(team['members']) : nil
+
+          db_execute(
+            'INSERT INTO cached_teams (id, name, description, members, cached_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
+            team['id'],
+            team['name'],
+            team['description'],
+            members_json,
+            cached_at,
+            expires_at
+          )
+        end
+
+        record_stat('teams_cached', 'bulk_insert', 'teams', { count: teams.size, ttl: ttl })
+        QueryLogger.log_cache_operation('insert', 'teams', count: teams.size, ttl: ttl)
+
+        teams.size
+      end
+
+      # Get cached teams list
+      #
+      # @return [Array<Hash>, nil] Array of teams or nil if cache invalid
+      def get_cached_teams
+        # Check if cache is valid
+        return nil unless teams_cache_valid?
+
+        results = db_execute(
+          'SELECT * FROM cached_teams WHERE expires_at > ?',
+          Time.now.utc.iso8601
+        )
+
+        return nil if results.empty?
+
+        # Reconstruct team hashes from fixed columns
+        teams = results.map do |row|
+          team = {
+            'id' => row['id'],
+            'name' => row['name']
+          }
+
+          team['description'] = row['description'] if row['description']
+          team['members'] = JSON.parse(row['members']) if row['members']
+
+          team
+        end
+
+        QueryLogger.log_cache_operation('hit', 'teams', count: teams.size)
+
+        teams
+      end
+
+      # Get a specific team from cache by ID
+      #
+      # @param team_id [String] Team ID to retrieve
+      # @return [Hash, nil] Team object or nil if not found/expired
+      def get_cached_team(team_id)
+        return nil unless teams_cache_valid?
+
+        result = db_execute(
+          'SELECT * FROM cached_teams WHERE id = ? AND expires_at > ?',
+          team_id, Time.now.utc.iso8601
+        ).first
+
+        return nil unless result
+
+        team = {
+          'id' => result['id'],
+          'name' => result['name']
+        }
+
+        team['description'] = result['description'] if result['description']
+        team['members'] = JSON.parse(result['members']) if result['members']
+
+        QueryLogger.log_cache_operation('hit', "team:#{team_id}")
+
+        team
+      end
+
+      # Check if teams cache is valid (not expired)
+      #
+      # @return [Boolean] true if cache is valid
+      def teams_cache_valid?
+        result = db_execute(
+          'SELECT COUNT(*) as count FROM cached_teams WHERE expires_at > ?',
+          Time.now.utc.iso8601
+        ).first
+
+        valid = result && result['count'].to_i.positive?
+
+        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'teams')
+
+        valid
+      end
+
+      # Invalidate teams cache
+      def invalidate_teams_cache
+        db_execute('UPDATE cached_teams SET expires_at = 0')
+        record_stat('invalidation', 'teams', 'teams')
+        QueryLogger.log_cache_operation('invalidate', 'teams')
+      end
+
       # Refresh (invalidate) cache for specific resources
       #
       # Invalidates cache without refetching - data will be refreshed on next access.
       # Useful for forcing fresh data when you know it has changed.
       #
-      # @param resource [String] Resource type: 'solutions', 'tables', or 'records'
+      # @param resource [String] Resource type: 'solutions', 'tables', 'records', 'members', or 'teams'
       # @param table_id [String, nil] Table ID (required for 'records' resource)
       # @param solution_id [String, nil] Solution ID (optional for 'tables' resource)
       # @return [Hash] Refresh result with invalidated resource info
@@ -1078,8 +1364,22 @@ module SmartSuite
             resource: 'records',
             table_id: table_id
           )
+        when 'members'
+          invalidate_members_cache
+          operation_response(
+            'refresh',
+            'Members cache invalidated. Will refresh on next access.',
+            resource: 'members'
+          )
+        when 'teams'
+          invalidate_teams_cache
+          operation_response(
+            'refresh',
+            'Teams cache invalidated. Will refresh on next access.',
+            resource: 'teams'
+          )
         else
-          raise ArgumentError, "Unknown resource type: #{resource}. Use 'solutions', 'tables', or 'records'"
+          raise ArgumentError, "Unknown resource type: #{resource}. Use 'solutions', 'tables', 'records', 'members', or 'teams'"
         end
       end
 
@@ -1112,7 +1412,7 @@ module SmartSuite
         end
       end
 
-      # Get cache status for solutions, tables, and records
+      # Get cache status for solutions, tables, records, and members
       #
       # Shows cached_at, expires_at, time_remaining, record_count for each cached resource.
       # Helps users understand cache state and plan cache refreshes.
@@ -1125,6 +1425,8 @@ module SmartSuite
           'timestamp' => now.iso8601,
           'solutions' => get_solutions_cache_status(now),
           'tables' => get_tables_cache_status(now),
+          'members' => get_members_cache_status(now),
+          'teams' => get_teams_cache_status(now),
           'records' => get_records_cache_status(now, table_id: table_id)
         }
       end
@@ -1138,12 +1440,14 @@ module SmartSuite
       def register_custom_functions
         # Register fuzzy_match function
         # Returns 1 if text fuzzy matches query, 0 otherwise
-        @db.create_function('fuzzy_match', 2) do |_func, text, query|
-          # Handle NULL values
-          next 0 if text.nil? || query.nil?
-
-          # Use FuzzyMatcher module for matching logic
-          SmartSuite::FuzzyMatcher.match?(text, query) ? 1 : 0
+        @db.create_function('fuzzy_match', 2) do |func, text, query|
+          # Handle NULL values - must use func.result= to return values
+          if text.nil? || query.nil?
+            func.result = 0
+          else
+            # Use FuzzyMatcher module for matching logic
+            func.result = SmartSuite::FuzzyMatcher.match?(text, query) ? 1 : 0
+          end
         end
       end
 
@@ -1234,6 +1538,48 @@ module SmartSuite
         nil
       end
 
+      # Get members cache status
+      def get_members_cache_status(now)
+        result = db_execute('SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_members').first
+        return nil if result['count'].zero?
+
+        # Handle invalid/missing timestamp gracefully
+        return nil if result['first_expires'].nil? || result['first_expires'] == '0' || result['first_expires'].empty?
+
+        first_expires = Time.parse(result['first_expires'])
+        {
+          'count' => result['count'],
+          'expires_at' => first_expires.iso8601,
+          'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
+          'is_valid' => first_expires > now
+        }
+      rescue ArgumentError => e
+        # If time parsing fails, return nil (invalid cache state)
+        warn "Warning: Invalid timestamp in cached_members: #{result['first_expires']} - #{e.message}"
+        nil
+      end
+
+      # Get teams cache status
+      def get_teams_cache_status(now)
+        result = db_execute('SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_teams').first
+        return nil if result['count'].zero?
+
+        # Handle invalid/missing timestamp gracefully
+        return nil if result['first_expires'].nil? || result['first_expires'] == '0' || result['first_expires'].empty?
+
+        first_expires = Time.parse(result['first_expires'])
+        {
+          'count' => result['count'],
+          'expires_at' => first_expires.iso8601,
+          'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
+          'is_valid' => first_expires > now
+        }
+      rescue ArgumentError => e
+        # If time parsing fails, return nil (invalid cache state)
+        warn "Warning: Invalid timestamp in cached_teams: #{result['first_expires']} - #{e.message}"
+        nil
+      end
+
       # Get records cache status (all tables or specific table)
       def get_records_cache_status(now, table_id: nil)
         # Get all cached table schemas
@@ -1256,7 +1602,13 @@ module SmartSuite
 
           next nil if result['count'].zero?
 
-          first_expires = Time.parse(result['first_expires'])
+          # Handle invalid/missing/expired timestamp gracefully
+          expires_str = result['first_expires']
+          # rubocop:disable Style/NumericPredicate -- expires_str can be String or Integer
+          next nil if expires_str.nil? || expires_str == '0' || expires_str == 0 || expires_str.to_s.empty?
+          # rubocop:enable Style/NumericPredicate
+
+          first_expires = Time.parse(expires_str.to_s)
           {
             'table_id' => schema['table_id'],
             'table_name' => schema['table_name'],

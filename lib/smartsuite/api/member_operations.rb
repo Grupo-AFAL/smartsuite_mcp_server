@@ -8,16 +8,17 @@ module SmartSuite
     #
     # This module provides methods for:
     # - Listing workspace members with optional solution-based filtering
+    # - Searching members by name or email
     # - Listing and retrieving teams with caching
     #
-    # Implements server-side filtering to reduce token usage when querying
-    # solution-specific members.
+    # Implements cache-first strategy with SQLite-based caching (7-day TTL).
     # Uses Base module for common API patterns (validation, endpoint building, response tracking).
     module MemberOperations
       include Base
 
       # Lists workspace members with optional solution filtering.
       #
+      # Uses cache-first strategy: checks SQLite cache before making API calls.
       # When solution_id provided, fetches solution permissions, extracts member IDs
       # from direct members, owners, and team memberships, then filters the full
       # member list. This server-side filtering saves significant tokens.
@@ -28,125 +29,113 @@ module SmartSuite
       # @param limit [Integer] Maximum members to return (default: 100, ignored with solution_id)
       # @param offset [Integer] Pagination offset (default: 0, ignored with solution_id)
       # @param solution_id [String, nil] Optional solution ID to filter members
+      # @param include_inactive [Boolean] Include deactivated members (default: false)
       # @return [Hash] Members with count and optional filter indication
       # @example List all members
       #   list_members(limit: 100, offset: 0)
       #
       # @example List members by solution
       #   list_members(solution_id: 'sol_123')
-      def list_members(limit: Base::Pagination::DEFAULT_LIMIT, offset: Base::Pagination::DEFAULT_OFFSET, solution_id: nil)
+      #
+      # @example Include deactivated members
+      #   list_members(include_inactive: true)
+      def list_members(limit: Base::Pagination::DEFAULT_LIMIT, offset: Base::Pagination::DEFAULT_OFFSET,
+                       solution_id: nil, include_inactive: false)
         if solution_id
-          log_metric("→ Listing members for solution: #{solution_id}")
-
-          solution_member_ids = fetch_solution_member_ids(solution_id)
-
-          if solution_member_ids.empty?
-            log_metric('⚠️  Solution has no members')
-            return build_collection_response([], :members, total_count: 0, filtered_by_solution: solution_id)
-          end
-
-          # Get all members (with high limit to ensure we get all)
-          endpoint = build_endpoint('/members/list/',
-                                    limit: Base::Pagination::FETCH_ALL_LIMIT,
-                                    offset: 0)
-
-          response = api_request(:post, endpoint, nil)
-
-          if response.is_a?(Hash) && response['items'].is_a?(Array)
-            # Filter to only members in the solution
-            filtered_members = response['items'].select { |member| solution_member_ids.include?(member['id']) }
-            members = format_member_list(filtered_members)
-
-            result = build_collection_response(members, :members,
-                                               total_count: members.size,
-                                               filtered_by_solution: solution_id)
-            track_response_size(result, "Found #{members.size} members (filtered from #{response['items'].size} total)")
-          else
-            response
-          end
+          list_members_by_solution(solution_id, include_inactive: include_inactive)
         else
-          log_metric('→ Listing workspace members')
-
-          endpoint = build_endpoint('/members/list/', limit: limit, offset: offset)
-
-          response = api_request(:post, endpoint, nil)
-
-          # Extract only essential member information
-          if response.is_a?(Hash) && response['items'].is_a?(Array)
-            members = format_member_list(response['items'])
-            result = build_collection_response(members, :members, total_count: response['total_count'])
-            track_response_size(result, "Found #{members.size} members")
-          else
-            response
-          end
+          list_all_members(limit, offset, include_inactive: include_inactive)
         end
       end
 
       # Searches for members by name or email.
       #
-      # Fetches all members and filters by search query (case-insensitive).
+      # Uses cache-first strategy with fuzzy matching support.
       # Searches in: email, first_name, last_name, full_name.
       #
       # @param query [String] Search query for name or email
+      # @param include_inactive [Boolean] Include deactivated members (default: false)
       # @return [Hash] Matching members with count
       # @raise [ArgumentError] If query is missing
       # @example
       #   search_member('john@example.com')
       #   search_member('Smith')
-      def search_member(query)
+      #   search_member('John', include_inactive: true)
+      def search_member(query, include_inactive: false)
         validate_required_parameter!('query', query)
 
         log_metric("→ Searching members with query: #{query}")
 
-        # Get all members
-        endpoint = build_endpoint('/members/list/',
-                                  limit: Base::Pagination::FETCH_ALL_LIMIT,
-                                  offset: 0)
-        response = api_request(:post, endpoint, nil)
-
-        if response.is_a?(Hash) && response['items'].is_a?(Array)
-          # Filter members by query (case-insensitive)
-          query_lower = query.downcase
-
-          matching_members = response['items'].select do |member|
-            match_member?(member, query_lower)
+        # Try cache first with query filtering
+        unless should_bypass_cache?
+          cached_members = @cache.get_cached_members(query: query, include_inactive: include_inactive)
+          if cached_members
+            log_cache_hit('members', cached_members.size, "query:#{query}")
+            result = build_collection_response(cached_members, :members, query: query)
+            return track_response_size(result, "Found #{cached_members.size} matching members (cached)")
+          else
+            log_cache_miss('members', "query:#{query}")
           end
-
-          # Format results with essential fields only
-          members = format_member_list(matching_members)
-
-          result = build_collection_response(members, :members, query: query)
-          track_response_size(result, "Found #{members.size} matching members")
-        else
-          response
         end
+
+        # Fetch all members from API
+        all_members = fetch_all_members_from_api
+
+        return all_members unless all_members.is_a?(Array)
+
+        # Filter by status unless include_inactive (status 1 or 'active' = active, nil = treat as active)
+        filtered_members = if include_inactive
+                             all_members
+                           else
+                             all_members.select { |m| member_active?(m) }
+                           end
+
+        # Filter members by query (case-insensitive)
+        query_lower = query.downcase
+
+        matching_members = filtered_members.select do |member|
+          match_member_formatted?(member, query_lower)
+        end
+
+        result = build_collection_response(matching_members, :members, query: query)
+        track_response_size(result, "Found #{matching_members.size} matching members")
       end
 
       # Lists all teams in the workspace with caching.
       #
-      # Teams are cached in memory for efficient lookups. Uses high limit
-      # (1000) to fetch all teams in one request.
+      # Uses cache-first strategy: checks SQLite cache before making API calls.
+      # Teams are cached for 7 days by default.
       #
       # @return [Array<Hash>] Array of team objects
       # @example
       #   list_teams
       def list_teams
         log_metric('→ Listing teams')
+
+        # Try cache first if enabled
+        unless should_bypass_cache?
+          cached_teams = @cache.get_cached_teams
+          if cached_teams
+            log_cache_hit('teams', cached_teams.size)
+            return cached_teams
+          else
+            log_cache_miss('teams')
+          end
+        end
+
+        # Fetch from API
         endpoint = build_endpoint('/teams/list/',
                                   limit: Base::Pagination::FETCH_ALL_LIMIT,
                                   offset: 0)
         response = api_request(:post, endpoint, nil)
 
-        # Cache teams for efficient lookup
-        @teams_cache ||= {}
-
         # Handle both array response and hash with 'items' key
         teams = response.is_a?(Hash) && response['items'] ? response['items'] : response
 
-        if teams.is_a?(Array)
-          teams.each do |team|
-            @teams_cache[team['id']] = team
-          end
+        # Cache teams if cache enabled
+        if teams.is_a?(Array) && cache_enabled?
+          @cache.cache_teams(teams)
+          log_metric("✓ Cached #{teams.size} teams")
         end
 
         teams
@@ -154,7 +143,7 @@ module SmartSuite
 
       # Retrieves a specific team by ID, using cache if available.
       #
-      # Checks cached teams first. If not found, fetches all teams and
+      # Checks SQLite cache first. If not found, fetches all teams and
       # populates the cache.
       #
       # @param team_id [String] Team identifier
@@ -164,19 +153,134 @@ module SmartSuite
       #   get_team('team_abc')
       def get_team(team_id)
         validate_required_parameter!('team_id', team_id)
-        # Use cached teams if available
-        if @teams_cache && @teams_cache[team_id]
-          log_metric("→ Using cached team: #{team_id}")
-          return @teams_cache[team_id]
+
+        # Try to get specific team from cache first
+        unless should_bypass_cache?
+          cached_team = @cache.get_cached_team(team_id)
+          if cached_team
+            log_cache_hit('team', team_id)
+            return cached_team
+          end
         end
 
-        # Otherwise, fetch all teams and cache them
+        # Fetch all teams (which will cache them) and find the specific one
         log_metric("→ Fetching team from teams list: #{team_id}")
-        list_teams # This populates @teams_cache
-        @teams_cache[team_id]
+        teams = list_teams
+        teams&.find { |t| t['id'] == team_id }
       end
 
       private
+
+      # Lists all workspace members with cache-first strategy.
+      #
+      # @param limit [Integer] Maximum members to return
+      # @param offset [Integer] Pagination offset
+      # @param include_inactive [Boolean] Include deactivated members
+      # @return [Hash] Members response with count
+      def list_all_members(limit, offset, include_inactive: false)
+        log_metric('→ Listing workspace members')
+
+        # Try cache first if enabled
+        unless should_bypass_cache?
+          cached_members = @cache.get_cached_members(include_inactive: include_inactive)
+          if cached_members
+            log_cache_hit('members', cached_members.size)
+            # Apply pagination to cached results
+            paginated = cached_members[offset, limit] || []
+            result = build_collection_response(paginated, :members, total_count: cached_members.size)
+            return track_response_size(result, "Found #{paginated.size} members (cached, #{cached_members.size} total)")
+          else
+            log_cache_miss('members')
+          end
+        end
+
+        # Fetch all members from API and cache them
+        all_members = fetch_all_members_from_api
+
+        return all_members unless all_members.is_a?(Array)
+
+        # Filter by status unless include_inactive (status 1 or 'active' = active, nil = treat as active)
+        filtered_members = if include_inactive
+                             all_members
+                           else
+                             all_members.select { |m| member_active?(m) }
+                           end
+
+        # Apply pagination
+        paginated = filtered_members[offset, limit] || []
+        result = build_collection_response(paginated, :members, total_count: filtered_members.size)
+        track_response_size(result, "Found #{paginated.size} members (#{filtered_members.size} total)")
+      end
+
+      # Lists members filtered by solution.
+      #
+      # @param solution_id [String] Solution ID to filter members
+      # @param include_inactive [Boolean] Include deactivated members
+      # @return [Hash] Filtered members response
+      def list_members_by_solution(solution_id, include_inactive: false)
+        log_metric("→ Listing members for solution: #{solution_id}")
+
+        solution_member_ids = fetch_solution_member_ids(solution_id)
+
+        if solution_member_ids.empty?
+          log_metric('⚠️  Solution has no members')
+          return build_collection_response([], :members, total_count: 0, filtered_by_solution: solution_id)
+        end
+
+        # Try cache first if enabled
+        all_members = nil
+        unless should_bypass_cache?
+          cached_members = @cache.get_cached_members(include_inactive: include_inactive)
+          if cached_members
+            log_cache_hit('members', cached_members.size)
+            all_members = cached_members
+          else
+            log_cache_miss('members')
+          end
+        end
+
+        # Fetch from API if not cached
+        if all_members.nil?
+          all_members = fetch_all_members_from_api
+          return all_members unless all_members.is_a?(Array)
+
+          # Filter by status unless include_inactive (status 1 or 'active' = active, nil = treat as active)
+          all_members = all_members.select { |m| member_active?(m) } unless include_inactive
+        end
+
+        # Filter to only members in the solution
+        filtered_members = all_members.select { |member| solution_member_ids.include?(member['id']) }
+
+        result = build_collection_response(filtered_members, :members,
+                                           total_count: filtered_members.size,
+                                           filtered_by_solution: solution_id)
+        track_response_size(result, "Found #{filtered_members.size} members (filtered from #{all_members.size} total)")
+      end
+
+      # Fetches all members from API and caches them.
+      #
+      # @return [Array<Hash>, Hash] Formatted members array or error response
+      def fetch_all_members_from_api
+        endpoint = build_endpoint('/members/list/',
+                                  limit: Base::Pagination::FETCH_ALL_LIMIT,
+                                  offset: 0)
+
+        response = api_request(:post, endpoint, nil)
+
+        if response.is_a?(Hash) && response['items'].is_a?(Array)
+          members = format_member_list(response['items'])
+
+          # Cache the formatted members if cache enabled
+          if cache_enabled?
+            @cache.cache_members(members)
+            log_metric("✓ Cached #{members.size} members")
+          end
+
+          members
+        else
+          response
+        end
+      end
 
       # Fetches solution details and extracts unique member IDs from permissions.
       # Includes direct members, owners, and members of assigned teams.
@@ -221,11 +325,21 @@ module SmartSuite
       # @return [Array<Hash>] Formatted member objects
       def format_member_list(items)
         items.map do |member|
+          # Handle email - can be string or array
+          email = member['email'].is_a?(Array) ? member['email'].first : member['email']
+
+          # Handle status - API returns hash {"value": "1", "updated_on": "..."} or plain value
+          status = member['status'].is_a?(Hash) ? member['status']['value'] : member['status']
+
+          # Handle deleted_date - API returns {"date": "2024-..." or null}
+          deleted_date = member['deleted_date'] && member['deleted_date']['date']
+
           result = {
             'id' => member['id'],
-            'email' => member['email'],
+            'email' => email,
             'role' => member['role'],
-            'status' => member['status']
+            'status' => status,
+            'deleted_date' => deleted_date
           }
 
           # Add name fields if available
@@ -243,10 +357,10 @@ module SmartSuite
         end
       end
 
-      # Checks if a member matches the search query.
+      # Checks if a raw member object matches the search query.
       # Matches against email, first name, last name, and full name.
       #
-      # @param member [Hash] Member object
+      # @param member [Hash] Raw member object from API
       # @param query_lower [String] Lowercase search query
       # @return [Boolean] True if member matches query
       def match_member?(member, query_lower)
@@ -270,6 +384,41 @@ module SmartSuite
         end
 
         email_match || name_match
+      end
+
+      # Checks if a formatted member object matches the search query.
+      # Used for filtering cached/formatted members.
+      #
+      # @param member [Hash] Formatted member object
+      # @param query_lower [String] Lowercase search query
+      # @return [Boolean] True if member matches query
+      def match_member_formatted?(member, query_lower)
+        # Search in email
+        email = member['email']
+        email_match = email && email.to_s.downcase.include?(query_lower)
+
+        # Search in name fields
+        first_name = member['first_name']
+        last_name = member['last_name']
+        full_name = member['full_name']
+
+        name_match = (first_name && first_name.to_s.downcase.include?(query_lower)) ||
+                     (last_name && last_name.to_s.downcase.include?(query_lower)) ||
+                     (full_name && full_name.to_s.downcase.include?(query_lower))
+
+        email_match || name_match
+      end
+
+      # Checks if a member is considered active (not soft-deleted).
+      # Members with deleted_date set are soft-deleted and hidden from UI.
+      # Status values: 1 = active, 4 = invited (pending), 2 = unknown
+      #
+      # @param member [Hash] Member object (formatted, with deleted_date field)
+      # @return [Boolean] True if member is not deleted
+      def member_active?(member)
+        # Check deleted_date - if set, member is soft-deleted
+        deleted_date = member['deleted_date']
+        deleted_date.nil? || (deleted_date.respond_to?(:empty?) && deleted_date.empty?)
       end
     end
   end

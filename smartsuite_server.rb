@@ -171,9 +171,17 @@ class SmartSuiteServer
              when 'get_solution_most_recent_record_update'
                @client.get_solution_most_recent_record_update(arguments['solution_id'])
              when 'list_members'
-               @client.list_members(limit: arguments['limit'], offset: arguments['offset'], solution_id: arguments['solution_id'])
+               @client.list_members(**{
+                 limit: arguments['limit'],
+                 offset: arguments['offset'],
+                 solution_id: arguments['solution_id'],
+                 include_inactive: arguments['include_inactive']
+               }.compact)
              when 'search_member'
-               @client.search_member(arguments['query'])
+               @client.search_member(
+                 arguments['query'],
+                 include_inactive: arguments['include_inactive'] || false
+               )
              when 'list_teams'
                @client.list_teams
              when 'get_team'

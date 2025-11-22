@@ -448,7 +448,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_members
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -502,7 +502,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_client_list_members_filtered_by_solution
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     # Mock solution response with permissions structure (includes team)
     mock_solution = {
@@ -1999,7 +1999,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_search_member_includes_optional_fields
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
