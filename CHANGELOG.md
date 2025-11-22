@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Exact matches rank highest, followed by substring matches, then fuzzy matches
   - Improves usability by showing most relevant results at the top
 
+- **Consistent fuzzy matching across cache/API paths** - `search_member` now uses FuzzyMatcher consistently
+  - Both cached and non-cached search paths use `FuzzyMatcher.match?` for name matching
+  - Previously, cache path used fuzzy matching while API path used substring matching
+  - Users will get identical search results regardless of cache hit/miss state
+
 - **Member caching with SQLite** - Implemented cache-first strategy for member operations, consistent with tables and solutions caching
   - Added `cached_members` SQLite table for persistent member caching (7-day TTL)
   - Added `cache_members`, `get_cached_members`, `members_cache_valid?`, and `invalidate_members_cache` methods to cache layer
