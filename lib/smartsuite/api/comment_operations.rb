@@ -26,9 +26,7 @@ module SmartSuite
         response = api_request(:get, endpoint)
 
         # SmartSuite API returns count: null, so calculate from results
-        if response.is_a?(Hash) && response['results'].is_a?(Array)
-          response['count'] = response['results'].length
-        end
+        response['count'] = response['results'].length if response.is_a?(Hash) && response['results'].is_a?(Array)
 
         response
       end
