@@ -323,9 +323,11 @@ class TestSecureFileAttacher < Minitest::Test
     $stderr = original_stderr
     ENV['SECURE_FILE_ATTACHER_DEBUG'] = original_env
 
-    # Should have debug output
-    assert_includes output, '[SecureFileAttacher]'
-    assert_includes output, 'Uploading file to S3'
+    # Should have S3 action logging (always enabled)
+    assert_includes output, '[SecureFileAttacher S3]'
+    assert_includes output, 'UPLOAD:'
+    assert_includes output, 'UPLOAD_COMPLETE:'
+    assert_includes output, 'CLEANUP:'
   end
 
   # ==============================================================================
