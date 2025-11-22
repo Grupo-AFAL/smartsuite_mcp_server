@@ -653,7 +653,7 @@ See `add_field` tool description for complete example.',
       MEMBER_TOOLS = [
         {
           'name' => 'list_members',
-          'description' => 'List all members (users) in your SmartSuite workspace. Use this to get user IDs for assigning people to records. Optionally filter by solution_id to only show members who have access to that solution (saves tokens).',
+          'description' => 'List all members (users) in your SmartSuite workspace. Use this to get user IDs for assigning people to records. By default, only active members are returned (deleted members are filtered out). Optionally filter by solution_id to only show members who have access to that solution (saves tokens).',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -668,6 +668,10 @@ See `add_field` tool description for complete example.',
               'solution_id' => {
                 'type' => 'string',
                 'description' => 'Optional: Filter members by solution ID. Returns only members who have access to this solution. This saves tokens by filtering server-side.'
+              },
+              'include_inactive' => {
+                'type' => 'boolean',
+                'description' => 'Optional: Include deleted members in results. Default: false (only active members are returned).'
               }
             },
             'required' => []
@@ -698,13 +702,17 @@ See `add_field` tool description for complete example.',
         },
         {
           'name' => 'search_member',
-          'description' => 'Search for members by name or email. Performs case-insensitive search across email, first name, last name, and full name fields. Returns only matching members to minimize token usage.',
+          'description' => 'Search for members by name or email. Performs case-insensitive search across email, first name, last name, and full name fields. By default, only active members are returned (deleted members are filtered out). Returns only matching members to minimize token usage.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
               'query' => {
                 'type' => 'string',
                 'description' => 'Search query for name or email (case-insensitive)'
+              },
+              'include_inactive' => {
+                'type' => 'boolean',
+                'description' => 'Optional: Include deleted members in search results. Default: false (only active members are returned).'
               }
             },
             'required' => ['query']
@@ -761,8 +769,8 @@ See `add_field` tool description for complete example.',
             'properties' => {
               'resource' => {
                 'type' => 'string',
-                'description' => 'Resource type to refresh with cascading invalidation: (1) "solutions" = invalidates ALL solutions + ALL tables + ALL records (use only when refreshing entire workspace), (2) "tables" with solution_id = invalidates tables + records for ONE specific solution (use this to refresh a single solution), (3) "tables" without solution_id = invalidates ALL tables + ALL records, (4) "records" with table_id = invalidates records for ONE specific table. Examples: To refresh "ProductEK" solution use resource="tables" with solution_id="sol_123", NOT resource="solutions".',
-                'enum' => %w[solutions tables records]
+                'description' => 'Resource type to refresh with cascading invalidation: (1) "solutions" = invalidates ALL solutions + ALL tables + ALL records (use only when refreshing entire workspace), (2) "tables" with solution_id = invalidates tables + records for ONE specific solution (use this to refresh a single solution), (3) "tables" without solution_id = invalidates ALL tables + ALL records, (4) "records" with table_id = invalidates records for ONE specific table, (5) "members" = invalidates members cache, (6) "teams" = invalidates teams cache. Examples: To refresh "ProductEK" solution use resource="tables" with solution_id="sol_123", NOT resource="solutions".',
+                'enum' => %w[solutions tables records members teams]
               },
               'table_id' => {
                 'type' => 'string',

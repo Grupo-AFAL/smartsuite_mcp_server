@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Teams caching with SQLite** - Implemented cache-first strategy for team operations, consistent with members, tables and solutions caching
+  - Added `cached_teams` SQLite table for persistent team caching (7-day TTL)
+  - Added `cache_teams`, `get_cached_teams`, `get_cached_team`, `teams_cache_valid?`, and `invalidate_teams_cache` methods to cache layer
+  - Updated `list_teams` and `get_team` to use cache-first strategy with automatic fallback to API
+  - Added `teams` resource to `refresh_cache` tool for manual cache invalidation
+  - Added teams section to `get_cache_status` output for visibility into cache state
+
+- **Deleted member filtering** - By default, soft-deleted members (those with `deleted_date` set) are filtered out from list_members and search_member results
+  - Added `include_inactive` parameter to `list_members` tool to optionally include deleted members
+  - Added `include_inactive` parameter to `search_member` tool to optionally include deleted members
+  - Added `deleted_date` column to `cached_members` table with migration for existing databases
+  - Cache layer filters by `deleted_date` in SQL for efficiency
+  - Status field clarified: 1=active, 4=invited (pending), 2=unknown
+  - Members with `deleted_date` set are hidden from UI and filtered by default
+
+- **Member caching with SQLite** - Implemented cache-first strategy for member operations, consistent with tables and solutions caching
+  - Added `cached_members` SQLite table for persistent member caching (7-day TTL)
+  - Added `cache_members`, `get_cached_members`, `members_cache_valid?`, and `invalidate_members_cache` methods to cache layer
+  - Updated `list_members` and `search_member` to use cache-first strategy with automatic fallback to API
+  - Added `members` resource to `refresh_cache` tool for manual cache invalidation
+  - Added members section to `get_cache_status` output for visibility into cache state
+  - Caching is transparent: first API call populates cache, subsequent calls use cached data
+  - Supports fuzzy search filtering on cached data for `search_member`
+
 - **Documentation: Local Verification** - Updated Git Workflow in `GEMINI.md` to explicitly require local RuboCop, Changelog, and Markdown Lint checks before creating PRs.
 
 - **Refactor: Simplify MemberOperations** - Extracted private helper methods to reduce complexity and duplication
@@ -82,6 +106,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 ### Fixed
+
+- **SQLite custom function return values** - Fixed `fuzzy_match` function not returning values correctly
+  - SQLite3 gem requires using `func.result=` to return values from custom functions
+  - Block return values were being ignored, causing fuzzy search to always return 0 results
+  - This affected `search_member` and `list_solutions` (with name filter) when using cached data
 
 - **Merge conflict resolution** - Resolved merge conflicts between main and feature branches
 - **CRITICAL: firstcreated and lastupdated fields not split into separate columns** - Fixed cache schema to properly split timestamp fields into `_on` and `_by` columns

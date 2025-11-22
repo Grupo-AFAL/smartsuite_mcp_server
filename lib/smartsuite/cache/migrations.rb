@@ -279,6 +279,20 @@ module SmartSuite
         log_metric('→ Migrated cached_tables schema: removed 6 unused fields, added 10 API fields')
       end
 
+      # Migrate cached_members schema to add deleted_date column
+      #
+      # @return [void]
+      def migrate_cached_members_schema
+        cols = @db.execute('PRAGMA table_info(cached_members)')
+        deleted_date_col = cols.find { |c| c['name'] == 'deleted_date' }
+
+        # Only add column if it doesn't exist
+        return if deleted_date_col
+
+        @db.execute('ALTER TABLE cached_members ADD COLUMN deleted_date TEXT')
+        log_metric('→ Migrated cached_members schema: added deleted_date column')
+      end
+
       private
 
       # Log migration metrics
