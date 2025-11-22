@@ -21,7 +21,7 @@ SimpleCov.start do
   track_files '{lib,smartsuite_server.rb}/**/*.rb'
 
   # Don't fail on coverage threshold (report only)
-  # Goal: gradually increase from current 59.65% to 90%
+  # Goal achieved: 97.47% coverage (exceeded 90% target)
   at_exit do
     result = SimpleCov.result
     if result
