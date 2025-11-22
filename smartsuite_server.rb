@@ -4,6 +4,7 @@
 require 'json'
 require_relative 'lib/smartsuite_client'
 require_relative 'lib/api_stats_tracker'
+require_relative 'lib/smartsuite/paths'
 require_relative 'lib/smartsuite/mcp/tool_registry'
 require_relative 'lib/smartsuite/mcp/prompt_registry'
 require_relative 'lib/smartsuite/mcp/resource_registry'
@@ -21,7 +22,8 @@ class SmartSuiteServer
     @client = SmartSuiteClient.new(@api_key, @account_id)
 
     # Open metrics log file
-    @metrics_log = File.open(File.join(Dir.home, '.smartsuite_mcp_metrics.log'), 'a')
+    # Uses SmartSuite::Paths for consistent path handling (test mode vs production)
+    @metrics_log = File.open(SmartSuite::Paths.metrics_log_path, 'a')
     @metrics_log.sync = true
   end
 

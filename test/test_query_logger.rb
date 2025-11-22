@@ -22,6 +22,26 @@ class TestQueryLogger < Minitest::Test
     assert_includes path, 'smartsuite_mcp_queries_test.log'
   end
 
+  def test_log_file_path_returns_integration_path_when_integration_test
+    # Stub integration_test_environment? to return true
+    QueryLogger.stub(:integration_test_environment?, true) do
+      path = QueryLogger.log_file_path
+      assert_includes path, 'smartsuite_mcp_queries_integration.log'
+    end
+  end
+
+  def test_log_file_path_returns_production_path_when_not_test
+    # Stub both methods to return false to simulate production
+    QueryLogger.stub(:integration_test_environment?, false) do
+      QueryLogger.stub(:test_environment?, false) do
+        path = QueryLogger.log_file_path
+        assert_includes path, 'smartsuite_mcp_queries.log'
+        refute_includes path, '_test'
+        refute_includes path, '_integration'
+      end
+    end
+  end
+
   # ========== reset_logger! tests ==========
 
   def test_reset_logger_closes_and_clears_logger

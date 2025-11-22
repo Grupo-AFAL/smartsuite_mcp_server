@@ -550,4 +550,280 @@ class TestMemberOperations < Minitest::Test
     assert_equal 1, result['count']
     assert_equal 'mem_api', result['members'][0]['id']
   end
+
+  # ========== match_member? tests (raw API format) ==========
+
+  def test_match_member_matches_email
+    client = create_mock_client
+    member = {
+      'email' => 'john@example.com',
+      'full_name' => { 'first_name' => 'John', 'last_name' => 'Doe', 'sys_root' => 'John Doe' }
+    }
+
+    assert client.send(:match_member?, member, 'john@example')
+    assert client.send(:match_member?, member, 'example.com')
+  end
+
+  def test_match_member_matches_email_array
+    client = create_mock_client
+    member = {
+      'email' => ['john@example.com', 'john.doe@work.com'],
+      'full_name' => nil
+    }
+
+    # Should match first email
+    assert client.send(:match_member?, member, 'john@example')
+  end
+
+  def test_match_member_matches_first_name
+    client = create_mock_client
+    member = {
+      'email' => 'test@test.com',
+      'full_name' => { 'first_name' => 'John', 'last_name' => 'Doe', 'sys_root' => 'John Doe' }
+    }
+
+    assert client.send(:match_member?, member, 'john')
+  end
+
+  def test_match_member_matches_last_name
+    client = create_mock_client
+    member = {
+      'email' => 'test@test.com',
+      'full_name' => { 'first_name' => 'John', 'last_name' => 'Doe', 'sys_root' => 'John Doe' }
+    }
+
+    assert client.send(:match_member?, member, 'doe')
+  end
+
+  def test_match_member_matches_full_name
+    client = create_mock_client
+    member = {
+      'email' => 'test@test.com',
+      'full_name' => { 'first_name' => 'John', 'last_name' => 'Doe', 'sys_root' => 'John Doe' }
+    }
+
+    assert client.send(:match_member?, member, 'john doe')
+  end
+
+  def test_match_member_no_match
+    client = create_mock_client
+    member = {
+      'email' => 'test@test.com',
+      'full_name' => { 'first_name' => 'John', 'last_name' => 'Doe', 'sys_root' => 'John Doe' }
+    }
+
+    refute client.send(:match_member?, member, 'xyz123')
+  end
+
+  def test_match_member_nil_email
+    client = create_mock_client
+    member = {
+      'email' => nil,
+      'full_name' => { 'first_name' => 'John', 'last_name' => 'Doe', 'sys_root' => 'John Doe' }
+    }
+
+    # Should still match on name
+    assert client.send(:match_member?, member, 'john')
+  end
+
+  def test_match_member_nil_full_name
+    client = create_mock_client
+    member = {
+      'email' => 'test@test.com',
+      'full_name' => nil
+    }
+
+    # Should still match on email
+    assert client.send(:match_member?, member, 'test@test')
+    refute client.send(:match_member?, member, 'john')
+  end
+
+  # ========== enrich_team_with_members tests ==========
+
+  def test_enrich_team_with_members_handles_nil_members
+    client = create_cached_client
+    team = { 'id' => 'team_1', 'name' => 'Team', 'members' => nil }
+
+    result = client.send(:enrich_team_with_members, team)
+
+    assert_equal team, result, 'Should return original team when members is nil'
+  end
+
+  def test_enrich_team_with_members_enriches_found_members
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    # Pre-populate member cache
+    cached_members = [
+      formatted_member(id: 'mem_1', email: 'dev1@test.com', first_name: 'Dev', last_name: 'One')
+    ]
+    client.cache.cache_members(cached_members)
+
+    team = {
+      'id' => 'team_1',
+      'name' => 'Engineering',
+      'description' => 'Dev team',
+      'members' => ['mem_1', 'mem_2']
+    }
+
+    result = client.send(:enrich_team_with_members, team)
+
+    assert_equal 'team_1', result['id']
+    assert_equal 'Engineering', result['name']
+    assert_equal 2, result['member_count']
+    assert_equal 2, result['members'].size
+
+    # First member should be enriched
+    assert_equal 'mem_1', result['members'][0]['id']
+    assert_equal 'dev1@test.com', result['members'][0]['email']
+
+    # Second member not in cache - should just have id
+    assert_equal 'mem_2', result['members'][1]['id']
+    refute result['members'][1].key?('email')
+  end
+
+  # ========== list_members by solution edge cases ==========
+
+  def test_list_members_by_solution_with_team_members
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    solution_response = {
+      'id' => 'sol_123',
+      'permissions' => {
+        'members' => [{ 'entity' => 'mem_direct', 'access' => 'full' }],
+        'owners' => ['mem_owner'],
+        'teams' => [{ 'entity' => 'team_1', 'access' => 'full' }]
+      }
+    }
+
+    team_response = [
+      { 'id' => 'team_1', 'name' => 'Dev Team', 'members' => %w[mem_team_1 mem_team_2] }
+    ]
+
+    members_response = {
+      'items' => [
+        { 'id' => 'mem_direct', 'email' => 'direct@test.com',
+          'full_name' => { 'sys_root' => 'Direct User' } },
+        { 'id' => 'mem_owner', 'email' => 'owner@test.com',
+          'full_name' => { 'sys_root' => 'Owner User' } },
+        { 'id' => 'mem_team_1', 'email' => 'team1@test.com',
+          'full_name' => { 'sys_root' => 'Team User 1' } },
+        { 'id' => 'mem_team_2', 'email' => 'team2@test.com',
+          'full_name' => { 'sys_root' => 'Team User 2' } }
+      ]
+    }
+
+    call_count = 0
+    client.define_singleton_method(:api_request) do |_method, endpoint, _body = nil|
+      call_count += 1
+      if endpoint.include?('solutions')
+        solution_response
+      elsif endpoint.include?('teams')
+        team_response
+      else
+        members_response
+      end
+    end
+
+    result = client.list_members(solution_id: 'sol_123')
+
+    # Should include all members: direct, owner, and team members
+    assert_equal 4, result['count']
+    member_ids = result['members'].map { |m| m['id'] }
+    assert_includes member_ids, 'mem_direct'
+    assert_includes member_ids, 'mem_owner'
+    assert_includes member_ids, 'mem_team_1'
+    assert_includes member_ids, 'mem_team_2'
+  end
+
+  def test_list_members_by_solution_with_no_permissions
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    solution_response = {
+      'id' => 'sol_123',
+      'permissions' => nil
+    }
+
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      solution_response
+    end
+
+    result = client.list_members(solution_id: 'sol_123')
+
+    assert_equal 0, result['count']
+    assert_equal [], result['members']
+  end
+
+  # ========== list_teams cache tests ==========
+
+  def test_list_teams_uses_cache_when_available
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    # Pre-populate cache
+    cached_teams = [
+      { 'id' => 'team_cached', 'name' => 'Cached Team', 'members' => ['m1'] }
+    ]
+    client.cache.cache_teams(cached_teams)
+
+    api_called = false
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      api_called = true
+      raise 'Should not call API'
+    end
+
+    result = client.list_teams
+
+    refute api_called, 'Should use cache when teams are cached'
+    assert_equal 1, result.size
+    assert_equal 'team_cached', result[0]['id']
+  end
+
+  def test_get_team_uses_cache_when_available
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    # Pre-populate caches
+    cached_teams = [
+      { 'id' => 'team_cached', 'name' => 'Cached Team', 'description' => 'Test', 'members' => ['mem_1'] }
+    ]
+    cached_members = [
+      formatted_member(id: 'mem_1', email: 'test@test.com', first_name: 'Test', last_name: 'User')
+    ]
+    client.cache.cache_teams(cached_teams)
+    client.cache.cache_members(cached_members)
+
+    api_called = false
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      api_called = true
+      raise 'Should not call API'
+    end
+
+    result = client.get_team('team_cached')
+
+    refute api_called, 'Should use cache when team is cached'
+    assert_equal 'team_cached', result['id']
+    assert_equal 'Cached Team', result['name']
+    assert_equal 1, result['member_count']
+  end
+
+  # ========== search_member include_inactive tests ==========
+
+  def test_search_member_with_include_inactive_from_cache
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    # Pre-populate cache with active and deleted members
+    cached_members = [
+      formatted_member(id: 'mem_active', email: 'active@test.com', first_name: 'Active', last_name: 'User'),
+      formatted_member(id: 'mem_deleted', email: 'deleted@test.com', first_name: 'Deleted', last_name: 'User',
+                       deleted_date: '2024-01-01')
+    ]
+    client.cache.cache_members(cached_members)
+
+    # Without include_inactive - should only find active
+    result_active = client.search_member('User', include_inactive: false)
+    assert_equal 1, result_active['count']
+    assert_equal 'mem_active', result_active['members'][0]['id']
+
+    # With include_inactive - should find both
+    result_all = client.search_member('User', include_inactive: true)
+    assert_equal 2, result_all['count']
+  end
 end

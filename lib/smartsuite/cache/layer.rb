@@ -10,6 +10,7 @@ require_relative 'metadata'
 require_relative 'performance'
 require_relative '../response_formats'
 require_relative '../fuzzy_matcher'
+require_relative '../paths'
 require_relative '../../query_logger'
 
 module SmartSuite
@@ -690,7 +691,10 @@ module SmartSuite
         structure = get_cached_table(table_id)
         return false unless structure
 
-        sql_table_name = Metadata.table_name_for(table_id)
+        schema = get_cached_table_schema(table_id)
+        return false unless schema
+
+        sql_table_name = schema['sql_table_name']
 
         # Delete the record
         db_execute("DELETE FROM #{sql_table_name} WHERE id = ?", record_id)
@@ -1633,16 +1637,11 @@ module SmartSuite
       private
 
       # Returns the default database path.
-      # Uses a test-specific path when SMARTSUITE_TEST_MODE is set to prevent
-      # test pollution of production data.
+      # Delegates to SmartSuite::Paths for consistent path handling across all components.
       #
       # @return [String] Database file path
       def default_db_path
-        if ENV['SMARTSUITE_TEST_MODE'] == 'true'
-          File.join(Dir.tmpdir, "smartsuite_test_cache_#{Process.pid}.db")
-        else
-          File.expand_path('~/.smartsuite_mcp_cache.db')
-        end
+        SmartSuite::Paths.database_path
       end
     end
   end

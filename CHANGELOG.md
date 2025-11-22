@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **SmartSuite::Paths module** - Centralized path management for database and log files
+  - Single source of truth for test mode detection (`SMARTSUITE_TEST_MODE` environment variable)
+  - Provides `database_path` and `metrics_log_path` methods with automatic test isolation
+  - Ensures tests never write to production database or log files
+
+- **aws-sdk-s3 test dependency** - Added optional dependency for testing SecureFileAttacher
+  - Uses AWS SDK's built-in stubbing (`stub_responses: true`) for mocking without real credentials
+  - Enables comprehensive testing of S3-based file attachment functionality
+
 - **Teams caching with SQLite** - Implemented cache-first strategy for team operations, consistent with members, tables and solutions caching
   - Added `cached_teams` SQLite table for persistent team caching (7-day TTL)
   - Added `cache_teams`, `get_cached_teams`, `get_cached_team`, `teams_cache_valid?`, and `invalidate_teams_cache` methods to cache layer
@@ -118,6 +127,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 ### Fixed
+
+- **Test isolation from production database** - Fixed tests writing to production database instead of test-specific paths
+  - Created `SmartSuite::Paths` module (`lib/smartsuite/paths.rb`) as single source of truth for file paths
+  - All components now use `SmartSuite::Paths.database_path` and `SmartSuite::Paths.metrics_log_path`
+  - In test mode (`SMARTSUITE_TEST_MODE=true`), uses temporary directory with process-specific filenames
+  - `ApiStatsTracker` now creates its own tables when used standalone (without `Cache::Layer`)
+  - This prevents test data from polluting production cache and statistics at `~/.smartsuite_mcp_cache.db`
 
 - **SQLite custom function return values** - Fixed `fuzzy_match` function not returning values correctly
   - SQLite3 gem requires using `func.result=` to return values from custom functions
