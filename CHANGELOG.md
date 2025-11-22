@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Transparent local file attachment support** - `attach_file` tool now automatically handles local file paths
+  - Detects whether inputs are URLs or local file paths
+  - URLs are passed directly to SmartSuite API (existing behavior)
+  - Local files are automatically uploaded to S3 via `SecureFileAttacher`, then attached via temporary URLs
+  - Supports mixing URLs and local paths in the same request
+  - Requires `SMARTSUITE_S3_BUCKET` environment variable for local file uploads
+  - AWS credentials can be provided via environment variables or IAM role
+  - Lazy-loads `aws-sdk-s3` dependency only when local files are used
+
 - **Test coverage for field_operations.rb** - 24 new tests covering all field CRUD operations
   - Tests for `add_field`, `bulk_add_fields`, `update_field`, `delete_field`
   - Parameter validation tests

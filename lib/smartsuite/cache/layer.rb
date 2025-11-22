@@ -934,7 +934,11 @@ module SmartSuite
             return false
           end
 
-          scope_expires = Time.parse(scope_result['expires_at']) rescue nil
+          scope_expires = begin
+            Time.parse(scope_result['expires_at'])
+          rescue StandardError
+            nil
+          end
           if scope_expires.nil? || scope_expires <= Time.now.utc
             QueryLogger.log_cache_operation('expired', 'table_list:all_tables (scope expired)')
             return false

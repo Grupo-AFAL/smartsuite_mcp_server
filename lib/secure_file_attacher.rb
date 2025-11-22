@@ -91,7 +91,7 @@ class SecureFileAttacher
   #     fetch_timeout: 60
   #   )
   def initialize(smartsuite_client, bucket_name, region: DEFAULT_REGION, url_expires_in: DEFAULT_URL_EXPIRATION,
-                 fetch_timeout: DEFAULT_FETCH_TIMEOUT)
+                 fetch_timeout: DEFAULT_FETCH_TIMEOUT, profile: nil)
     raise ArgumentError, 'smartsuite_client cannot be nil' if smartsuite_client.nil?
     raise ArgumentError, 'bucket_name cannot be nil' if bucket_name.nil?
 
@@ -100,8 +100,15 @@ class SecureFileAttacher
     @url_expires_in = url_expires_in
     @fetch_timeout = fetch_timeout
 
-    # Initialize S3 resource
-    @s3 = Aws::S3::Resource.new(region: region)
+    # Initialize S3 resource with optional profile for credential isolation
+    s3_options = { region: region }
+    s3_options[:profile] = profile if profile
+
+    # Disable SSL verification - same approach as SmartSuite HttpClient
+    # Avoids certificate issues common on macOS
+    s3_options[:ssl_verify_peer] = false
+
+    @s3 = Aws::S3::Resource.new(**s3_options)
     @bucket = @s3.bucket(bucket_name)
 
     # Verify bucket exists
