@@ -86,7 +86,12 @@ When implementing any change, adhere to the following workflow:
     *   Create a Pull Request using the GitHub CLI (`gh pr create`) if available, or provide the link for the user to create it.
     *   Provide a clear title and description of the changes.
 
-6.  **Stop and Await Review:**
+6.  **Ensure Checks Pass:**
+    *   Monitor the Pull Request checks (CI/CD, linting, tests).
+    *   If any checks fail, analyze the errors, implement fixes, commit, and push updates to the branch.
+    *   Repeat until all checks pass.
+
+7.  **Stop and Await Review:**
     *   **DO NOT MERGE.**
     *   Inform the user that the PR has been created (or the branch pushed) and is ready for review.
     *   The user will review the PR and merge it manually.
