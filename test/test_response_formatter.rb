@@ -614,4 +614,44 @@ class TestResponseFormatter < Minitest::Test
     refute smartdoc_value?(123), 'Should not detect number as SmartDoc'
     refute smartdoc_value?(nil), 'Should not detect nil as SmartDoc'
   end
+
+  # Test large content warning for textarea fields
+  def test_filter_field_structure_large_content_warning
+    field = {
+      'slug' => 'notes',
+      'label' => 'Notes',
+      'field_type' => 'textarea'
+    }
+
+    result = filter_field_structure(field)
+
+    assert result.key?('large_content_warning'), 'Should have large content warning for textarea'
+    assert_includes result['large_content_warning'], 'extensive data'
+  end
+
+  # Test large content warning for richtextarea fields
+  def test_filter_field_structure_large_content_warning_richtext
+    field = {
+      'slug' => 'description',
+      'label' => 'Description',
+      'field_type' => 'richtextarea'
+    }
+
+    result = filter_field_structure(field)
+
+    assert result.key?('large_content_warning'), 'Should have large content warning for richtextarea'
+  end
+
+  # Test no large content warning for regular text field
+  def test_filter_field_structure_no_large_content_warning
+    field = {
+      'slug' => 'title',
+      'label' => 'Title',
+      'field_type' => 'textfield'
+    }
+
+    result = filter_field_structure(field)
+
+    refute result.key?('large_content_warning'), 'Should not have large content warning for textfield'
+  end
 end

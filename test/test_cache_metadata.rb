@@ -392,4 +392,313 @@ class TestCacheMetadata < Minitest::Test
     result = @cache.send(:map_field_type_to_sql, nil)
     assert_equal 'TEXT', result, 'Nil field type should default to TEXT'
   end
+
+  def test_map_field_type_to_sql_with_empty_string
+    result = @cache.send(:map_field_type_to_sql, '')
+    assert_equal 'TEXT', result, 'Empty field type should default to TEXT'
+  end
+
+  def test_map_field_type_to_sql_system_fields
+    system_types = %w[record_id application_slug application_id followed_by]
+
+    system_types.each do |field_type|
+      result = @cache.send(:map_field_type_to_sql, field_type)
+      assert_equal 'TEXT', result, "#{field_type} should map to TEXT"
+    end
+  end
+
+  def test_map_field_type_to_sql_numberslider_and_percentcomplete
+    slider_types = %w[numbersliderfield percentcompletefield]
+
+    slider_types.each do |field_type|
+      result = @cache.send(:map_field_type_to_sql, field_type)
+      assert_equal 'REAL', result, "#{field_type} should map to REAL"
+    end
+  end
+
+  # Test get_field_columns for multi-column field types
+  def test_get_field_columns_status_field
+    field = { 'slug' => 's123', 'label' => 'Status', 'field_type' => 'statusfield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 2, result.size, 'Status field should create 2 columns'
+    assert result.key?('status'), 'Should have status column'
+    assert result.key?('status_updated_on'), 'Should have status_updated_on column'
+    assert_equal 'TEXT', result['status']
+    assert_equal 'TEXT', result['status_updated_on']
+  end
+
+  def test_get_field_columns_date_range_field
+    field = { 'slug' => 's123', 'label' => 'Date Range', 'field_type' => 'daterangefield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 2, result.size, 'Date range should create 2 columns'
+    assert result.key?('date_range_from'), 'Should have from column'
+    assert result.key?('date_range_to'), 'Should have to column'
+  end
+
+  def test_get_field_columns_due_date_field
+    field = { 'slug' => 's123', 'label' => 'Due Date', 'field_type' => 'duedatefield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 4, result.size, 'Due date should create 4 columns'
+    assert result.key?('due_date_from'), 'Should have from column'
+    assert result.key?('due_date_to'), 'Should have to column'
+    assert result.key?('due_date_is_overdue'), 'Should have is_overdue column'
+    assert result.key?('due_date_is_completed'), 'Should have is_completed column'
+  end
+
+  def test_get_field_columns_address_field
+    field = { 'slug' => 's123', 'label' => 'Address', 'field_type' => 'addressfield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 2, result.size, 'Address should create 2 columns'
+    assert result.key?('address_text'), 'Should have text column'
+    assert result.key?('address_json'), 'Should have json column'
+  end
+
+  def test_get_field_columns_full_name_field
+    field = { 'slug' => 's123', 'label' => 'Name', 'field_type' => 'fullnamefield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 2, result.size, 'Full name should create 2 columns'
+    assert result.key?('name'), 'Should have name column'
+    assert result.key?('name_json'), 'Should have json column'
+  end
+
+  def test_get_field_columns_smartdoc_field
+    field = { 'slug' => 's123', 'label' => 'Description', 'field_type' => 'smartdocfield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 2, result.size, 'SmartDoc should create 2 columns'
+    assert result.key?('description_preview'), 'Should have preview column'
+    assert result.key?('description_json'), 'Should have json column'
+  end
+
+  def test_get_field_columns_checklist_field
+    field = { 'slug' => 's123', 'label' => 'Tasks', 'field_type' => 'checklistfield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 3, result.size, 'Checklist should create 3 columns'
+    assert result.key?('tasks_json'), 'Should have json column'
+    assert result.key?('tasks_total'), 'Should have total column'
+    assert result.key?('tasks_completed'), 'Should have completed column'
+  end
+
+  def test_get_field_columns_vote_field
+    field = { 'slug' => 's123', 'label' => 'Votes', 'field_type' => 'votefield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 2, result.size, 'Vote should create 2 columns'
+    assert result.key?('votes_count'), 'Should have count column'
+    assert result.key?('votes_json'), 'Should have json column'
+  end
+
+  def test_get_field_columns_time_tracking_field
+    field = { 'slug' => 's123', 'label' => 'Time', 'field_type' => 'timetrackingfield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 2, result.size, 'Time tracking should create 2 columns'
+    assert result.key?('time_json'), 'Should have json column'
+    assert result.key?('time_total'), 'Should have total column'
+    assert_equal 'REAL', result['time_total'], 'Total should be REAL'
+  end
+
+  def test_get_field_columns_first_created_field
+    field = { 'slug' => 's123', 'label' => 'Created', 'field_type' => 'firstcreatedfield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 2, result.size, 'First created should create 2 columns'
+    assert result.key?('created_on'), 'Should have on column'
+    assert result.key?('created_by'), 'Should have by column'
+  end
+
+  def test_get_field_columns_last_updated_field
+    field = { 'slug' => 's123', 'label' => 'Updated', 'field_type' => 'lastupdatedfield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 2, result.size, 'Last updated should create 2 columns'
+    assert result.key?('updated_on'), 'Should have on column'
+    assert result.key?('updated_by'), 'Should have by column'
+  end
+
+  def test_get_field_columns_deleted_date_field
+    field = { 'slug' => 's123', 'label' => 'Deleted', 'field_type' => 'deleted_date' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 2, result.size, 'Deleted date should create 2 columns'
+    assert result.key?('deleted_on'), 'Should have on column'
+    assert result.key?('deleted_by'), 'Should have by column'
+  end
+
+  def test_get_field_columns_uses_slug_fallback_when_no_label
+    field = { 'slug' => 's7a8b9c', 'label' => nil, 'field_type' => 'textfield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert result.key?('s7a8b9c'), 'Should use slug when label is nil'
+  end
+
+  def test_get_field_columns_uses_slug_fallback_when_empty_label
+    field = { 'slug' => 's7a8b9c', 'label' => '', 'field_type' => 'textfield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert result.key?('s7a8b9c'), 'Should use slug when label is empty'
+  end
+
+  # Test create_cache_table creates actual table
+  def test_create_cache_table_creates_table
+    table_id = 'tbl_test_create'
+    structure = {
+      'name' => 'TestTable',
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 's123', 'label' => 'Status', 'field_type' => 'statusfield' }
+      ]
+    }
+
+    sql_table_name = @cache.send(:create_cache_table, table_id, structure)
+
+    # Verify table was created
+    assert sql_table_name.include?('cache_records_'), 'Should return cache table name'
+    assert sql_table_name.include?('TestTable'), 'Should include table name'
+
+    # Verify schema was stored
+    schema = @cache.send(:get_cached_table_schema, table_id)
+    refute_nil schema, 'Schema should be stored'
+    assert_equal sql_table_name, schema['sql_table_name']
+    assert_equal 'TestTable', schema['table_name']
+  end
+
+  # Test get_or_create_cache_table returns existing table
+  def test_get_or_create_cache_table_existing
+    table_id = 'tbl_test_existing'
+    structure = {
+      'name' => 'Existing Table',
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' }
+      ]
+    }
+
+    # Create table first
+    first_name = @cache.send(:get_or_create_cache_table, table_id, structure)
+
+    # Call again - should return same name
+    second_name = @cache.send(:get_or_create_cache_table, table_id, structure)
+
+    assert_equal first_name, second_name, 'Should return same table name'
+  end
+
+  # Test handle_schema_evolution adds new fields
+  def test_handle_schema_evolution_adds_fields
+    table_id = 'tbl_test_evolution'
+    initial_structure = {
+      'name' => 'Evolving Table',
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' }
+      ]
+    }
+
+    # Create initial table
+    @cache.send(:create_cache_table, table_id, initial_structure)
+
+    # Add new field
+    new_structure = {
+      'name' => 'Evolving Table',
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'status', 'label' => 'Status', 'field_type' => 'singleselectfield' }
+      ]
+    }
+
+    old_schema = @cache.send(:get_cached_table_schema, table_id)
+    @cache.send(:handle_schema_evolution, table_id, new_structure, old_schema)
+
+    # Verify new column was added
+    updated_schema = @cache.send(:get_cached_table_schema, table_id)
+    assert updated_schema['field_mapping'].key?('status'), 'Should have new status field'
+  end
+
+  # Test handle_schema_evolution with no new fields
+  def test_handle_schema_evolution_no_changes
+    table_id = 'tbl_test_no_change'
+    structure = {
+      'name' => 'Static Table',
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' }
+      ]
+    }
+
+    # Create initial table
+    @cache.send(:create_cache_table, table_id, structure)
+    old_schema = @cache.send(:get_cached_table_schema, table_id)
+    old_updated_at = old_schema['updated_at']
+
+    # Call with same structure - should not update
+    @cache.send(:handle_schema_evolution, table_id, structure, old_schema)
+
+    updated_schema = @cache.send(:get_cached_table_schema, table_id)
+    assert_equal old_updated_at, updated_schema['updated_at'], 'Should not update timestamp when no changes'
+  end
+
+  # Test create_indexes_for_table creates indexes
+  def test_create_indexes_for_table
+    table_id = 'tbl_test_indexes'
+    structure = {
+      'name' => 'Index Table',
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 's_status', 'label' => 'Status', 'field_type' => 'statusfield' },
+        { 'slug' => 's_due', 'label' => 'Due', 'field_type' => 'duedatefield' }
+      ]
+    }
+
+    sql_table_name = @cache.send(:create_cache_table, table_id, structure)
+
+    # Verify indexes exist by checking SQLite master table
+    indexes = @cache.db.execute("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name=?", [sql_table_name])
+    index_names = indexes.map { |i| i['name'] }
+
+    # Should have index for status field
+    assert index_names.any? { |name| name.include?('status') }, 'Should have index for status field'
+    # Should have index for expires_at
+    assert index_names.any? { |name| name.include?('expires') }, 'Should have index for expires_at'
+  end
+
+  # Test sanitize_column_name handles reserved words
+  def test_sanitize_column_name_reserved_words
+    reserved_words = %w[table column index select insert update delete where from]
+
+    reserved_words.each do |word|
+      result = @cache.send(:sanitize_column_name, word)
+      assert result.start_with?('field_'), "#{word} should be prefixed with field_"
+    end
+  end
+
+  def test_sanitize_column_name_removes_consecutive_underscores
+    result = @cache.send(:sanitize_column_name, 'field---name___test')
+    refute result.include?('__'), 'Should not have consecutive underscores'
+  end
+
+  def test_sanitize_column_name_removes_leading_trailing_underscores
+    result = @cache.send(:sanitize_column_name, '___field___')
+    refute result.start_with?('_'), 'Should not start with underscore'
+    refute result.end_with?('_'), 'Should not end with underscore'
+  end
+
+  # Test transliterate_accents with various European languages
+  def test_transliterate_accents_french
+    result = @cache.send(:transliterate_accents, 'café résumé')
+    assert_equal 'cafe resume', result
+  end
+
+  def test_transliterate_accents_german
+    # Note: Only ö→o and ü→u are transliterated, ß is not in the accent map
+    result = @cache.send(:transliterate_accents, 'größe über')
+    assert_equal 'große uber', result, 'Should transliterate ö and ü (ß is not in accent map)'
+  end
+
+  def test_transliterate_accents_portuguese
+    result = @cache.send(:transliterate_accents, 'não ação')
+    assert_equal 'nao acao', result
+  end
 end

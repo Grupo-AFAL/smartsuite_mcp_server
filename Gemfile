@@ -26,4 +26,6 @@ group :test do
   gem 'rake'
   gem 'simplecov', require: false
   gem 'webmock', require: false
+  # Optional: For testing SecureFileAttacher (uses stub_responses for mocking)
+  gem 'aws-sdk-s3', require: false
 end

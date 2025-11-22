@@ -832,6 +832,750 @@ class TestCacheLayer < Minitest::Test
     refute @cache.cache_valid?('tbl_refresh_all'), 'Records should be invalid'
   end
 
+  # ========== Member Caching Tests ==========
+
+  def test_cache_members
+    members = create_test_members
+    count = @cache.cache_members(members)
+    assert_equal 2, count
+  end
+
+  def test_get_cached_members
+    members = create_test_members
+    @cache.cache_members(members)
+
+    cached = @cache.get_cached_members
+    assert cached.is_a?(Array)
+    assert_equal 2, cached.size
+    assert_equal 'user_1', cached[0]['id']
+  end
+
+  def test_get_cached_members_with_query
+    members = create_test_members
+    @cache.cache_members(members)
+
+    # Search by name
+    cached = @cache.get_cached_members(query: 'John')
+    assert_equal 1, cached.size
+    assert_equal 'John Doe', cached[0]['full_name']
+  end
+
+  def test_get_cached_members_with_include_inactive
+    members = [
+      { 'id' => 'user_1', 'email' => 'active@test.com', 'full_name' => 'Active User', 'deleted_date' => nil },
+      { 'id' => 'user_2', 'email' => 'deleted@test.com', 'full_name' => 'Deleted User', 'deleted_date' => '2025-01-01' }
+    ]
+    @cache.cache_members(members)
+
+    # Without include_inactive - should only return active
+    active_only = @cache.get_cached_members(include_inactive: false)
+    assert_equal 1, active_only.size
+    assert_equal 'user_1', active_only[0]['id']
+
+    # With include_inactive - should return all
+    all_members = @cache.get_cached_members(include_inactive: true)
+    assert_equal 2, all_members.size
+  end
+
+  def test_get_cached_members_when_expired
+    members = create_test_members
+    @cache.cache_members(members, ttl: -1)
+
+    cached = @cache.get_cached_members
+    assert_nil cached
+  end
+
+  def test_members_cache_valid
+    members = create_test_members
+    @cache.cache_members(members)
+
+    assert @cache.send(:members_cache_valid?)
+  end
+
+  def test_invalidate_members_cache
+    members = create_test_members
+    @cache.cache_members(members)
+
+    @cache.send(:invalidate_members_cache)
+
+    refute @cache.send(:members_cache_valid?)
+  end
+
+  def test_refresh_cache_members
+    members = create_test_members
+    @cache.cache_members(members)
+
+    result = @cache.refresh_cache('members')
+
+    assert_equal 'refresh', result['operation']
+    assert_includes result['message'], 'Members'
+    refute @cache.send(:members_cache_valid?)
+  end
+
+  # ========== Team Caching Tests ==========
+
+  def test_cache_teams
+    teams = create_test_teams
+    count = @cache.cache_teams(teams)
+    assert_equal 2, count
+  end
+
+  def test_get_cached_teams
+    teams = create_test_teams
+    @cache.cache_teams(teams)
+
+    cached = @cache.get_cached_teams
+    assert cached.is_a?(Array)
+    assert_equal 2, cached.size
+    assert_equal 'team_1', cached[0]['id']
+    assert_equal 'Team One', cached[0]['name']
+  end
+
+  def test_get_cached_teams_when_expired
+    teams = create_test_teams
+    @cache.cache_teams(teams, ttl: -1)
+
+    cached = @cache.get_cached_teams
+    assert_nil cached
+  end
+
+  def test_get_cached_team
+    teams = create_test_teams
+    @cache.cache_teams(teams)
+
+    cached = @cache.get_cached_team('team_1')
+    assert cached.is_a?(Hash)
+    assert_equal 'team_1', cached['id']
+    assert_equal 'Team One', cached['name']
+    assert_equal %w[user_1 user_2], cached['members']
+  end
+
+  def test_get_cached_team_not_found
+    teams = create_test_teams
+    @cache.cache_teams(teams)
+
+    cached = @cache.get_cached_team('nonexistent')
+    assert_nil cached
+  end
+
+  def test_teams_cache_valid
+    teams = create_test_teams
+    @cache.cache_teams(teams)
+
+    assert @cache.send(:teams_cache_valid?)
+  end
+
+  def test_invalidate_teams_cache
+    teams = create_test_teams
+    @cache.cache_teams(teams)
+
+    @cache.send(:invalidate_teams_cache)
+
+    refute @cache.send(:teams_cache_valid?)
+  end
+
+  def test_refresh_cache_teams
+    teams = create_test_teams
+    @cache.cache_teams(teams)
+
+    result = @cache.refresh_cache('teams')
+
+    assert_equal 'refresh', result['operation']
+    assert_includes result['message'], 'Teams'
+    refute @cache.send(:teams_cache_valid?)
+  end
+
+  # ========== db_execute Error Handling Tests ==========
+
+  def test_db_execute_logs_and_reraises_errors
+    # Create a cache with a custom setup that will fail
+    error_raised = false
+    begin
+      @cache.db_execute('SELECT * FROM nonexistent_table_xyz')
+    rescue SQLite3::Exception
+      error_raised = true
+    end
+
+    assert error_raised, 'Should raise SQLite3::Exception for invalid table'
+  end
+
+  # ========== record_stat Error Handling Tests ==========
+
+  def test_record_stat_handles_errors_silently
+    # Drop the stats table to cause an error
+    @cache.db.execute('DROP TABLE cache_stats')
+
+    # Should not raise - should log warning to stderr
+    @cache.send(:record_stat, 'test', 'op', 'key', { foo: 'bar' })
+  end
+
+  # ========== get_cached_record Tests ==========
+
+  def test_get_cached_record_returns_nil_when_cache_invalid
+    result = @cache.get_cached_record('tbl_nonexistent', 'rec_123')
+    assert_nil result
+  end
+
+  def test_get_cached_record_returns_record_when_found
+    table_id = 'tbl_cached_rec'
+    structure = create_test_structure
+    records = create_test_records
+    @cache.cache_table_records(table_id, structure, records)
+
+    result = @cache.get_cached_record(table_id, 'rec_1')
+    assert result.is_a?(Hash)
+    assert_equal 'rec_1', result['id']
+  end
+
+  def test_get_cached_record_returns_nil_when_not_found
+    table_id = 'tbl_cached_rec2'
+    structure = create_test_structure
+    records = create_test_records
+    @cache.cache_table_records(table_id, structure, records)
+
+    result = @cache.get_cached_record(table_id, 'rec_nonexistent')
+    assert_nil result
+  end
+
+  # ========== cache_single_record Tests ==========
+
+  def test_cache_single_record_success
+    table_id = 'tbl_single_cache'
+    structure = create_test_structure
+    records = create_test_records
+    @cache.cache_table_records(table_id, structure, records)
+
+    # Now cache a single new record
+    new_record = { 'id' => 'rec_new', 'name' => 'New Record', 'status' => { 'value' => 'new' }, 'priority' => 5 }
+    # First cache the table structure
+    @cache.cache_table_list(nil, [{ 'id' => table_id, 'name' => 'Test Table', 'solution_id' => 'sol_1', 'structure' => structure['structure'] }])
+
+    result = @cache.cache_single_record(table_id, new_record)
+    assert result, 'Should return true on success'
+
+    # Verify record was cached
+    cached = @cache.get_cached_record(table_id, 'rec_new')
+    assert cached
+    assert_equal 'rec_new', cached['id']
+  end
+
+  def test_cache_single_record_returns_false_for_nil_record
+    result = @cache.cache_single_record('tbl_123', nil)
+    refute result
+  end
+
+  def test_cache_single_record_returns_false_for_record_without_id
+    result = @cache.cache_single_record('tbl_123', { 'name' => 'No ID' })
+    refute result
+  end
+
+  def test_cache_single_record_returns_false_when_no_table_structure
+    result = @cache.cache_single_record('tbl_nonexistent', { 'id' => 'rec_1', 'name' => 'Test' })
+    refute result
+  end
+
+  # ========== delete_cached_record Tests ==========
+
+  def test_delete_cached_record_success
+    table_id = 'tbl_delete_cache'
+    structure = create_test_structure
+    records = create_test_records
+    @cache.cache_table_records(table_id, structure, records)
+
+    # Cache the table structure for get_cached_table to work
+    @cache.cache_table_list(nil, [{ 'id' => table_id, 'name' => 'Test Table', 'solution_id' => 'sol_1', 'structure' => structure['structure'] }])
+
+    result = @cache.delete_cached_record(table_id, 'rec_1')
+    assert result, 'Should return true on success'
+
+    # Verify record was deleted
+    query_results = @cache.query(table_id).where(id: 'rec_1').execute
+    assert_empty query_results
+  end
+
+  def test_delete_cached_record_returns_false_for_nil_record_id
+    result = @cache.delete_cached_record('tbl_123', nil)
+    refute result
+  end
+
+  def test_delete_cached_record_returns_false_when_no_table_structure
+    result = @cache.delete_cached_record('tbl_nonexistent', 'rec_123')
+    refute result
+  end
+
+  # ========== cache_solutions with description as Hash ==========
+
+  def test_cache_solutions_with_description_hash
+    solutions = [
+      {
+        'id' => 'sol_desc_hash',
+        'name' => 'Solution With HTML Desc',
+        'logo_icon' => 'icon',
+        'logo_color' => '#000',
+        'description' => { 'html' => '<p>Rich description</p>', 'text' => 'Rich description' }
+      }
+    ]
+
+    @cache.cache_solutions(solutions)
+    cached = @cache.get_cached_solutions
+
+    assert_equal 1, cached.size
+    assert_equal '<p>Rich description</p>', cached[0]['description']
+  end
+
+  # ========== get_cached_solutions with name filter ==========
+
+  def test_get_cached_solutions_with_name_filter
+    solutions = [
+      { 'id' => 'sol_1', 'name' => 'Marketing Projects', 'logo_icon' => 'icon', 'logo_color' => '#000' },
+      { 'id' => 'sol_2', 'name' => 'Sales Pipeline', 'logo_icon' => 'icon', 'logo_color' => '#000' },
+      { 'id' => 'sol_3', 'name' => 'HR Management', 'logo_icon' => 'icon', 'logo_color' => '#000' }
+    ]
+    @cache.cache_solutions(solutions)
+
+    # Fuzzy search for "Marketing"
+    cached = @cache.get_cached_solutions(name: 'Marketing')
+    assert_equal 1, cached.size
+    assert_equal 'sol_1', cached[0]['id']
+  end
+
+  # ========== get_tables_to_warm Edge Cases ==========
+
+  def test_get_tables_to_warm_with_invalid_type_returns_empty
+    result = @cache.get_tables_to_warm(tables: 12345) # Invalid type (Integer)
+    assert_equal [], result
+  end
+
+  # ========== extract_field_value Additional Field Types ==========
+
+  def test_extract_field_value_lastupdated_field
+    field_info = { 'slug' => 's123', 'field_type' => 'lastupdatedfield', 'label' => 'Updated' }
+    value = { 'on' => '2025-01-15T12:00:00Z', 'by' => 'user_456' }
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal '2025-01-15T12:00:00Z', result['updated_on']
+    assert_equal 'user_456', result['updated_by']
+  end
+
+  def test_extract_field_value_deleted_date_field
+    field_info = { 'slug' => 'deleted', 'field_type' => 'deleted_date', 'label' => 'Deleted' }
+    value = { 'date' => '2025-01-15T12:00:00Z', 'deleted_by' => 'user_789' }
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal '2025-01-15T12:00:00Z', result['deleted_on']
+    assert_equal 'user_789', result['deleted_by']
+  end
+
+  def test_extract_field_value_date_field
+    field_info = { 'slug' => 'due', 'field_type' => 'datefield', 'label' => 'Due Date' }
+    value = { 'date' => '2025-01-20' }
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal '2025-01-20', result['due_date']
+  end
+
+  def test_extract_field_value_daterange_field
+    field_info = { 'slug' => 'period', 'field_type' => 'daterangefield', 'label' => 'Period' }
+    value = {
+      'from_date' => { 'date' => '2025-01-01' },
+      'to_date' => { 'date' => '2025-01-31' }
+    }
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal '2025-01-01', result['period_from']
+    assert_equal '2025-01-31', result['period_to']
+  end
+
+  def test_extract_field_value_duedate_field
+    field_info = { 'slug' => 'deadline', 'field_type' => 'duedatefield', 'label' => 'Deadline' }
+    value = {
+      'from_date' => { 'date' => '2025-01-15' },
+      'to_date' => { 'date' => '2025-01-20' },
+      'is_overdue' => true,
+      'status_is_completed' => false
+    }
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal '2025-01-15', result['deadline_from']
+    assert_equal '2025-01-20', result['deadline_to']
+    assert_equal 1, result['deadline_is_overdue']
+    assert_equal 0, result['deadline_is_completed']
+  end
+
+  def test_extract_field_value_address_field
+    field_info = { 'slug' => 'address', 'field_type' => 'addressfield', 'label' => 'Address' }
+    value = {
+      'sys_root' => '123 Main St, City, State',
+      'street' => '123 Main St',
+      'city' => 'City'
+    }
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal '123 Main St, City, State', result['address_text']
+    assert result['address_json'].include?('123 Main St')
+  end
+
+  def test_extract_field_value_fullname_field
+    field_info = { 'slug' => 'contact', 'field_type' => 'fullnamefield', 'label' => 'Contact' }
+    value = {
+      'sys_root' => 'John Doe',
+      'first_name' => 'John',
+      'last_name' => 'Doe'
+    }
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal 'John Doe', result['contact']
+    assert result['contact_json'].include?('John')
+  end
+
+  def test_extract_field_value_smartdoc_field
+    field_info = { 'slug' => 'notes', 'field_type' => 'smartdocfield', 'label' => 'Notes' }
+    value = {
+      'preview' => 'This is a preview...',
+      'data' => { 'type' => 'doc', 'content' => [] }
+    }
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal 'This is a preview...', result['notes_preview']
+    assert result['notes_json'].include?('preview')
+  end
+
+  def test_extract_field_value_checklist_field
+    field_info = { 'slug' => 'tasks', 'field_type' => 'checklistfield', 'label' => 'Tasks' }
+    value = {
+      'total_items' => 5,
+      'completed_items' => 3,
+      'items' => []
+    }
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal 5, result['tasks_total']
+    assert_equal 3, result['tasks_completed']
+    assert result['tasks_json']
+  end
+
+  def test_extract_field_value_vote_field
+    field_info = { 'slug' => 'votes', 'field_type' => 'votefield', 'label' => 'Votes' }
+    value = { 'total_votes' => 10, 'voters' => [] }
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal 10, result['votes_count']
+    assert result['votes_json']
+  end
+
+  def test_extract_field_value_timetracking_field
+    field_info = { 'slug' => 'time', 'field_type' => 'timetrackingfield', 'label' => 'Time' }
+    value = { 'total_duration' => 3600, 'entries' => [] }
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal 3600, result['time_total']
+    assert result['time_json']
+  end
+
+  def test_extract_field_value_duration_field
+    field_info = { 'slug' => 'duration', 'field_type' => 'durationfield', 'label' => 'Duration' }
+    value = 7200.5
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal 7200.5, result['duration']
+  end
+
+  def test_extract_field_value_currency_field
+    field_info = { 'slug' => 'price', 'field_type' => 'currencyfield', 'label' => 'Price' }
+    value = 99.99
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal 99.99, result['price']
+  end
+
+  def test_extract_field_value_percent_field
+    field_info = { 'slug' => 'progress', 'field_type' => 'percentfield', 'label' => 'Progress' }
+    value = 75.5
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert_equal 75.5, result['progress']
+  end
+
+  def test_extract_field_value_email_field
+    field_info = { 'slug' => 'emails', 'field_type' => 'emailfield', 'label' => 'Emails' }
+    value = ['test@example.com', 'other@example.com']
+
+    result = @cache.send(:extract_field_value, field_info, value)
+
+    assert result['emails'].is_a?(String) # JSON
+    parsed = JSON.parse(result['emails'])
+    assert_equal 2, parsed.size
+  end
+
+  # ========== find_matching_value Tests ==========
+
+  def test_find_matching_value_single_column
+    field_info = { 'slug' => 'name', 'field_type' => 'textfield', 'label' => 'Name' }
+    extracted_values = { 'name' => 'Test Value' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'name', field_info)
+
+    assert_equal 'Test Value', result
+  end
+
+  def test_find_matching_value_firstcreated_on
+    field_info = { 'slug' => 'first', 'field_type' => 'firstcreatedfield', 'label' => 'Created' }
+    extracted_values = { 'created_on' => '2025-01-01', 'created_by' => 'user_1' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'created_on', field_info)
+
+    assert_equal '2025-01-01', result
+  end
+
+  def test_find_matching_value_firstcreated_by
+    field_info = { 'slug' => 'first', 'field_type' => 'firstcreatedfield', 'label' => 'Created' }
+    extracted_values = { 'created_on' => '2025-01-01', 'created_by' => 'user_1' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'created_by', field_info)
+
+    assert_equal 'user_1', result
+  end
+
+  def test_find_matching_value_lastupdated_on
+    field_info = { 'slug' => 'updated', 'field_type' => 'lastupdatedfield', 'label' => 'Modified' }
+    extracted_values = { 'modified_on' => '2025-01-15', 'modified_by' => 'user_2' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'modified_on', field_info)
+
+    assert_equal '2025-01-15', result
+  end
+
+  def test_find_matching_value_lastupdated_by
+    field_info = { 'slug' => 'updated', 'field_type' => 'lastupdatedfield', 'label' => 'Modified' }
+    extracted_values = { 'modified_on' => '2025-01-15', 'modified_by' => 'user_2' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'modified_by', field_info)
+
+    assert_equal 'user_2', result
+  end
+
+  def test_find_matching_value_deleted_date_on
+    field_info = { 'slug' => 'del', 'field_type' => 'deleted_date', 'label' => 'Deleted' }
+    extracted_values = { 'deleted_on' => '2025-01-20', 'deleted_by' => 'user_3' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'deleted_on', field_info)
+
+    assert_equal '2025-01-20', result
+  end
+
+  def test_find_matching_value_deleted_date_by
+    field_info = { 'slug' => 'del', 'field_type' => 'deleted_date', 'label' => 'Deleted' }
+    extracted_values = { 'deleted_on' => '2025-01-20', 'deleted_by' => 'user_3' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'deleted_by', field_info)
+
+    assert_equal 'user_3', result
+  end
+
+  def test_find_matching_value_statusfield_value
+    field_info = { 'slug' => 'status', 'field_type' => 'statusfield', 'label' => 'Status' }
+    extracted_values = { 'status' => 'Active', 'status_updated_on' => '2025-01-01' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'status', field_info)
+
+    assert_equal 'Active', result
+  end
+
+  def test_find_matching_value_statusfield_updated_on
+    field_info = { 'slug' => 'status', 'field_type' => 'statusfield', 'label' => 'Status' }
+    extracted_values = { 'status' => 'Active', 'status_updated_on' => '2025-01-01' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'status_updated_on', field_info)
+
+    assert_equal '2025-01-01', result
+  end
+
+  def test_find_matching_value_daterange_from
+    field_info = { 'slug' => 'period', 'field_type' => 'daterangefield', 'label' => 'Period' }
+    extracted_values = { 'period_from' => '2025-01-01', 'period_to' => '2025-01-31' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'period_from', field_info)
+
+    assert_equal '2025-01-01', result
+  end
+
+  def test_find_matching_value_daterange_to
+    field_info = { 'slug' => 'period', 'field_type' => 'daterangefield', 'label' => 'Period' }
+    extracted_values = { 'period_from' => '2025-01-01', 'period_to' => '2025-01-31' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'period_to', field_info)
+
+    assert_equal '2025-01-31', result
+  end
+
+  def test_find_matching_value_duedate_overdue
+    field_info = { 'slug' => 'due', 'field_type' => 'duedatefield', 'label' => 'Due' }
+    extracted_values = {
+      'due_from' => '2025-01-01',
+      'due_to' => '2025-01-15',
+      'due_is_overdue' => 1,
+      'due_is_completed' => 0
+    }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'due_is_overdue', field_info)
+
+    assert_equal 1, result
+  end
+
+  def test_find_matching_value_duedate_completed
+    field_info = { 'slug' => 'due', 'field_type' => 'duedatefield', 'label' => 'Due' }
+    extracted_values = {
+      'due_from' => '2025-01-01',
+      'due_to' => '2025-01-15',
+      'due_is_overdue' => 0,
+      'due_is_completed' => 1
+    }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'due_is_completed', field_info)
+
+    assert_equal 1, result
+  end
+
+  def test_find_matching_value_suffix_text
+    field_info = { 'slug' => 'addr', 'field_type' => 'addressfield', 'label' => 'Address' }
+    extracted_values = { 'address_text' => '123 Main St', 'address_json' => '{}' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'address_text', field_info)
+
+    assert_equal '123 Main St', result
+  end
+
+  def test_find_matching_value_suffix_json
+    field_info = { 'slug' => 'addr', 'field_type' => 'addressfield', 'label' => 'Address' }
+    extracted_values = { 'address_text' => '123 Main St', 'address_json' => '{"city":"NYC"}' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'address_json', field_info)
+
+    assert_equal '{"city":"NYC"}', result
+  end
+
+  def test_find_matching_value_suffix_preview
+    field_info = { 'slug' => 'doc', 'field_type' => 'smartdocfield', 'label' => 'Doc' }
+    extracted_values = { 'doc_preview' => 'Preview text', 'doc_json' => '{}' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'doc_preview', field_info)
+
+    assert_equal 'Preview text', result
+  end
+
+  def test_find_matching_value_suffix_total
+    field_info = { 'slug' => 'check', 'field_type' => 'checklistfield', 'label' => 'Check' }
+    extracted_values = { 'check_json' => '[]', 'check_total' => 5, 'check_completed' => 3 }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'check_total', field_info)
+
+    assert_equal 5, result
+  end
+
+  def test_find_matching_value_suffix_completed
+    field_info = { 'slug' => 'check', 'field_type' => 'checklistfield', 'label' => 'Check' }
+    extracted_values = { 'check_json' => '[]', 'check_total' => 5, 'check_completed' => 3 }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'check_completed', field_info)
+
+    assert_equal 3, result
+  end
+
+  def test_find_matching_value_suffix_count
+    field_info = { 'slug' => 'vote', 'field_type' => 'votefield', 'label' => 'Vote' }
+    extracted_values = { 'vote_count' => 10, 'vote_json' => '[]' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'vote_count', field_info)
+
+    assert_equal 10, result
+  end
+
+  def test_find_matching_value_exact_match
+    field_info = { 'slug' => 'custom', 'field_type' => 'textfield', 'label' => 'Custom' }
+    extracted_values = { 'exact_column_name' => 'exact value' }
+
+    result = @cache.send(:find_matching_value, extracted_values, 'exact_column_name', field_info)
+
+    assert_equal 'exact value', result
+  end
+
+  # ========== Cache Status Error Handling ==========
+
+  def test_get_solutions_cache_status_handles_invalid_timestamp
+    # Insert a solution with invalid timestamp
+    @cache.db.execute(
+      "INSERT INTO cached_solutions (id, name, logo_icon, logo_color, cached_at, expires_at)
+       VALUES ('sol_invalid', 'Invalid', 'icon', '#000', '2025-01-01', 'invalid-timestamp')"
+    )
+
+    status = @cache.get_cache_status
+    # Should handle gracefully without crashing
+    assert status.is_a?(Hash)
+  end
+
+  def test_get_tables_cache_status_handles_invalid_timestamp
+    # Insert a table with invalid timestamp
+    @cache.db.execute(
+      "INSERT INTO cached_tables (id, name, solution_id, cached_at, expires_at)
+       VALUES ('tbl_invalid', 'Invalid', 'sol_1', '2025-01-01', 'invalid-timestamp')"
+    )
+
+    status = @cache.get_cache_status
+    assert status.is_a?(Hash)
+  end
+
+  def test_get_members_cache_status_handles_invalid_timestamp
+    # Insert a member with invalid timestamp
+    @cache.db.execute(
+      "INSERT INTO cached_members (id, email, cached_at, expires_at)
+       VALUES ('user_invalid', 'test@test.com', '2025-01-01', 'invalid-timestamp')"
+    )
+
+    status = @cache.get_cache_status
+    assert status.is_a?(Hash)
+  end
+
+  def test_get_teams_cache_status_handles_invalid_timestamp
+    # Insert a team with invalid timestamp
+    @cache.db.execute(
+      "INSERT INTO cached_teams (id, name, cached_at, expires_at)
+       VALUES ('team_invalid', 'Invalid', '2025-01-01', 'invalid-timestamp')"
+    )
+
+    status = @cache.get_cache_status
+    assert status.is_a?(Hash)
+  end
+
+  def test_get_records_cache_status_handles_zero_timestamp
+    # Cache some records
+    table_id = 'tbl_zero_ts'
+    structure = create_test_structure
+    records = create_test_records
+    @cache.cache_table_records(table_id, structure, records)
+
+    # Manually set expires_at to 0 (invalidated)
+    schema = @cache.send(:get_cached_table_schema, table_id)
+    @cache.db.execute("UPDATE #{schema['sql_table_name']} SET expires_at = '0'")
+
+    status = @cache.get_cache_status(table_id: table_id)
+    # Should handle gracefully - records should be empty or show as invalid
+    assert status.is_a?(Hash)
+  end
+
   private
 
   def create_test_structure
@@ -865,6 +1609,20 @@ class TestCacheLayer < Minitest::Test
     [
       { 'id' => 'tbl_1', 'name' => 'Table 1', 'solution_id' => solution_id || 'sol_123' },
       { 'id' => 'tbl_2', 'name' => 'Table 2', 'solution_id' => solution_id || 'sol_456' }
+    ]
+  end
+
+  def create_test_members
+    [
+      { 'id' => 'user_1', 'email' => 'john@test.com', 'full_name' => 'John Doe', 'first_name' => 'John', 'last_name' => 'Doe' },
+      { 'id' => 'user_2', 'email' => 'jane@test.com', 'full_name' => 'Jane Smith', 'first_name' => 'Jane', 'last_name' => 'Smith' }
+    ]
+  end
+
+  def create_test_teams
+    [
+      { 'id' => 'team_1', 'name' => 'Team One', 'description' => 'First team', 'members' => %w[user_1 user_2] },
+      { 'id' => 'team_2', 'name' => 'Team Two', 'description' => 'Second team', 'members' => ['user_3'] }
     ]
   end
 end
