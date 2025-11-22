@@ -329,9 +329,15 @@ class SecureFileAttacher
     warn "[SecureFileAttacher] #{message}"
   end
 
-  # S3 action logging - always logs S3 operations
+  # S3 action logging - uses client's log_metric for consistent logging
   def log_s3(action, message)
-    warn "[SecureFileAttacher S3] #{action}: #{message}"
+    formatted = "☁️  [S3] #{action}: #{message}"
+    # Use client's log_metric if available, otherwise fallback to stderr
+    if @client.respond_to?(:log_metric)
+      @client.log_metric(formatted)
+    else
+      warn "[SecureFileAttacher S3] #{action}: #{message}"
+    end
   end
 
   # Simple error logging

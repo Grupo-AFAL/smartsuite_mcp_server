@@ -303,31 +303,21 @@ class TestSecureFileAttacher < Minitest::Test
     refute_includes output, '[SecureFileAttacher]'
   end
 
-  def test_debug_logging_enabled_with_env_var
-    attacher = create_stubbed_attacher(fetch_timeout: 0)
+  def test_s3_logging_uses_client_log_metric
+    # Create a mock client that captures log_metric calls
+    log_messages = []
+    mock_client = Object.new
+    mock_client.define_singleton_method(:attach_file) { |*_args| { 'id' => 'rec_456' } }
+    mock_client.define_singleton_method(:log_metric) { |msg| log_messages << msg }
 
-    stub_request(:patch, %r{/applications/tbl_123/records/rec_456/})
-      .to_return(status: 200, body: { 'id' => 'rec_456' }.to_json)
-
-    # Enable debug mode
-    original_env = ENV.fetch('SECURE_FILE_ATTACHER_DEBUG', nil)
-    ENV['SECURE_FILE_ATTACHER_DEBUG'] = 'true'
-
-    # Capture stderr
-    original_stderr = $stderr
-    $stderr = StringIO.new
+    attacher = create_stubbed_attacher(fetch_timeout: 0, client: mock_client)
 
     attacher.attach_file_securely('tbl_123', 'rec_456', 'attachments', @temp_file1.path)
 
-    output = $stderr.string
-    $stderr = original_stderr
-    ENV['SECURE_FILE_ATTACHER_DEBUG'] = original_env
-
-    # Should have S3 action logging (always enabled)
-    assert_includes output, '[SecureFileAttacher S3]'
-    assert_includes output, 'UPLOAD:'
-    assert_includes output, 'UPLOAD_COMPLETE:'
-    assert_includes output, 'CLEANUP:'
+    # Should have S3 action logging via client's log_metric
+    assert log_messages.any? { |m| m.include?('[S3] UPLOAD:') }, "Expected UPLOAD log, got: #{log_messages}"
+    assert log_messages.any? { |m| m.include?('[S3] UPLOAD_COMPLETE:') }, "Expected UPLOAD_COMPLETE log"
+    assert log_messages.any? { |m| m.include?('[S3] CLEANUP:') }, "Expected CLEANUP log"
   end
 
   # ==============================================================================
@@ -453,7 +443,7 @@ class TestSecureFileAttacher < Minitest::Test
 
     # Create attacher with stubbed S3
     attacher = SecureFileAttacher.allocate
-    attacher.instance_variable_set(:@client, @client)
+    attacher.instance_variable_set(:@client, options[:client] || @client)
     attacher.instance_variable_set(:@bucket_name, @bucket_name)
     attacher.instance_variable_set(:@url_expires_in, options[:url_expires_in] || SecureFileAttacher::DEFAULT_URL_EXPIRATION)
     attacher.instance_variable_set(:@fetch_timeout, options[:fetch_timeout] || SecureFileAttacher::DEFAULT_FETCH_TIMEOUT)
