@@ -134,7 +134,7 @@ class TestWorkspaceOperations < Minitest::Test
 
     # Should only match the first solution using fuzzy matching
     assert result['count'] >= 1
-    assert result['solutions'].any? { |s| s['name'].downcase.include?('desarrollo') }
+    assert(result['solutions'].any? { |s| s['name'].downcase.include?('desarrollo') })
   end
 
   def test_list_solutions_handles_items_response
@@ -291,9 +291,7 @@ class TestWorkspaceOperations < Minitest::Test
     solution_id = 'sol_empty'
 
     client = create_mock_client do |_method, endpoint, _body = nil|
-      if endpoint.include?('/applications/?')
-        { 'tables' => [], 'count' => 0 }
-      end
+      { 'tables' => [], 'count' => 0 } if endpoint.include?('/applications/?')
     end
 
     result = client.get_solution_most_recent_record_update(solution_id)
@@ -339,7 +337,7 @@ class TestWorkspaceOperations < Minitest::Test
       {
         'id' => 'sol_inactive',
         'name' => 'Inactive Solution',
-        'last_access' => (Time.now - 120 * 86_400).iso8601, # 120 days ago
+        'last_access' => (Time.now - (120 * 86_400)).iso8601, # 120 days ago
         'records_count' => 5,
         'automation_count' => 0
       },
@@ -367,7 +365,7 @@ class TestWorkspaceOperations < Minitest::Test
       {
         'id' => 'sol_1',
         'name' => 'Solution',
-        'last_access' => (Time.now - 45 * 86_400).iso8601, # 45 days ago
+        'last_access' => (Time.now - (45 * 86_400)).iso8601, # 45 days ago
         'records_count' => 3,
         'automation_count' => 0
       }

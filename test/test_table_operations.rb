@@ -491,7 +491,7 @@ class TestTableOperations < Minitest::Test
     end
 
     # When fields is specified, should bypass cache
-    result = client.list_tables(fields: ['id', 'name', 'structure'])
+    result = client.list_tables(fields: %w[id name structure])
 
     assert api_called, 'Should call API when specific fields requested'
     assert_equal 'tbl_api', result['tables'][0]['id']

@@ -692,7 +692,7 @@ class TestCacheMetadata < Minitest::Test
   end
 
   def test_transliterate_accents_german
-    # Note: Only ö→o and ü→u are transliterated, ß is not in the accent map
+    # NOTE: Only ö→o and ü→u are transliterated, ß is not in the accent map
     result = @cache.send(:transliterate_accents, 'größe über')
     assert_equal 'große uber', result, 'Should transliterate ö and ü (ß is not in accent map)'
   end

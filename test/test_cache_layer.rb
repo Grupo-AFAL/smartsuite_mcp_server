@@ -568,7 +568,7 @@ class TestCacheLayer < Minitest::Test
 
     # Second batch
     3.times { @cache.track_cache_hit(table_id) }
-    1.times { @cache.track_cache_miss(table_id) }
+    @cache.track_cache_miss(table_id)
     @cache.flush_performance_counters
 
     # Verify accumulated values
@@ -1048,7 +1048,8 @@ class TestCacheLayer < Minitest::Test
     # Now cache a single new record
     new_record = { 'id' => 'rec_new', 'name' => 'New Record', 'status' => { 'value' => 'new' }, 'priority' => 5 }
     # First cache the table structure
-    @cache.cache_table_list(nil, [{ 'id' => table_id, 'name' => 'Test Table', 'solution_id' => 'sol_1', 'structure' => structure['structure'] }])
+    @cache.cache_table_list(nil,
+                            [{ 'id' => table_id, 'name' => 'Test Table', 'solution_id' => 'sol_1', 'structure' => structure['structure'] }])
 
     result = @cache.cache_single_record(table_id, new_record)
     assert result, 'Should return true on success'
@@ -1083,7 +1084,8 @@ class TestCacheLayer < Minitest::Test
     @cache.cache_table_records(table_id, structure, records)
 
     # Cache the table structure for get_cached_table to work
-    @cache.cache_table_list(nil, [{ 'id' => table_id, 'name' => 'Test Table', 'solution_id' => 'sol_1', 'structure' => structure['structure'] }])
+    @cache.cache_table_list(nil,
+                            [{ 'id' => table_id, 'name' => 'Test Table', 'solution_id' => 'sol_1', 'structure' => structure['structure'] }])
 
     result = @cache.delete_cached_record(table_id, 'rec_1')
     assert result, 'Should return true on success'
@@ -1142,7 +1144,7 @@ class TestCacheLayer < Minitest::Test
   # ========== get_tables_to_warm Edge Cases ==========
 
   def test_get_tables_to_warm_with_invalid_type_returns_empty
-    result = @cache.get_tables_to_warm(tables: 12345) # Invalid type (Integer)
+    result = @cache.get_tables_to_warm(tables: 12_345) # Invalid type (Integer)
     assert_equal [], result
   end
 

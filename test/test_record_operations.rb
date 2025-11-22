@@ -1122,7 +1122,7 @@ class TestRecordOperations < Minitest::Test
   # Test bulk_delete_records with minimal_response
   def test_bulk_delete_records_minimal_response
     client = create_client
-    record_ids = ['rec_1', 'rec_2']
+    record_ids = %w[rec_1 rec_2]
 
     stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/bulk_delete/')
       .to_return(
