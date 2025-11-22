@@ -50,7 +50,7 @@ module SmartSuite
       }.freeze
 
       def initialize(db_path: nil)
-        @db_path = db_path || File.expand_path('~/.smartsuite_mcp_cache.db')
+        @db_path = db_path || default_db_path
         @db = SQLite3::Database.new(@db_path)
         @db.results_as_hash = true
 
@@ -1628,6 +1628,21 @@ module SmartSuite
         # Flush any pending performance counters
         flush_performance_counters unless @perf_counters.empty?
         @db&.close
+      end
+
+      private
+
+      # Returns the default database path.
+      # Uses a test-specific path when SMARTSUITE_TEST_MODE is set to prevent
+      # test pollution of production data.
+      #
+      # @return [String] Database file path
+      def default_db_path
+        if ENV['SMARTSUITE_TEST_MODE'] == 'true'
+          File.join(Dir.tmpdir, "smartsuite_test_cache_#{Process.pid}.db")
+        else
+          File.expand_path('~/.smartsuite_mcp_cache.db')
+        end
       end
     end
   end

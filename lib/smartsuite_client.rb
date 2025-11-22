@@ -99,7 +99,13 @@ class SmartSuiteClient
     @session_id = session_id || "#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{rand(36**6).to_s(36)}"
 
     # Create a separate, clean log file for metrics (must be before any log_metric calls)
-    @metrics_log = File.open(File.join(Dir.home, '.smartsuite_mcp_metrics.log'), 'a')
+    # Use test-specific path in test mode to avoid polluting production logs
+    metrics_path = if ENV['SMARTSUITE_TEST_MODE'] == 'true'
+                     File.join(Dir.tmpdir, "smartsuite_test_metrics_#{Process.pid}.log")
+                   else
+                     File.join(Dir.home, '.smartsuite_mcp_metrics.log')
+                   end
+    @metrics_log = File.open(metrics_path, 'a')
     @metrics_log.sync = true # Auto-flush
 
     # Token usage tracking
