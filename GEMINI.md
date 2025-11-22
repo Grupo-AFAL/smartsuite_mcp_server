@@ -88,7 +88,8 @@ When implementing any change, adhere to the following workflow:
 
 6.  **Ensure Checks Pass:**
     *   Monitor the Pull Request checks (CI/CD, linting, tests).
-    *   If any checks fail, analyze the errors, implement fixes, commit, and push updates to the branch.
+    *   If any checks fail, analyze the errors, implement fixes, commit,
+        and push updates to the branch.
     *   Repeat until all checks pass.
 
 7.  **Stop and Await Review:**
