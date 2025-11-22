@@ -307,21 +307,23 @@ class TestSecureFileAttacher < Minitest::Test
     refute_includes output, '[SecureFileAttacher]'
   end
 
-  def test_s3_logging_uses_client_log_metric
-    # Create a mock client that captures log_metric calls
-    log_messages = []
-    mock_client = Object.new
-    mock_client.define_singleton_method(:attach_file) { |*_args| { 'id' => 'rec_456' } }
-    mock_client.define_singleton_method(:log_metric) { |msg| log_messages << msg }
+  def test_s3_logging_uses_query_logger
+    attacher = create_stubbed_attacher(fetch_timeout: 0)
 
-    attacher = create_stubbed_attacher(fetch_timeout: 0, client: mock_client)
+    # Stub SmartSuite API call
+    stub_request(:patch, %r{/applications/tbl_123/records/rec_456/})
+      .to_return(status: 200, body: { 'id' => 'rec_456' }.to_json)
 
-    attacher.attach_file_securely('tbl_123', 'rec_456', 'attachments', @temp_file1.path)
+    # Capture what QueryLogger receives
+    logged_operations = []
+    QueryLogger.stub(:log_s3_operation, ->(action, message) { logged_operations << [action, message] }) do
+      attacher.attach_file_securely('tbl_123', 'rec_456', 'attachments', @temp_file1.path)
+    end
 
-    # Should have S3 action logging via client's log_metric
-    assert log_messages.any? { |m| m.include?('[S3] UPLOAD:') }, "Expected UPLOAD log, got: #{log_messages}"
-    assert log_messages.any? { |m| m.include?('[S3] UPLOAD_COMPLETE:') }, 'Expected UPLOAD_COMPLETE log'
-    assert log_messages.any? { |m| m.include?('[S3] CLEANUP:') }, 'Expected CLEANUP log'
+    # Should have S3 action logging via QueryLogger
+    assert logged_operations.any? { |op| op[0] == 'UPLOAD' }, "Expected UPLOAD log, got: #{logged_operations}"
+    assert logged_operations.any? { |op| op[0] == 'UPLOAD_COMPLETE' }, 'Expected UPLOAD_COMPLETE log'
+    assert logged_operations.any? { |op| op[0] == 'CLEANUP' }, 'Expected CLEANUP log'
   end
 
   # ==============================================================================

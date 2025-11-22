@@ -34,6 +34,7 @@ class QueryLogger
     api: "\e[36m",      # Cyan for API calls
     db: "\e[32m",       # Green for database queries
     cache: "\e[35m",    # Magenta for cache operations
+    s3: "\e[34m",       # Blue for S3 operations
     error: "\e[31m",    # Red for errors
     success: "\e[32m",  # Green for success
     warning: "\e[33m"   # Yellow for warnings
@@ -188,6 +189,14 @@ class QueryLogger
       msg += " | Offset: #{offset}" if offset
       msg += COLORS[:reset]
 
+      logger.info(msg)
+    end
+
+    # Log S3 operation
+    # @param action [String] Action type (UPLOAD, DELETE, PRESIGN, etc.)
+    # @param message [String] Details about the operation
+    def log_s3_operation(action, message)
+      msg = "#{COLORS[:s3]}S3 #{action.upcase} | #{message}#{COLORS[:reset]}"
       logger.info(msg)
     end
 
