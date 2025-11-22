@@ -402,4 +402,152 @@ class TestMemberOperations < Minitest::Test
 
     assert_equal 'not an array', result
   end
+
+  # ========== Cache hit tests ==========
+
+  # Helper to create formatted member data (as it would be after format_member_list)
+  def formatted_member(id:, email:, first_name:, last_name:, role: '3', deleted_date: nil)
+    {
+      'id' => id,
+      'email' => email,
+      'role' => role,
+      'first_name' => first_name,
+      'last_name' => last_name,
+      'full_name' => "#{first_name} #{last_name}",
+      'deleted_date' => deleted_date
+    }
+  end
+
+  def test_list_members_uses_cache_when_available
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    # Pre-populate cache with formatted members
+    cached_members = [
+      formatted_member(id: 'mem_cached_1', email: 'cached1@test.com', first_name: 'Cached', last_name: 'User1'),
+      formatted_member(id: 'mem_cached_2', email: 'cached2@test.com', first_name: 'Cached', last_name: 'User2')
+    ]
+    client.cache.cache_members(cached_members)
+
+    api_called = false
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      api_called = true
+      raise 'Should not call API'
+    end
+
+    result = client.list_members
+
+    refute api_called, 'Should use cache when members are cached'
+    assert_equal 2, result['count']
+  end
+
+  def test_search_member_uses_cache_when_available
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    # Pre-populate cache with formatted members
+    cached_members = [
+      formatted_member(id: 'mem_search_1', email: 'john@test.com', first_name: 'John', last_name: 'Doe'),
+      formatted_member(id: 'mem_search_2', email: 'jane@test.com', first_name: 'Jane', last_name: 'Smith')
+    ]
+    client.cache.cache_members(cached_members)
+
+    api_called = false
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      api_called = true
+      raise 'Should not call API'
+    end
+
+    result = client.search_member('john')
+
+    refute api_called, 'Should use cache when searching members'
+    assert_equal 1, result['count']
+    assert_equal 'mem_search_1', result['members'][0]['id']
+  end
+
+  def test_search_member_cache_miss_path
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    # Don't pre-populate cache - cache miss
+    api_response = {
+      'items' => [
+        { 'id' => 'mem_api_1', 'email' => 'john@test.com', 'role' => '3',
+          'full_name' => { 'first_name' => 'John', 'last_name' => 'Doe', 'sys_root' => 'John Doe' } }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      api_response
+    end
+
+    result = client.search_member('john')
+
+    assert_equal 1, result['count']
+  end
+
+  def test_list_members_with_empty_solution_members
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+    solution_id = 'sol_empty_members'
+
+    # Mock solution response with empty members
+    solution_response = {
+      'id' => solution_id,
+      'permissions' => { 'members' => [] }
+    }
+
+    client.define_singleton_method(:api_request) do |_method, endpoint, _body = nil|
+      if endpoint.include?('solutions')
+        solution_response
+      else
+        raise "Unexpected API call"
+      end
+    end
+
+    result = client.list_members(solution_id: solution_id)
+
+    assert_equal 0, result['count']
+    assert_equal [], result['members']
+  end
+
+  def test_list_members_with_include_inactive_uses_cache
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    # Pre-populate cache with formatted members including deleted
+    cached_members = [
+      formatted_member(id: 'mem_active', email: 'active@test.com', first_name: 'Active', last_name: 'User'),
+      formatted_member(id: 'mem_deleted', email: 'deleted@test.com', first_name: 'Deleted', last_name: 'User',
+                       deleted_date: '2024-01-01T00:00:00Z')
+    ]
+    client.cache.cache_members(cached_members)
+
+    api_called = false
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      api_called = true
+      raise 'Should not call API'
+    end
+
+    result = client.list_members(include_inactive: true)
+
+    refute api_called, 'Should use cache'
+    assert_equal 2, result['count'], 'Should include inactive when flag is true'
+  end
+
+  def test_list_members_cache_miss_fetches_from_api
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    # Don't pre-populate cache - will cause miss
+    api_response = {
+      'items' => [
+        { 'id' => 'mem_api', 'email' => 'api@test.com', 'role' => '3',
+          'full_name' => { 'first_name' => 'API', 'last_name' => 'User', 'sys_root' => 'API User' } }
+      ]
+    }
+
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      api_response
+    end
+
+    result = client.list_members
+
+    assert_equal 1, result['count']
+    assert_equal 'mem_api', result['members'][0]['id']
+  end
 end

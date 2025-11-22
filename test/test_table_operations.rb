@@ -374,4 +374,126 @@ class TestTableOperations < Minitest::Test
     assert_equal '/applications/', endpoint_called
     assert_equal :post, method_called
   end
+
+  # ========== Cache-related tests ==========
+
+  def test_list_tables_uses_cache_when_available
+    # Create client with cache enabled
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    # Pre-populate cache with table list
+    cached_tables = [
+      { 'id' => 'tbl_cached_1', 'name' => 'Cached Table 1', 'solution' => 'sol_123' },
+      { 'id' => 'tbl_cached_2', 'name' => 'Cached Table 2', 'solution' => 'sol_123' }
+    ]
+    client.cache.cache_table_list(nil, cached_tables)
+
+    # Should return cached data without hitting API
+    api_called = false
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      api_called = true
+      raise 'Should not call API when cache is valid'
+    end
+
+    result = client.list_tables
+
+    refute api_called, 'Should not call API when cache is valid'
+    assert_equal 2, result['count']
+    assert_equal 'tbl_cached_1', result['tables'][0]['id']
+  end
+
+  def test_list_tables_caches_api_response
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    # Mock API response
+    api_response = [
+      { 'id' => 'tbl_api_1', 'name' => 'API Table 1', 'solution' => 'sol_456' }
+    ]
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      api_response
+    end
+
+    # First call - should cache
+    result = client.list_tables
+    assert_equal 1, result['count']
+
+    # Verify it's cached by checking cache directly
+    cached = client.cache.get_cached_table_list(nil)
+    assert cached, 'Should have cached the table list'
+    assert_equal 1, cached.size
+  end
+
+  def test_list_tables_with_solution_id_uses_cache
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+    solution_id = 'sol_specific'
+
+    # Pre-populate cache with solution-specific tables
+    cached_tables = [
+      { 'id' => 'tbl_sol_1', 'name' => 'Solution Table', 'solution' => solution_id }
+    ]
+    client.cache.cache_table_list(solution_id, cached_tables)
+
+    api_called = false
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      api_called = true
+      raise 'Should not call API'
+    end
+
+    result = client.list_tables(solution_id: solution_id)
+
+    refute api_called, 'Should use cache for solution-specific tables'
+    assert_equal 1, result['count']
+  end
+
+  def test_get_table_uses_cache_when_available
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+    table_id = 'tbl_get_cached'
+
+    # Pre-populate cache with table via cache_table_list (which populates cached_tables SQL table)
+    cached_tables = [{
+      'id' => table_id,
+      'name' => 'Cached Table',
+      'solution' => 'sol_123',
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'status', 'label' => 'Status', 'field_type' => 'statusfield' }
+      ]
+    }]
+    client.cache.cache_table_list(nil, cached_tables)
+
+    api_called = false
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      api_called = true
+      raise 'Should not call API'
+    end
+
+    result = client.get_table(table_id)
+
+    refute api_called, 'Should use cache when table is cached'
+    assert_equal table_id, result['id']
+    assert_equal 'Cached Table', result['name']
+    assert result['structure'], 'Should include filtered structure'
+  end
+
+  def test_list_tables_bypasses_cache_when_fields_specified
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
+
+    # Pre-populate cache
+    cached_tables = [{ 'id' => 'tbl_cached', 'name' => 'Cached' }]
+    client.cache.cache_table_list(nil, cached_tables)
+
+    # Mock API response
+    api_response = [{ 'id' => 'tbl_api', 'name' => 'From API', 'structure' => [] }]
+    api_called = false
+    client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      api_called = true
+      api_response
+    end
+
+    # When fields is specified, should bypass cache
+    result = client.list_tables(fields: ['id', 'name', 'structure'])
+
+    assert api_called, 'Should call API when specific fields requested'
+    assert_equal 'tbl_api', result['tables'][0]['id']
+  end
 end
