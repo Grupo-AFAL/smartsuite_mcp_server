@@ -242,10 +242,7 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table to query'
-              },
+              'table_id' => SCHEMA_TABLE_ID,
               'limit' => {
                 'type' => 'number',
                 'description' => 'Maximum number of records to return (default: 10). ⚠️ START SMALL: Use 5-10 initially to preview data efficiently, only increase if more records are needed after reviewing results. Applied after filtering.'
@@ -297,14 +294,8 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table'
-              },
-              'record_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the record to retrieve'
-              }
+              'table_id' => SCHEMA_TABLE_ID,
+              'record_id' => SCHEMA_RECORD_ID
             },
             'required' => %w[table_id record_id]
           }
@@ -347,10 +338,7 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table'
-              },
+              'table_id' => SCHEMA_TABLE_ID,
               'data' => {
                 'type' => 'object',
                 'description' => 'The record data as key-value pairs (field_slug: value). For rich text fields, use SmartDoc format with {"data": {"type": "doc", "content": [...]}} structure.'
@@ -407,14 +395,8 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table'
-              },
-              'record_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the record to update'
-              },
+              'table_id' => SCHEMA_TABLE_ID,
+              'record_id' => SCHEMA_RECORD_ID,
               'data' => {
                 'type' => 'object',
                 'description' => 'The record data to update as key-value pairs (field_slug: value). For rich text fields, use SmartDoc format with {"data": {"type": "doc", "content": [...]}} structure.'
@@ -433,14 +415,8 @@ module SmartSuite
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table'
-              },
-              'record_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the record to delete'
-              },
+              'table_id' => SCHEMA_TABLE_ID,
+              'record_id' => SCHEMA_RECORD_ID,
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 80% token savings (default: true). Returns only {success, id, operation, timestamp, cached}. Set to false for full response.'
@@ -578,10 +554,7 @@ Example single select:
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table to add the field to'
-              },
+              'table_id' => SCHEMA_TABLE_ID,
               'field_data' => {
                 'type' => 'object',
                 'description' => 'Field configuration object with slug, label, field_type, and params. For single select fields, see description for required choice format.'
@@ -612,10 +585,7 @@ See `add_field` tool description for complete example.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table to add fields to'
-              },
+              'table_id' => SCHEMA_TABLE_ID,
               'fields' => {
                 'type' => 'array',
                 'description' => 'Array of field configuration objects. Each should have slug, label, field_type, icon, params, and is_new.',
@@ -648,10 +618,7 @@ See `add_field` tool description for complete example.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table containing the field'
-              },
+              'table_id' => SCHEMA_TABLE_ID,
               'slug' => {
                 'type' => 'string',
                 'description' => 'The slug of the field to update'
@@ -670,10 +637,7 @@ See `add_field` tool description for complete example.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table containing the field'
-              },
+              'table_id' => SCHEMA_TABLE_ID,
               'slug' => {
                 'type' => 'string',
                 'description' => 'The slug of the field to delete'
@@ -866,10 +830,7 @@ See `add_field` tool description for complete example.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table/application containing the record'
-              },
+              'table_id' => SCHEMA_TABLE_ID,
               'record_id' => {
                 'type' => 'string',
                 'description' => 'The ID of the record to add the comment to'
@@ -897,10 +858,7 @@ See `add_field` tool description for complete example.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'table_id' => {
-                'type' => 'string',
-                'description' => 'The ID of the table containing the view'
-              },
+              'table_id' => SCHEMA_TABLE_ID,
               'view_id' => {
                 'type' => 'string',
                 'description' => 'The ID of the view (report) to get records from'

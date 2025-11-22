@@ -33,9 +33,16 @@ class TestRecordOperations < Minitest::Test
   # @param method_name [Symbol] Method to test
   # @param param_name [String] Parameter name that should be required
   # @param args [Array] Arguments to pass to method (with nil for missing param)
-  def assert_requires_parameter(method_name, param_name, *args)
+  # @param kwargs [Hash] Keyword arguments to pass to method
+  def assert_requires_parameter(method_name, param_name, *args, **kwargs)
     client = create_client
-    error = assert_raises(ArgumentError) { client.send(method_name, *args) }
+    error = assert_raises(ArgumentError) do
+      if kwargs.empty?
+        client.send(method_name, *args)
+      else
+        client.send(method_name, *args, **kwargs)
+      end
+    end
     assert_includes error.message, param_name
   end
 
@@ -45,11 +52,18 @@ class TestRecordOperations < Minitest::Test
   # @param http_method [Symbol] HTTP method (:get, :post, :patch, :delete)
   # @param status_code [Integer] HTTP status code to simulate
   # @param args [Array] Arguments to pass to method
-  def assert_api_error(method_name, endpoint, http_method, status_code, *args)
+  # @param kwargs [Hash] Keyword arguments to pass to method
+  def assert_api_error(method_name, endpoint, http_method, status_code, *args, **kwargs)
     client = create_client
     stub_request(http_method, endpoint)
       .to_return(status: status_code, body: { error: 'Error' }.to_json)
-    error = assert_raises(RuntimeError) { client.send(method_name, *args) }
+    error = assert_raises(RuntimeError) do
+      if kwargs.empty?
+        client.send(method_name, *args)
+      else
+        client.send(method_name, *args, **kwargs)
+      end
+    end
     assert_includes error.message, status_code.to_s
   end
 
@@ -59,18 +73,12 @@ class TestRecordOperations < Minitest::Test
 
   # Test list_records requires table_id
   def test_list_records_requires_table_id
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    error = assert_raises(ArgumentError) do
-      client.list_records(nil, 10, 0, fields: ['status'])
-    end
-
-    assert_includes error.message, 'table_id', 'Should mention missing parameter'
+    assert_requires_parameter(:list_records, 'table_id', nil, 10, 0, fields: ['status'])
   end
 
   # Test list_records requires fields parameter
   def test_list_records_requires_fields
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
     result = client.list_records('tbl_123', 10, 0)
 
     assert result.is_a?(String), 'Should return string error message'
@@ -80,7 +88,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test list_records with cache disabled
   def test_list_records_cache_disabled
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     # Stub direct API call
     stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true')
@@ -96,7 +104,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test list_records with sort
   def test_list_records_with_sort
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=10&offset=0&hydrated=true')
       .with(
@@ -117,7 +125,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test list_records with pagination
   def test_list_records_with_pagination
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/list/?limit=5&offset=10&hydrated=true')
       .to_return(
@@ -132,7 +140,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test get_record success
   def test_get_record_success
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     stub_request(:get, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
       .to_return(
@@ -149,29 +157,17 @@ class TestRecordOperations < Minitest::Test
 
   # Test get_record requires table_id
   def test_get_record_requires_table_id
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    error = assert_raises(ArgumentError) do
-      client.get_record(nil, 'rec_456')
-    end
-
-    assert_includes error.message, 'table_id'
+    assert_requires_parameter(:get_record, 'table_id', nil, 'rec_456')
   end
 
   # Test get_record requires record_id
   def test_get_record_requires_record_id
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    error = assert_raises(ArgumentError) do
-      client.get_record('tbl_123', nil)
-    end
-
-    assert_includes error.message, 'record_id'
+    assert_requires_parameter(:get_record, 'record_id', 'tbl_123', nil)
   end
 
   # Test create_record success
   def test_create_record_success
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
     data = { 'title' => 'New Task', 'status' => 'Active' }
 
     stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/')
@@ -190,40 +186,22 @@ class TestRecordOperations < Minitest::Test
 
   # Test create_record requires table_id
   def test_create_record_requires_table_id
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    error = assert_raises(ArgumentError) do
-      client.create_record(nil, { 'title' => 'Test' })
-    end
-
-    assert_includes error.message, 'table_id'
+    assert_requires_parameter(:create_record, 'table_id', nil, { 'title' => 'Test' })
   end
 
   # Test create_record requires data
   def test_create_record_requires_data
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    error = assert_raises(ArgumentError) do
-      client.create_record('tbl_123', nil)
-    end
-
-    assert_includes error.message, 'data'
+    assert_requires_parameter(:create_record, 'data', 'tbl_123', nil)
   end
 
   # Test create_record requires data to be hash
   def test_create_record_requires_data_hash
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    error = assert_raises(ArgumentError) do
-      client.create_record('tbl_123', 'not a hash')
-    end
-
-    assert_includes error.message, 'data'
+    assert_requires_parameter(:create_record, 'data', 'tbl_123', 'not a hash')
   end
 
   # Test update_record success
   def test_update_record_success
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
     data = { 'status' => 'Completed' }
 
     stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
@@ -241,51 +219,27 @@ class TestRecordOperations < Minitest::Test
 
   # Test update_record requires table_id
   def test_update_record_requires_table_id
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    error = assert_raises(ArgumentError) do
-      client.update_record(nil, 'rec_456', { 'status' => 'Done' })
-    end
-
-    assert_includes error.message, 'table_id'
+    assert_requires_parameter(:update_record, 'table_id', nil, 'rec_456', { 'status' => 'Done' })
   end
 
   # Test update_record requires record_id
   def test_update_record_requires_record_id
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    error = assert_raises(ArgumentError) do
-      client.update_record('tbl_123', nil, { 'status' => 'Done' })
-    end
-
-    assert_includes error.message, 'record_id'
+    assert_requires_parameter(:update_record, 'record_id', 'tbl_123', nil, { 'status' => 'Done' })
   end
 
   # Test update_record requires data
   def test_update_record_requires_data
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    error = assert_raises(ArgumentError) do
-      client.update_record('tbl_123', 'rec_456', nil)
-    end
-
-    assert_includes error.message, 'data'
+    assert_requires_parameter(:update_record, 'data', 'tbl_123', 'rec_456', nil)
   end
 
   # Test update_record requires data to be hash
   def test_update_record_requires_data_hash
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    error = assert_raises(ArgumentError) do
-      client.update_record('tbl_123', 'rec_456', 'not a hash')
-    end
-
-    assert_includes error.message, 'data'
+    assert_requires_parameter(:update_record, 'data', 'tbl_123', 'rec_456', 'not a hash')
   end
 
   # Test delete_record success
   def test_delete_record_success
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     stub_request(:delete, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
       .to_return(
@@ -301,80 +255,61 @@ class TestRecordOperations < Minitest::Test
 
   # Test delete_record requires table_id
   def test_delete_record_requires_table_id
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    error = assert_raises(ArgumentError) do
-      client.delete_record(nil, 'rec_456')
-    end
-
-    assert_includes error.message, 'table_id'
+    assert_requires_parameter(:delete_record, 'table_id', nil, 'rec_456')
   end
 
   # Test delete_record requires record_id
   def test_delete_record_requires_record_id
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    error = assert_raises(ArgumentError) do
-      client.delete_record('tbl_123', nil)
-    end
-
-    assert_includes error.message, 'record_id'
+    assert_requires_parameter(:delete_record, 'record_id', 'tbl_123', nil)
   end
 
   # Test error handling for API failures
   def test_get_record_api_error
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    stub_request(:get, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
-      .to_return(status: 404, body: { error: 'Not found' }.to_json)
-
-    error = assert_raises(RuntimeError) do
-      client.get_record('tbl_123', 'rec_456')
-    end
-
-    assert_includes error.message, '404'
+    assert_api_error(
+      :get_record,
+      'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/',
+      :get,
+      404,
+      'tbl_123',
+      'rec_456'
+    )
   end
 
   # Test create_record API error
   def test_create_record_api_error
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/')
-      .to_return(status: 400, body: { error: 'Bad request' }.to_json)
-
-    error = assert_raises(RuntimeError) do
-      client.create_record('tbl_123', { 'title' => 'Test' })
-    end
-
-    assert_includes error.message, '400'
+    assert_api_error(
+      :create_record,
+      'https://app.smartsuite.com/api/v1/applications/tbl_123/records/',
+      :post,
+      400,
+      'tbl_123',
+      { 'title' => 'Test' }
+    )
   end
 
   # Test update_record API error
   def test_update_record_api_error
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
-      .to_return(status: 500, body: 'Internal Server Error')
-
-    error = assert_raises(RuntimeError) do
-      client.update_record('tbl_123', 'rec_456', { 'status' => 'Done' })
-    end
-
-    assert_includes error.message, '500'
+    assert_api_error(
+      :update_record,
+      'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/',
+      :patch,
+      500,
+      'tbl_123',
+      'rec_456',
+      { 'status' => 'Done' }
+    )
   end
 
   # Test delete_record API error
   def test_delete_record_api_error
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
-
-    stub_request(:delete, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/')
-      .to_return(status: 403, body: { error: 'Forbidden' }.to_json)
-
-    error = assert_raises(RuntimeError) do
-      client.delete_record('tbl_123', 'rec_456')
-    end
-
-    assert_includes error.message, '403'
+    assert_api_error(
+      :delete_record,
+      'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/',
+      :delete,
+      403,
+      'tbl_123',
+      'rec_456'
+    )
   end
 
   # ============================================================================
@@ -386,7 +321,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test SmartDoc extraction from API response (Hash format)
   def test_get_record_extracts_smartdoc_html_from_api
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     # Mock API response with SmartDoc field as Hash
     smartdoc_field = {
@@ -422,7 +357,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test SmartDoc extraction with empty HTML
   def test_get_record_extracts_smartdoc_empty_html
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     smartdoc_field = {
       'data' => { 'type' => 'doc', 'content' => [] },
@@ -448,7 +383,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test that non-SmartDoc Hash fields are not modified
   def test_get_record_preserves_non_smartdoc_json
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     # Regular JSON object that has "html" key but not SmartDoc structure (missing "data" key)
     regular_json = { 'html' => 'value', 'other' => 'data' }
@@ -471,7 +406,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test SmartDoc with multiple fields
   def test_get_record_extracts_multiple_smartdoc_fields
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     smartdoc1 = {
       'data' => { 'type' => 'doc' },
@@ -517,7 +452,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test is_not_empty filter is sanitized to null value
   def test_list_records_sanitizes_is_not_empty_filter
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     filter = {
       'operator' => 'and',
@@ -549,7 +484,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test is_empty filter is sanitized to null value
   def test_list_records_sanitizes_is_empty_filter
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     filter = {
       'operator' => 'and',
@@ -581,7 +516,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test multiple filter fields with mixed operators
   def test_list_records_sanitizes_mixed_filter_operators
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     filter = {
       'operator' => 'and',
@@ -617,7 +552,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test non-empty-check operators are not modified
   def test_list_records_preserves_other_filter_operators
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     filter = {
       'operator' => 'and',
@@ -655,7 +590,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test bulk_add_records success
   def test_bulk_add_records_success
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
     records = [
       { 'title' => 'Task 1', 'status' => 'Active' },
       { 'title' => 'Task 2', 'status' => 'Pending' }
@@ -708,7 +643,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test bulk_update_records success
   def test_bulk_update_records_success
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
     records = [
       { 'id' => 'rec_1', 'status' => 'Completed' },
       { 'id' => 'rec_2', 'status' => 'In Progress' }
@@ -761,7 +696,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test bulk_delete_records success
   def test_bulk_delete_records_success
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
     record_ids = %w[rec_1 rec_2 rec_3]
 
     stub_request(:patch, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/bulk_delete/')
@@ -810,7 +745,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test get_file_url success
   def test_get_file_url_success
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     stub_request(:get, 'https://app.smartsuite.com/api/v1/shared-files/handle_xyz/url/')
       .to_return(
@@ -846,7 +781,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test list_deleted_records success with preview
   def test_list_deleted_records_success_with_preview
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     stub_request(:post, 'https://app.smartsuite.com/api/v1/deleted-records/?preview=true')
       .with(body: { solution_id: 'sol_123' }.to_json)
@@ -868,7 +803,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test list_deleted_records success without preview
   def test_list_deleted_records_success_without_preview
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     stub_request(:post, 'https://app.smartsuite.com/api/v1/deleted-records/?preview=false')
       .with(body: { solution_id: 'sol_123' }.to_json)
@@ -888,7 +823,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test list_deleted_records default preview value
   def test_list_deleted_records_default_preview
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     # Default preview should be true
     stub_request(:post, 'https://app.smartsuite.com/api/v1/deleted-records/?preview=true')
@@ -921,7 +856,7 @@ class TestRecordOperations < Minitest::Test
 
   # Test restore_deleted_record success
   def test_restore_deleted_record_success
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
+    client = create_client
 
     stub_request(:post, 'https://app.smartsuite.com/api/v1/applications/tbl_123/records/rec_456/restore/')
       .with(body: {}.to_json)
