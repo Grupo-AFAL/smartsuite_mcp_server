@@ -38,42 +38,11 @@ module SmartSuite
         if solution_id
           log_metric("→ Listing members for solution: #{solution_id}")
 
-          # Get solution details to find member IDs
-          solution = get_solution(solution_id)
-
-          # Extract member IDs from permissions structure
-          solution_member_ids = []
-
-          # Add members from permissions.members (array of {access, entity})
-          if solution['permissions'] && solution['permissions']['members']
-            solution_member_ids += solution['permissions']['members'].map { |m| m['entity'] }
-          end
-
-          # Add members from permissions.owners (array of IDs)
-          solution_member_ids += solution['permissions']['owners'] if solution['permissions'] && solution['permissions']['owners']
-
-          # Add members from teams
-          if solution['permissions'] && solution['permissions']['teams']
-            team_ids = solution['permissions']['teams'].map { |t| t['entity'] }
-            log_metric("→ Found #{team_ids.size} team(s), fetching team members...")
-
-            team_ids.each do |team_id|
-              team = get_team(team_id)
-              if team && team['members'] && team['members'].is_a?(Array)
-                solution_member_ids += team['members']
-                log_metric("  Team #{team['name'] || team_id}: added #{team['members'].size} member(s)")
-              end
-            rescue StandardError => e
-              log_metric("  ⚠️  Failed to fetch team #{team_id}: #{e.message}")
-            end
-          end
-
-          solution_member_ids.uniq!
+          solution_member_ids = fetch_solution_member_ids(solution_id)
 
           if solution_member_ids.empty?
             log_metric('⚠️  Solution has no members')
-            result = build_collection_response([], :members, total_count: 0, filtered_by_solution: solution_id)
-            return result
+            return build_collection_response([], :members, total_count: 0, filtered_by_solution: solution_id)
           end
 
           # Get all members (with high limit to ensure we get all)
@@ -86,28 +55,7 @@ module SmartSuite
           if response.is_a?(Hash) && response['items'].is_a?(Array)
             # Filter to only members in the solution
             filtered_members = response['items'].select { |member| solution_member_ids.include?(member['id']) }
-
-            members = filtered_members.map do |member|
-              result = {
-                'id' => member['id'],
-                'email' => member['email'],
-                'role' => member['role'],
-                'status' => member['status']
-              }
-
-              # Add name fields if available
-              if member['full_name']
-                result['first_name'] = member['full_name']['first_name']
-                result['last_name'] = member['full_name']['last_name']
-                result['full_name'] = member['full_name']['sys_root']
-              end
-
-              # Add other useful fields
-              result['job_title'] = member['job_title'] if member['job_title']
-              result['department'] = member['department'] if member['department']
-
-              result.compact # Remove nil values
-            end
+            members = format_member_list(filtered_members)
 
             result = build_collection_response(members, :members,
                                                total_count: members.size,
@@ -125,28 +73,7 @@ module SmartSuite
 
           # Extract only essential member information
           if response.is_a?(Hash) && response['items'].is_a?(Array)
-            members = response['items'].map do |member|
-              result = {
-                'id' => member['id'],
-                'email' => member['email'],
-                'role' => member['role'],
-                'status' => member['status']
-              }
-
-              # Add name fields if available
-              if member['full_name']
-                result['first_name'] = member['full_name']['first_name']
-                result['last_name'] = member['full_name']['last_name']
-                result['full_name'] = member['full_name']['sys_root']
-              end
-
-              # Add other useful fields
-              result['job_title'] = member['job_title'] if member['job_title']
-              result['department'] = member['department'] if member['department']
-
-              result.compact # Remove nil values
-            end
-
+            members = format_member_list(response['items'])
             result = build_collection_response(members, :members, total_count: response['total_count'])
             track_response_size(result, "Found #{members.size} members")
           else
@@ -182,50 +109,11 @@ module SmartSuite
           query_lower = query.downcase
 
           matching_members = response['items'].select do |member|
-            # Search in email (handle both string and array)
-            email_match = false
-            if member['email']
-              email = member['email'].is_a?(Array) ? member['email'].first : member['email']
-              email_match = email && email.to_s.downcase.include?(query_lower)
-            end
-
-            # Search in name fields
-            name_match = false
-            if member['full_name']
-              first_name = member['full_name']['first_name'].to_s
-              last_name = member['full_name']['last_name'].to_s
-              full_name = member['full_name']['sys_root'].to_s
-
-              name_match = first_name.downcase.include?(query_lower) ||
-                           last_name.downcase.include?(query_lower) ||
-                           full_name.downcase.include?(query_lower)
-            end
-
-            email_match || name_match
+            match_member?(member, query_lower)
           end
 
           # Format results with essential fields only
-          members = matching_members.map do |member|
-            result = {
-              'id' => member['id'],
-              'email' => member['email'],
-              'role' => member['role'],
-              'status' => member['status']
-            }
-
-            # Add name fields if available
-            if member['full_name']
-              result['first_name'] = member['full_name']['first_name']
-              result['last_name'] = member['full_name']['last_name']
-              result['full_name'] = member['full_name']['sys_root']
-            end
-
-            # Add other useful fields
-            result['job_title'] = member['job_title'] if member['job_title']
-            result['department'] = member['department'] if member['department']
-
-            result.compact
-          end
+          members = format_member_list(matching_members)
 
           result = build_collection_response(members, :members, query: query)
           track_response_size(result, "Found #{members.size} matching members")
@@ -286,6 +174,104 @@ module SmartSuite
         log_metric("→ Fetching team from teams list: #{team_id}")
         list_teams # This populates @teams_cache
         @teams_cache[team_id]
+      end
+
+      private
+
+      # Fetches solution details and extracts unique member IDs from permissions.
+      # Includes direct members, owners, and members of assigned teams.
+      #
+      # @param solution_id [String] Solution identifier
+      # @return [Array<String>] Array of unique member IDs
+      def fetch_solution_member_ids(solution_id)
+        # Get solution details to find member IDs
+        solution = get_solution(solution_id)
+        return [] unless solution['permissions']
+
+        member_ids = []
+
+        # Add members from permissions.members (array of {access, entity})
+        if solution['permissions']['members']
+          member_ids += solution['permissions']['members'].map { |m| m['entity'] }
+        end
+
+        # Add members from permissions.owners (array of IDs)
+        member_ids += solution['permissions']['owners'] if solution['permissions']['owners']
+
+        # Add members from teams
+        if solution['permissions']['teams']
+          team_ids = solution['permissions']['teams'].map { |t| t['entity'] }
+          log_metric("→ Found #{team_ids.size} team(s), fetching team members...")
+
+          team_ids.each do |team_id|
+            team = get_team(team_id)
+            if team && team['members'].is_a?(Array)
+              member_ids += team['members']
+              log_metric("  Team #{team['name'] || team_id}: added #{team['members'].size} member(s)")
+            end
+          rescue StandardError => e
+            log_metric("  ⚠️  Failed to fetch team #{team_id}: #{e.message}")
+          end
+        end
+
+        member_ids.uniq
+      end
+
+      # Formats a list of raw member objects into essential fields.
+      #
+      # @param items [Array<Hash>] Raw member objects from API
+      # @return [Array<Hash>] Formatted member objects
+      def format_member_list(items)
+        items.map do |member|
+          result = {
+            'id' => member['id'],
+            'email' => member['email'],
+            'role' => member['role'],
+            'status' => member['status']
+          }
+
+          # Add name fields if available
+          if member['full_name']
+            result['first_name'] = member['full_name']['first_name']
+            result['last_name'] = member['full_name']['last_name']
+            result['full_name'] = member['full_name']['sys_root']
+          end
+
+          # Add other useful fields
+          result['job_title'] = member['job_title'] if member['job_title']
+          result['department'] = member['department'] if member['department']
+
+          result.compact # Remove nil values
+        end
+      end
+
+      # Checks if a member matches the search query.
+      # Matches against email, first name, last name, and full name.
+      #
+      # @param member [Hash] Member object
+      # @param query_lower [String] Lowercase search query
+      # @return [Boolean] True if member matches query
+      def match_member?(member, query_lower)
+        # Search in email (handle both string and array)
+        email_match = false
+        if member['email']
+          email = member['email'].is_a?(Array) ? member['email'].first : member['email']
+          email_match = email && email.to_s.downcase.include?(query_lower)
+        end
+
+        # Search in name fields
+        name_match = false
+        if member['full_name']
+          first_name = member['full_name']['first_name'].to_s
+          last_name = member['full_name']['last_name'].to_s
+          full_name = member['full_name']['sys_root'].to_s
+
+          name_match = first_name.downcase.include?(query_lower) ||
+                       last_name.downcase.include?(query_lower) ||
+                       full_name.downcase.include?(query_lower)
+        end
+
+        email_match || name_match
       end
     end
   end
