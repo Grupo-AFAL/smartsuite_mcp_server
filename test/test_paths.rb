@@ -10,7 +10,7 @@ class TestPaths < Minitest::Test
   end
 
   def test_test_mode_returns_false_when_env_not_set
-    original = ENV['SMARTSUITE_TEST_MODE']
+    original = ENV.fetch('SMARTSUITE_TEST_MODE', nil)
     ENV['SMARTSUITE_TEST_MODE'] = nil
 
     refute SmartSuite::Paths.test_mode?
@@ -28,7 +28,7 @@ class TestPaths < Minitest::Test
   end
 
   def test_database_path_in_production_mode
-    original = ENV['SMARTSUITE_TEST_MODE']
+    original = ENV.fetch('SMARTSUITE_TEST_MODE', nil)
     ENV['SMARTSUITE_TEST_MODE'] = nil
 
     path = SmartSuite::Paths.database_path
@@ -49,7 +49,7 @@ class TestPaths < Minitest::Test
   end
 
   def test_metrics_log_path_in_production_mode
-    original = ENV['SMARTSUITE_TEST_MODE']
+    original = ENV.fetch('SMARTSUITE_TEST_MODE', nil)
     ENV['SMARTSUITE_TEST_MODE'] = nil
 
     path = SmartSuite::Paths.metrics_log_path

@@ -56,7 +56,7 @@ class SmartSuiteClientTest < Minitest::Test
 
     # Mock get_tables_to_warm
     client.cache.define_singleton_method(:get_tables_to_warm) do |tables:, count:|
-      ['tbl_1', 'tbl_2']
+      %w[tbl_1 tbl_2]
     end
 
     # Mock cache_valid? to return false (cache needs warming)
@@ -69,7 +69,7 @@ class SmartSuiteClientTest < Minitest::Test
       "1 of 1 filtered records (1 total)\n\nid: rec_#{table_id}"
     end
 
-    result = client.warm_cache(tables: ['tbl_1', 'tbl_2'])
+    result = client.warm_cache(tables: %w[tbl_1 tbl_2])
 
     assert_equal 'warm', result['operation']
     assert_equal 'completed', result['status']
@@ -87,7 +87,7 @@ class SmartSuiteClientTest < Minitest::Test
 
     # Mock get_tables_to_warm
     client.cache.define_singleton_method(:get_tables_to_warm) do |tables:, count:|
-      ['tbl_1', 'tbl_2']
+      %w[tbl_1 tbl_2]
     end
 
     # Mock cache_valid? - tbl_1 is valid, tbl_2 is not
@@ -101,7 +101,7 @@ class SmartSuiteClientTest < Minitest::Test
       "1 of 1 filtered records (1 total)\n\nid: rec_#{table_id}"
     end
 
-    result = client.warm_cache(tables: ['tbl_1', 'tbl_2'])
+    result = client.warm_cache(tables: %w[tbl_1 tbl_2])
 
     assert_equal 'warm', result['operation']
     assert_equal 'completed', result['status']
@@ -122,7 +122,7 @@ class SmartSuiteClientTest < Minitest::Test
 
     # Mock get_tables_to_warm
     client.cache.define_singleton_method(:get_tables_to_warm) do |tables:, count:|
-      ['tbl_1', 'tbl_2']
+      %w[tbl_1 tbl_2]
     end
 
     # Mock cache_valid? to return false
@@ -139,7 +139,7 @@ class SmartSuiteClientTest < Minitest::Test
       "1 of 1 filtered records (1 total)\n\nid: rec_#{table_id}"
     end
 
-    result = client.warm_cache(tables: ['tbl_1', 'tbl_2'])
+    result = client.warm_cache(tables: %w[tbl_1 tbl_2])
 
     assert_equal 'warm', result['operation']
     assert_equal 'completed', result['status']
@@ -232,9 +232,9 @@ class SmartSuiteClientTest < Minitest::Test
 
     # Both could be nil if cache is disabled and no external tracker
     # But if we have sessions, they should be unique
-    if session1 && session2
-      refute_equal session1, session2
-    end
+    return unless session1 && session2
+
+    refute_equal session1, session2
   end
 
   def test_client_uses_custom_session_id

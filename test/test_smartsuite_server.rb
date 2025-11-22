@@ -2434,7 +2434,8 @@ class SmartSuiteServerTest < Minitest::Test
     request = {
       'id' => 29,
       'method' => 'tools/call',
-      'params' => { 'name' => 'update_record', 'arguments' => { 'table_id' => 'tbl_1', 'record_id' => 'rec_1', 'data' => { 'title' => 'Updated' } } }
+      'params' => { 'name' => 'update_record',
+                    'arguments' => { 'table_id' => 'tbl_1', 'record_id' => 'rec_1', 'data' => { 'title' => 'Updated' } } }
     }
 
     response = call_private_method(:handle_tool_call, request)
@@ -2451,7 +2452,8 @@ class SmartSuiteServerTest < Minitest::Test
     request = {
       'id' => 30,
       'method' => 'tools/call',
-      'params' => { 'name' => 'bulk_add_records', 'arguments' => { 'table_id' => 'tbl_1', 'records' => [{ 'title' => 'A' }, { 'title' => 'B' }] } }
+      'params' => { 'name' => 'bulk_add_records',
+                    'arguments' => { 'table_id' => 'tbl_1', 'records' => [{ 'title' => 'A' }, { 'title' => 'B' }] } }
     }
 
     response = call_private_method(:handle_tool_call, request)
@@ -2553,7 +2555,8 @@ class SmartSuiteServerTest < Minitest::Test
     request = {
       'id' => 36,
       'method' => 'tools/call',
-      'params' => { 'name' => 'attach_file', 'arguments' => { 'table_id' => 'tbl_1', 'record_id' => 'rec_1', 'file_field_slug' => 'attachments', 'file_urls' => ['https://example.com/file.pdf'] } }
+      'params' => { 'name' => 'attach_file',
+                    'arguments' => { 'table_id' => 'tbl_1', 'record_id' => 'rec_1', 'file_field_slug' => 'attachments', 'file_urls' => ['https://example.com/file.pdf'] } }
     }
 
     response = call_private_method(:handle_tool_call, request)
@@ -2570,7 +2573,8 @@ class SmartSuiteServerTest < Minitest::Test
     request = {
       'id' => 37,
       'method' => 'tools/call',
-      'params' => { 'name' => 'list_records', 'arguments' => { 'table_id' => 'tbl_1', 'limit' => 10, 'offset' => 0, 'fields' => ['title'] } }
+      'params' => { 'name' => 'list_records',
+                    'arguments' => { 'table_id' => 'tbl_1', 'limit' => 10, 'offset' => 0, 'fields' => ['title'] } }
     }
 
     response = call_private_method(:handle_tool_call, request)
@@ -2715,7 +2719,7 @@ class SmartSuiteServerTest < Minitest::Test
     request = {
       'id' => 44,
       'method' => 'tools/call',
-      'params' => { 'name' => 'warm_cache', 'arguments' => { 'tables' => ['tbl_1', 'tbl_2'], 'count' => 10 } }
+      'params' => { 'name' => 'warm_cache', 'arguments' => { 'tables' => %w[tbl_1 tbl_2], 'count' => 10 } }
     }
 
     response = call_private_method(:handle_tool_call, request)
@@ -2887,7 +2891,7 @@ class SmartSuiteServerTest < Minitest::Test
       'method' => 'tools/call',
       'params' => {
         'name' => 'list_tables',
-        'arguments' => { 'solution_id' => 'sol_123', 'fields' => ['id', 'name'] }
+        'arguments' => { 'solution_id' => 'sol_123', 'fields' => %w[id name] }
       }
     }
 

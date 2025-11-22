@@ -144,7 +144,7 @@ class TestMemberOperations < Minitest::Test
     result = client.search_member('John')
 
     # Fuzzy matching - should find John
-    assert result['members'].any? { |m| m['first_name'] == 'John' }
+    assert(result['members'].any? { |m| m['first_name'] == 'John' })
   end
 
   def test_search_member_sorts_by_match_score
@@ -243,7 +243,7 @@ class TestMemberOperations < Minitest::Test
     assert result['members'].is_a?(Array)
     assert_equal 2, result['members'].size
     # Each member should at least have an 'id' key
-    assert result['members'].all? { |m| m.key?('id') }
+    assert(result['members'].all? { |m| m.key?('id') })
   end
 
   def test_get_team_missing_team_id
@@ -494,11 +494,9 @@ class TestMemberOperations < Minitest::Test
     }
 
     client.define_singleton_method(:api_request) do |_method, endpoint, _body = nil|
-      if endpoint.include?('solutions')
-        solution_response
-      else
-        raise "Unexpected API call"
-      end
+      raise 'Unexpected API call' unless endpoint.include?('solutions')
+
+      solution_response
     end
 
     result = client.list_members(solution_id: solution_id)
@@ -662,7 +660,7 @@ class TestMemberOperations < Minitest::Test
       'id' => 'team_1',
       'name' => 'Engineering',
       'description' => 'Dev team',
-      'members' => ['mem_1', 'mem_2']
+      'members' => %w[mem_1 mem_2]
     }
 
     result = client.send(:enrich_team_with_members, team)

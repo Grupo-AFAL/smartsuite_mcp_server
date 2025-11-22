@@ -365,7 +365,12 @@ class TestCacheMigrations < Minitest::Test
         expires_at TEXT NOT NULL
       )
     SQL
-    db.execute("INSERT INTO cached_tables (id, slug, name, solution_id, structure, description, created, created_by, cached_at, expires_at) VALUES ('tbl_1', 'table-1', 'Table 1', 'sol_1', '[]', 'Test desc', datetime('now'), 'user1', datetime('now'), datetime('now', '+4 hours'))")
+    db.execute(<<-SQL)
+      INSERT INTO cached_tables (id, slug, name, solution_id, structure, description, created,
+        created_by, cached_at, expires_at)
+      VALUES ('tbl_1', 'table-1', 'Table 1', 'sol_1', '[]', 'Test desc', datetime('now'),
+        'user1', datetime('now'), datetime('now', '+4 hours'))
+    SQL
     db.close
 
     cache = create_cache
@@ -436,7 +441,10 @@ class TestCacheMigrations < Minitest::Test
         expires_at TEXT NOT NULL
       )
     SQL
-    db.execute("INSERT INTO cached_tables (id, name, structure, cached_at, expires_at) VALUES ('tbl_1', 'Table', '[]', datetime('now'), datetime('now', '+4 hours'))")
+    db.execute(<<-SQL)
+      INSERT INTO cached_tables (id, name, structure, cached_at, expires_at)
+      VALUES ('tbl_1', 'Table', '[]', datetime('now'), datetime('now', '+4 hours'))
+    SQL
     db.close
 
     # Should not error
@@ -478,7 +486,10 @@ class TestCacheMigrations < Minitest::Test
         expires_at TEXT NOT NULL
       )
     SQL
-    db.execute("INSERT INTO cached_members (id, email, cached_at, expires_at) VALUES ('mem_1', 'test@test.com', datetime('now'), datetime('now', '+4 hours'))")
+    db.execute(<<-SQL)
+      INSERT INTO cached_members (id, email, cached_at, expires_at)
+      VALUES ('mem_1', 'test@test.com', datetime('now'), datetime('now', '+4 hours'))
+    SQL
     db.close
 
     cache = create_cache
@@ -523,7 +534,10 @@ class TestCacheMigrations < Minitest::Test
         expires_at TEXT NOT NULL
       )
     SQL
-    db.execute("INSERT INTO cached_members (id, email, deleted_date, cached_at, expires_at) VALUES ('mem_1', 'test@test.com', '2025-01-01', datetime('now'), datetime('now', '+4 hours'))")
+    db.execute(<<-SQL)
+      INSERT INTO cached_members (id, email, deleted_date, cached_at, expires_at)
+      VALUES ('mem_1', 'test@test.com', '2025-01-01', datetime('now'), datetime('now', '+4 hours'))
+    SQL
     db.close
 
     # Should not error

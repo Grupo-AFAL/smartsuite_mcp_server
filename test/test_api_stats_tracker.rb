@@ -14,7 +14,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def teardown
-    @db.close if @db
+    @db&.close
     FileUtils.rm_f(@test_db_path) if @test_db_path
   end
 
@@ -273,7 +273,7 @@ class TestApiStatsTracker < Minitest::Test
 
   def test_close_closes_owned_db
     tracker = ApiStatsTracker.new('test_key')
-    db = tracker.instance_variable_get(:@db)
+    tracker.instance_variable_get(:@db)
 
     tracker.close
 
