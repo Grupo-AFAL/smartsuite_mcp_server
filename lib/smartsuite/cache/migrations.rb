@@ -293,6 +293,21 @@ module SmartSuite
         log_metric('→ Migrated cached_members schema: added deleted_date column')
       end
 
+      # Migrate cache_ttl_config schema to add expires_at column
+      #
+      # Used for tracking table list cache scope expiration.
+      # @return [void]
+      def migrate_cache_ttl_config_schema
+        cols = @db.execute('PRAGMA table_info(cache_ttl_config)')
+        expires_at_col = cols.find { |c| c['name'] == 'expires_at' }
+
+        # Only add column if it doesn't exist
+        return if expires_at_col
+
+        @db.execute('ALTER TABLE cache_ttl_config ADD COLUMN expires_at TEXT')
+        log_metric('→ Migrated cache_ttl_config schema: added expires_at column')
+      end
+
       private
 
       # Log migration metrics

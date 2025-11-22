@@ -101,12 +101,14 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 #### Record Operations
 
 - ✅ **Bulk Operations** - Efficient batch processing for multiple records
+
   - `bulk_add_records`: Create multiple records in a single API call
   - `bulk_update_records`: Update multiple records at once (each must include 'id' field)
   - `bulk_delete_records`: Soft delete multiple records in one operation
   - Significantly more efficient than individual operations when working with many records
 
 - ✅ **File Operations** - File attachment and URL retrieval
+
   - `attach_file`: Attach files to records by providing publicly accessible URLs
     - SmartSuite downloads files from provided URLs and attaches them
     - Supports single or multiple files in one operation
@@ -159,6 +161,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 #### Bug Fixes
 
 - ✅ **Single select field format requirements** - Fixed empty/invisible dropdown options bug
+
   - Root cause: Fields created with simple strings instead of UUIDs, missing color attributes
   - Fixed 4 fields in "Incidentes de Tecnología" table with proper UUIDs and hex colors
   - Added `docs/reference/single_select_field_format.md` - Comprehensive format reference
@@ -167,6 +170,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
   - Prevention: Clear documentation prevents future occurrences
 
 - ✅ **Cache invalidation cascade** - Fixed stale data after cache refresh
+
   - `refresh_cache('solutions')` now invalidates solutions → tables → records (full cascade)
   - `refresh_cache('tables', solution_id: 'X')` now invalidates tables → records for that solution
   - Added helper methods for cascading invalidation
@@ -212,11 +216,14 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 #### Usability ✅
 
 - ✅ **Installation script for non-technical users** - **COMPLETED**
+
   - Automated installation scripts for macOS/Linux (`install.sh`) and Windows (`install.ps1`)
   - One-liner bootstrap scripts for zero-friction installation
   - Automatic Ruby installation via Homebrew (macOS) or WinGet (Windows)
   - Claude Desktop configuration with proper JSON formatting
   - Interactive prompts for SmartSuite API credentials
+
+- Convert UTC timestamps to local time in logs and reports
 
 #### Performance
 
@@ -465,18 +472,18 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 
 ## Roadmap Status
 
-| Version | Status      | Target Date | Completion |
-| ------- | ----------- | ----------- | ---------- |
-| v1.0    | ✅ Released | Nov 2025    | 100%       |
-| v1.5    | ✅ Released | Nov 2025    | 100%       |
-| v1.6    | ✅ Released | Nov 2025    | 100%       |
-| v1.7    | ✅ Released | Nov 2025    | 100%       |
-| v1.8    | ✅ Released | Nov 2025    | 100%       |
-| v1.9    | ✅ Released | Nov 2025    | 100%       |
-| v2.0    | 🚧 In Progress | Nov 2025 | 80%        |
-| v2.1    | 📋 Planned  | Q2 2026     | 0%         |
-| v2.2    | 📋 Planned  | Q2 2026     | 0%         |
-| v3.0    | 📋 Planned  | Q3 2026     | 0%         |
+| Version | Status         | Target Date | Completion |
+| ------- | -------------- | ----------- | ---------- |
+| v1.0    | ✅ Released    | Nov 2025    | 100%       |
+| v1.5    | ✅ Released    | Nov 2025    | 100%       |
+| v1.6    | ✅ Released    | Nov 2025    | 100%       |
+| v1.7    | ✅ Released    | Nov 2025    | 100%       |
+| v1.8    | ✅ Released    | Nov 2025    | 100%       |
+| v1.9    | ✅ Released    | Nov 2025    | 100%       |
+| v2.0    | 🚧 In Progress | Nov 2025    | 80%        |
+| v2.1    | 📋 Planned     | Q2 2026     | 0%         |
+| v2.2    | 📋 Planned     | Q2 2026     | 0%         |
+| v3.0    | 📋 Planned     | Q3 2026     | 0%         |
 
 ---
 

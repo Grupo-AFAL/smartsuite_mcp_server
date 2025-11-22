@@ -77,6 +77,7 @@ module SmartSuite
               ttl_seconds INTEGER NOT NULL DEFAULT #{default_ttl},
               mutation_level TEXT,
               notes TEXT,
+              expires_at TEXT,
               updated_at TEXT NOT NULL
             );
 

@@ -115,7 +115,9 @@ module SmartSuite
         log_metric("→ Updating field #{slug} in table: #{table_id}")
 
         # Ensure slug is included in the field data
+        # params is required by SmartSuite API, default to empty hash if not provided
         body = field_data.merge('slug' => slug)
+        body['params'] ||= {}
 
         response = api_request(:put, "/applications/#{table_id}/change_field/", body)
 

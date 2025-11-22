@@ -160,6 +160,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **update_field API error when params not provided** - `update_field` now automatically adds empty `params: {}` if not provided
+  - SmartSuite API requires the `params` object even for simple field renames
+  - Previously failed with `400 - {"params":["This field is required."]}`
+  - Now users can simply call `update_field(table_id, slug, {"label": "New Name", "field_type": "textareafield"})` without worrying about params
+
 - **Test isolation from production database** - Fixed tests writing to production database instead of test-specific paths
   - Created `SmartSuite::Paths` module (`lib/smartsuite/paths.rb`) as single source of truth for file paths
   - All components now use `SmartSuite::Paths.database_path` and `SmartSuite::Paths.metrics_log_path`
