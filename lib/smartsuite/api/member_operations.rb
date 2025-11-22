@@ -91,11 +91,9 @@ module SmartSuite
                              all_members.select { |m| member_active?(m) }
                            end
 
-        # Filter members by query (case-insensitive)
-        query_lower = query.downcase
-
+        # Filter members by query using fuzzy matching (consistent with cache path)
         matching_members = filtered_members.select do |member|
-          match_member_formatted?(member, query_lower)
+          match_member_formatted?(member, query)
         end
 
         # Sort by match score (best matches first)
@@ -480,24 +478,24 @@ module SmartSuite
       end
 
       # Checks if a formatted member object matches the search query.
-      # Used for filtering cached/formatted members.
+      # Uses FuzzyMatcher for consistency with cached search (typo tolerance).
       #
       # @param member [Hash] Formatted member object
-      # @param query_lower [String] Lowercase search query
+      # @param query [String] Search query (case-insensitive, fuzzy matched)
       # @return [Boolean] True if member matches query
-      def match_member_formatted?(member, query_lower)
-        # Search in email
+      def match_member_formatted?(member, query)
+        # Search in email (substring match for email - no fuzzy for technical strings)
         email = member['email']
-        email_match = email && email.to_s.downcase.include?(query_lower)
+        email_match = email && email.to_s.downcase.include?(query.downcase)
 
-        # Search in name fields
+        # Search in name fields using FuzzyMatcher for consistency with cache path
         first_name = member['first_name']
         last_name = member['last_name']
         full_name = member['full_name']
 
-        name_match = (first_name && first_name.to_s.downcase.include?(query_lower)) ||
-                     (last_name && last_name.to_s.downcase.include?(query_lower)) ||
-                     (full_name && full_name.to_s.downcase.include?(query_lower))
+        name_match = FuzzyMatcher.match?(full_name.to_s, query) ||
+                     FuzzyMatcher.match?(first_name.to_s, query) ||
+                     FuzzyMatcher.match?(last_name.to_s, query)
 
         email_match || name_match
       end
