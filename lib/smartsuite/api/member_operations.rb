@@ -67,16 +67,13 @@ module SmartSuite
         log_metric("→ Searching members with query: #{query}")
 
         # Try cache first with query filtering
-        unless should_bypass_cache?
-          cached_members = @cache.get_cached_members(query: query, include_inactive: include_inactive)
-          if cached_members
-            log_cache_hit('members', cached_members.size, "query:#{query}")
-            sorted_members = sort_members_by_match_score(cached_members, query)
-            result = build_collection_response(sorted_members, :members, query: query)
-            return track_response_size(result, "Found #{sorted_members.size} matching members (cached)")
-          else
-            log_cache_miss('members', "query:#{query}")
-          end
+        cached_members = with_cache_check('members', "query:#{query}") do
+          @cache.get_cached_members(query: query, include_inactive: include_inactive)
+        end
+        if cached_members
+          sorted_members = sort_members_by_match_score(cached_members, query)
+          result = build_collection_response(sorted_members, :members, query: query)
+          return track_response_size(result, "Found #{sorted_members.size} matching members (cached)")
         end
 
         # Fetch all members from API
@@ -84,12 +81,8 @@ module SmartSuite
 
         return all_members unless all_members.is_a?(Array)
 
-        # Filter by status unless include_inactive (status 1 or 'active' = active, nil = treat as active)
-        filtered_members = if include_inactive
-                             all_members
-                           else
-                             all_members.select { |m| member_active?(m) }
-                           end
+        # Filter by status unless include_inactive
+        filtered_members = filter_members_by_status(all_members, include_inactive: include_inactive)
 
         # Filter members by query using fuzzy matching (consistent with cache path)
         matching_members = filtered_members.select do |member|
@@ -150,17 +143,14 @@ module SmartSuite
         log_metric('→ Listing workspace members')
 
         # Try cache first if enabled
-        unless should_bypass_cache?
-          cached_members = @cache.get_cached_members(include_inactive: include_inactive)
-          if cached_members
-            log_cache_hit('members', cached_members.size)
-            # Apply pagination to cached results
-            paginated = cached_members[offset, limit] || []
-            result = build_collection_response(paginated, :members, total_count: cached_members.size)
-            return track_response_size(result, "Found #{paginated.size} members (cached, #{cached_members.size} total)")
-          else
-            log_cache_miss('members')
-          end
+        cached_members = with_cache_check('members') do
+          @cache.get_cached_members(include_inactive: include_inactive)
+        end
+        if cached_members
+          # Apply pagination to cached results
+          paginated = cached_members[offset, limit] || []
+          result = build_collection_response(paginated, :members, total_count: cached_members.size)
+          return track_response_size(result, "Found #{paginated.size} members (cached, #{cached_members.size} total)")
         end
 
         # Fetch all members from API and cache them
@@ -168,12 +158,8 @@ module SmartSuite
 
         return all_members unless all_members.is_a?(Array)
 
-        # Filter by status unless include_inactive (status 1 or 'active' = active, nil = treat as active)
-        filtered_members = if include_inactive
-                             all_members
-                           else
-                             all_members.select { |m| member_active?(m) }
-                           end
+        # Filter by status unless include_inactive
+        filtered_members = filter_members_by_status(all_members, include_inactive: include_inactive)
 
         # Apply pagination
         paginated = filtered_members[offset, limit] || []
@@ -197,15 +183,8 @@ module SmartSuite
         end
 
         # Try cache first if enabled
-        all_members = nil
-        unless should_bypass_cache?
-          cached_members = @cache.get_cached_members(include_inactive: include_inactive)
-          if cached_members
-            log_cache_hit('members', cached_members.size)
-            all_members = cached_members
-          else
-            log_cache_miss('members')
-          end
+        all_members = with_cache_check('members') do
+          @cache.get_cached_members(include_inactive: include_inactive)
         end
 
         # Fetch from API if not cached
@@ -213,8 +192,8 @@ module SmartSuite
           all_members = fetch_all_members_from_api
           return all_members unless all_members.is_a?(Array)
 
-          # Filter by status unless include_inactive (status 1 or 'active' = active, nil = treat as active)
-          all_members = all_members.select { |m| member_active?(m) } unless include_inactive
+          # Filter by status unless include_inactive
+          all_members = filter_members_by_status(all_members, include_inactive: include_inactive)
         end
 
         # Filter to only members in the solution
@@ -257,15 +236,8 @@ module SmartSuite
       # @return [Array<Hash>] Array of team objects with full data
       def fetch_teams_with_cache
         # Try cache first if enabled
-        unless should_bypass_cache?
-          cached_teams = @cache.get_cached_teams
-          if cached_teams
-            log_cache_hit('teams', cached_teams.size)
-            return cached_teams
-          else
-            log_cache_miss('teams')
-          end
-        end
+        cached_teams = with_cache_check('teams') { @cache.get_cached_teams }
+        return cached_teams if cached_teams
 
         # Fetch from API
         endpoint = build_endpoint('/teams/list/',
@@ -510,6 +482,23 @@ module SmartSuite
         # Check deleted_date - if set, member is soft-deleted
         deleted_date = member['deleted_date']
         deleted_date.nil? || (deleted_date.respond_to?(:empty?) && deleted_date.empty?)
+      end
+
+      # Filters members by active/inactive status.
+      #
+      # This helper centralizes the member filtering logic used across multiple methods.
+      # Returns all members if include_inactive is true, otherwise filters to active only.
+      #
+      # @param members [Array<Hash>] Array of member objects
+      # @param include_inactive [Boolean] Whether to include inactive members (default: false)
+      # @return [Array<Hash>] Filtered members
+      # @example
+      #   active_members = filter_members_by_status(all_members)
+      #   all_members = filter_members_by_status(all_members, include_inactive: true)
+      def filter_members_by_status(members, include_inactive: false)
+        return members if include_inactive
+
+        members.select { |m| member_active?(m) }
       end
 
       # Formats team list for API response.

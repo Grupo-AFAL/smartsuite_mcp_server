@@ -134,6 +134,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Extracted cache-first pattern to Base module** - DRY refactoring reducing ~50 lines of duplicate code across API modules
+  - Added `with_cache_check` helper method for centralized cache checking with automatic logging
+  - Added `extract_items_safely` helper for consistent response normalization (Array vs Hash with items)
+  - Added `filter_members_by_status` helper in MemberOperations for consistent active/inactive filtering
+  - Updated `workspace_operations.rb`, `table_operations.rb`, and `member_operations.rb` to use new helpers
+  - Includes 16 new tests covering the helper methods
+
 - **Refactored cache status methods** - Extracted `get_metadata_cache_status` helper to eliminate code duplication
   - Consolidated 4 nearly-identical methods (`get_solutions_cache_status`, `get_tables_cache_status`, `get_members_cache_status`, `get_teams_cache_status`)
   - Reduced ~80 lines of duplicate code to single 24-line helper method
