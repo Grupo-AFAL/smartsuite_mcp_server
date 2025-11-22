@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Documentation: Git Workflow** - Added comprehensive Git workflow guidelines to `GEMINI.md`
+  - Explicitly prohibits agent from merging Pull Requests
+  - mandates CI checks verification before requesting review
+  - Defines clear steps for branching, committing, and verifying changes
+  - Establishes standard branch naming conventions (`feature/`, `fix/`, `refactor/`, etc.)
+
 - **SmartDoc format documentation and examples** - Added comprehensive documentation for rich text field formatting with validated examples
   - Added `docs/smartdoc_examples.md` - Complete SmartDoc format reference with all 13 validated content types
   - Added `docs/smartdoc_complete_reference.json` - Complete validated structure from actual SmartSuite record
