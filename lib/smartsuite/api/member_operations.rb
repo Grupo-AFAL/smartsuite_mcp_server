@@ -111,37 +111,12 @@ module SmartSuite
       #   list_teams
       def list_teams
         log_metric('→ Listing teams')
-
-        # Try cache first if enabled
-        unless should_bypass_cache?
-          cached_teams = @cache.get_cached_teams
-          if cached_teams
-            log_cache_hit('teams', cached_teams.size)
-            return cached_teams
-          else
-            log_cache_miss('teams')
-          end
-        end
-
-        # Fetch from API
-        endpoint = build_endpoint('/teams/list/',
-                                  limit: Base::Pagination::FETCH_ALL_LIMIT,
-                                  offset: 0)
-        response = api_request(:post, endpoint, nil)
-
-        # Handle both array response and hash with 'items' key
-        teams = response.is_a?(Hash) && response['items'] ? response['items'] : response
-
-        # Cache teams if cache enabled
-        if teams.is_a?(Array) && cache_enabled?
-          @cache.cache_teams(teams)
-          log_metric("✓ Cached #{teams.size} teams")
-        end
-
-        teams
+        teams = fetch_teams_with_cache
+        format_team_list(teams)
       end
 
       # Retrieves a specific team by ID, using cache if available.
+      # Returns full team data including member IDs array (for internal use).
       #
       # Checks SQLite cache first. If not found, fetches all teams and
       # populates the cache.
@@ -165,7 +140,7 @@ module SmartSuite
 
         # Fetch all teams (which will cache them) and find the specific one
         log_metric("→ Fetching team from teams list: #{team_id}")
-        teams = list_teams
+        teams = fetch_teams_with_cache
         teams&.find { |t| t['id'] == team_id }
       end
 
@@ -280,6 +255,40 @@ module SmartSuite
         else
           response
         end
+      end
+
+      # Fetches all teams with cache-first strategy.
+      # Returns full team data including member IDs array.
+      #
+      # @return [Array<Hash>] Array of team objects with full data
+      def fetch_teams_with_cache
+        # Try cache first if enabled
+        unless should_bypass_cache?
+          cached_teams = @cache.get_cached_teams
+          if cached_teams
+            log_cache_hit('teams', cached_teams.size)
+            return cached_teams
+          else
+            log_cache_miss('teams')
+          end
+        end
+
+        # Fetch from API
+        endpoint = build_endpoint('/teams/list/',
+                                  limit: Base::Pagination::FETCH_ALL_LIMIT,
+                                  offset: 0)
+        response = api_request(:post, endpoint, nil)
+
+        # Handle both array response and hash with 'items' key
+        teams = response.is_a?(Hash) && response['items'] ? response['items'] : response
+
+        # Cache teams if cache enabled
+        if teams.is_a?(Array) && cache_enabled?
+          @cache.cache_teams(teams)
+          log_metric("✓ Cached #{teams.size} teams")
+        end
+
+        teams
       end
 
       # Fetches solution details and extracts unique member IDs from permissions.
@@ -419,6 +428,27 @@ module SmartSuite
         # Check deleted_date - if set, member is soft-deleted
         deleted_date = member['deleted_date']
         deleted_date.nil? || (deleted_date.respond_to?(:empty?) && deleted_date.empty?)
+      end
+
+      # Formats team list for API response.
+      # Replaces members array with member_count to reduce token usage.
+      #
+      # @param teams [Array<Hash>] Array of team objects from API/cache
+      # @return [Array<Hash>] Formatted teams with member_count instead of members
+      def format_team_list(teams)
+        return teams unless teams.is_a?(Array)
+
+        teams.map do |team|
+          members = team['members']
+          member_count = members.is_a?(Array) ? members.size : (members || 0)
+
+          {
+            'id' => team['id'],
+            'name' => team['name'],
+            'description' => team['description'],
+            'member_count' => member_count
+          }
+        end
       end
     end
   end
