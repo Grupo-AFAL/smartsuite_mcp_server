@@ -130,7 +130,7 @@ module SmartSuite
         @db.execute_batch <<-SQL
         CREATE TABLE cache_ttl_config_new (
           table_id TEXT PRIMARY KEY,
-          ttl_seconds INTEGER NOT NULL DEFAULT #{CacheLayer::DEFAULT_TTL},
+          ttl_seconds INTEGER NOT NULL DEFAULT #{Layer::DEFAULT_TTL},
           mutation_level TEXT,
           notes TEXT,
           updated_at TEXT NOT NULL

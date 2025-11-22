@@ -492,6 +492,223 @@ class TestCacheLayer < Minitest::Test
     assert_includes error.message.downcase, 'closed', 'Database should be closed'
   end
 
+  # ========== Performance Module Tests ==========
+
+  def test_track_cache_hit
+    table_id = 'tbl_perf_hit'
+
+    @cache.track_cache_hit(table_id)
+
+    # Access internal counters to verify
+    counters = @cache.instance_variable_get(:@perf_counters)
+    assert_equal 1, counters[table_id][:hits]
+    assert_equal 0, counters[table_id][:misses]
+  end
+
+  def test_track_cache_miss
+    table_id = 'tbl_perf_miss'
+
+    @cache.track_cache_miss(table_id)
+
+    counters = @cache.instance_variable_get(:@perf_counters)
+    assert_equal 0, counters[table_id][:hits]
+    assert_equal 1, counters[table_id][:misses]
+  end
+
+  def test_track_cache_hit_increments_operations_counter
+    table_id = 'tbl_perf_ops'
+
+    initial_ops = @cache.instance_variable_get(:@perf_operations_since_flush)
+    @cache.track_cache_hit(table_id)
+    final_ops = @cache.instance_variable_get(:@perf_operations_since_flush)
+
+    assert_equal initial_ops + 1, final_ops
+  end
+
+  def test_track_cache_miss_increments_operations_counter
+    table_id = 'tbl_perf_ops'
+
+    initial_ops = @cache.instance_variable_get(:@perf_operations_since_flush)
+    @cache.track_cache_miss(table_id)
+    final_ops = @cache.instance_variable_get(:@perf_operations_since_flush)
+
+    assert_equal initial_ops + 1, final_ops
+  end
+
+  def test_flush_performance_counters
+    table_id = 'tbl_perf_flush'
+
+    # Track some hits and misses
+    3.times { @cache.track_cache_hit(table_id) }
+    2.times { @cache.track_cache_miss(table_id) }
+
+    # Force flush
+    @cache.flush_performance_counters
+
+    # Verify counters were cleared
+    counters = @cache.instance_variable_get(:@perf_counters)
+    assert counters.empty?, 'Counters should be cleared after flush'
+
+    # Verify data was written to database
+    result = @cache.db.execute(
+      'SELECT hit_count, miss_count FROM cache_performance WHERE table_id = ?',
+      [table_id]
+    ).first
+
+    assert_equal 3, result['hit_count']
+    assert_equal 2, result['miss_count']
+  end
+
+  def test_flush_performance_counters_accumulates
+    table_id = 'tbl_perf_accum'
+
+    # First batch
+    2.times { @cache.track_cache_hit(table_id) }
+    @cache.flush_performance_counters
+
+    # Second batch
+    3.times { @cache.track_cache_hit(table_id) }
+    1.times { @cache.track_cache_miss(table_id) }
+    @cache.flush_performance_counters
+
+    # Verify accumulated values
+    result = @cache.db.execute(
+      'SELECT hit_count, miss_count FROM cache_performance WHERE table_id = ?',
+      [table_id]
+    ).first
+
+    assert_equal 5, result['hit_count'], 'Hits should accumulate: 2 + 3 = 5'
+    assert_equal 1, result['miss_count']
+  end
+
+  def test_flush_performance_counters_empty_does_nothing
+    # Ensure counters are empty
+    @cache.instance_variable_set(:@perf_counters, Hash.new { |h, k| h[k] = { hits: 0, misses: 0 } })
+
+    # This should not raise
+    @cache.flush_performance_counters
+
+    # Verify no records were inserted
+    result = @cache.db.execute('SELECT COUNT(*) as cnt FROM cache_performance').first
+    assert_equal 0, result['cnt']
+  end
+
+  def test_flush_performance_counters_if_needed_under_threshold
+    table_id = 'tbl_perf_threshold'
+
+    # Track fewer than 100 operations
+    10.times { @cache.track_cache_hit(table_id) }
+
+    # Reset flush time to recent
+    @cache.instance_variable_set(:@perf_last_flush, Time.now.utc)
+
+    # Counters should still exist (not flushed)
+    counters = @cache.instance_variable_get(:@perf_counters)
+    refute counters.empty?, 'Counters should not be flushed under threshold'
+  end
+
+  def test_flush_performance_counters_if_needed_over_operations_threshold
+    table_id = 'tbl_perf_ops_threshold'
+
+    # Set operations to 99
+    @cache.instance_variable_set(:@perf_operations_since_flush, 99)
+    @cache.instance_variable_set(:@perf_last_flush, Time.now.utc)
+
+    # This should trigger flush (100th operation)
+    @cache.track_cache_hit(table_id)
+
+    # Verify database was updated
+    result = @cache.db.execute(
+      'SELECT hit_count FROM cache_performance WHERE table_id = ?',
+      [table_id]
+    ).first
+
+    assert result, 'Performance data should be flushed to database'
+  end
+
+  def test_flush_performance_counters_if_needed_over_time_threshold
+    table_id = 'tbl_perf_time_threshold'
+
+    # Track some data
+    @cache.track_cache_hit(table_id)
+
+    # Set last flush to more than 5 minutes ago
+    @cache.instance_variable_set(:@perf_last_flush, Time.now.utc - 400)
+    @cache.instance_variable_set(:@perf_operations_since_flush, 1)
+
+    # This should trigger flush due to time threshold
+    @cache.flush_performance_counters_if_needed
+
+    # Verify counters were cleared
+    counters = @cache.instance_variable_get(:@perf_counters)
+    assert counters.empty?, 'Counters should be flushed after time threshold'
+  end
+
+  def test_get_cache_performance_empty
+    result = @cache.get_cache_performance
+
+    assert result.is_a?(Array)
+    assert result.empty?, 'Should return empty array when no performance data'
+  end
+
+  def test_get_cache_performance_with_data
+    table_id = 'tbl_perf_get'
+
+    # Track some data and flush
+    5.times { @cache.track_cache_hit(table_id) }
+    3.times { @cache.track_cache_miss(table_id) }
+    @cache.flush_performance_counters
+
+    result = @cache.get_cache_performance
+
+    assert_equal 1, result.size
+    perf = result.first
+
+    assert_equal table_id, perf['table_id']
+    assert_equal 5, perf['hit_count']
+    assert_equal 3, perf['miss_count']
+    assert_equal 8, perf['total_operations']
+    assert_in_delta 62.5, perf['hit_rate'], 0.01 # 5/8 = 62.5%
+  end
+
+  def test_get_cache_performance_filter_by_table_id
+    # Track data for multiple tables
+    3.times { @cache.track_cache_hit('tbl_perf_a') }
+    2.times { @cache.track_cache_hit('tbl_perf_b') }
+    @cache.flush_performance_counters
+
+    result = @cache.get_cache_performance(table_id: 'tbl_perf_a')
+
+    assert_equal 1, result.size
+    assert_equal 'tbl_perf_a', result.first['table_id']
+  end
+
+  def test_get_cache_performance_hit_rate_zero_operations
+    # Insert a record with zero operations directly
+    @cache.db.execute(
+      "INSERT INTO cache_performance (table_id, hit_count, miss_count, updated_at)
+       VALUES ('tbl_perf_zero', 0, 0, ?)",
+      [Time.now.utc.iso8601]
+    )
+
+    result = @cache.get_cache_performance(table_id: 'tbl_perf_zero')
+
+    assert_equal 0.0, result.first['hit_rate'], 'Hit rate should be 0 when no operations'
+  end
+
+  def test_get_cache_performance_flushes_pending_counters
+    table_id = 'tbl_perf_pending'
+
+    # Track data but don't flush
+    5.times { @cache.track_cache_hit(table_id) }
+
+    # get_cache_performance should flush first
+    result = @cache.get_cache_performance(table_id: table_id)
+
+    assert_equal 1, result.size
+    assert_equal 5, result.first['hit_count']
+  end
+
   # Test cascading cache invalidation
   def test_invalidate_table_list_cache_cascades_to_records
     solution_id = 'sol_cascade_test'

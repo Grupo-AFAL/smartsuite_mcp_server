@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+# Set test environment to use test-only database paths
+# This prevents test pollution of production data
+ENV['SMARTSUITE_TEST_MODE'] = 'true'
+
 # SimpleCov must be loaded before application code
 require 'simplecov'
 SimpleCov.start do
