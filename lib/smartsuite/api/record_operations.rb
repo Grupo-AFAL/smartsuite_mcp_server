@@ -625,16 +625,32 @@ module SmartSuite
         # Separate local files from URLs
         local_files, urls = partition_files_and_urls(file_urls)
 
+        # Validate we have something to attach
+        raise ArgumentError, 'file_urls array is empty or contains no valid files/URLs' if local_files.empty? && urls.empty?
+
+        results = []
+
         # Handle local files via SecureFileAttacher
-        attach_local_files(table_id, record_id, file_field_slug, local_files) if local_files.any?
+        if local_files.any?
+          result = attach_local_files(table_id, record_id, file_field_slug, local_files)
+          results << { 'type' => 'local', 'files' => local_files.map { |f| File.basename(f) }, 'result' => result }
+        end
 
         # Handle URLs directly via API
         if urls.any?
-          attach_urls(table_id, record_id, file_field_slug, urls)
-        elsif local_files.empty?
-          # No files to attach
-          raise ArgumentError, 'file_urls array is empty or contains no valid files/URLs'
+          result = attach_urls(table_id, record_id, file_field_slug, urls)
+          results << { 'type' => 'url', 'files' => urls, 'result' => result }
         end
+
+        # Return combined status
+        {
+          'success' => true,
+          'record_id' => record_id,
+          'attached_count' => local_files.length + urls.length,
+          'local_files' => local_files.length,
+          'url_files' => urls.length,
+          'details' => results
+        }
       end
 
       private
