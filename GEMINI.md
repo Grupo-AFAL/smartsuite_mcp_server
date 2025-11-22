@@ -74,23 +74,19 @@ When implementing any change, adhere to the following workflow:
     *   Make your changes in the branch.
     *   Commit changes with clear, concise messages.
 
-3.  **Push to Remote:**
-    *   Push the commits to the origin: `git push origin <branch_name>`
-
-4.  **Create Pull Request (PR):**
-    *   Create a Pull Request (e.g., using `gh pr create` if configured).
-    *   Provide a clear title and description of the changes.
-
-5.  **Verify:**
+3.  **Verify (Local):**
     *   Ensure all tests pass: `bundle exec rake test`
     *   Verify code style/linting if applicable.
     *   Confirm that the changes meet the requirements.
 
-6.  **Merge:**
-    *   Once verified and approved, merge the PR into the main branch.
-    *   Example (local merge):
-        ```bash
-        git checkout main
-        git merge <branch_name>
-        git push origin main
-        ```
+4.  **Push to Remote:**
+    *   Push the commits to the origin: `git push origin <branch_name>`
+
+5.  **Create Pull Request (PR):**
+    *   Create a Pull Request using the GitHub CLI (`gh pr create`) if available, or provide the link for the user to create it.
+    *   Provide a clear title and description of the changes.
+
+6.  **Stop and Await Review:**
+    *   **DO NOT MERGE.**
+    *   Inform the user that the PR has been created (or the branch pushed) and is ready for review.
+    *   The user will review the PR and merge it manually.
