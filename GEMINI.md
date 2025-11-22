@@ -116,43 +116,43 @@ When multiple agents or developers are working on the same file system simultane
 
 **Protocol for New Agents:**
 
-1.  **Create a Worktree:**
-    Instead of checking out a branch in the current directory, create a new worktree in a sibling directory.
+1. **Create a Worktree:**
+   Instead of checking out a branch in the current directory, create a new worktree in a sibling directory.
 
-    ```bash
-    # Syntax: git worktree add -b <new-branch-name> <path-to-new-worktree>
-    # Example: Agent B creating a feature branch
-    git worktree add -b feature/agent-b-task ../smartsuite_mcp_agent_b
-    ```
+   ```bash
+   # Syntax: git worktree add -b <new-branch-name> <path-to-new-worktree>
+   # Example: Agent B creating a feature branch
+   git worktree add -b feature/agent-b-task ../smartsuite_mcp_agent_b
+   ```
 
-2.  **Switch Context:**
-    Move into the new directory.
+2. **Switch Context:**
+   Move into the new directory.
 
-    ```bash
-    cd ../smartsuite_mcp_agent_b
-    ```
+   ```bash
+   cd ../smartsuite_mcp_agent_b
+   ```
 
-3.  **Setup Environment:**
-    Since this is a fresh checkout, ensure dependencies are available.
+3. **Setup Environment:**
+   Since this is a fresh checkout, ensure dependencies are available.
 
-    ```bash
-    bundle check || bundle install
-    ```
+   ```bash
+   bundle check || bundle install
+   ```
 
-4.  **Execute Tasks:**
-    Perform all development, testing, and committing within this isolated directory.
+4. **Execute Tasks:**
+   Perform all development, testing, and committing within this isolated directory.
 
-    ```bash
-    # Edit files...
-    bundle exec rake test
-    git add .
-    git commit -m "feat: implemented agent b task"
-    ```
+   ```bash
+   # Edit files...
+   bundle exec rake test
+   git add .
+   git commit -m "feat: implemented agent b task"
+   ```
 
-5.  **Cleanup (Optional but Recommended):**
-    Once the task is complete and pushed/merged, remove the worktree.
+5. **Cleanup (Optional but Recommended):**
+   Once the task is complete and pushed/merged, remove the worktree.
 
-    ```bash
-    # From the main repo directory
-    git worktree remove ../smartsuite_mcp_agent_b
-    ```
+   ```bash
+   # From the main repo directory
+   git worktree remove ../smartsuite_mcp_agent_b
+   ```

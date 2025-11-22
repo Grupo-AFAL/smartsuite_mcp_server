@@ -1442,12 +1442,12 @@ module SmartSuite
         # Returns 1 if text fuzzy matches query, 0 otherwise
         @db.create_function('fuzzy_match', 2) do |func, text, query|
           # Handle NULL values - must use func.result= to return values
-          if text.nil? || query.nil?
-            func.result = 0
-          else
-            # Use FuzzyMatcher module for matching logic
-            func.result = SmartSuite::FuzzyMatcher.match?(text, query) ? 1 : 0
-          end
+          func.result = if text.nil? || query.nil?
+                          0
+                        else
+                          # Use FuzzyMatcher module for matching logic
+                          SmartSuite::FuzzyMatcher.match?(text, query) ? 1 : 0
+                        end
         end
       end
 
