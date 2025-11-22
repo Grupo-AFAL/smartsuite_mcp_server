@@ -129,6 +129,16 @@ module SmartSuite
         warn message
       end
 
+      # Invalidate a simple cache table (members, teams)
+      #
+      # @param table_name [String] SQL table name (e.g., 'cached_members')
+      # @param resource_type [String] Resource type for logging (e.g., 'members')
+      def invalidate_simple_cache(table_name, resource_type)
+        db_execute("UPDATE #{table_name} SET expires_at = 0")
+        record_stat('invalidation', resource_type, resource_type)
+        QueryLogger.log_cache_operation('invalidate', resource_type)
+      end
+
       # Cache all records from a SmartSuite table
       #
       # @param table_id [String] SmartSuite table ID
@@ -1070,9 +1080,7 @@ module SmartSuite
 
       # Invalidate members cache
       def invalidate_members_cache
-        db_execute('UPDATE cached_members SET expires_at = 0')
-        record_stat('invalidation', 'members', 'members')
-        QueryLogger.log_cache_operation('invalidate', 'members')
+        invalidate_simple_cache('cached_members', 'members')
       end
 
       # ========== Team Caching ==========
@@ -1188,9 +1196,7 @@ module SmartSuite
 
       # Invalidate teams cache
       def invalidate_teams_cache
-        db_execute('UPDATE cached_teams SET expires_at = 0')
-        record_stat('invalidation', 'teams', 'teams')
-        QueryLogger.log_cache_operation('invalidate', 'teams')
+        invalidate_simple_cache('cached_teams', 'teams')
       end
 
       # Refresh (invalidate) cache for specific resources
@@ -1362,9 +1368,13 @@ module SmartSuite
         )
       end
 
-      # Get solutions cache status
-      def get_solutions_cache_status(now)
-        result = db_execute('SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_solutions').first
+      # Get cache status for a metadata table (solutions, tables, members, teams)
+      #
+      # @param table_name [String] SQL table name (e.g., 'cached_solutions')
+      # @param now [Time] Current time for expiration comparison
+      # @return [Hash, nil] Cache status or nil if empty/invalid
+      def get_metadata_cache_status(table_name, now)
+        result = db_execute("SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM #{table_name}").first
         return nil if result['count'].zero?
 
         # Handle invalid/missing timestamp gracefully
@@ -1379,71 +1389,28 @@ module SmartSuite
         }
       rescue ArgumentError => e
         # If time parsing fails, return nil (invalid cache state)
-        log_warning "Warning: Invalid timestamp in cached_solutions: #{result['first_expires']} - #{e.message}"
+        log_warning "Warning: Invalid timestamp in #{table_name}: #{result['first_expires']} - #{e.message}"
         nil
+      end
+
+      # Get solutions cache status
+      def get_solutions_cache_status(now)
+        get_metadata_cache_status('cached_solutions', now)
       end
 
       # Get tables cache status
       def get_tables_cache_status(now)
-        result = db_execute('SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_tables').first
-        return nil if result['count'].zero?
-
-        # Handle invalid/missing timestamp gracefully
-        return nil if result['first_expires'].nil? || result['first_expires'] == '0' || result['first_expires'].empty?
-
-        first_expires = Time.parse(result['first_expires'])
-        {
-          'count' => result['count'],
-          'expires_at' => first_expires.iso8601,
-          'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
-          'is_valid' => first_expires > now
-        }
-      rescue ArgumentError => e
-        # If time parsing fails, return nil (invalid cache state)
-        log_warning "Warning: Invalid timestamp in cached_tables: #{result['first_expires']} - #{e.message}"
-        nil
+        get_metadata_cache_status('cached_tables', now)
       end
 
       # Get members cache status
       def get_members_cache_status(now)
-        result = db_execute('SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_members').first
-        return nil if result['count'].zero?
-
-        # Handle invalid/missing timestamp gracefully
-        return nil if result['first_expires'].nil? || result['first_expires'] == '0' || result['first_expires'].empty?
-
-        first_expires = Time.parse(result['first_expires'])
-        {
-          'count' => result['count'],
-          'expires_at' => first_expires.iso8601,
-          'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
-          'is_valid' => first_expires > now
-        }
-      rescue ArgumentError => e
-        # If time parsing fails, return nil (invalid cache state)
-        log_warning "Warning: Invalid timestamp in cached_members: #{result['first_expires']} - #{e.message}"
-        nil
+        get_metadata_cache_status('cached_members', now)
       end
 
       # Get teams cache status
       def get_teams_cache_status(now)
-        result = db_execute('SELECT COUNT(*) as count, MIN(expires_at) as first_expires FROM cached_teams').first
-        return nil if result['count'].zero?
-
-        # Handle invalid/missing timestamp gracefully
-        return nil if result['first_expires'].nil? || result['first_expires'] == '0' || result['first_expires'].empty?
-
-        first_expires = Time.parse(result['first_expires'])
-        {
-          'count' => result['count'],
-          'expires_at' => first_expires.iso8601,
-          'time_remaining_seconds' => [(first_expires - now).to_i, 0].max,
-          'is_valid' => first_expires > now
-        }
-      rescue ArgumentError => e
-        # If time parsing fails, return nil (invalid cache state)
-        log_warning "Warning: Invalid timestamp in cached_teams: #{result['first_expires']} - #{e.message}"
-        nil
+        get_metadata_cache_status('cached_teams', now)
       end
 
       # Get records cache status (all tables or specific table)
