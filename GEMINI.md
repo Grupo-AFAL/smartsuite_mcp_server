@@ -78,17 +78,17 @@ When implementing any change, adhere to the following workflow:
    - Make your changes in the branch.
    - Commit changes with clear, concise messages.
 
-3.  **Verify (Local):**
+3. **Verify (Local):**
 
-    -   **Tests:** Ensure all tests pass: `bundle exec rake test`
+   - **Tests:** Ensure all tests pass: `bundle exec rake test`
 
-    -   **Code Style:** Run RuboCop to ensure no style violations: `bundle exec rubocop`
+   - **Code Style:** Run RuboCop to ensure no style violations: `bundle exec rubocop`
 
-    -   **Changelog:** Ensure `CHANGELOG.md` has been updated with an entry under `[Unreleased]`.
+   - **Changelog:** Ensure `CHANGELOG.md` has been updated with an entry under `[Unreleased]`.
 
-    -   **Documentation:** Run markdown lint to check for formatting issues (e.g., `npx markdownlint-cli2 "**/*.md" "#node_modules"`) or verify formatting manually.
+   - **Documentation:** Run markdown lint to check for formatting issues (e.g., `npx markdownlint-cli2 "**/*.md" "#node_modules"`) or verify formatting manually.
 
-    -   Confirm that the changes meet the requirements.
+   - Confirm that the changes meet the requirements.
 
 4. **Push to Remote:**
 
