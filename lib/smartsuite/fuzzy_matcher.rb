@@ -142,6 +142,50 @@ module SmartSuite
       normalized
     end
 
+    # Calculate match score for ranking results (higher = better match)
+    #
+    # @param target [String] The string to search in
+    # @param query [String] The search query
+    # @return [Float] Match score (0.0 to 1.0), higher is better
+    #
+    # @example
+    #   FuzzyMatcher.match_score("Vania Torres", "vania")   # => ~0.95 (exact substring)
+    #   FuzzyMatcher.match_score("Tania Morales", "vania")  # => ~0.7 (fuzzy match)
+    def self.match_score(target, query)
+      return 0.0 if target.nil? || target.empty? || query.nil? || query.empty?
+
+      normalized_target = normalize(target)
+      normalized_query = normalize(query)
+
+      # Exact match = highest score
+      return 1.0 if normalized_target == normalized_query
+
+      # Direct substring at start = very high score
+      return 0.95 if normalized_target.start_with?(normalized_query)
+
+      # Direct substring anywhere = high score
+      return 0.9 if normalized_target.include?(normalized_query)
+
+      # Word-level matching
+      target_words = normalized_target.split(/\s+/)
+      query_words = normalized_query.split(/\s+/)
+
+      # Check for exact word match
+      return 0.85 if target_words.any? { |tw| tw == normalized_query || tw.start_with?(normalized_query) }
+
+      # Calculate best similarity score across all word combinations
+      best_score = 0.0
+      query_words.each do |qw|
+        target_words.each do |tw|
+          score = similarity(tw, qw)
+          best_score = [best_score, score].max
+        end
+      end
+
+      # Scale fuzzy matches lower than exact matches
+      best_score * 0.8
+    end
+
     private_class_method :similarity, :similar_enough?, :levenshtein_distance, :normalize
   end
 end
