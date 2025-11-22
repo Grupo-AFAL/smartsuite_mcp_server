@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `list_teams` and `get_team` to use cache-first strategy with automatic fallback to API
   - Added `teams` resource to `refresh_cache` tool for manual cache invalidation
   - Added teams section to `get_cache_status` output for visibility into cache state
+  - **Token optimization**: `list_teams` returns `member_count` instead of full member IDs array (significant token savings)
 
 - **Deleted member filtering** - By default, soft-deleted members (those with `deleted_date` set) are filtered out from list_members and search_member results
   - Added `include_inactive` parameter to `list_members` tool to optionally include deleted members
