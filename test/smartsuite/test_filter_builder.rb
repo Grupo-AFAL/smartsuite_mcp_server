@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
-require_relative '../lib/smartsuite/filter_builder'
-require_relative '../lib/smartsuite/cache/query'
+require_relative '../test_helper'
+require_relative '../../lib/smartsuite/filter_builder'
+require_relative '../../lib/smartsuite/cache/query'
 
 class TestFilterBuilder < Minitest::Test
   def setup

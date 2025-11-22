@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
-require 'minitest/autorun'
+require_relative 'test_helper'
 require 'webmock/minitest'
-require 'json'
 require 'tempfile'
 require_relative '../lib/smartsuite_client'
 

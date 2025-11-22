@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
-require_relative '../lib/smartsuite/mcp/prompt_registry'
+require_relative '../../test_helper'
+require_relative '../../../lib/smartsuite/mcp/prompt_registry'
 
 class TestPromptRegistry < Minitest::Test
   # Test prompts_list method

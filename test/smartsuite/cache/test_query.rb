@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
-require_relative '../lib/smartsuite/cache/query'
-require_relative '../lib/smartsuite/cache/layer'
+require_relative '../../test_helper'
+require_relative '../../../lib/smartsuite/cache/query'
+require_relative '../../../lib/smartsuite/cache/layer'
 require 'sqlite3'
 require 'fileutils'
 require 'json'
