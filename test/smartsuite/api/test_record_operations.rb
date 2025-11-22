@@ -928,9 +928,13 @@ class TestRecordOperations < Minitest::Test
       ['https://example.com/file.pdf', 'https://example.com/image.jpg']
     )
 
-    assert_equal 'rec_456', result['id']
-    assert_equal 'Test Record', result['title']
-    assert_equal 2, result['attachments'].length
+    assert_equal true, result['success']
+    assert_equal 'rec_456', result['record_id']
+    assert_equal 2, result['attached_count']
+    assert_equal 0, result['local_files']
+    assert_equal 2, result['url_files']
+    assert_equal 1, result['details'].length
+    assert_equal 'url', result['details'][0]['type']
   end
 
   # Test attach_file requires table_id
@@ -1060,7 +1064,11 @@ class TestRecordOperations < Minitest::Test
 
     # Should work fine with only URLs
     result = client.attach_file('tbl_123', 'rec_456', 'attachments', ['https://example.com/file.pdf'])
-    assert_equal 'rec_456', result['id']
+    assert_equal true, result['success']
+    assert_equal 'rec_456', result['record_id']
+    assert_equal 1, result['attached_count']
+    assert_equal 0, result['local_files']
+    assert_equal 1, result['url_files']
   ensure
     ENV['SMARTSUITE_S3_BUCKET'] = original_bucket if original_bucket
   end

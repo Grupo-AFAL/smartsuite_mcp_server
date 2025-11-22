@@ -217,7 +217,9 @@ class TestSecureFileAttacher < Minitest::Test
     )
 
     assert result.is_a?(Hash)
-    assert_equal 'rec_456', result['id']
+    assert_equal true, result['success']
+    assert_equal 'rec_456', result['record_id']
+    assert_equal 1, result['attached_count']
   end
 
   def test_attach_file_securely_multiple_files_success
@@ -238,7 +240,9 @@ class TestSecureFileAttacher < Minitest::Test
     )
 
     assert result.is_a?(Hash)
-    assert_equal 'rec_456', result['id']
+    assert_equal true, result['success']
+    assert_equal 'rec_456', result['record_id']
+    assert_equal 2, result['attached_count']
   end
 
   def test_attach_file_cleans_up_on_smartsuite_error
@@ -316,8 +320,8 @@ class TestSecureFileAttacher < Minitest::Test
 
     # Should have S3 action logging via client's log_metric
     assert log_messages.any? { |m| m.include?('[S3] UPLOAD:') }, "Expected UPLOAD log, got: #{log_messages}"
-    assert log_messages.any? { |m| m.include?('[S3] UPLOAD_COMPLETE:') }, "Expected UPLOAD_COMPLETE log"
-    assert log_messages.any? { |m| m.include?('[S3] CLEANUP:') }, "Expected CLEANUP log"
+    assert log_messages.any? { |m| m.include?('[S3] UPLOAD_COMPLETE:') }, 'Expected UPLOAD_COMPLETE log'
+    assert log_messages.any? { |m| m.include?('[S3] CLEANUP:') }, 'Expected CLEANUP log'
   end
 
   # ==============================================================================
