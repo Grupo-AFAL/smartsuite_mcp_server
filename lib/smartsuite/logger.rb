@@ -330,6 +330,22 @@ module SmartSuite
         log(:info, char * length, category: :metric)
       end
 
+      # Log a tool call header with tool name centered between separators
+      # @param tool_name [String] name of the tool being called
+      # @param length [Integer] total line length
+      def tool_header(tool_name, length = 50)
+        return unless should_log?(:info)
+
+        # Format: ============ tool_name ============
+        name_with_padding = " #{tool_name} "
+        remaining = length - name_with_padding.length
+        left_dashes = remaining / 2
+        right_dashes = remaining - left_dashes
+        header = "#{'=' * left_dashes}#{name_with_padding}#{'=' * right_dashes}"
+
+        log(:info, header, category: :metric)
+      end
+
       private
 
       # Core logging method
