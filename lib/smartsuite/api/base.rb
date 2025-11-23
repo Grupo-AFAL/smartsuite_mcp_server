@@ -342,16 +342,13 @@ module SmartSuite
       # @example
       #   format_single_response(record, :toon, "Retrieved record: rec_123")
       #   format_single_response(team, :json, "Retrieved team: team_abc")
-      def format_single_response(data, format, message)
+      def format_single_response(data, format, _message)
         case format
         when :toon
           require_relative '../formatters/toon_formatter'
-          result = SmartSuite::Formatters::ToonFormatter.format(data)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format(data)
         else # :json
-          track_response_size(data, message)
+          data
         end
       end
 
@@ -367,17 +364,14 @@ module SmartSuite
       # @return [String, Hash] TOON string or JSON hash depending on format
       # @example
       #   format_array_response(records, :toon, :records, "Created 5 records")
-      def format_array_response(data, format, collection_name, message)
+      def format_array_response(data, format, collection_name, _message)
         case format
         when :toon
           require_relative '../formatters/toon_formatter'
           wrapped = { collection_name.to_s => data }
-          result = SmartSuite::Formatters::ToonFormatter.format(wrapped)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format(wrapped)
         else # :json - return raw array for backward compatibility
-          track_response_size(data, message)
+          data
         end
       end
 

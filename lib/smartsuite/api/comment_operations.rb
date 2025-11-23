@@ -79,17 +79,11 @@ module SmartSuite
       # @param format [Symbol] Output format (:toon or :json)
       # @return [String, Hash] Formatted output
       def format_comments_output(comments, count, format)
-        message = "Found #{count} comments"
-
         case format
         when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format(comments)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format(comments)
         else # :json
-          result = { 'results' => comments, 'count' => count }
-          track_response_size(result, message)
+          { 'results' => comments, 'count' => count }
         end
       end
 
