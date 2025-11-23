@@ -196,7 +196,7 @@ When you ask Claude to query data, here's what happens:
 The server aggressively caches data to:
 - **Reduce API calls** (stay within rate limits)
 - **Speed up responses** (milliseconds vs seconds)
-- **Save tokens** (plain text vs JSON)
+- **Save tokens** (TOON format vs JSON)
 
 **Example:**
 ```
@@ -439,18 +439,17 @@ Claude will format results as requested.
 
 ### Record Listings
 
+TOON format (50-60% token savings):
 ```
-=== RECORDS (10 of 127 total) ===
-
---- Record 1 of 10 ---
-id: rec_123abc
-title: Q4 Planning
-status: Active
-priority: High
+10 of 127 filtered (127 total)
+records[10]{id|title|status|priority}:
+rec_123abc|Q4 Planning|Active|High
+rec_456def|Budget Review|Pending|Medium
+rec_789ghi|Team Sync|Done|Low
 ```
 
 **Key information:**
-- "10 of 127 total" - 10 shown, 127 exist (helps with pagination)
+- "10 of 127 filtered (127 total)" - helps with pagination decisions
 - Record ID - Unique identifier
 - Field values - As requested
 
