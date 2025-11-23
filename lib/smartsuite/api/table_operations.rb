@@ -157,20 +157,18 @@ module SmartSuite
           response = api_request(:get, "/applications/#{table_id}/")
 
           # Return filtered structure including only essential fields
-          if response.is_a?(Hash)
-            # Filter structure to only essential fields
-            filtered_structure = response['structure'].map { |field| filter_field_structure(field) }
+          return response unless response.is_a?(Hash)
 
-            result = {
-              'id' => response['id'],
-              'name' => response['name'],
-              # API returns 'solution' but we normalize to 'solution_id'
-              'solution_id' => response['solution'] || response['solution_id'],
-              'structure' => filtered_structure
-            }
-          else
-            return response
-          end
+          # Filter structure to only essential fields
+          filtered_structure = response['structure'].map { |field| filter_field_structure(field) }
+
+          result = {
+            'id' => response['id'],
+            'name' => response['name'],
+            # API returns 'solution' but we normalize to 'solution_id'
+            'solution_id' => response['solution'] || response['solution_id'],
+            'structure' => filtered_structure
+          }
         end
 
         format_single_response(result, format, "Retrieved table: #{table_id} (#{result['structure'].length} fields)")
