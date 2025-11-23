@@ -236,7 +236,6 @@ module SmartSuite
 
         unless record
           # Cache miss or disabled - fetch from API
-          log_metric("→ Getting record from API: #{record_id}")
           record = api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
           # Process SmartDoc fields in API response too
           record = process_smartdoc_fields(record)

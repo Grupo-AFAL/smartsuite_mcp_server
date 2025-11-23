@@ -34,8 +34,6 @@ module SmartSuite
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('view_id', view_id)
 
-        log_metric("→ Getting records for view: #{view_id} in table: #{table_id}")
-
         # Build endpoint with query parameters using Base helper
         base_path = "/applications/#{table_id}/records-for-report/"
         endpoint = build_endpoint(base_path, report: view_id, with_empty_values: with_empty_values || nil)
@@ -101,8 +99,6 @@ module SmartSuite
         validate_required_parameter!('solution', solution)
         validate_required_parameter!('label', label)
         validate_required_parameter!('view_mode', view_mode)
-
-        log_metric("→ Creating view: #{label} in application: #{application}")
 
         body = {
           'application' => application,

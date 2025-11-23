@@ -148,7 +148,6 @@ module SmartSuite
 
         unless result
           # Cache miss - fetch from API
-          log_metric("→ Getting table structure from API: #{table_id}")
           response = api_request(:get, "/applications/#{table_id}/")
 
           # Return filtered structure including only essential fields
@@ -191,8 +190,6 @@ module SmartSuite
         validate_required_parameter!('solution_id', solution_id)
         validate_required_parameter!('name', name)
         validate_optional_parameter!('structure', structure, Array) if structure
-
-        log_metric("→ Creating table: #{name} in solution: #{solution_id}")
 
         body = {
           'name' => name,
