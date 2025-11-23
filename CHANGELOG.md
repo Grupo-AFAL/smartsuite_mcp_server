@@ -185,6 +185,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Updated design-decisions.md to reflect current architecture** - Updated two outdated sections
+  - Section 3: Changed from "Plain Text Responses" to "TOON Format Responses" with implementation details
+  - Section 11: Changed from "Ruby Standard Library Only (No Gems)" to "Minimal Dependencies (Essential Gems Only)"
+  - Updated summary principles to reflect TOON format and minimal gems (sqlite3, toon-ruby)
+
 - **Condensed ROADMAP.md** - Reduced from 497 lines to 141 lines (72% reduction)
   - Collapsed completed milestones (v1.0-v1.9) into a compact summary table
   - Updated v2.0 section to show TOON format as "In Progress" (was incorrectly listed as deferred)

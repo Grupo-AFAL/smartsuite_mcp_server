@@ -182,11 +182,11 @@ end
 
 ---
 
-## 3. Plain Text Responses (Not JSON)
+## 3. TOON Format Responses (Not JSON)
 
 ### Decision
 
-**Return responses as formatted plain text, not JSON**
+**Return responses in TOON format (Token-Oriented Object Notation) for list operations**
 
 ### Rationale
 
@@ -198,64 +198,60 @@ end
 ```json
 {
   "records": [
-    {
-      "id": "rec_123",
-      "status": "Active",
-      "priority": "High"
-    }
+    {"id": "rec_123", "status": "Active", "priority": "High"},
+    {"id": "rec_456", "status": "Done", "priority": "Low"}
   ]
 }
 ```
-~80 tokens per record
+~80 tokens per record (field names repeated)
 
-**B) Return plain text** ✅ **CHOSEN**
+**B) Return plain text** ❌
 ```
 --- Record 1 ---
 id: rec_123
 status: Active
 priority: High
 ```
-~50 tokens per record (30-50% savings)
+~50 tokens per record (30-50% savings, but still verbose)
+
+**C) Return TOON format** ✅ **CHOSEN**
+```
+records[2]{id|status|priority}:
+rec_123|Active|High
+rec_456|Done|Low
+```
+~30 tokens per record (50-60% savings vs JSON)
 
 ### Implementation
 
 ```ruby
-def format_records(records, total_count: nil)
-  output = "=== RECORDS "
-  if total_count
-    output += "(#{records.length} of #{total_count} total) "
-  end
-  output += "===\n\n"
-
-  records.each_with_index do |record, idx|
-    output += "--- Record #{idx + 1} of #{records.length} ---\n"
-    record.each do |key, value|
-      output += "#{key}: #{value}\n"
-    end
-    output += "\n"
-  end
-
-  output
+# Using toon-ruby gem
+def format_records(records, total_count:, filtered_count: nil)
+  SmartSuite::Formatters::ToonFormatter.format_records(
+    records,
+    total_count: total_count,
+    filtered_count: filtered_count
+  )
 end
 ```
 
 ### Trade-offs
 
 **Pros:**
-- ✅ 30-50% token savings per record
-- ✅ More readable for users
-- ✅ Natural language friendly
-- ✅ Easier to scan
+- ✅ 50-60% token savings vs JSON
+- ✅ Tabular format eliminates repetitive field names
+- ✅ Claude parses it accurately
+- ✅ Compact but readable
 
 **Cons:**
-- ⚠️ Not programmatically parseable (but Claude can understand it)
-- ⚠️ Slightly larger for single-field records
+- ⚠️ Less human-readable than plain text
+- ⚠️ Requires toon-ruby gem
 
-**Why it works:**
-- Claude excels at understanding structured text
-- Users read natural language better than JSON
-- Token savings compound over conversation
-- MCP protocol wraps in JSON anyway
+**Why TOON works for SmartSuite:**
+- Records are uniform (same fields per table)
+- Tabular format ideal for structured data
+- Field names appear once in header, not per record
+- MCP protocol wraps result in JSON anyway
 
 ---
 
@@ -722,79 +718,87 @@ end
 
 ---
 
-## 11. Ruby Standard Library Only (No Gems)
+## 11. Minimal Dependencies (Essential Gems Only)
 
 ### Decision
 
-**Use only Ruby standard library; no external gems**
+**Use Ruby standard library plus minimal essential gems**
 
 ### Rationale
 
-**Problem:** Need HTTP client, JSON parsing, SQLite, etc.
+**Problem:** Need HTTP client, JSON parsing, SQLite caching, token-optimized output
 
 **Options considered:**
 
-**A) Use popular gems** ❌
+**A) Use many popular gems** ❌
 - Faraday (HTTP)
 - ActiveRecord (ORM)
-- JSON (gem version)
-- **Cons:** Dependencies, version conflicts, installation complexity
+- Many formatting/utility gems
+- **Cons:** Heavy dependencies, version conflicts, installation complexity
 
-**B) Standard library only** ✅ **CHOSEN**
-- `net/http` (HTTP client)
-- `json` (JSON parsing)
-- `sqlite3` (SQLite)
-- `digest` (SHA256)
-- **Cons:** More verbose code, fewer features
+**B) Standard library only** ❌
+- No external dependencies
+- **Cons:** Would require reimplementing SQLite bindings and TOON format
+
+**C) Minimal essential gems** ✅ **CHOSEN**
+- Standard library for HTTP (`net/http`), JSON, etc.
+- `sqlite3` gem for caching (required - no stdlib SQLite)
+- `toon-ruby` gem for TOON format (50-60% token savings)
+- **Cons:** Requires `bundle install`, but minimal maintenance
+
+### Current Dependencies
+
+**Production gems:**
+- `sqlite3` - SQLite database bindings (caching layer)
+- `toon-ruby` - TOON format encoding (token optimization)
+
+**Development/test gems:**
+- `minitest`, `rake` - Testing
+- `rubocop`, `reek` - Code quality
+- `yard` - Documentation
+- `simplecov` - Coverage
+- `bundler-audit` - Security
 
 ### Reasoning
 
-**Simplicity:**
-- No `Gemfile`, no `bundle install`
-- No dependency conflicts
-- Works on any Ruby 3.0+ installation
+**Simplicity maintained:**
+- Only 2 production gems
+- Both are stable, well-maintained libraries
+- Clear purpose for each (caching, token optimization)
 
 **Reliability:**
-- Standard library is stable
-- No breaking changes from gem updates
-- Fewer moving parts
+- `sqlite3` is mature (20+ years)
+- `toon-ruby` is purpose-built for this use case
+- No breaking changes expected
 
 **Deployment:**
-- Single file server (`smartsuite_server.rb`)
-- No gem installation required
-- Works immediately
+- `bundle install` is standard Ruby workflow
+- Installation scripts handle dependencies automatically
+- Works on macOS, Linux, Windows
 
 ### Trade-offs
 
 **Pros:**
-- ✅ Zero dependencies
-- ✅ Simple deployment
-- ✅ Stable (no gem updates)
-- ✅ Works everywhere Ruby works
+- ✅ Minimal dependencies (2 production gems)
+- ✅ Simple deployment (`bundle install`)
+- ✅ Stable, well-maintained gems
+- ✅ Essential functionality only (SQLite, TOON)
 
 **Cons:**
-- ⚠️ More verbose code
-- ⚠️ Missing convenience features
-- ⚠️ Reinventing some wheels
+- ⚠️ Requires Bundler setup
+- ⚠️ Gem updates needed occasionally
 
-**Example impact:**
+**Why these specific gems:**
 
-**With gem (Faraday):**
-```ruby
-response = Faraday.get(url, headers: headers)
-```
+**sqlite3:**
+- No stdlib SQLite bindings in Ruby
+- Essential for caching strategy
+- C extension = fast performance
 
-**With stdlib:**
-```ruby
-uri = URI(url)
-http = Net::HTTP.new(uri.host, uri.port)
-http.use_ssl = true
-request = Net::HTTP::Get.new(uri)
-headers.each { |k, v| request[k] = v }
-response = http.request(request)
-```
-
-**Trade-off:** More lines of code, but zero dependencies
+**toon-ruby:**
+- 50-60% token savings vs JSON
+- Purpose-built for AI/LLM contexts
+- Simple API, zero configuration
 
 ---
 
@@ -868,10 +872,10 @@ response = http.request(request)
 1. **Simplicity over perfection** - Simple solutions that work beat complex optimal solutions
 2. **User control** - Give user control (bypass cache, select fields, etc.)
 3. **Good enough performance** - 99% faster is enough; don't optimize the last 1%
-4. **Minimize dependencies** - Stdlib only; easier deployment and maintenance
+4. **Minimal dependencies** - Essential gems only (sqlite3, toon-ruby); easier deployment and maintenance
 5. **Privacy-preserving** - Hash sensitive data; track usage without exposing credentials
 6. **Predictable behavior** - TTL-based expiration; clear semantics
-7. **Token efficiency** - Plain text, filtered structures, required fields
+7. **Token efficiency** - TOON format, filtered structures, required fields
 8. **Fail gracefully** - Errors propagate clearly; user gets helpful messages
 
 ---
