@@ -22,7 +22,8 @@ module SmartSuite
       # @param field_data [Hash] Field configuration (slug, label, field_type, params)
       # @param field_position [Hash, nil] Optional positioning metadata
       # @param auto_fill_structure_layout [Boolean] Auto-update layout (default: true)
-      # @return [Hash] Created field object (may be empty on success)
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Created field object in requested format
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example
       #   add_field("tbl_123", {
@@ -31,7 +32,7 @@ module SmartSuite
       #     "field_type" => "singleselectfield",
       #     "params" => {"choices" => ["High", "Medium", "Low"]}
       #   })
-      def add_field(table_id, field_data, field_position: nil, auto_fill_structure_layout: true)
+      def add_field(table_id, field_data, field_position: nil, auto_fill_structure_layout: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('field_data', field_data, Hash)
 
@@ -46,13 +47,12 @@ module SmartSuite
         response = api_request(:post, "/applications/#{table_id}/add_field/", body)
 
         if response.is_a?(Hash)
-          log_metric("✓ Field added successfully: #{field_data['label']}")
-
           # Invalidate cache since table structure changed
           @cache&.invalidate_table_cache(table_id, structure_changed: true)
+          format_single_response(response, format, "Field added: #{field_data['label']}")
+        else
+          response
         end
-
-        response
       end
 
       # Adds multiple fields to a table in one request.
@@ -63,14 +63,15 @@ module SmartSuite
       # @param table_id [String] Table identifier
       # @param fields [Array<Hash>] Array of field configurations
       # @param set_as_visible_fields_in_reports [Array<String>, nil] Optional view IDs to make fields visible
-      # @return [Hash] Bulk operation result
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Bulk operation result in requested format
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example
       #   bulk_add_fields("tbl_123", [
       #     {"slug" => "field1", "label" => "Status", "field_type" => "statusfield"},
       #     {"slug" => "field2", "label" => "Priority", "field_type" => "singleselectfield"}
       #   ])
-      def bulk_add_fields(table_id, fields, set_as_visible_fields_in_reports: nil)
+      def bulk_add_fields(table_id, fields, set_as_visible_fields_in_reports: nil, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('fields', fields, Array)
 
@@ -84,12 +85,10 @@ module SmartSuite
 
         response = api_request(:post, "/applications/#{table_id}/bulk-add-fields/", body)
 
-        log_metric("✓ Successfully added #{fields.size} fields")
-
         # Invalidate cache since table structure changed
         @cache&.invalidate_table_cache(table_id, structure_changed: true)
 
-        response
+        format_single_response(response, format, "Added #{fields.size} fields")
       end
 
       # Updates an existing field's configuration.
@@ -99,7 +98,8 @@ module SmartSuite
       # @param table_id [String] Table identifier
       # @param slug [String] Field slug to update
       # @param field_data [Hash] Updated field configuration
-      # @return [Hash] Updated field object
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Updated field object in requested format
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example
       #   update_field("tbl_123", "abc123", {
@@ -107,7 +107,7 @@ module SmartSuite
       #     "field_type" => "singleselectfield",
       #     "params" => {"choices" => ["Urgent", "High", "Medium", "Low"]}
       #   })
-      def update_field(table_id, slug, field_data)
+      def update_field(table_id, slug, field_data, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('slug', slug)
         validate_required_parameter!('field_data', field_data, Hash)
@@ -122,13 +122,12 @@ module SmartSuite
         response = api_request(:put, "/applications/#{table_id}/change_field/", body)
 
         if response.is_a?(Hash)
-          log_metric("✓ Field updated successfully: #{slug}")
-
           # Invalidate cache since table structure changed
           @cache&.invalidate_table_cache(table_id, structure_changed: true)
+          format_single_response(response, format, "Field updated: #{slug}")
+        else
+          response
         end
-
-        response
       end
 
       # Deletes a field from a table.
@@ -137,11 +136,12 @@ module SmartSuite
       #
       # @param table_id [String] Table identifier
       # @param slug [String] Field slug to delete
-      # @return [Hash] Deleted field object
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Deleted field object in requested format
       # @raise [ArgumentError] If required parameters are missing
       # @example
       #   delete_field("tbl_123", "abc123")
-      def delete_field(table_id, slug)
+      def delete_field(table_id, slug, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('slug', slug)
 
@@ -154,13 +154,12 @@ module SmartSuite
         response = api_request(:post, "/applications/#{table_id}/delete_field/", body)
 
         if response.is_a?(Hash)
-          log_metric("✓ Field deleted successfully: #{slug}")
-
           # Invalidate cache since table structure changed
           @cache&.invalidate_table_cache(table_id, structure_changed: true)
+          format_single_response(response, format, "Field deleted: #{slug}")
+        else
+          response
         end
-
-        response
       end
     end
   end

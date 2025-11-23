@@ -183,7 +183,8 @@ Handles SmartSuite API communication:
 ### 4. Formatters Layer (`lib/smartsuite/formatters/`)
 Implements token optimization:
 
-- **ResponseFormatter** (`response_formatter.rb`): Response filtering, plain text formatting (no truncation per user request)
+- **ResponseFormatter** (`response_formatter.rb`): Response filtering, supports multiple output formats (no value truncation per user request)
+- **ToonFormatter** (`toon_formatter.rb`): TOON (Token-Oriented Object Notation) encoding for maximum token savings (~50-60% vs JSON)
 
 ### 5. Cache Layer (`lib/smartsuite/cache/`)
 SQLite-based persistent caching for SmartSuite data (v1.7+: modular architecture):
@@ -220,7 +221,9 @@ The server uses aggressive caching to minimize API calls and enable efficient lo
 This server is heavily optimized to minimize Claude's token usage:
 
 1. **Filtered Table Structures**: `get_table` returns only essential fields (slug, label, field_type, minimal params), removing 83.8% of UI/display metadata
-2. **Plain Text Responses**: `list_records` returns formatted text instead of JSON (30-50% savings)
+2. **TOON Format (Default)**: `list_records` uses TOON (Token-Oriented Object Notation) format by default (~50-60% savings vs JSON)
+   - Tabular format for uniform arrays eliminates repetitive field names
+   - Alternative format available: `:json` (standard JSON output)
 3. **Required Field Selection**: `list_records` requires explicit `fields` parameter to prevent returning all columns
 4. **No Truncation**: Fields returned in full (user must specify only needed fields to control tokens)
 5. **Total vs Filtered Counts**: Always shows "X of Y total records" to help AI make informed decisions
@@ -294,7 +297,7 @@ The SmartSuite API requires specific parameter placement:
 The server implements:
 - `initialize`: MCP handshake and capability negotiation
 - `tools/list`: List all available SmartSuite tools
-- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_solutions_by_owner, list_tables, get_table, create_table, list_records, get_record, create_record, update_record, delete_record, bulk_add_records, bulk_update_records, bulk_delete_records, attach_file, get_file_url, list_deleted_records, restore_deleted_record, add_field, bulk_add_fields, update_field, delete_field, list_members, search_member, list_teams, get_team, list_comments, add_comment, get_view_records, create_view, get_api_stats, reset_api_stats, get_cache_status, refresh_cache, warm_cache)
+- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_solutions_by_owner, list_tables, get_table, create_table, list_records, get_record, create_record, update_record, delete_record, bulk_add_records, bulk_update_records, bulk_delete_records, attach_file, get_file_url, list_deleted_records, restore_deleted_record, add_field, bulk_add_fields, update_field, delete_field, list_members, search_member, list_teams, get_team, list_comments, add_comment, get_view_records, create_view, get_api_stats, reset_api_stats, get_cache_status, refresh_cache)
 - `prompts/list`: List example prompts for filters
 - `prompts/get`: Get specific prompt templates
 - `resources/list`: List available resources (empty)
@@ -373,10 +376,11 @@ Each solution includes:
 - `sort` (optional): Sort criteria (array of {field, direction} pairs)
 - `fields` (required): Array of field slugs to return (e.g., `['status', 'priority']`)
 - `hydrated` (default: true): Fetch human-readable values for linked records, users, etc.
+- `format` (default: `:toon`): Output format - `:toon` (TOON, ~50-60% savings) or `:json`
 
 **Behavior:**
 - Filters, sorts, limits, and offsets work consistently regardless of cache state
-- Returns plain text format showing "X of Y filtered records (Z total)"
+- Returns TOON format by default showing "X of Y filtered records (Z total)" with tabular data
 - When cache is enabled (default), uses local SQLite queries for zero-latency filtering/sorting
 - When cache is disabled, sends filters/sort to SmartSuite API
 
@@ -393,8 +397,12 @@ Each solution includes:
 
 **Example:**
 ```ruby
-# Correct usage - specify fields
+# Default usage - TOON format (most token-efficient)
 list_records('tbl_123', 10, 0, fields: ['status', 'priority', 'assigned_to'])
+
+# Explicit format selection
+list_records('tbl_123', 10, 0, fields: ['status'], format: :toon)
+list_records('tbl_123', 10, 0, fields: ['status'], format: :json)
 
 # Returns error - missing fields
 list_records('tbl_123', 10, 0)  # ERROR
@@ -643,13 +651,17 @@ Be aware of:
 
 ## Dependencies
 
-Uses only Ruby standard library:
+Ruby standard library:
 - json
 - net/http
 - uri
 - time
 - fileutils
 - digest
+
+External gems:
+- sqlite3 (caching layer)
+- toon-ruby (TOON format encoding for token optimization)
 
 Test dependencies:
 - minitest

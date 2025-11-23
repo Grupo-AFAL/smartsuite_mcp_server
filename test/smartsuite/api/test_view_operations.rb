@@ -31,7 +31,7 @@ class TestViewOperations < Minitest::Test
       expected_response
     end
 
-    result = @client.get_view_records(table_id, view_id)
+    result = @client.get_view_records(table_id, view_id, format: :json)
 
     assert_equal :get, captured_args[:method]
     assert_includes captured_args[:endpoint], '/applications/tbl_123/records-for-report/'
@@ -82,7 +82,7 @@ class TestViewOperations < Minitest::Test
       expected_response
     end
 
-    result = @client.get_view_records(table_id, view_id)
+    result = @client.get_view_records(table_id, view_id, format: :json)
 
     assert_equal 0, result['records'].length
   end
@@ -131,7 +131,7 @@ class TestViewOperations < Minitest::Test
       expected_response
     end
 
-    result = @client.create_view(application, solution, label, view_mode)
+    result = @client.create_view(application, solution, label, view_mode, format: :json)
 
     assert_equal :post, captured_args[:method]
     assert_equal '/reports/', captured_args[:endpoint]
@@ -172,7 +172,7 @@ class TestViewOperations < Minitest::Test
       { 'id' => 'view_full', 'label' => label }
     end
 
-    result = @client.create_view(application, solution, label, view_mode, **options)
+    result = @client.create_view(application, solution, label, view_mode, format: :json, **options)
 
     assert_equal 'A view with all options', captured_body['description']
     assert_equal false, captured_body['autosave']
@@ -196,7 +196,7 @@ class TestViewOperations < Minitest::Test
         { 'id' => 'view_id', 'view_mode' => mode, 'label' => 'Test' }
       end
 
-      result = @client.create_view('tbl_123', 'sol_456', 'Test', mode)
+      result = @client.create_view('tbl_123', 'sol_456', 'Test', mode, format: :json)
 
       assert_equal mode, captured_body['view_mode']
       assert_equal mode, result['view_mode']

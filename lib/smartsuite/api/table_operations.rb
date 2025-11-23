@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'base'
+require_relative '../formatters/toon_formatter'
 
 module SmartSuite
   module API
@@ -24,8 +25,9 @@ module SmartSuite
       #
       # @param solution_id [String, nil] Optional solution ID to filter tables
       # @param fields [Array<String>, nil] Optional array of field slugs to include in response
-      # @return [Hash] Tables with count and filtered data
-      # @example List all tables
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
+      # @return [String, Hash] TOON/plain text string or JSON hash depending on format
+      # @example List all tables (TOON format by default)
       #   list_tables
       #
       # @example List tables in a solution
@@ -33,7 +35,10 @@ module SmartSuite
       #
       # @example List with specific fields
       #   list_tables(fields: ["id", "name", "structure"])
-      def list_tables(solution_id: nil, fields: nil)
+      #
+      # @example Explicit format selection
+      #   list_tables(format: :json)
+      def list_tables(solution_id: nil, fields: nil, format: :toon)
         validate_optional_parameter!('fields', fields, Array) if fields
 
         # Try cache first if enabled and no custom fields specified
@@ -41,7 +46,7 @@ module SmartSuite
         cached_tables = with_cache_check('tables', cache_key, bypass: fields&.any?) do
           @cache.get_cached_table_list(solution_id)
         end
-        return format_tables_response(cached_tables, fields) if cached_tables
+        return format_tables_response(cached_tables, fields, format) if cached_tables
 
         # Log filtering info
         log_metric("→ Filtering tables by solution: #{solution_id}") if solution_id
@@ -60,7 +65,7 @@ module SmartSuite
           log_metric("✓ Cached #{tables_list.size} tables (#{cache_key})")
         end
 
-        format_tables_response(response, fields)
+        format_tables_response(response, fields, format)
       end
 
       private
@@ -69,8 +74,9 @@ module SmartSuite
       #
       # @param response [Hash, Array] API response or cached tables
       # @param fields [Array<String>] Specific fields requested
-      # @return [Hash] Formatted tables with count
-      def format_tables_response(response, fields)
+      # @param format [Symbol] Output format: :toon or :json
+      # @return [String, Hash] Formatted tables (TOON as string, JSON as hash)
+      def format_tables_response(response, fields, format = :toon)
         # Handle both API response format and cached array format
         # /applications/ endpoint returns an Array directly, not a Hash with 'items' key
         tables_list = extract_items_safely(response)
@@ -92,8 +98,26 @@ module SmartSuite
                    end
                  end
 
-        result = build_collection_response(tables, :tables)
-        track_response_size(result, "Found #{tables.size} tables")
+        format_tables_output(tables, format, "Found #{tables.size} tables")
+      end
+
+      # Format tables output based on format parameter
+      #
+      # @param tables [Array<Hash>] Filtered tables data
+      # @param format [Symbol] Output format (:toon or :json)
+      # @param message [String] Log message
+      # @return [String, Hash] Formatted output
+      def format_tables_output(tables, format, message)
+        case format
+        when :toon
+          result = SmartSuite::Formatters::ToonFormatter.format_tables(tables)
+          log_metric("✓ #{message}")
+          log_metric('📊 TOON format (~50-60% token savings)')
+          result
+        else # :json
+          result = build_collection_response(tables, :tables)
+          track_response_size(result, message)
+        end
       end
 
       public
@@ -105,12 +129,16 @@ module SmartSuite
       # by ~80%. Logs token savings metrics.
       #
       # @param table_id [String] Table identifier
-      # @return [Hash] Table with filtered structure
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Table with filtered structure in requested format
       # @raise [ArgumentError] If table_id is missing
       # @example
       #   get_table("tbl_123")
-      def get_table(table_id)
+      #   get_table("tbl_123", format: :json)
+      def get_table(table_id, format: :toon)
         validate_required_parameter!('table_id', table_id)
+
+        result = nil
 
         # Try to get from cache first
         if @cache
@@ -119,22 +147,17 @@ module SmartSuite
             # Filter structure to only essential fields (cache has full structure)
             filtered_structure = cached_table['structure'].map { |field| filter_field_structure(field) }
             cached_table['structure'] = filtered_structure
-
-            log_metric("✓ Retrieved table from cache: #{table_id}")
-            log_token_usage(estimate_tokens(JSON.generate(cached_table)))
-            return cached_table
+            result = cached_table
           end
         end
 
-        # Cache miss - fetch from API
-        log_metric("→ Getting table structure from API: #{table_id}")
-        response = api_request(:get, "/applications/#{table_id}/")
+        unless result
+          # Cache miss - fetch from API
+          log_metric("→ Getting table structure from API: #{table_id}")
+          response = api_request(:get, "/applications/#{table_id}/")
 
-        # Return filtered structure including only essential fields
-        if response.is_a?(Hash)
-          # Calculate original size for comparison
-          original_structure_json = JSON.generate(response['structure'])
-          original_tokens = estimate_tokens(original_structure_json)
+          # Return filtered structure including only essential fields
+          return response unless response.is_a?(Hash)
 
           # Filter structure to only essential fields
           filtered_structure = response['structure'].map { |field| filter_field_structure(field) }
@@ -146,17 +169,9 @@ module SmartSuite
             'solution_id' => response['solution'] || response['solution_id'],
             'structure' => filtered_structure
           }
-
-          tokens = estimate_tokens(JSON.generate(result))
-          reduction_percent = ((original_tokens - tokens).to_f / original_tokens * 100).round(1)
-
-          log_metric("✓ Retrieved table structure: #{filtered_structure.length} fields")
-          log_metric("📊 #{original_tokens} → #{tokens} tokens (saved #{reduction_percent}%)")
-          log_token_usage(tokens)
-          result
-        else
-          response
         end
+
+        format_single_response(result, format, "Retrieved table: #{table_id} (#{result['structure'].length} fields)")
       end
 
       # Creates a new table (application) in a solution.
@@ -165,7 +180,8 @@ module SmartSuite
       # @param name [String] Name of the new table
       # @param description [String, nil] Optional description for the table
       # @param structure [Array, nil] Optional array of field definitions for the table
-      # @return [Hash] Created table details
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Created table details in requested format
       # @raise [ArgumentError] If required parameters are missing
       # @example Basic table
       #   create_table("sol_123", "Customers")
@@ -176,7 +192,7 @@ module SmartSuite
       #                structure: [
       #                  {"slug" => "title", "label" => "Title", "field_type" => "textfield"}
       #                ])
-      def create_table(solution_id, name, description: nil, structure: nil)
+      def create_table(solution_id, name, description: nil, structure: nil, format: :toon)
         validate_required_parameter!('solution_id', solution_id)
         validate_required_parameter!('name', name)
         validate_optional_parameter!('structure', structure, Array) if structure
@@ -193,9 +209,9 @@ module SmartSuite
 
         response = api_request(:post, '/applications/', body)
 
-        log_metric("✓ Created table: #{response['name']} (#{response['id']})") if response.is_a?(Hash)
+        return response unless response.is_a?(Hash)
 
-        response
+        format_single_response(response, format, "Created table: #{response['name']} (#{response['id']})")
       end
     end
   end
