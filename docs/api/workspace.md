@@ -35,23 +35,18 @@ list_solutions
 
 ### Response Format
 
+Default TOON format (50-60% token savings):
+
 ```
-=== SOLUTIONS (5 total) ===
-
---- Solution 1 of 5 ---
-id: sol_123abc456def
-name: Customer Management
-logo_icon: users
-logo_color: blue
-
---- Solution 2 of 5 ---
-id: sol_789ghi012jkl
-name: Project Tracking
-logo_icon: briefcase
-logo_color: green
-
+5 of 5 filtered (5 total)
+solutions[5]{id|name|logo_icon|logo_color}:
+sol_123abc456def|Customer Management|users|blue
+sol_789ghi012jkl|Project Tracking|briefcase|green
+sol_345mno678pqr|Sales Pipeline|chart-bar|orange
 [... etc]
 ```
+
+Use `format: "json"` for JSON output if needed.
 
 ### With Specific Fields
 
@@ -144,22 +139,14 @@ list_solutions_by_owner('user_abc123', include_activity_data: true)
 
 ### Response Format
 
+Default TOON format:
+
 ```
-=== SOLUTIONS OWNED BY user_abc123 (3 total) ===
-
---- Solution 1 of 3 ---
-id: sol_123abc
-name: Sales Pipeline
-logo_icon: trending-up
-logo_color: green
-
---- Solution 2 of 3 ---
-id: sol_456def
-name: Marketing Campaigns
-logo_icon: megaphone
-logo_color: orange
-
-[... etc]
+3 of 3 filtered (3 total)
+solutions[3]{id|name|logo_icon|logo_color}:
+sol_123abc|Sales Pipeline|trending-up|green
+sol_456def|Marketing Campaigns|megaphone|orange
+sol_789ghi|Customer Portal|users|blue
 ```
 
 ### How It Works

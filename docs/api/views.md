@@ -37,28 +37,18 @@ get_view_records(
 
 ### Response Format
 
+Default TOON format:
+
 ```
-=== VIEW RECORDS (15 total) ===
-
-View: Active Tasks
-Table: tbl_6796989a7ee3c6b731717836
-
---- Record 1 of 15 ---
-id: rec_123abc
-title: Q4 Planning
-status: Active
-priority: High
-assigned_to: John Doe
-
---- Record 2 of 15 ---
-id: rec_456def
-title: Budget Review
-status: Active
-priority: Medium
-assigned_to: Jane Smith
-
+15 of 15 filtered (15 total)
+records[15]{id|title|status|priority|assigned_to}:
+rec_123abc|Q4 Planning|Active|High|John Doe
+rec_456def|Budget Review|Active|Medium|Jane Smith
+rec_789ghi|Team Sync|Active|Low|Bob Wilson
 [... etc]
 ```
+
+Use `format: "json"` for JSON output if needed.
 
 ### View Configuration Applied
 
