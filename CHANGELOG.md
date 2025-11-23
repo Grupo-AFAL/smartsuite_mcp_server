@@ -7,21 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- **Condensed ROADMAP.md** - Reduced from 497 lines to 141 lines (72% reduction)
-  - Collapsed completed milestones (v1.0-v1.9) into a compact summary table
-  - Updated v2.0 section to show TOON format as "In Progress" (was incorrectly listed as deferred)
-  - Removed verbose Community/Ecosystem phases
-  - Simplified Feature Backlog and Technical Debt sections
-
-### Removed
-
-- **Obsolete documentation files**
-  - `RELEASE_CHECKLIST_v1.9.0.md` - Version 1.9 already released
-  - `REFACTORING_REPORT.md` - Recommendations already implemented
-  - `docs/ROADMAP_RECOMMENDATIONS.md` - Duplicated and outdated content
-
 ### Added
 
 - **TOON format is now default for all list tools** - Standardized token-optimized output across all listing operations
@@ -200,6 +185,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Condensed ROADMAP.md** - Reduced from 497 lines to 141 lines (72% reduction)
+  - Collapsed completed milestones (v1.0-v1.9) into a compact summary table
+  - Updated v2.0 section to show TOON format as "In Progress" (was incorrectly listed as deferred)
+  - Removed verbose Community/Ecosystem phases
+  - Simplified Feature Backlog and Technical Debt sections
+
 - **`attach_file` returns structured status object** - Now returns detailed response instead of raw API response
   - Returns: `{success, record_id, attached_count, local_files, url_files, details}`
   - `details` array contains type (local/url), files list, and API result for each batch
@@ -228,6 +219,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prevents confusion where AI would use `resource: "solutions"` (all solutions) instead of `resource: "tables", solution_id: "X"` (one solution)
 
 ### Removed
+
+- **Obsolete documentation files**
+  - `RELEASE_CHECKLIST_v1.9.0.md` - Version 1.9 already released
+  - `REFACTORING_REPORT.md` - Recommendations already implemented
+  - `docs/ROADMAP_RECOMMENDATIONS.md` - Duplicated and outdated content
 
 - **Removed `plain_text` format option** - Simplified format parameter to only `:toon` (default) and `:json`
   - `:plain_text` format was removed from all list tools (`list_records`, `list_solutions`, `list_tables`, `list_members`, `list_teams`, `list_solutions_by_owner`)

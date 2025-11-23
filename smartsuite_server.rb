@@ -191,7 +191,7 @@ class SmartSuiteServer
              when 'list_teams'
                @client.list_teams(format: (arguments['format'] || 'toon').to_sym)
              when 'get_team'
-               @client.get_team(arguments['team_id'])
+               @client.get_team(arguments['team_id'], format: (arguments['format'] || 'toon').to_sym)
              when 'list_tables'
                @client.list_tables(
                  solution_id: arguments['solution_id'],
@@ -199,7 +199,7 @@ class SmartSuiteServer
                  format: (arguments['format'] || 'toon').to_sym
                )
              when 'get_table'
-               @client.get_table(arguments['table_id'])
+               @client.get_table(arguments['table_id'], format: (arguments['format'] || 'toon').to_sym)
              when 'create_table'
                @client.create_table(
                  arguments['solution_id'],
@@ -219,7 +219,7 @@ class SmartSuiteServer
                  format: (arguments['format'] || 'toon').to_sym
                )
              when 'get_record'
-               @client.get_record(arguments['table_id'], arguments['record_id'])
+               @client.get_record(arguments['table_id'], arguments['record_id'], format: (arguments['format'] || 'toon').to_sym)
              when 'create_record'
                @client.create_record(
                  arguments['table_id'],
@@ -266,7 +266,7 @@ class SmartSuiteServer
                  format: (arguments['format'] || 'toon').to_sym
                )
              when 'restore_deleted_record'
-               @client.restore_deleted_record(arguments['table_id'], arguments['record_id'])
+               @client.restore_deleted_record(arguments['table_id'], arguments['record_id'], format: (arguments['format'] || 'toon').to_sym)
              when 'attach_file'
                @client.attach_file(
                  arguments['table_id'],

@@ -2366,7 +2366,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_get_team
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:get_team) do |team_id|
+    client.define_singleton_method(:get_team) do |team_id, format:|
       { 'id' => team_id, 'name' => 'Engineering', 'members' => [] }
     end
 
@@ -2400,7 +2400,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_get_record
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:get_record) do |table_id, record_id|
+    client.define_singleton_method(:get_record) do |table_id, record_id, format:|
       { 'id' => record_id, 'title' => 'Test Record' }
     end
 
@@ -2538,7 +2538,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_restore_deleted_record
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:restore_deleted_record) do |table_id, record_id|
+    client.define_singleton_method(:restore_deleted_record) do |table_id, record_id, format:|
       { 'restored' => true, 'id' => record_id }
     end
 
@@ -2916,7 +2916,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_get_table
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:get_table) do |table_id|
+    client.define_singleton_method(:get_table) do |table_id, format:|
       { 'id' => table_id, 'name' => 'Test Table', 'structure' => [] }
     end
 
