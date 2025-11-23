@@ -376,9 +376,8 @@ module SmartSuite
           log_metric("✓ #{message}")
           log_metric('📊 TOON format (~50-60% token savings)')
           result
-        else # :json
-          result = build_collection_response(data, collection_name)
-          track_response_size(result, message)
+        else # :json - return raw array for backward compatibility
+          track_response_size(data, message)
         end
       end
 

@@ -302,7 +302,8 @@ module SmartSuite
       # @param minimal_response [Boolean] Return minimal response (default: true)
       #   When true, returns only essential fields (~95% token reduction) and updates cache
       #   Set to false for backward compatibility or when full response needed
-      # @return [Hash] Created record with ID (minimal or full based on parameter)
+      # @param format [Symbol] Output format: :toon (default) or :json (only used when minimal_response: false)
+      # @return [Hash, String] Created record with ID (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example Minimal response (default, 95% token savings)
       #   create_record('tbl_123', {'title' => 'New Task', 'status' => 'Active'})
@@ -311,7 +312,7 @@ module SmartSuite
       # @example Full response (for backward compatibility)
       #   create_record('tbl_123', {'title' => 'New Task'}, minimal_response: false)
       #   # => { id: "rec_123", title: "New Task", status: "Active", ... 50+ fields }
-      def create_record(table_id, data, minimal_response: true)
+      def create_record(table_id, data, minimal_response: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('data', data, Hash)
 
@@ -329,7 +330,7 @@ module SmartSuite
             cached: @cache ? true : false
           )
         else
-          response # Backward compatible: return full response
+          format_single_response(response, format, "Created record: #{response['id']}")
         end
       end
 
@@ -341,7 +342,8 @@ module SmartSuite
       # @param minimal_response [Boolean] Return minimal response (default: true)
       #   When true, returns only essential fields (~95% token reduction) and updates cache
       #   Set to false for backward compatibility or when full response needed
-      # @return [Hash] Updated record data (minimal or full based on parameter)
+      # @param format [Symbol] Output format: :toon (default) or :json (only used when minimal_response: false)
+      # @return [Hash, String] Updated record data (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example Minimal response (default, 95% token savings)
       #   update_record('tbl_123', 'rec_abc', {'status' => 'Completed'})
@@ -350,7 +352,7 @@ module SmartSuite
       # @example Full response (for backward compatibility)
       #   update_record('tbl_123', 'rec_abc', {'status' => 'Completed'}, minimal_response: false)
       #   # => { id: "rec_abc", title: "Task", status: "Completed", ... 50+ fields }
-      def update_record(table_id, record_id, data, minimal_response: true)
+      def update_record(table_id, record_id, data, minimal_response: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
         validate_required_parameter!('data', data, Hash)
@@ -369,7 +371,7 @@ module SmartSuite
             cached: @cache ? true : false
           )
         else
-          response # Backward compatible: return full response
+          format_single_response(response, format, "Updated record: #{response['id']}")
         end
       end
 
@@ -380,7 +382,8 @@ module SmartSuite
       # @param minimal_response [Boolean] Return minimal response (default: true)
       #   When true, returns only essential fields (~80% token reduction) and removes from cache
       #   Set to false for backward compatibility or when full response needed
-      # @return [Hash] Deletion confirmation (minimal or full based on parameter)
+      # @param format [Symbol] Output format: :toon (default) or :json (only used when minimal_response: false)
+      # @return [Hash, String] Deletion confirmation (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing
       # @example Minimal response (default, 80% token savings)
       #   delete_record('tbl_123', 'rec_abc')
@@ -389,7 +392,7 @@ module SmartSuite
       # @example Full response (for backward compatibility)
       #   delete_record('tbl_123', 'rec_abc', minimal_response: false)
       #   # => { success: true, message: "Record deleted", ... }
-      def delete_record(table_id, record_id, minimal_response: true)
+      def delete_record(table_id, record_id, minimal_response: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
 
@@ -406,7 +409,7 @@ module SmartSuite
             cached: false
           )
         else
-          response # Backward compatible: return full response
+          format_single_response(response, format, "Deleted record: #{record_id}")
         end
       end
 
@@ -420,7 +423,8 @@ module SmartSuite
       # @param minimal_response [Boolean] Return minimal response (default: true)
       #   When true, returns only essential fields (~90% token reduction) and updates cache
       #   Set to false for backward compatibility or when full response needed
-      # @return [Array<Hash>] Array of created records (minimal or full based on parameter)
+      # @param format [Symbol] Output format: :toon (default) or :json (only used when minimal_response: false)
+      # @return [Array<Hash>, String] Array of created records (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example Minimal response (default, 90% token savings)
       #   bulk_add_records('tbl_123', [
@@ -433,7 +437,7 @@ module SmartSuite
       #   ]
       # @example Full response (for backward compatibility)
       #   bulk_add_records('tbl_123', [...], minimal_response: false)
-      def bulk_add_records(table_id, records, minimal_response: true)
+      def bulk_add_records(table_id, records, minimal_response: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('records', records, Array)
 
@@ -457,7 +461,7 @@ module SmartSuite
             response # Fallback if response format unexpected
           end
         else
-          response # Backward compatible: return full response
+          format_array_response(response, format, 'records', "Bulk created #{response.length} records")
         end
       end
 
@@ -471,7 +475,8 @@ module SmartSuite
       # @param minimal_response [Boolean] Return minimal response (default: true)
       #   When true, returns only essential fields (~90% token reduction) and updates cache
       #   Set to false for backward compatibility or when full response needed
-      # @return [Array<Hash>] Array of updated records (minimal or full based on parameter)
+      # @param format [Symbol] Output format: :toon (default) or :json (only used when minimal_response: false)
+      # @return [Array<Hash>, String] Array of updated records (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example Minimal response (default, 90% token savings)
       #   bulk_update_records('tbl_123', [
@@ -484,7 +489,7 @@ module SmartSuite
       #   ]
       # @example Full response (for backward compatibility)
       #   bulk_update_records('tbl_123', [...], minimal_response: false)
-      def bulk_update_records(table_id, records, minimal_response: true)
+      def bulk_update_records(table_id, records, minimal_response: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('records', records, Array)
 
@@ -508,7 +513,7 @@ module SmartSuite
             response # Fallback if response format unexpected
           end
         else
-          response # Backward compatible: return full response
+          format_array_response(response, format, 'records', "Bulk updated #{response.length} records")
         end
       end
 
@@ -522,7 +527,8 @@ module SmartSuite
       # @param minimal_response [Boolean] Return minimal response (default: true)
       #   When true, returns only essential fields (~80% token reduction) and removes from cache
       #   Set to false for backward compatibility or when full response needed
-      # @return [Hash] Deletion confirmation (minimal or full based on parameter)
+      # @param format [Symbol] Output format: :toon (default) or :json (only used when minimal_response: false)
+      # @return [Hash, String] Deletion confirmation (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example Minimal response (default, 80% token savings)
       #   bulk_delete_records('tbl_123', ['rec_abc', 'rec_def', 'rec_ghi'])
@@ -530,7 +536,7 @@ module SmartSuite
       #          timestamp: "2025-11-19T...", cached: false }
       # @example Full response (for backward compatibility)
       #   bulk_delete_records('tbl_123', [...], minimal_response: false)
-      def bulk_delete_records(table_id, record_ids, minimal_response: true)
+      def bulk_delete_records(table_id, record_ids, minimal_response: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_ids', record_ids, Array)
 
@@ -549,7 +555,7 @@ module SmartSuite
             'cached' => false # Records removed from cache
           }
         else
-          response # Backward compatible: return full response
+          format_single_response(response, format, "Bulk deleted #{record_ids.length} records")
         end
       end
 
