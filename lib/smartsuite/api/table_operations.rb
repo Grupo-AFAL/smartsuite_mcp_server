@@ -129,12 +129,16 @@ module SmartSuite
       # by ~80%. Logs token savings metrics.
       #
       # @param table_id [String] Table identifier
-      # @return [Hash] Table with filtered structure
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Table with filtered structure in requested format
       # @raise [ArgumentError] If table_id is missing
       # @example
       #   get_table("tbl_123")
-      def get_table(table_id)
+      #   get_table("tbl_123", format: :json)
+      def get_table(table_id, format: :toon)
         validate_required_parameter!('table_id', table_id)
+
+        result = nil
 
         # Try to get from cache first
         if @cache
@@ -143,44 +147,33 @@ module SmartSuite
             # Filter structure to only essential fields (cache has full structure)
             filtered_structure = cached_table['structure'].map { |field| filter_field_structure(field) }
             cached_table['structure'] = filtered_structure
-
-            log_metric("✓ Retrieved table from cache: #{table_id}")
-            log_token_usage(estimate_tokens(JSON.generate(cached_table)))
-            return cached_table
+            result = cached_table
           end
         end
 
-        # Cache miss - fetch from API
-        log_metric("→ Getting table structure from API: #{table_id}")
-        response = api_request(:get, "/applications/#{table_id}/")
+        unless result
+          # Cache miss - fetch from API
+          log_metric("→ Getting table structure from API: #{table_id}")
+          response = api_request(:get, "/applications/#{table_id}/")
 
-        # Return filtered structure including only essential fields
-        if response.is_a?(Hash)
-          # Calculate original size for comparison
-          original_structure_json = JSON.generate(response['structure'])
-          original_tokens = estimate_tokens(original_structure_json)
+          # Return filtered structure including only essential fields
+          if response.is_a?(Hash)
+            # Filter structure to only essential fields
+            filtered_structure = response['structure'].map { |field| filter_field_structure(field) }
 
-          # Filter structure to only essential fields
-          filtered_structure = response['structure'].map { |field| filter_field_structure(field) }
-
-          result = {
-            'id' => response['id'],
-            'name' => response['name'],
-            # API returns 'solution' but we normalize to 'solution_id'
-            'solution_id' => response['solution'] || response['solution_id'],
-            'structure' => filtered_structure
-          }
-
-          tokens = estimate_tokens(JSON.generate(result))
-          reduction_percent = ((original_tokens - tokens).to_f / original_tokens * 100).round(1)
-
-          log_metric("✓ Retrieved table structure: #{filtered_structure.length} fields")
-          log_metric("📊 #{original_tokens} → #{tokens} tokens (saved #{reduction_percent}%)")
-          log_token_usage(tokens)
-          result
-        else
-          response
+            result = {
+              'id' => response['id'],
+              'name' => response['name'],
+              # API returns 'solution' but we normalize to 'solution_id'
+              'solution_id' => response['solution'] || response['solution_id'],
+              'structure' => filtered_structure
+            }
+          else
+            return response
+          end
         end
+
+        format_single_response(result, format, "Retrieved table: #{table_id} (#{result['structure'].length} fields)")
       end
 
       # Creates a new table (application) in a solution.
@@ -189,7 +182,8 @@ module SmartSuite
       # @param name [String] Name of the new table
       # @param description [String, nil] Optional description for the table
       # @param structure [Array, nil] Optional array of field definitions for the table
-      # @return [Hash] Created table details
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Created table details in requested format
       # @raise [ArgumentError] If required parameters are missing
       # @example Basic table
       #   create_table("sol_123", "Customers")
@@ -200,7 +194,7 @@ module SmartSuite
       #                structure: [
       #                  {"slug" => "title", "label" => "Title", "field_type" => "textfield"}
       #                ])
-      def create_table(solution_id, name, description: nil, structure: nil)
+      def create_table(solution_id, name, description: nil, structure: nil, format: :toon)
         validate_required_parameter!('solution_id', solution_id)
         validate_required_parameter!('name', name)
         validate_optional_parameter!('structure', structure, Array) if structure
@@ -217,9 +211,9 @@ module SmartSuite
 
         response = api_request(:post, '/applications/', body)
 
-        log_metric("✓ Created table: #{response['name']} (#{response['id']})") if response.is_a?(Hash)
+        return response unless response.is_a?(Hash)
 
-        response
+        format_single_response(response, format, "Created table: #{response['name']} (#{response['id']})")
       end
     end
   end

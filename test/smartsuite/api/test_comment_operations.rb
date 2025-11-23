@@ -102,7 +102,7 @@ class TestCommentOperations < Minitest::Test
       expected_response
     end
 
-    result = @client.add_comment(table_id, record_id, message)
+    result = @client.add_comment(table_id, record_id, message, nil, format: :json)
 
     assert_equal 'comment_new', result['id']
     assert_equal table_id, result['application']
@@ -140,7 +140,7 @@ class TestCommentOperations < Minitest::Test
       expected_response
     end
 
-    result = @client.add_comment(table_id, record_id, message, assigned_to)
+    result = @client.add_comment(table_id, record_id, message, assigned_to, format: :json)
 
     assert_equal 'comment_assigned', result['id']
     assert_equal assigned_to, result['assigned_to']

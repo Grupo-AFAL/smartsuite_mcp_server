@@ -212,13 +212,17 @@ module SmartSuite
       #
       # @param table_id [String] Table identifier
       # @param record_id [String] Record identifier
-      # @return [Hash] Complete record data
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Record data in requested format
       # @raise [ArgumentError] If required parameters are missing
       # @example
       #   get_record('tbl_123', 'rec_abc')
-      def get_record(table_id, record_id)
+      #   get_record('tbl_123', 'rec_abc', format: :json)
+      def get_record(table_id, record_id, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
+
+        record = nil
 
         # Try to get from cache first
         if @cache
@@ -226,15 +230,19 @@ module SmartSuite
           if cached_record
             log_metric("✓ Retrieved record from cache: #{record_id}")
             # Process SmartDoc fields to extract only HTML
-            return process_smartdoc_fields(cached_record)
+            record = process_smartdoc_fields(cached_record)
           end
         end
 
-        # Cache miss or disabled - fetch from API
-        log_metric("→ Getting record from API: #{record_id}")
-        record = api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
-        # Process SmartDoc fields in API response too
-        process_smartdoc_fields(record)
+        unless record
+          # Cache miss or disabled - fetch from API
+          log_metric("→ Getting record from API: #{record_id}")
+          record = api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
+          # Process SmartDoc fields in API response too
+          record = process_smartdoc_fields(record)
+        end
+
+        format_single_response(record, format, "Retrieved record: #{record_id}")
       end
 
       # Process SmartDoc fields in a record to extract only HTML content.
@@ -617,15 +625,17 @@ module SmartSuite
       #
       # @param table_id [String] Table identifier
       # @param record_id [String] Record identifier to restore
-      # @return [Hash] Restored record data
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Restored record data in requested format
       # @raise [ArgumentError] If required parameters are missing
       # @example
       #   restore_deleted_record('tbl_123', 'rec_abc')
-      def restore_deleted_record(table_id, record_id)
+      def restore_deleted_record(table_id, record_id, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
 
-        api_request(:post, "/applications/#{table_id}/records/#{record_id}/restore/", {})
+        response = api_request(:post, "/applications/#{table_id}/records/#{record_id}/restore/", {})
+        format_single_response(response, format, "Restored record: #{record_id}")
       end
 
       # Attach files to a record by URL or local file path.

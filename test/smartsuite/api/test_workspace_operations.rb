@@ -351,7 +351,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.analyze_solution_usage
+    result = client.analyze_solution_usage(format: :json)
 
     assert result.is_a?(Hash)
     assert_equal 3, result['summary']['total_solutions']
@@ -372,7 +372,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.analyze_solution_usage(days_inactive: 30, min_records: 5)
+    result = client.analyze_solution_usage(days_inactive: 30, min_records: 5, format: :json)
 
     # With 45 days since access and threshold of 30, should be inactive
     assert_equal 30, result['thresholds']['days_inactive']
@@ -397,7 +397,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.analyze_solution_usage
+    result = client.analyze_solution_usage(format: :json)
 
     # Solutions are counted in total, but deleted ones are skipped in categorization
     # So total_solutions = all - deleted, active_count = categorized active
@@ -416,7 +416,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.analyze_solution_usage
+    result = client.analyze_solution_usage(format: :json)
 
     assert_equal 1, result['inactive_solutions'].size
     assert_includes result['inactive_solutions'][0]['reason'], 'Never accessed'
@@ -434,7 +434,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.analyze_solution_usage
+    result = client.analyze_solution_usage(format: :json)
 
     # Has content so should be potentially unused, not inactive
     assert_equal 1, result['potentially_unused_solutions'].size
@@ -445,7 +445,7 @@ class TestWorkspaceOperations < Minitest::Test
     expected_response = []
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.analyze_solution_usage
+    result = client.analyze_solution_usage(format: :json)
 
     assert_equal 0, result['summary']['total_solutions']
     assert_equal 0, result['summary']['active_count']

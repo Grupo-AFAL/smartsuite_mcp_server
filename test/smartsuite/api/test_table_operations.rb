@@ -174,7 +174,7 @@ class TestTableOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.get_table(table_id)
+    result = client.get_table(table_id, format: :json)
 
     assert_equal table_id, result['id']
     assert_equal 'Test Table', result['name']
@@ -205,7 +205,7 @@ class TestTableOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.get_table(table_id)
+    result = client.get_table(table_id, format: :json)
 
     field = result['structure'][0]
     # Essential fields should be present
@@ -249,7 +249,7 @@ class TestTableOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.get_table(table_id)
+    result = client.get_table(table_id, format: :json)
 
     assert_equal 'sol_original', result['solution_id']
     refute result.key?('solution'), 'Should normalize solution to solution_id'
@@ -283,7 +283,7 @@ class TestTableOperations < Minitest::Test
       expected_response
     end
 
-    result = client.create_table(solution_id, name)
+    result = client.create_table(solution_id, name, format: :json)
 
     assert_equal 'tbl_created', result['id']
     assert_equal name, result['name']
@@ -467,7 +467,7 @@ class TestTableOperations < Minitest::Test
       raise 'Should not call API'
     end
 
-    result = client.get_table(table_id)
+    result = client.get_table(table_id, format: :json)
 
     refute api_called, 'Should use cache when table is cached'
     assert_equal table_id, result['id']

@@ -318,8 +318,8 @@ module SmartSuite
         @cache.track_cache_miss(table_id)
         log_metric("→ Cache miss for #{table_id}, fetching all records...")
 
-        # Fetch table structure
-        structure = get_table(table_id)
+        # Fetch table structure (use JSON format for internal processing)
+        structure = get_table(table_id, format: :json)
 
         # Fetch ALL records (aggressive strategy)
         all_records = fetch_all_records(table_id)
@@ -328,6 +328,58 @@ module SmartSuite
         @cache.cache_table_records(table_id, structure, all_records)
 
         log_metric("✓ Cached #{all_records.size} records for #{table_id}")
+      end
+
+      # Format a single object response based on format parameter.
+      #
+      # This helper provides consistent formatting across all single-object
+      # operations (get_record, create_record, get_team, etc.).
+      #
+      # @param data [Hash] Data to format
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @param message [String] Log message for metrics
+      # @return [String, Hash] TOON string or JSON hash depending on format
+      # @example
+      #   format_single_response(record, :toon, "Retrieved record: rec_123")
+      #   format_single_response(team, :json, "Retrieved team: team_abc")
+      def format_single_response(data, format, message)
+        case format
+        when :toon
+          require_relative '../formatters/toon_formatter'
+          result = SmartSuite::Formatters::ToonFormatter.format(data)
+          log_metric("✓ #{message}")
+          log_metric('📊 TOON format (~50-60% token savings)')
+          result
+        else # :json
+          track_response_size(data, message)
+        end
+      end
+
+      # Format an array response based on format parameter.
+      #
+      # This helper provides consistent formatting across all array-returning
+      # operations (bulk_add_records, bulk_update_records, etc.).
+      #
+      # @param data [Array] Array data to format
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @param collection_name [Symbol] Name for the collection wrapper
+      # @param message [String] Log message for metrics
+      # @return [String, Hash] TOON string or JSON hash depending on format
+      # @example
+      #   format_array_response(records, :toon, :records, "Created 5 records")
+      def format_array_response(data, format, collection_name, message)
+        case format
+        when :toon
+          require_relative '../formatters/toon_formatter'
+          wrapped = { collection_name.to_s => data }
+          result = SmartSuite::Formatters::ToonFormatter.format(wrapped)
+          log_metric("✓ #{message}")
+          log_metric('📊 TOON format (~50-60% token savings)')
+          result
+        else # :json
+          result = build_collection_response(data, collection_name)
+          track_response_size(result, message)
+        end
       end
 
       # Fetch all records from a table using paginated API calls.

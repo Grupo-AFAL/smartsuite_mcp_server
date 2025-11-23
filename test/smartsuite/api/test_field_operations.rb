@@ -40,7 +40,7 @@ class TestFieldOperations < Minitest::Test
       expected_response
     end
 
-    result = @client.add_field(table_id, field_data)
+    result = @client.add_field(table_id, field_data, format: :json)
 
     assert_equal :post, captured_args[:method]
     assert_equal '/applications/tbl_123/add_field/', captured_args[:endpoint]
@@ -125,7 +125,7 @@ class TestFieldOperations < Minitest::Test
       expected_response
     end
 
-    result = @client.bulk_add_fields(table_id, fields)
+    result = @client.bulk_add_fields(table_id, fields, format: :json)
 
     assert_equal :post, captured_args[:method]
     assert_equal '/applications/tbl_123/bulk-add-fields/', captured_args[:endpoint]
@@ -200,7 +200,7 @@ class TestFieldOperations < Minitest::Test
       expected_response
     end
 
-    result = @client.update_field(table_id, slug, field_data)
+    result = @client.update_field(table_id, slug, field_data, format: :json)
 
     assert_equal :put, captured_args[:method]
     assert_equal '/applications/tbl_123/change_field/', captured_args[:endpoint]
@@ -311,7 +311,7 @@ class TestFieldOperations < Minitest::Test
       expected_response
     end
 
-    result = @client.delete_field(table_id, slug)
+    result = @client.delete_field(table_id, slug, format: :json)
 
     assert_equal :post, captured_args[:method]
     assert_equal '/applications/tbl_123/delete_field/', captured_args[:endpoint]
