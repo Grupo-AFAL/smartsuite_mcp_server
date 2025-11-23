@@ -69,6 +69,13 @@ module SmartSuite
         'description' => 'Optional: If true, returns limited fields (default: true)'
       }.freeze
 
+      # Output format parameter (used across many list/get/create/update/delete operations)
+      SCHEMA_FORMAT = {
+        'type' => 'string',
+        'description' => 'Output format: "toon" (default, TOON format, ~50-60% token savings), or "json" (standard JSON).',
+        'enum' => %w[toon json]
+      }.freeze
+
       # File field slug parameter (used in attach_file)
       SCHEMA_FILE_FIELD_SLUG = {
         'type' => 'string',
@@ -366,7 +373,8 @@ module SmartSuite
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 95% token savings (default: true). Returns only {success, id, title, operation, timestamp, cached}. Set to false for full record response.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id data]
           }
@@ -424,7 +432,8 @@ module SmartSuite
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 95% token savings (default: true). Returns only {success, id, title, operation, timestamp, cached}. Set to false for full record response.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id record_id data]
           }
@@ -440,7 +449,8 @@ module SmartSuite
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 80% token savings (default: true). Returns only {success, id, operation, timestamp, cached}. Set to false for full response.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id record_id]
           }
@@ -456,7 +466,8 @@ module SmartSuite
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 90% token savings (default: true). Returns array of {success, id, title, operation, timestamp, cached}. Set to false for full records.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id records]
           }
@@ -472,7 +483,8 @@ module SmartSuite
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 90% token savings (default: true). Returns array of {success, id, title, operation, timestamp, cached}. Set to false for full records.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id records]
           }
@@ -488,7 +500,8 @@ module SmartSuite
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 80% token savings (default: true). Returns {success, deleted_count, operation, timestamp, cached}. Set to false for full response.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id record_ids]
           }

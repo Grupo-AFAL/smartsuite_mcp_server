@@ -211,7 +211,7 @@ class TestRecordOperations < Minitest::Test
         body: { id: 'rec_456', status: 'Completed' }.to_json
       )
 
-    result = client.update_record('tbl_123', 'rec_456', data, minimal_response: false)
+    result = client.update_record('tbl_123', 'rec_456', data, minimal_response: false, format: :json)
 
     assert result.is_a?(Hash), 'Should return hash'
     assert_equal 'Completed', result['status']
@@ -247,7 +247,7 @@ class TestRecordOperations < Minitest::Test
         body: { deleted: true }.to_json
       )
 
-    result = client.delete_record('tbl_123', 'rec_456', minimal_response: false)
+    result = client.delete_record('tbl_123', 'rec_456', minimal_response: false, format: :json)
 
     assert result.is_a?(Hash), 'Should return hash'
     assert_equal true, result['deleted']
@@ -659,7 +659,7 @@ class TestRecordOperations < Minitest::Test
         ].to_json
       )
 
-    result = client.bulk_update_records('tbl_123', records, minimal_response: false)
+    result = client.bulk_update_records('tbl_123', records, minimal_response: false, format: :json)
 
     assert result.is_a?(Array), 'Should return array'
     assert_equal 2, result.length
@@ -706,7 +706,7 @@ class TestRecordOperations < Minitest::Test
         body: { deleted: 3 }.to_json
       )
 
-    result = client.bulk_delete_records('tbl_123', record_ids, minimal_response: false)
+    result = client.bulk_delete_records('tbl_123', record_ids, minimal_response: false, format: :json)
 
     assert result.is_a?(Hash), 'Should return hash'
     assert_equal 3, result['deleted']
@@ -1109,7 +1109,7 @@ class TestRecordOperations < Minitest::Test
         body: { id: 'rec_new', title: 'New Task', status: 'Active', many: 'fields' }.to_json
       )
 
-    result = client.create_record('tbl_123', data, minimal_response: false)
+    result = client.create_record('tbl_123', data, minimal_response: false, format: :json)
 
     # Full response should have all fields
     assert result.is_a?(Hash), 'Should return hash'
@@ -1427,7 +1427,7 @@ class TestRecordOperations < Minitest::Test
         body: [{ id: 'rec_1', title: 'Task 1', extra: 'data' }].to_json
       )
 
-    result = client.bulk_add_records('tbl_123', records, minimal_response: false)
+    result = client.bulk_add_records('tbl_123', records, minimal_response: false, format: :json)
 
     # Full response - should include all fields
     assert result.is_a?(Array), 'Should return array'

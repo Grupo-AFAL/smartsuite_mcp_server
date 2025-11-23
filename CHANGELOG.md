@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `list_comments`: `:toon` (default) or `:json`
     - `list_deleted_records`: `:toon` (default) or `:json`
     - `get_view_records`: `:toon` (default) or `:json`
+  - Mutation operations also support format parameter (used when `minimal_response: false`):
+    - `create_record`: `:toon` (default) or `:json`
+    - `update_record`: `:toon` (default) or `:json`
+    - `delete_record`: `:toon` (default) or `:json`
+    - `bulk_add_records`: `:toon` (default) or `:json`
+    - `bulk_update_records`: `:toon` (default) or `:json`
+    - `bulk_delete_records`: `:toon` (default) or `:json`
   - `ToonFormatter` module (`lib/smartsuite/formatters/toon_formatter.rb`) with specialized formatters:
     - `format_records` - Format record lists with counts header
     - `format_record` - Format single record

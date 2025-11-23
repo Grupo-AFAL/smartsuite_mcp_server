@@ -1009,7 +1009,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.delete_record('tbl_123', 'rec_456', minimal_response: false)
+    result = client.delete_record('tbl_123', 'rec_456', minimal_response: false, format: :json)
 
     assert_equal :delete, api_method, 'Should use DELETE method'
     assert_equal '/applications/tbl_123/records/rec_456/', api_endpoint
