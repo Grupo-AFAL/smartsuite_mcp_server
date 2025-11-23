@@ -2717,24 +2717,6 @@ class SmartSuiteServerTest < Minitest::Test
     assert_includes response['result']['content'][0]['text'], 'Cache is disabled'
   end
 
-  def test_handle_tool_call_warm_cache
-    client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:warm_cache) do |tables:, count:|
-      { 'status' => 'completed', 'tables' => tables, 'count' => count, 'warmed' => 3 }
-    end
-
-    request = {
-      'id' => 44,
-      'method' => 'tools/call',
-      'params' => { 'name' => 'warm_cache', 'arguments' => { 'tables' => %w[tbl_1 tbl_2], 'count' => 10 } }
-    }
-
-    response = call_private_method(:handle_tool_call, request)
-    assert_equal '2.0', response['jsonrpc']
-    assert_includes response['result']['content'][0]['text'], 'completed'
-    assert_includes response['result']['content'][0]['text'], 'warmed'
-  end
-
   def test_handle_tool_call_error_handling
     client = @server.instance_variable_get(:@client)
     client.define_singleton_method(:list_solutions) do |**_args|

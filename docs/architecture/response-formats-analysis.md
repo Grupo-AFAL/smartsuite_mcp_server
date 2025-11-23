@@ -54,7 +54,7 @@ Already using `build_collection_response` from Base module:
   "timestamp" => "2025-01-16T..."
 }
 ```
-**Used by**: warm_cache (SmartSuiteClient)
+**Used by**: (previously warm_cache - now removed)
 
 ### Pattern 6: Stats Response
 ```ruby
@@ -79,17 +79,17 @@ Already using `build_collection_response` from Base module:
 ```ruby
 { "error" => "Cache is disabled" }  # ⚠️ inconsistent format
 ```
-**Used by**: warm_cache, get_cache_status, refresh_cache (when cache disabled)
+**Used by**: get_cache_status, refresh_cache (when cache disabled)
 
 ## Identified Inconsistencies
 
 ### 1. Timestamp Field
-- ✅ Uses "timestamp": refresh_cache, warm_cache, get_cache_status
+- ✅ Uses "timestamp": refresh_cache, get_cache_status
 - ⚠️  Uses "analysis_date": analyze_solution_usage
 - ❌ Missing: get_stats, reset_stats
 
 ### 2. Status/Operation Indicator
-- ✅ Uses "status": warm_cache, reset_stats
+- ✅ Uses "status": reset_stats
 - ⚠️  Uses "refreshed": refresh_cache
 - ❌ Missing: analyze_solution_usage, get_stats, get_cache_status
 
@@ -157,8 +157,7 @@ All MCP tool responses should follow these patterns:
 
 #### Medium Priority (Additions)
 
-1. **warm_cache**: Add "operation" => "warm" for consistency
-2. **Collection responses**: Add "timestamp" to all build_collection_response calls
+1. **Collection responses**: Add "timestamp" to all build_collection_response calls
 
 ### Implementation Strategy
 

@@ -786,7 +786,7 @@ See `add_field` tool description for complete example.',
       ].freeze
 
       # Statistics tools for API usage monitoring
-      # Includes: get_api_stats, reset_api_stats, get_cache_status, refresh_cache, warm_cache
+      # Includes: get_api_stats, reset_api_stats, get_cache_status, refresh_cache
       STATS_TOOLS = [
         {
           'name' => 'get_api_stats',
@@ -847,35 +847,6 @@ See `add_field` tool description for complete example.',
               }
             },
             'required' => ['resource']
-          }
-        },
-        {
-          'name' => 'warm_cache',
-          'description' => 'Proactively warm (populate) cache for specified tables or auto-select top accessed tables. Fetches and caches all records to improve subsequent query performance. Skips tables that already have valid cache.',
-          'inputSchema' => {
-            'type' => 'object',
-            'properties' => {
-              'tables' => {
-                'description' => 'Table IDs to warm. Can be: array of table IDs, single table ID string, "auto" (top N accessed), or omit for auto mode. Examples: ["tbl_123", "tbl_456"], "tbl_123", "auto"',
-                'oneOf' => [
-                  {
-                    'type' => 'array',
-                    'items' => { 'type' => 'string' },
-                    'description' => 'Array of table IDs to warm'
-                  },
-                  {
-                    'type' => 'string',
-                    'description' => 'Single table ID or "auto" for automatic selection'
-                  }
-                ]
-              },
-              'count' => {
-                'type' => 'number',
-                'description' => 'Number of tables to warm in auto mode (default: 5). Only used when tables is "auto" or omitted.',
-                'default' => 5
-              }
-            },
-            'required' => []
           }
         }
       ].freeze

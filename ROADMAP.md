@@ -12,14 +12,14 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 ## Completed Milestones
 
-| Version | Focus | Key Features |
-|---------|-------|--------------|
-| v1.0 | Core Foundation | MCP protocol, SmartSuite API operations, API stats tracking, response filtering (83.8% token reduction) |
-| v1.5 | SQLite Caching | Dynamic tables, cache-first strategy, TTL expiration (4h default), chainable query builder |
-| v1.6 | Cache Optimization | Cache performance tracking, management tools, human-readable SQL names, extended TTLs |
-| v1.7 | Code Quality | Split cache_layer.rb into 5 focused modules under `SmartSuite::Cache` namespace |
-| v1.8 | Developer Experience | FilterBuilder, API::Base, 97.47% test coverage, comprehensive YARD docs |
-| v1.9 | Extended Operations | Bulk ops, file attachment/URLs, deleted records, SecureFileAttacher helper |
+| Version | Focus                | Key Features                                                                                            |
+| ------- | -------------------- | ------------------------------------------------------------------------------------------------------- |
+| v1.0    | Core Foundation      | MCP protocol, SmartSuite API operations, API stats tracking, response filtering (83.8% token reduction) |
+| v1.5    | SQLite Caching       | Dynamic tables, cache-first strategy, TTL expiration (4h default), chainable query builder              |
+| v1.6    | Cache Optimization   | Cache performance tracking, management tools, human-readable SQL names, extended TTLs                   |
+| v1.7    | Code Quality         | Split cache_layer.rb into 5 focused modules under `SmartSuite::Cache` namespace                         |
+| v1.8    | Developer Experience | FilterBuilder, API::Base, 97.47% test coverage, comprehensive YARD docs                                 |
+| v1.9    | Extended Operations  | Bulk ops, file attachment/URLs, deleted records, SecureFileAttacher helper                              |
 
 **Post v1.9:** SmartDoc documentation, single select field format fix, cache invalidation cascade, date filter fix.
 
@@ -34,11 +34,13 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 #### Completed
 
 - **Minimal mutation responses** - 50-95% token reduction
+
   - `minimal_response: true` (default) for all 6 mutation operations
   - Returns: `{success, id, title, operation, timestamp, cached}`
   - Smart cache updates without table-wide invalidation
 
 - **Installation scripts** - One-liner bootstrap for macOS/Linux/Windows
+
   - Automatic Ruby installation via Homebrew/WinGet
   - Claude Desktop configuration
 
@@ -55,6 +57,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 #### Remaining
 
+- [ ] Unify all logging systems (query + metrics + any other logging)
 - [ ] Smart field selection intelligence (analyze usage patterns)
 - [ ] Query optimization for complex filters
 - [ ] Convert UTC timestamps to local time
@@ -88,17 +91,20 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 ## Feature Backlog
 
 ### High Impact
+
 - Template system (pre-defined table structures)
 - Data validation (client-side before API calls)
 - Rate limiting with smart throttling
 - Retry logic with exponential backoff
 
 ### Medium Impact
+
 - Export/Import (CSV, JSON, Excel)
 - Data migrations between solutions
 - Custom views (save complex queries)
 
 ### Low Impact
+
 - Offline mode
 - GraphQL endpoint
 - Python/Node.js SDKs
@@ -115,25 +121,25 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 ## Success Metrics
 
-| Metric | Target |
-|--------|--------|
-| Cache hit rate | >80% for metadata |
-| API call reduction | >75% vs uncached |
-| Token savings | >60% average per session |
-| Response time | <100ms for cached queries |
-| Test coverage | >90% (current: 97.47%) |
+| Metric             | Target                    |
+| ------------------ | ------------------------- |
+| Cache hit rate     | >80% for metadata         |
+| API call reduction | >75% vs uncached          |
+| Token savings      | >60% average per session  |
+| Response time      | <100ms for cached queries |
+| Test coverage      | >90% (current: 97.47%)    |
 
 ---
 
 ## Roadmap Status
 
-| Version | Status | Target | Completion |
-|---------|--------|--------|------------|
-| v1.0-1.9 | Released | Nov 2025 | 100% |
-| v2.0 | In Progress | Nov 2025 | 85% |
-| v2.1 | Planned | Q2 2026 | 0% |
-| v2.2 | Planned | Q2 2026 | 0% |
-| v3.0 | Planned | Q3 2026 | 0% |
+| Version  | Status      | Target   | Completion |
+| -------- | ----------- | -------- | ---------- |
+| v1.0-1.9 | Released    | Nov 2025 | 100%       |
+| v2.0     | In Progress | Nov 2025 | 85%        |
+| v2.1     | Planned     | Q2 2026  | 0%         |
+| v2.2     | Planned     | Q2 2026  | 0%         |
+| v3.0     | Planned     | Q3 2026  | 0%         |
 
 ---
 
