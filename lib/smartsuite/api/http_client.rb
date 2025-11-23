@@ -43,8 +43,6 @@ module SmartSuite
         # Track the API call if stats tracker is available
         @stats_tracker&.track_api_call(method, endpoint)
 
-        SmartSuite::Logger.metric("→ #{method.to_s.upcase} #{endpoint}")
-
         uri = URI.parse("#{API_BASE_URL}#{endpoint}")
 
         # Log API request
