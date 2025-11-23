@@ -349,8 +349,8 @@ module SmartSuite
 
         formatted = format_message(message, category: category, success: success, override_color: override_color)
 
-        # Log to file (without colors)
-        file_logger.send(level, strip_colors(formatted))
+        # Log to file (with colors for terminal viewing via tail -f, less -R, etc.)
+        file_logger.send(level, formatted)
 
         # Optionally log to stderr (with colors if enabled)
         return unless stderr_enabled
