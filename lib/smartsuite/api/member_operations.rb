@@ -71,8 +71,6 @@ module SmartSuite
       def search_member(query, include_inactive: false, format: :toon)
         validate_required_parameter!('query', query)
 
-        log_metric("→ Searching members with query: #{query}")
-
         # Try cache first with query filtering
         cached_members = with_cache_check('members', "query:#{query}") do
           @cache.get_cached_members(query: query, include_inactive: include_inactive)
@@ -114,7 +112,6 @@ module SmartSuite
       # @example Explicit format selection
       #   list_teams(format: :json)
       def list_teams(format: :toon)
-        log_metric('→ Listing teams')
         teams = fetch_teams_with_cache
         format_team_list(teams, format)
       end
@@ -153,8 +150,6 @@ module SmartSuite
       # @param format [Symbol] Output format: :toon or :json
       # @return [String, Hash] Formatted members
       def list_all_members(limit, offset, include_inactive: false, format: :toon)
-        log_metric('→ Listing workspace members')
-
         # Try cache first if enabled
         cached_members = with_cache_check('members') do
           @cache.get_cached_members(include_inactive: include_inactive)

@@ -60,8 +60,6 @@ module SmartSuite
         # Build endpoint with query parameters using Base helper
         endpoint = build_endpoint('/solutions/', fields: fields)
 
-        log_metric("→ Requesting endpoint: #{endpoint}") if fields && !fields.empty?
-
         response = api_request(:get, endpoint)
 
         # Cache the full response if cache enabled
@@ -180,7 +178,6 @@ module SmartSuite
       def get_solution(solution_id)
         validate_required_parameter!('solution_id', solution_id)
 
-        log_metric("→ Getting solution details: #{solution_id}")
         api_request(:get, "/solutions/#{solution_id}/")
       end
 

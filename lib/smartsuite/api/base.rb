@@ -308,7 +308,7 @@ module SmartSuite
 
         # Track cache miss
         @cache.track_cache_miss(table_id)
-        log_metric("→ Cache miss for #{table_id}, fetching all records...")
+        SmartSuite::Logger.cache('miss', table_id, action: 'fetching all records')
 
         # Fetch table structure (use JSON format for internal processing)
         structure = get_table(table_id, format: :json)
@@ -319,7 +319,7 @@ module SmartSuite
         # Cache records
         @cache.cache_table_records(table_id, structure, all_records)
 
-        log_metric("✓ Cached #{all_records.size} records for #{table_id}")
+        SmartSuite::Logger.cache('cached', table_id, records: all_records.size)
       end
 
       # Format a single object response based on format parameter.

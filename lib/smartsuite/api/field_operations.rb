@@ -36,8 +36,6 @@ module SmartSuite
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('field_data', field_data, Hash)
 
-        log_metric("→ Adding field to table: #{table_id}")
-
         body = {
           'field' => field_data,
           'field_position' => field_position || {},
@@ -75,8 +73,6 @@ module SmartSuite
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('fields', fields, Array)
 
-        log_metric("→ Bulk adding #{fields.size} fields to table: #{table_id}")
-
         body = {
           'fields' => fields
         }
@@ -112,8 +108,6 @@ module SmartSuite
         validate_required_parameter!('slug', slug)
         validate_required_parameter!('field_data', field_data, Hash)
 
-        log_metric("→ Updating field #{slug} in table: #{table_id}")
-
         # Ensure slug is included in the field data
         # params is required by SmartSuite API, default to empty hash if not provided
         body = field_data.merge('slug' => slug)
@@ -144,8 +138,6 @@ module SmartSuite
       def delete_field(table_id, slug, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('slug', slug)
-
-        log_metric("→ Deleting field #{slug} from table: #{table_id}")
 
         body = {
           'slug' => slug

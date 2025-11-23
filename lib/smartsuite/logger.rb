@@ -223,11 +223,11 @@ module SmartSuite
       def api_response(status, duration, body_size = nil)
         return unless should_log?(:info)
 
-        success = status >= 200 && status < 300
-        msg = "← #{status} | #{format_duration(duration)}"
+        success_icon = status >= 200 && status < 300 ? '✓' : '✗'
+        msg = "#{success_icon} #{status} | #{format_duration(duration)}"
         msg += " | #{format_bytes(body_size)}" if body_size
 
-        log(:info, msg, category: :api, success: success)
+        log(:info, msg, category: :api)
       end
 
       # Log database query
