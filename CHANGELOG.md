@@ -195,6 +195,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Architecture docs: overview.md, mcp-protocol.md, data-flow.md
   - Guides: user-guide.md, caching-guide.md, performance-guide.md
 
+- **Consolidated format parameter definitions in ToolRegistry** - All 16 format parameters now use SCHEMA_FORMAT constant
+  - Eliminates duplication and ensures consistent description across all tools
+  - Affected tools: list_solutions, list_solutions_by_owner, list_tables, list_records, list_deleted_records, list_members, list_teams, search_member, list_comments, get_view_records, and 6 mutation operations
+
 - **Condensed ROADMAP.md** - Reduced from 497 lines to 141 lines (72% reduction)
   - Collapsed completed milestones (v1.0-v1.9) into a compact summary table
   - Updated v2.0 section to show TOON format as "In Progress" (was incorrectly listed as deferred)
