@@ -29,7 +29,7 @@ module SmartSuite
       #
       # TIP: Specify `fields` parameter to minimize token usage by only returning needed fields.
       #
-      # Returns plain text format by default (saves ~40% tokens vs JSON).
+      # Returns TOON format by default (~50-60% token savings vs JSON).
       # Always includes total_records and filtered_records counts to help AI make informed decisions.
       #
       # @param table_id [String] Table identifier
@@ -39,11 +39,14 @@ module SmartSuite
       # @param sort [Array<Hash>, nil] Sort criteria (field + direction)
       # @param fields [Array<String>, nil] Field slugs to include in response (recommended for token efficiency)
       # @param hydrated [Boolean] Fetch human-readable values for linked records, users, etc. (default: true)
-      # @return [String] Plain text formatted records with total/filtered counts
+      # @param format [Symbol] Output format: :toon (default, ~50-60% token savings) or :json
+      # @return [String] Formatted records with total/filtered counts
       # @raise [ArgumentError] If table_id is missing
       # @example
       #   list_records('tbl_123', 10, 0, fields: ['status', 'priority'])
-      def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, hydrated: true)
+      #   list_records('tbl_123', 10, 0, fields: ['status'], format: :json)
+      def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, hydrated: true,
+                       format: :toon)
         validate_required_parameter!('table_id', table_id)
 
         # Handle nil values (when called via MCP with missing parameters)
@@ -62,17 +65,17 @@ module SmartSuite
         # Try cache-first strategy if enabled
         unless should_bypass_cache?
           return list_records_from_cache(table_id, limit, offset, filter, sort, fields,
-                                         hydrated)
+                                         hydrated, format)
         end
 
         # Fallback to direct API call (cache disabled)
-        list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
+        list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated, format)
       end
 
       private
 
       # List records using cache (aggressive fetch strategy)
-      def list_records_from_cache(table_id, limit, offset, filter, sort, fields, hydrated)
+      def list_records_from_cache(table_id, limit, offset, filter, sort, fields, hydrated, format)
         # Ensure cache is populated
         ensure_records_cached(table_id)
 
@@ -104,7 +107,8 @@ module SmartSuite
         }
 
         # Apply filtering and formatting with counts
-        filter_records_response(response, fields, plain_text: true, hydrated: hydrated)
+        format_options = format_to_options(format)
+        filter_records_response(response, fields, **format_options, hydrated: hydrated)
       end
 
       # Apply SmartSuite filter criteria to cache query
@@ -141,7 +145,7 @@ module SmartSuite
       end
 
       # Direct API call (original behavior, used when cache disabled/bypassed)
-      def list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
+      def list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated, format)
         # Build endpoint with query parameters using Base helper
         base_path = "/applications/#{table_id}/records/list/"
         endpoint = build_endpoint(base_path, limit: limit, offset: offset, hydrated: hydrated || nil)
@@ -155,8 +159,21 @@ module SmartSuite
         response = api_request(:post, endpoint, body.empty? ? nil : body)
 
         # Apply aggressive filtering to reduce response size
-        # Returns plain text format to save ~40% tokens vs JSON
-        filter_records_response(response, fields, plain_text: true, hydrated: hydrated)
+        format_options = format_to_options(format)
+        filter_records_response(response, fields, **format_options, hydrated: hydrated)
+      end
+
+      # Converts format symbol to filter_records_response options.
+      #
+      # @param format [Symbol] Output format (:toon or :json)
+      # @return [Hash] Options hash for filter_records_response
+      def format_to_options(format)
+        case format
+        when :json
+          {}
+        else # :toon (default)
+          { toon: true }
+        end
       end
 
       # Sanitize filter before sending to SmartSuite API.
@@ -195,13 +212,17 @@ module SmartSuite
       #
       # @param table_id [String] Table identifier
       # @param record_id [String] Record identifier
-      # @return [Hash] Complete record data
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Record data in requested format
       # @raise [ArgumentError] If required parameters are missing
       # @example
       #   get_record('tbl_123', 'rec_abc')
-      def get_record(table_id, record_id)
+      #   get_record('tbl_123', 'rec_abc', format: :json)
+      def get_record(table_id, record_id, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
+
+        record = nil
 
         # Try to get from cache first
         if @cache
@@ -209,15 +230,19 @@ module SmartSuite
           if cached_record
             log_metric("✓ Retrieved record from cache: #{record_id}")
             # Process SmartDoc fields to extract only HTML
-            return process_smartdoc_fields(cached_record)
+            record = process_smartdoc_fields(cached_record)
           end
         end
 
-        # Cache miss or disabled - fetch from API
-        log_metric("→ Getting record from API: #{record_id}")
-        record = api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
-        # Process SmartDoc fields in API response too
-        process_smartdoc_fields(record)
+        unless record
+          # Cache miss or disabled - fetch from API
+          log_metric("→ Getting record from API: #{record_id}")
+          record = api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
+          # Process SmartDoc fields in API response too
+          record = process_smartdoc_fields(record)
+        end
+
+        format_single_response(record, format, "Retrieved record: #{record_id}")
       end
 
       # Process SmartDoc fields in a record to extract only HTML content.
@@ -277,7 +302,8 @@ module SmartSuite
       # @param minimal_response [Boolean] Return minimal response (default: true)
       #   When true, returns only essential fields (~95% token reduction) and updates cache
       #   Set to false for backward compatibility or when full response needed
-      # @return [Hash] Created record with ID (minimal or full based on parameter)
+      # @param format [Symbol] Output format: :toon (default) or :json (only used when minimal_response: false)
+      # @return [Hash, String] Created record with ID (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example Minimal response (default, 95% token savings)
       #   create_record('tbl_123', {'title' => 'New Task', 'status' => 'Active'})
@@ -286,7 +312,7 @@ module SmartSuite
       # @example Full response (for backward compatibility)
       #   create_record('tbl_123', {'title' => 'New Task'}, minimal_response: false)
       #   # => { id: "rec_123", title: "New Task", status: "Active", ... 50+ fields }
-      def create_record(table_id, data, minimal_response: true)
+      def create_record(table_id, data, minimal_response: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('data', data, Hash)
 
@@ -304,7 +330,7 @@ module SmartSuite
             cached: @cache ? true : false
           )
         else
-          response # Backward compatible: return full response
+          format_single_response(response, format, "Created record: #{response['id']}")
         end
       end
 
@@ -316,7 +342,8 @@ module SmartSuite
       # @param minimal_response [Boolean] Return minimal response (default: true)
       #   When true, returns only essential fields (~95% token reduction) and updates cache
       #   Set to false for backward compatibility or when full response needed
-      # @return [Hash] Updated record data (minimal or full based on parameter)
+      # @param format [Symbol] Output format: :toon (default) or :json (only used when minimal_response: false)
+      # @return [Hash, String] Updated record data (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example Minimal response (default, 95% token savings)
       #   update_record('tbl_123', 'rec_abc', {'status' => 'Completed'})
@@ -325,7 +352,7 @@ module SmartSuite
       # @example Full response (for backward compatibility)
       #   update_record('tbl_123', 'rec_abc', {'status' => 'Completed'}, minimal_response: false)
       #   # => { id: "rec_abc", title: "Task", status: "Completed", ... 50+ fields }
-      def update_record(table_id, record_id, data, minimal_response: true)
+      def update_record(table_id, record_id, data, minimal_response: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
         validate_required_parameter!('data', data, Hash)
@@ -344,7 +371,7 @@ module SmartSuite
             cached: @cache ? true : false
           )
         else
-          response # Backward compatible: return full response
+          format_single_response(response, format, "Updated record: #{response['id']}")
         end
       end
 
@@ -355,7 +382,8 @@ module SmartSuite
       # @param minimal_response [Boolean] Return minimal response (default: true)
       #   When true, returns only essential fields (~80% token reduction) and removes from cache
       #   Set to false for backward compatibility or when full response needed
-      # @return [Hash] Deletion confirmation (minimal or full based on parameter)
+      # @param format [Symbol] Output format: :toon (default) or :json (only used when minimal_response: false)
+      # @return [Hash, String] Deletion confirmation (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing
       # @example Minimal response (default, 80% token savings)
       #   delete_record('tbl_123', 'rec_abc')
@@ -364,7 +392,7 @@ module SmartSuite
       # @example Full response (for backward compatibility)
       #   delete_record('tbl_123', 'rec_abc', minimal_response: false)
       #   # => { success: true, message: "Record deleted", ... }
-      def delete_record(table_id, record_id, minimal_response: true)
+      def delete_record(table_id, record_id, minimal_response: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
 
@@ -381,7 +409,7 @@ module SmartSuite
             cached: false
           )
         else
-          response # Backward compatible: return full response
+          format_single_response(response, format, "Deleted record: #{record_id}")
         end
       end
 
@@ -395,7 +423,8 @@ module SmartSuite
       # @param minimal_response [Boolean] Return minimal response (default: true)
       #   When true, returns only essential fields (~90% token reduction) and updates cache
       #   Set to false for backward compatibility or when full response needed
-      # @return [Array<Hash>] Array of created records (minimal or full based on parameter)
+      # @param format [Symbol] Output format: :toon (default) or :json (only used when minimal_response: false)
+      # @return [Array<Hash>, String] Array of created records (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example Minimal response (default, 90% token savings)
       #   bulk_add_records('tbl_123', [
@@ -408,7 +437,7 @@ module SmartSuite
       #   ]
       # @example Full response (for backward compatibility)
       #   bulk_add_records('tbl_123', [...], minimal_response: false)
-      def bulk_add_records(table_id, records, minimal_response: true)
+      def bulk_add_records(table_id, records, minimal_response: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('records', records, Array)
 
@@ -432,7 +461,7 @@ module SmartSuite
             response # Fallback if response format unexpected
           end
         else
-          response # Backward compatible: return full response
+          format_array_response(response, format, 'records', "Bulk created #{response.length} records")
         end
       end
 
@@ -446,7 +475,8 @@ module SmartSuite
       # @param minimal_response [Boolean] Return minimal response (default: true)
       #   When true, returns only essential fields (~90% token reduction) and updates cache
       #   Set to false for backward compatibility or when full response needed
-      # @return [Array<Hash>] Array of updated records (minimal or full based on parameter)
+      # @param format [Symbol] Output format: :toon (default) or :json (only used when minimal_response: false)
+      # @return [Array<Hash>, String] Array of updated records (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example Minimal response (default, 90% token savings)
       #   bulk_update_records('tbl_123', [
@@ -459,7 +489,7 @@ module SmartSuite
       #   ]
       # @example Full response (for backward compatibility)
       #   bulk_update_records('tbl_123', [...], minimal_response: false)
-      def bulk_update_records(table_id, records, minimal_response: true)
+      def bulk_update_records(table_id, records, minimal_response: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('records', records, Array)
 
@@ -483,7 +513,7 @@ module SmartSuite
             response # Fallback if response format unexpected
           end
         else
-          response # Backward compatible: return full response
+          format_array_response(response, format, 'records', "Bulk updated #{response.length} records")
         end
       end
 
@@ -497,7 +527,8 @@ module SmartSuite
       # @param minimal_response [Boolean] Return minimal response (default: true)
       #   When true, returns only essential fields (~80% token reduction) and removes from cache
       #   Set to false for backward compatibility or when full response needed
-      # @return [Hash] Deletion confirmation (minimal or full based on parameter)
+      # @param format [Symbol] Output format: :toon (default) or :json (only used when minimal_response: false)
+      # @return [Hash, String] Deletion confirmation (minimal or full based on parameter)
       # @raise [ArgumentError] If required parameters are missing or invalid
       # @example Minimal response (default, 80% token savings)
       #   bulk_delete_records('tbl_123', ['rec_abc', 'rec_def', 'rec_ghi'])
@@ -505,7 +536,7 @@ module SmartSuite
       #          timestamp: "2025-11-19T...", cached: false }
       # @example Full response (for backward compatibility)
       #   bulk_delete_records('tbl_123', [...], minimal_response: false)
-      def bulk_delete_records(table_id, record_ids, minimal_response: true)
+      def bulk_delete_records(table_id, record_ids, minimal_response: true, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_ids', record_ids, Array)
 
@@ -524,7 +555,7 @@ module SmartSuite
             'cached' => false # Records removed from cache
           }
         else
-          response # Backward compatible: return full response
+          format_single_response(response, format, "Bulk deleted #{record_ids.length} records")
         end
       end
 
@@ -552,11 +583,13 @@ module SmartSuite
       #
       # @param solution_id [String] Solution identifier
       # @param preview [Boolean] If true, returns limited fields (default: true)
-      # @return [Array<Hash>] Array of deleted records with deletion metadata
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
+      # @return [String, Array<Hash>] TOON string or JSON array depending on format
       # @raise [ArgumentError] If solution_id is missing
       # @example
       #   list_deleted_records('sol_123', preview: true)
-      def list_deleted_records(solution_id, preview: true)
+      #   list_deleted_records('sol_123', format: :json)
+      def list_deleted_records(solution_id, preview: true, format: :toon)
         validate_required_parameter!('solution_id', solution_id)
 
         # Build endpoint with query parameter
@@ -565,7 +598,30 @@ module SmartSuite
         # Body contains solution_id
         body = { solution_id: solution_id }
 
-        api_request(:post, endpoint, body)
+        response = api_request(:post, endpoint, body)
+
+        return response unless response.is_a?(Array)
+
+        format_deleted_records_output(response, format)
+      end
+
+      # Format deleted records output based on format parameter
+      #
+      # @param records [Array<Hash>] Deleted records data
+      # @param format [Symbol] Output format (:toon or :json)
+      # @return [String, Array<Hash>] Formatted output
+      def format_deleted_records_output(records, format)
+        message = "Found #{records.size} deleted records"
+
+        case format
+        when :toon
+          result = SmartSuite::Formatters::ToonFormatter.format(records)
+          log_metric("✓ #{message}")
+          log_metric('📊 TOON format (~50-60% token savings)')
+          result
+        else # :json
+          track_response_size(records, message)
+        end
       end
 
       # Restores a deleted record.
@@ -575,15 +631,17 @@ module SmartSuite
       #
       # @param table_id [String] Table identifier
       # @param record_id [String] Record identifier to restore
-      # @return [Hash] Restored record data
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Restored record data in requested format
       # @raise [ArgumentError] If required parameters are missing
       # @example
       #   restore_deleted_record('tbl_123', 'rec_abc')
-      def restore_deleted_record(table_id, record_id)
+      def restore_deleted_record(table_id, record_id, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
 
-        api_request(:post, "/applications/#{table_id}/records/#{record_id}/restore/", {})
+        response = api_request(:post, "/applications/#{table_id}/records/#{record_id}/restore/", {})
+        format_single_response(response, format, "Restored record: #{record_id}")
       end
 
       # Attach files to a record by URL or local file path.

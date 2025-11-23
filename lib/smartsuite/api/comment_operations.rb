@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'base'
+require_relative '../formatters/toon_formatter'
 
 module SmartSuite
   module API
@@ -14,21 +15,26 @@ module SmartSuite
       # List all comments for a specific record.
       #
       # @param record_id [String] The ID of the record
-      # @return [Hash] API response containing array of comment objects with accurate count
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
+      # @return [String, Hash] TOON string or JSON hash depending on format
       # @raise [ArgumentError] If record_id is nil or empty
       # @raise [RuntimeError] If the API request fails
       # @example
       #   list_comments("rec_abc123")
-      def list_comments(record_id)
+      #   list_comments("rec_abc123", format: :json)
+      def list_comments(record_id, format: :toon)
         validate_required_parameter!('record_id', record_id)
 
         endpoint = build_endpoint('/comments/', record: record_id)
         response = api_request(:get, endpoint)
 
-        # SmartSuite API returns count: null, so calculate from results
-        response['count'] = response['results'].length if response.is_a?(Hash) && response['results'].is_a?(Array)
+        return response unless response.is_a?(Hash) && response['results'].is_a?(Array)
 
-        response
+        # SmartSuite API returns count: null, so calculate from results
+        comments = response['results']
+        count = comments.length
+
+        format_comments_output(comments, count, format)
       end
 
       # Add a comment to a record.
@@ -39,7 +45,8 @@ module SmartSuite
       # @param record_id [String] The ID of the record
       # @param message [String] The comment text (plain text will be converted to rich text format)
       # @param assigned_to [String, nil] Optional user ID to assign the comment to
-      # @return [Hash] API response containing the created comment object
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Created comment in requested format
       # @raise [ArgumentError] If required parameters are nil or empty
       # @raise [RuntimeError] If the API request fails
       # @example Basic usage
@@ -47,7 +54,7 @@ module SmartSuite
       #
       # @example With assignment
       #   add_comment("tbl_123", "rec_456", "Review needed", "user_789")
-      def add_comment(table_id, record_id, message, assigned_to = nil)
+      def add_comment(table_id, record_id, message, assigned_to = nil, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
         validate_required_parameter!('message', message)
@@ -59,10 +66,32 @@ module SmartSuite
           'record' => record_id
         }
 
-        api_request(:post, '/comments/', body)
+        response = api_request(:post, '/comments/', body)
+        format_single_response(response, format, "Comment added to record: #{record_id}")
       end
 
       private
+
+      # Format comments output based on format parameter
+      #
+      # @param comments [Array<Hash>] Comments data
+      # @param count [Integer] Number of comments
+      # @param format [Symbol] Output format (:toon or :json)
+      # @return [String, Hash] Formatted output
+      def format_comments_output(comments, count, format)
+        message = "Found #{count} comments"
+
+        case format
+        when :toon
+          result = SmartSuite::Formatters::ToonFormatter.format(comments)
+          log_metric("✓ #{message}")
+          log_metric('📊 TOON format (~50-60% token savings)')
+          result
+        else # :json
+          result = { 'results' => comments, 'count' => count }
+          track_response_size(result, message)
+        end
+      end
 
       # Format plain text message into SmartSuite's rich text format (TipTap/ProseMirror)
       # SmartSuite uses a document structure with content blocks

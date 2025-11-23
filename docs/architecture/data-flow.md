@@ -7,6 +7,7 @@ Detailed data flow diagrams for all major operations in SmartSuite MCP Server.
 This document traces the path of data through the system for different operations, showing how requests flow from Claude through the server layers to SmartSuite and back.
 
 **Covered flows:**
+
 - Query operations (cache hit vs miss)
 - Mutation operations (create/update/delete)
 - Schema operations (table/field management)
@@ -21,8 +22,8 @@ This document traces the path of data through the system for different operation
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         CLAUDE                                   │
-│  "Show me 10 active tasks with status and priority"            │
+│                         CLAUDE                                  │
+│  "Show me 10 active tasks with status and priority"             │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ JSON-RPC request
                             │ {"method": "tools/call",
@@ -30,105 +31,102 @@ This document traces the path of data through the system for different operation
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │               SERVER LAYER (smartsuite_server.rb)               │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ 1. Parse JSON-RPC request                                │  │
-│  │ 2. Route to handle_tools_call()                          │  │
-│  │ 3. Extract: name="list_records"                          │  │
-│  │             arguments={table_id, fields, limit, filter}  │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ 1. Parse JSON-RPC request                                 │  │
+│  │ 2. Route to handle_tools_call()                           │  │
+│  │ 3. Extract: name="list_records"                           │  │
+│  │             arguments={table_id, fields, limit, filter}   │  │
+│  └───────────────────────────────────────────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ Call SmartSuiteClient method
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │            API CLIENT (lib/smartsuite_client.rb)                │
-│  RecordOperations.list_records(table_id, limit, offset,        │
+│  RecordOperations.list_records(table_id, limit, offset,         │
 │                                  fields:, filter:)              │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ Check cache
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │              CACHE LAYER (lib/smartsuite/cache_layer.rb)        │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ 1. Check cache_valid?(table_id)                          │  │
-│  │    - Query cache_metadata table                          │  │
-│  │    - Check expires_at > DateTime.now                     │  │
-│  │    - Result: VALID ✓                                     │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ 1. Check cache_valid?(table_id)                           │  │
+│  │    - Query cache_metadata table                           │  │
+│  │    - Check expires_at > DateTime.now                      │  │
+│  │    - Result: VALID ✓                                      │  │
+│  └───────────────────────────────────────────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ Cache HIT
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │             CACHE QUERY (lib/smartsuite/cache_query.rb)         │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ query = CacheQuery.new(db, table_id)                     │  │
-│  │   .select(fields)                                        │  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ query = CacheQuery.new(db, table_id)                      │  │
+│  │   .select(fields)                                         │  │
 │  │   .where(field: 'status', operator: 'is', value: 'Active')│  │
-│  │   .limit(10)                                             │  │
-│  │   .offset(0)                                             │  │
+│  │   .limit(10)                                              │  │
+│  │   .offset(0)                                              │  │
 │  │                                                           │  │
-│  │ SQL: SELECT id, status, priority                         │  │
-│  │      FROM cache_tbl_abc123                               │  │
-│  │      WHERE status = 'Active'                             │  │
-│  │      LIMIT 10 OFFSET 0                                   │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│  │ SQL: SELECT id, status, priority                          │  │
+│  │      FROM cache_tbl_abc123                                │  │
+│  │      WHERE status = 'Active'                              │  │
+│  │      LIMIT 10 OFFSET 0                                    │  │
+│  └───────────────────────────────────────────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ Execute SQL
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                SQLITE (~/.smartsuite_mcp_cache.db)              │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ cache_tbl_abc123:                                        │  │
-│  │   id           | status  | priority | _cached_at        │  │
-│  │   rec_123      | Active  | High     | 2025-01-15T10:00  │  │
-│  │   rec_456      | Active  | Medium   | 2025-01-15T10:00  │  │
-│  │   rec_789      | Active  | Low      | 2025-01-15T10:00  │  │
-│  │   ... (7 more records)                                   │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ cache_tbl_abc123:                                         │  │
+│  │   id           | status  | priority | _cached_at          │  │
+│  │   rec_123      | Active  | High     | 2025-01-15T10:00    │  │
+│  │   rec_456      | Active  | Medium   | 2025-01-15T10:00    │  │
+│  │   rec_789      | Active  | Low      | 2025-01-15T10:00    │  │
+│  │   ... (7 more records)                                    │  │
+│  └───────────────────────────────────────────────────────────┘  │
 │  Returns: 10 records                                            │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ Raw records
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│         RESPONSE FORMATTER (lib/smartsuite/formatters/)         │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ format_records(records, total_count: 127)                │  │
+│           TOON FORMATTER (lib/smartsuite/formatters/)           │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ ToonFormatter.format_records(records, total_count: 127)   │  │
 │  │                                                           │  │
-│  │ Output:                                                   │  │
-│  │ === RECORDS (10 of 127 total) ===                        │  │
-│  │                                                           │  │
-│  │ --- Record 1 of 10 ---                                   │  │
-│  │ id: rec_123                                              │  │
-│  │ status: Active                                           │  │
-│  │ priority: High                                           │  │
-│  │                                                           │  │
-│  │ --- Record 2 of 10 ---                                   │  │
+│  │ Output (TOON format - 50-60% token savings):              │  │
+│  │ 10 of 127 filtered (127 total)                            │  │
+│  │ records[10]{id|status|priority}:                          │  │
+│  │ rec_123|Active|High                                       │  │
+│  │ rec_456|Pending|Medium                                    │  │
+│  │ rec_789|Active|Low                                        │  │
 │  │ ...                                                       │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│  └───────────────────────────────────────────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────────┘
-                            │ Plain text response
+                            │ TOON format response
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │               SERVER LAYER (smartsuite_server.rb)               │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ Wrap in MCP response format:                             │  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ Wrap in MCP response format:                              │  │
 │  │ {                                                         │  │
 │  │   "jsonrpc": "2.0",                                       │  │
 │  │   "id": 3,                                                │  │
 │  │   "result": {                                             │  │
 │  │     "content": [{                                         │  │
 │  │       "type": "text",                                     │  │
-│  │       "text": "=== RECORDS (10 of 127 total) ===\n..."   │  │
+│  │       "text": "10 of 127 filtered (127 total)\n..."       │  │
 │  │     }],                                                   │  │
 │  │     "isError": false                                      │  │
-│  │   }                                                        │  │
+│  │   }                                                       │  │
 │  │ }                                                         │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│  └───────────────────────────────────────────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ stdout
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                         CLAUDE                                   │
-│  Displays: "Here are 10 active tasks:                          │
+│                         CLAUDE                                  │
+│  Displays: "Here are 10 active tasks:                           │
 │            1. rec_123 - High priority                           │
 │            2. rec_456 - Medium priority..."                     │
 └─────────────────────────────────────────────────────────────────┘
@@ -145,37 +143,37 @@ API calls: 0
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         CLAUDE                                   │
+│                         CLAUDE                                  │
 │  "Show me 10 customers from the CRM table"                      │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ JSON-RPC request
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│               SERVER → CACHE LAYER                               │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ 1. Check cache_valid?(table_id)                          │  │
-│  │    - Query cache_metadata                                │  │
-│  │    - Result: INVALID (expired or not cached) ✗          │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│               SERVER → CACHE LAYER                              │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ 1. Check cache_valid?(table_id)                           │  │
+│  │    - Query cache_metadata                                 │  │
+│  │    - Result: INVALID (expired or not cached) ✗            │  │
+│  └───────────────────────────────────────────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ Cache MISS → Trigger refresh
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │              CACHE LAYER: refresh_cache(table_id)               │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ STEP 1: Get table structure                              │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ STEP 1: Get table structure                               │  │
+│  └───────────────────────────────────────────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ GET /applications/{table_id}
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │         HTTP CLIENT (lib/smartsuite/api/http_client.rb)         │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │ api_request('GET', "/applications/tbl_abc123")           │  │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │ api_request('GET', "/applications/tbl_abc123")            │  │
 │  │   Headers:                                                │  │
-│  │     Authorization: Token #{SMARTSUITE_API_KEY}           │  │
-│  │     Account-Id: #{SMARTSUITE_ACCOUNT_ID}                 │  │
-│  └──────────────────────────────────────────────────────────┘  │
+│  │     Authorization: Token #{SMARTSUITE_API_KEY}            │  │
+│  │     Account-Id: #{SMARTSUITE_ACCOUNT_ID}                  │  │
+│  └───────────────────────────────────────────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ HTTPS
                             ▼
@@ -288,7 +286,7 @@ API calls: 0
 │                                                                 │
 │  1. Query cached data with SQL                                 │
 │  2. Get 10 records                                             │
-│  3. Format as plain text                                       │
+│  3. Format as TOON                                             │
 │  4. Return to Claude                                           │
 └───────────────────────────┬─────────────────────────────────────┘
                             │

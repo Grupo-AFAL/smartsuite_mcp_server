@@ -69,6 +69,13 @@ module SmartSuite
         'description' => 'Optional: If true, returns limited fields (default: true)'
       }.freeze
 
+      # Output format parameter (used across many list/get/create/update/delete operations)
+      SCHEMA_FORMAT = {
+        'type' => 'string',
+        'description' => 'Output format: "toon" (default, TOON format, ~50-60% token savings), or "json" (standard JSON).',
+        'enum' => %w[toon json]
+      }.freeze
+
       # File field slug parameter (used in attach_file)
       SCHEMA_FILE_FIELD_SLUG = {
         'type' => 'string',
@@ -107,7 +114,8 @@ module SmartSuite
               'name' => {
                 'type' => 'string',
                 'description' => '⚠️ STRONGLY RECOMMENDED for token optimization: Filter solutions by name using fuzzy matching with typo tolerance. Returns only matching solutions instead of all solutions, significantly reducing token usage. Handles partial matches, case-insensitive, accent-insensitive, and allows up to 2 character typos. Examples: "desarollo" matches "Desarrollos de software", "gestion" matches "Gestión de Proyectos", "finanzs" matches "Finanzas". Always use this parameter when you know which solution(s) you need.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => []
           }
@@ -143,7 +151,8 @@ module SmartSuite
               'include_activity_data' => {
                 'type' => 'boolean',
                 'description' => 'Optional: Include usage and activity metrics (status, last_access, records_count, etc.). Default: false.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => ['owner_id']
           }
@@ -181,7 +190,8 @@ module SmartSuite
                 'type' => 'array',
                 'items' => { 'type' => 'string' },
                 'description' => 'Optional: Array of field slugs to include in response (e.g., ["name", "id", "structure"]). When specified, only these fields are returned. When omitted, returns only essential fields (id, name, solution_id) for minimal token usage.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => []
           }
@@ -283,7 +293,8 @@ module SmartSuite
               'hydrated' => {
                 'type' => 'boolean',
                 'description' => 'Optional: If true (default), fetches human-readable values for linked records, users, and other reference fields. If false, returns raw IDs. Default: true.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id fields]
           }
@@ -346,7 +357,8 @@ module SmartSuite
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 95% token savings (default: true). Returns only {success, id, title, operation, timestamp, cached}. Set to false for full record response.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id data]
           }
@@ -404,7 +416,8 @@ module SmartSuite
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 95% token savings (default: true). Returns only {success, id, title, operation, timestamp, cached}. Set to false for full record response.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id record_id data]
           }
@@ -420,7 +433,8 @@ module SmartSuite
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 80% token savings (default: true). Returns only {success, id, operation, timestamp, cached}. Set to false for full response.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id record_id]
           }
@@ -436,7 +450,8 @@ module SmartSuite
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 90% token savings (default: true). Returns array of {success, id, title, operation, timestamp, cached}. Set to false for full records.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id records]
           }
@@ -452,7 +467,8 @@ module SmartSuite
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 90% token savings (default: true). Returns array of {success, id, title, operation, timestamp, cached}. Set to false for full records.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id records]
           }
@@ -468,7 +484,8 @@ module SmartSuite
               'minimal_response' => {
                 'type' => 'boolean',
                 'description' => 'Return minimal response for 80% token savings (default: true). Returns {success, deleted_count, operation, timestamp, cached}. Set to false for full response.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id record_ids]
           }
@@ -491,7 +508,8 @@ module SmartSuite
             'type' => 'object',
             'properties' => {
               'solution_id' => SCHEMA_SOLUTION_ID,
-              'preview' => SCHEMA_PREVIEW
+              'preview' => SCHEMA_PREVIEW,
+              'format' => SCHEMA_FORMAT
             },
             'required' => ['solution_id']
           }
@@ -683,7 +701,8 @@ See `add_field` tool description for complete example.',
               'include_inactive' => {
                 'type' => 'boolean',
                 'description' => 'Optional: Include deleted members in results. Default: false (only active members are returned).'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => []
           }
@@ -693,7 +712,9 @@ See `add_field` tool description for complete example.',
           'description' => 'List all teams in your SmartSuite workspace. Teams are groups of users that can be assigned permissions to solutions and tables.',
           'inputSchema' => {
             'type' => 'object',
-            'properties' => {},
+            'properties' => {
+              'format' => SCHEMA_FORMAT
+            },
             'required' => []
           }
         },
@@ -724,7 +745,8 @@ See `add_field` tool description for complete example.',
               'include_inactive' => {
                 'type' => 'boolean',
                 'description' => 'Optional: Include deleted members in search results. Default: false (only active members are returned).'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => ['query']
           }
@@ -732,7 +754,7 @@ See `add_field` tool description for complete example.',
       ].freeze
 
       # Statistics tools for API usage monitoring
-      # Includes: get_api_stats, reset_api_stats, get_cache_status, refresh_cache, warm_cache
+      # Includes: get_api_stats, reset_api_stats, get_cache_status, refresh_cache
       STATS_TOOLS = [
         {
           'name' => 'get_api_stats',
@@ -794,35 +816,6 @@ See `add_field` tool description for complete example.',
             },
             'required' => ['resource']
           }
-        },
-        {
-          'name' => 'warm_cache',
-          'description' => 'Proactively warm (populate) cache for specified tables or auto-select top accessed tables. Fetches and caches all records to improve subsequent query performance. Skips tables that already have valid cache.',
-          'inputSchema' => {
-            'type' => 'object',
-            'properties' => {
-              'tables' => {
-                'description' => 'Table IDs to warm. Can be: array of table IDs, single table ID string, "auto" (top N accessed), or omit for auto mode. Examples: ["tbl_123", "tbl_456"], "tbl_123", "auto"',
-                'oneOf' => [
-                  {
-                    'type' => 'array',
-                    'items' => { 'type' => 'string' },
-                    'description' => 'Array of table IDs to warm'
-                  },
-                  {
-                    'type' => 'string',
-                    'description' => 'Single table ID or "auto" for automatic selection'
-                  }
-                ]
-              },
-              'count' => {
-                'type' => 'number',
-                'description' => 'Number of tables to warm in auto mode (default: 5). Only used when tables is "auto" or omitted.',
-                'default' => 5
-              }
-            },
-            'required' => []
-          }
         }
       ].freeze
 
@@ -838,7 +831,8 @@ See `add_field` tool description for complete example.',
               'record_id' => {
                 'type' => 'string',
                 'description' => 'The ID of the record whose comments to retrieve'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => ['record_id']
           }
@@ -885,7 +879,8 @@ See `add_field` tool description for complete example.',
               'with_empty_values' => {
                 'type' => 'boolean',
                 'description' => 'Optional: Whether to include empty field values in the response. Default: false.'
-              }
+              },
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id view_id]
           }

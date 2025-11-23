@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **TOON format is now default for all list tools** - Standardized token-optimized output across all listing operations
+  - TOON (Token-Oriented Object Notation) is now the **default format** for ALL list operations
+  - Provides ~50-60% token savings compared to JSON for structured data
+  - Uses tabular format for uniform arrays, reducing repetitive field names
+  - **Simplified format options**: Only `:toon` (default) and `:json` - removed `:plain_text` format
+  - New `format` parameter added to all list tools:
+    - `list_records`: `:toon` (default) or `:json`
+    - `list_solutions`: `:toon` (default) or `:json`
+    - `list_tables`: `:toon` (default) or `:json`
+    - `list_members`: `:toon` (default) or `:json`
+    - `list_teams`: `:toon` (default) or `:json`
+    - `list_solutions_by_owner`: `:toon` (default) or `:json`
+    - `search_member`: `:toon` (default) or `:json`
+    - `list_comments`: `:toon` (default) or `:json`
+    - `list_deleted_records`: `:toon` (default) or `:json`
+    - `get_view_records`: `:toon` (default) or `:json`
+  - Mutation operations also support format parameter (used when `minimal_response: false`):
+    - `create_record`: `:toon` (default) or `:json`
+    - `update_record`: `:toon` (default) or `:json`
+    - `delete_record`: `:toon` (default) or `:json`
+    - `bulk_add_records`: `:toon` (default) or `:json`
+    - `bulk_update_records`: `:toon` (default) or `:json`
+    - `bulk_delete_records`: `:toon` (default) or `:json`
+  - `ToonFormatter` module (`lib/smartsuite/formatters/toon_formatter.rb`) with specialized formatters:
+    - `format_records` - Format record lists with counts header
+    - `format_record` - Format single record
+    - `format_solutions`, `format_tables`, `format_members` - Specialized formatters
+    - `format` - Generic TOON encoding for any data
+  - Tool schemas updated with `format` parameter enum
+  - Internal methods that require hash responses use `:json` format internally
+  - Server properly handles string responses (TOON) without re-encoding as JSON
+
 - **AWS profile support for S3 credentials** - `SMARTSUITE_AWS_PROFILE` environment variable for credential isolation
   - Recommended approach for security: use dedicated AWS profile instead of shared environment variables
   - Profile references credentials in `~/.aws/credentials` file
@@ -153,6 +185,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Updated design-decisions.md to reflect current architecture** - Updated two outdated sections
+  - Section 3: Changed from "Plain Text Responses" to "TOON Format Responses" with implementation details
+  - Section 11: Changed from "Ruby Standard Library Only (No Gems)" to "Minimal Dependencies (Essential Gems Only)"
+  - Updated summary principles to reflect TOON format and minimal gems (sqlite3, toon-ruby)
+
+- **Updated all documentation to show TOON format** - Replaced plain text references with TOON format
+  - API docs: README.md, records.md, workspace.md, tables.md, members.md, comments.md, views.md
+  - Architecture docs: overview.md, mcp-protocol.md, data-flow.md
+  - Guides: user-guide.md, caching-guide.md, performance-guide.md
+
+- **Consolidated format parameter definitions in ToolRegistry** - All 16 format parameters now use SCHEMA_FORMAT constant
+  - Eliminates duplication and ensures consistent description across all tools
+  - Affected tools: list_solutions, list_solutions_by_owner, list_tables, list_records, list_deleted_records, list_members, list_teams, search_member, list_comments, get_view_records, and 6 mutation operations
+
+- **Condensed ROADMAP.md** - Reduced from 497 lines to 141 lines (72% reduction)
+  - Collapsed completed milestones (v1.0-v1.9) into a compact summary table
+  - Updated v2.0 section to show TOON format as "In Progress" (was incorrectly listed as deferred)
+  - Removed verbose Community/Ecosystem phases
+  - Simplified Feature Backlog and Technical Debt sections
+
 - **`attach_file` returns structured status object** - Now returns detailed response instead of raw API response
   - Returns: `{success, record_id, attached_count, local_files, url_files, details}`
   - `details` array contains type (local/url), files list, and API result for each batch
@@ -181,6 +233,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prevents confusion where AI would use `resource: "solutions"` (all solutions) instead of `resource: "tables", solution_id: "X"` (one solution)
 
 ### Removed
+
+- **`warm_cache` tool** - Removed unused cache warming functionality
+  - Tool, server handler, client method, and tests all removed
+  - Cache is automatically populated on first table access
+  - Use `list_records` with minimal fields to manually pre-populate cache if needed
+
+- **Obsolete documentation files**
+  - `RELEASE_CHECKLIST_v1.9.0.md` - Version 1.9 already released
+  - `REFACTORING_REPORT.md` - Recommendations already implemented
+  - `docs/ROADMAP_RECOMMENDATIONS.md` - Duplicated and outdated content
+  - `docs/architecture/response-formats-analysis.md` - Planning doc, recommendations implemented
+  - `docs/analysis/toon_format_evaluation.md` - Decision to defer TOON superseded (TOON now implemented)
+  - `docs/analysis/` directory - Empty after above deletion
+
+- **Removed `plain_text` format option** - Simplified format parameter to only `:toon` (default) and `:json`
+  - `:plain_text` format was removed from all list tools (`list_records`, `list_solutions`, `list_tables`, `list_members`, `list_teams`, `list_solutions_by_owner`)
+  - TOON format provides better token savings (~50-60%) than plain_text (~40%)
+  - Reduces code complexity by having only two format options
+  - Existing code using `format: :plain_text` should switch to `format: :toon` (or remove the parameter to use default)
 
 ### Fixed
 

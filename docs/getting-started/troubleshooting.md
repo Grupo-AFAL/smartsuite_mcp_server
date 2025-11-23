@@ -334,21 +334,12 @@ Error: Field 'xyz' not found in table
    # Shows all cached tables and their validity
    ```
 
-4. **Warm up frequently accessed tables:**
-   ```ruby
-   # Pre-populate cache for top 5 tables
-   warm_cache(tables: 'auto', count: 5)
-
-   # Or warm specific tables
-   warm_cache(tables: ['tbl_123', 'tbl_456'])
-   ```
-
-5. **Check disk space:**
+4. **Check disk space:**
    ```bash
    df -h ~
    ```
 
-6. **Review logs for errors:**
+5. **Review logs for errors:**
    ```bash
    tail -50 ~/Library/Logs/Claude/mcp*.log
    ```
@@ -673,21 +664,19 @@ This is **normal behavior** - the server aggressively caches entire tables.
    )
    ```
 
-#### Q: Can I speed up cache warmup?
+#### Q: How can I speed up cache warmup?
 
-**A:** Yes! Use `warm_cache`:
+**A:** Cache is automatically populated on first access to each table. To pre-warm cache for specific tables, simply query them:
 
 ```ruby
-# Auto-warm top 5 most-accessed tables
-warm_cache(tables: 'auto', count: 5)
-
-# Warm specific tables you know you'll need
-warm_cache(tables: ['tbl_customers', 'tbl_orders', 'tbl_products'])
+# Query tables to populate their cache
+list_records('tbl_customers', 1, 0, fields: ['id'])
+list_records('tbl_orders', 1, 0, fields: ['id'])
 ```
 
 Best time to warm cache:
 - Start of work session
-- After cache clear
+- After cache refresh
 - Before bulk analysis tasks
 
 ### API Questions

@@ -34,7 +34,7 @@ class TestTableOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_tables
+    result = client.list_tables(format: :json)
 
     assert result.is_a?(Hash)
     assert_equal 2, result['count']
@@ -58,7 +58,7 @@ class TestTableOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_tables
+    result = client.list_tables(format: :json)
 
     table = result['tables'][0]
     # Should only have essential fields
@@ -113,7 +113,7 @@ class TestTableOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_tables(fields: %w[id name structure])
+    result = client.list_tables(fields: %w[id name structure], format: :json)
 
     table = result['tables'][0]
     assert table.key?('structure'), 'Should include structure when explicitly requested'
@@ -134,7 +134,7 @@ class TestTableOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_tables
+    result = client.list_tables(format: :json)
 
     table = result['tables'][0]
     assert_equal 'sol_abc', table['solution_id']
@@ -148,7 +148,7 @@ class TestTableOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_tables
+    result = client.list_tables(format: :json)
 
     assert_equal 'sol_xyz', result['tables'][0]['solution_id']
   end
@@ -174,7 +174,7 @@ class TestTableOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.get_table(table_id)
+    result = client.get_table(table_id, format: :json)
 
     assert_equal table_id, result['id']
     assert_equal 'Test Table', result['name']
@@ -205,7 +205,7 @@ class TestTableOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.get_table(table_id)
+    result = client.get_table(table_id, format: :json)
 
     field = result['structure'][0]
     # Essential fields should be present
@@ -249,7 +249,7 @@ class TestTableOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.get_table(table_id)
+    result = client.get_table(table_id, format: :json)
 
     assert_equal 'sol_original', result['solution_id']
     refute result.key?('solution'), 'Should normalize solution to solution_id'
@@ -283,7 +283,7 @@ class TestTableOperations < Minitest::Test
       expected_response
     end
 
-    result = client.create_table(solution_id, name)
+    result = client.create_table(solution_id, name, format: :json)
 
     assert_equal 'tbl_created', result['id']
     assert_equal name, result['name']
@@ -395,7 +395,7 @@ class TestTableOperations < Minitest::Test
       raise 'Should not call API when cache is valid'
     end
 
-    result = client.list_tables
+    result = client.list_tables(format: :json)
 
     refute api_called, 'Should not call API when cache is valid'
     assert_equal 2, result['count']
@@ -414,7 +414,7 @@ class TestTableOperations < Minitest::Test
     end
 
     # First call - should cache
-    result = client.list_tables
+    result = client.list_tables(format: :json)
     assert_equal 1, result['count']
 
     # Verify it's cached by checking cache directly
@@ -439,7 +439,7 @@ class TestTableOperations < Minitest::Test
       raise 'Should not call API'
     end
 
-    result = client.list_tables(solution_id: solution_id)
+    result = client.list_tables(solution_id: solution_id, format: :json)
 
     refute api_called, 'Should use cache for solution-specific tables'
     assert_equal 1, result['count']
@@ -467,7 +467,7 @@ class TestTableOperations < Minitest::Test
       raise 'Should not call API'
     end
 
-    result = client.get_table(table_id)
+    result = client.get_table(table_id, format: :json)
 
     refute api_called, 'Should use cache when table is cached'
     assert_equal table_id, result['id']
@@ -491,7 +491,7 @@ class TestTableOperations < Minitest::Test
     end
 
     # When fields is specified, should bypass cache
-    result = client.list_tables(fields: %w[id name structure])
+    result = client.list_tables(fields: %w[id name structure], format: :json)
 
     assert api_called, 'Should call API when specific fields requested'
     assert_equal 'tbl_api', result['tables'][0]['id']

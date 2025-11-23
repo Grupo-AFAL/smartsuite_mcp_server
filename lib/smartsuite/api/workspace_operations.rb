@@ -3,6 +3,7 @@
 require 'time'
 require_relative 'base'
 require_relative '../fuzzy_matcher'
+require_relative '../formatters/toon_formatter'
 
 module SmartSuite
   module API
@@ -28,8 +29,9 @@ module SmartSuite
       # @param include_activity_data [Boolean] Include activity/usage fields (default: false)
       # @param fields [Array<String>] Specific fields to return (client-side filtered, optional)
       # @param name [String] Filter by solution name using fuzzy matching (optional)
-      # @return [Hash] Solutions with count and filtered data
-      # @example List all solutions
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
+      # @return [String, Hash] TOON/plain text string or JSON hash depending on format
+      # @example List all solutions (TOON format by default)
       #   list_solutions
       #
       # @example List with activity data
@@ -41,7 +43,10 @@ module SmartSuite
       # @example Fuzzy search by name
       #   list_solutions(name: 'desarollo')  # Matches "Desarrollos de software"
       #   list_solutions(name: 'gestion')    # Matches "Gestión de Proyectos"
-      def list_solutions(include_activity_data: false, fields: nil, name: nil)
+      #
+      # @example Explicit format selection
+      #   list_solutions(format: :json)  # JSON format
+      def list_solutions(include_activity_data: false, fields: nil, name: nil, format: :toon)
         # Try cache first if enabled
         # Note: Even if fields parameter is specified, we use cache and filter client-side
         # because the /solutions/ API endpoint doesn't respect the fields parameter anyway
@@ -49,7 +54,7 @@ module SmartSuite
         cached_solutions = with_cache_check('solutions') { @cache.get_cached_solutions(name: name) }
         if cached_solutions
           log_metric("→ Fuzzy matched #{cached_solutions.size} solutions for: #{name}") if name
-          return format_solutions_response(cached_solutions, include_activity_data, fields)
+          return format_solutions_response(cached_solutions, include_activity_data, fields, nil, format)
         end
 
         # Build endpoint with query parameters using Base helper
@@ -68,7 +73,7 @@ module SmartSuite
         end
 
         # Format and filter response (including name filtering for non-cached responses)
-        format_solutions_response(response, include_activity_data, fields, name)
+        format_solutions_response(response, include_activity_data, fields, name, format)
       end
 
       private
@@ -78,8 +83,10 @@ module SmartSuite
       # @param response [Hash, Array] API response or cached solutions
       # @param include_activity_data [Boolean] Include activity/usage fields
       # @param fields [Array<String>] Specific fields to request
-      # @return [Hash] Formatted solutions with count
-      def format_solutions_response(response, include_activity_data, fields, name = nil)
+      # @param name [String, nil] Name filter for fuzzy matching
+      # @param format [Symbol] Output format: :toon or :json
+      # @return [String, Hash] Formatted solutions (TOON as string, JSON as hash)
+      def format_solutions_response(response, include_activity_data, fields, name = nil, format = :toon)
         # Handle both API response format and cached array format
         solutions_list = extract_items_safely(response)
 
@@ -110,8 +117,8 @@ module SmartSuite
             filtered
           end
 
-          result = build_collection_response(filtered_solutions, :solutions)
-          return track_response_size(result, "Found #{filtered_solutions.size} solutions with custom fields (client-side filtered)")
+          return format_solutions_output(filtered_solutions, format,
+                                         "Found #{filtered_solutions.size} solutions with custom fields (client-side filtered)")
         end
 
         # Extract only essential fields to reduce response size (client-side filtering)
@@ -145,8 +152,26 @@ module SmartSuite
           base_fields
         end
 
-        result = build_collection_response(solutions, :solutions)
-        track_response_size(result, "Found #{solutions.size} solutions")
+        format_solutions_output(solutions, format, "Found #{solutions.size} solutions")
+      end
+
+      # Format solutions output based on format parameter
+      #
+      # @param solutions [Array<Hash>] Filtered solutions data
+      # @param format [Symbol] Output format (:toon or :json)
+      # @param message [String] Log message
+      # @return [String, Hash] Formatted output
+      def format_solutions_output(solutions, format, message)
+        case format
+        when :toon
+          result = SmartSuite::Formatters::ToonFormatter.format_solutions(solutions)
+          log_metric("✓ #{message}")
+          log_metric('📊 TOON format (~50-60% token savings)')
+          result
+        else # :json
+          result = build_collection_response(solutions, :solutions)
+          track_response_size(result, message)
+        end
       end
 
       public
@@ -172,12 +197,16 @@ module SmartSuite
       #
       # @param owner_id [String] User ID of the solution owner
       # @param include_activity_data [Boolean] Include activity/usage metrics (default: false)
-      # @return [Hash] Solutions owned by the specified user with count
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
+      # @return [String, Hash] TOON/plain text string or JSON hash depending on format
       # @raise [ArgumentError] If owner_id is missing
-      # @example
+      # @example List solutions by owner (TOON format by default)
       #   list_solutions_by_owner('user_abc')
       #   list_solutions_by_owner('user_abc', include_activity_data: true)
-      def list_solutions_by_owner(owner_id, include_activity_data: false)
+      #
+      # @example Explicit format selection
+      #   list_solutions_by_owner('user_abc', format: :json)
+      def list_solutions_by_owner(owner_id, include_activity_data: false, format: :toon)
         validate_required_parameter!('owner_id', owner_id)
 
         log_metric("→ Listing solutions owned by user: #{owner_id}")
@@ -222,8 +251,7 @@ module SmartSuite
           base_fields
         end
 
-        result = build_collection_response(filtered_solutions, :solutions)
-        track_response_size(result, "Found #{filtered_solutions.size} solutions owned by user #{owner_id}")
+        format_solutions_output(filtered_solutions, format, "Found #{filtered_solutions.size} solutions owned by user #{owner_id}")
       end
 
       # Gets the most recent record update timestamp across all tables in a solution.
@@ -240,8 +268,8 @@ module SmartSuite
       def get_solution_most_recent_record_update(solution_id)
         validate_required_parameter!('solution_id', solution_id)
 
-        # Get all tables for this solution
-        tables_response = list_tables(solution_id: solution_id)
+        # Get all tables for this solution (use JSON format for internal processing)
+        tables_response = list_tables(solution_id: solution_id, format: :json)
 
         return nil unless tables_response['tables'] && !tables_response['tables'].empty?
 
@@ -325,15 +353,16 @@ module SmartSuite
       #
       # @param days_inactive [Integer] Days since last access to consider inactive (default: 90)
       # @param min_records [Integer] Minimum records to not be considered empty (default: 10)
-      # @return [Hash] Solutions categorized by usage with analysis
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Solutions categorized by usage in requested format
       # @example
       #   analyze_solution_usage
-      #   analyze_solution_usage(days_inactive: 60, min_records: 5)
-      def analyze_solution_usage(days_inactive: 90, min_records: 10)
+      #   analyze_solution_usage(days_inactive: 60, min_records: 5, format: :json)
+      def analyze_solution_usage(days_inactive: 90, min_records: 10, format: :toon)
         log_metric("→ Analyzing solution usage (inactive: #{days_inactive} days, min_records: #{min_records})")
 
-        # Get all solutions with activity data
-        solutions_data = list_solutions(include_activity_data: true)
+        # Get all solutions with activity data (use JSON format for internal processing)
+        solutions_data = list_solutions(include_activity_data: true, format: :json)
         return solutions_data unless solutions_data.is_a?(Hash) && solutions_data['solutions']
 
         solutions = solutions_data['solutions']
@@ -413,7 +442,7 @@ module SmartSuite
 
         message = "Analysis complete: #{inactive.size} inactive, " \
                   "#{potentially_unused.size} potentially unused, #{active.size} active"
-        track_response_size(result, message)
+        format_single_response(result, format, message)
       end
     end
   end

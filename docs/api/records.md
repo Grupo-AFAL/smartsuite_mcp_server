@@ -13,7 +13,7 @@ Records are rows in SmartSuite tables. The server provides comprehensive record 
 - **Deleted Records:** List and restore soft-deleted records
 - **Cache-first Strategy:** 4-hour TTL for optimal performance
 - **Local SQL Filtering:** Query cached data without API calls
-- **Plain Text Responses:** Token-optimized output format
+- **TOON Format Responses:** Token-optimized output (50-60% savings vs JSON)
 
 ---
 
@@ -32,6 +32,7 @@ List records from a table with caching and filtering support.
 | `sort` | array | No | Sort criteria |
 | `fields` | array | ✅ Yes | Field slugs to return |
 | `hydrated` | boolean | No | Fetch human-readable values (default: true) |
+| `format` | string | No | Output format: `"toon"` (default) or `"json"` |
 
 ### Basic Example
 
@@ -46,23 +47,18 @@ list_records(
 
 ### Response Format
 
+Default TOON format (50-60% token savings):
+
 ```
-=== RECORDS (10 of 127 total) ===
-
---- Record 1 of 10 ---
-id: rec_68e3d5fb98c0282a4f1e2614
-status: Active
-priority: High
-title: Q4 Planning
-
---- Record 2 of 10 ---
-id: rec_68e3df1fd1cb4af2839cfd3c
-status: Pending
-priority: Medium
-title: Budget Review
-
+10 of 127 filtered (127 total)
+records[10]{id|status|priority|title}:
+rec_68e3d5fb98c0282a4f1e2614|Active|High|Q4 Planning
+rec_68e3df1fd1cb4af2839cfd3c|Pending|Medium|Budget Review
+rec_68e3e02a15fb8cd329a1e47f|Active|Low|Team Sync
 [... etc]
 ```
+
+Use `format: "json"` for JSON output if needed.
 
 ### With Filtering
 

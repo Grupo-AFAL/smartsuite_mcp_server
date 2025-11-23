@@ -158,7 +158,8 @@ class SmartSuiteServer
                @client.list_solutions(
                  include_activity_data: arguments['include_activity_data'],
                  fields: arguments['fields'],
-                 name: arguments['name']
+                 name: arguments['name'],
+                 format: (arguments['format'] || 'toon').to_sym
                )
              when 'analyze_solution_usage'
                @client.analyze_solution_usage(
@@ -168,7 +169,8 @@ class SmartSuiteServer
              when 'list_solutions_by_owner'
                @client.list_solutions_by_owner(
                  arguments['owner_id'],
-                 include_activity_data: arguments['include_activity_data']
+                 include_activity_data: arguments['include_activity_data'],
+                 format: (arguments['format'] || 'toon').to_sym
                )
              when 'get_solution_most_recent_record_update'
                @client.get_solution_most_recent_record_update(arguments['solution_id'])
@@ -177,21 +179,27 @@ class SmartSuiteServer
                  limit: arguments['limit'],
                  offset: arguments['offset'],
                  solution_id: arguments['solution_id'],
-                 include_inactive: arguments['include_inactive']
+                 include_inactive: arguments['include_inactive'],
+                 format: (arguments['format'] || 'toon').to_sym
                }.compact)
              when 'search_member'
                @client.search_member(
                  arguments['query'],
-                 include_inactive: arguments['include_inactive'] || false
+                 include_inactive: arguments['include_inactive'] || false,
+                 format: (arguments['format'] || 'toon').to_sym
                )
              when 'list_teams'
-               @client.list_teams
+               @client.list_teams(format: (arguments['format'] || 'toon').to_sym)
              when 'get_team'
-               @client.get_team(arguments['team_id'])
+               @client.get_team(arguments['team_id'], format: (arguments['format'] || 'toon').to_sym)
              when 'list_tables'
-               @client.list_tables(solution_id: arguments['solution_id'], fields: arguments['fields'])
+               @client.list_tables(
+                 solution_id: arguments['solution_id'],
+                 fields: arguments['fields'],
+                 format: (arguments['format'] || 'toon').to_sym
+               )
              when 'get_table'
-               @client.get_table(arguments['table_id'])
+               @client.get_table(arguments['table_id'], format: (arguments['format'] || 'toon').to_sym)
              when 'create_table'
                @client.create_table(
                  arguments['solution_id'],
@@ -207,10 +215,11 @@ class SmartSuiteServer
                  filter: arguments['filter'],
                  sort: arguments['sort'],
                  fields: arguments['fields'],
-                 hydrated: arguments['hydrated']
+                 hydrated: arguments['hydrated'],
+                 format: (arguments['format'] || 'toon').to_sym
                )
              when 'get_record'
-               @client.get_record(arguments['table_id'], arguments['record_id'])
+               @client.get_record(arguments['table_id'], arguments['record_id'], format: (arguments['format'] || 'toon').to_sym)
              when 'create_record'
                @client.create_record(
                  arguments['table_id'],
@@ -251,9 +260,13 @@ class SmartSuiteServer
              when 'get_file_url'
                @client.get_file_url(arguments['file_handle'])
              when 'list_deleted_records'
-               @client.list_deleted_records(arguments['solution_id'], preview: arguments['preview'])
+               @client.list_deleted_records(
+                 arguments['solution_id'],
+                 preview: arguments['preview'],
+                 format: (arguments['format'] || 'toon').to_sym
+               )
              when 'restore_deleted_record'
-               @client.restore_deleted_record(arguments['table_id'], arguments['record_id'])
+               @client.restore_deleted_record(arguments['table_id'], arguments['record_id'], format: (arguments['format'] || 'toon').to_sym)
              when 'attach_file'
                @client.attach_file(
                  arguments['table_id'],
@@ -279,7 +292,10 @@ class SmartSuiteServer
              when 'delete_field'
                @client.delete_field(arguments['table_id'], arguments['slug'])
              when 'list_comments'
-               @client.list_comments(arguments['record_id'])
+               @client.list_comments(
+                 arguments['record_id'],
+                 format: (arguments['format'] || 'toon').to_sym
+               )
              when 'add_comment'
                @client.add_comment(
                  arguments['table_id'],
@@ -291,7 +307,8 @@ class SmartSuiteServer
                @client.get_view_records(
                  arguments['table_id'],
                  arguments['view_id'],
-                 with_empty_values: arguments['with_empty_values']
+                 with_empty_values: arguments['with_empty_values'],
+                 format: (arguments['format'] || 'toon').to_sym
                )
              when 'create_view'
                @client.create_view(
@@ -329,11 +346,6 @@ class SmartSuiteServer
                else
                  { 'error' => 'Cache is disabled' }
                end
-             when 'warm_cache'
-               @client.warm_cache(
-                 tables: arguments['tables'],
-                 count: arguments['count'] || 5
-               )
              else
                return {
                  'jsonrpc' => '2.0',
@@ -345,6 +357,10 @@ class SmartSuiteServer
                }
              end
 
+    # Format result - if already a string (TOON format), use as-is
+    # Otherwise, convert to JSON
+    result_text = result.is_a?(String) ? result : JSON.pretty_generate(result)
+
     {
       'jsonrpc' => '2.0',
       'id' => request['id'],
@@ -352,7 +368,7 @@ class SmartSuiteServer
         'content' => [
           {
             'type' => 'text',
-            'text' => JSON.pretty_generate(result)
+            'text' => result_text
           }
         ]
       }

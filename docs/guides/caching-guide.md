@@ -284,7 +284,7 @@ When SmartSuite table structure changes:
 **Cache HIT:**
 - Latency: ~5-20ms
 - API calls: 0
-- Tokens: Minimal (plain text)
+- Tokens: Minimal (TOON format)
 
 **Cache MISS:**
 - Latency: ~500-2000ms
