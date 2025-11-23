@@ -115,11 +115,7 @@ module SmartSuite
                 'type' => 'string',
                 'description' => '⚠️ STRONGLY RECOMMENDED for token optimization: Filter solutions by name using fuzzy matching with typo tolerance. Returns only matching solutions instead of all solutions, significantly reducing token usage. Handles partial matches, case-insensitive, accent-insensitive, and allows up to 2 character typos. Examples: "desarollo" matches "Desarrollos de software", "gestion" matches "Gestión de Proyectos", "finanzs" matches "Finanzas". Always use this parameter when you know which solution(s) you need.'
               },
-              'format' => {
-                'type' => 'string',
-                'enum' => %w[toon json],
-                'description' => 'Output format: "toon" (default, TOON format, ~50-60% token savings), or "json" (standard JSON).'
-              }
+              'format' => SCHEMA_FORMAT
             },
             'required' => []
           }
@@ -156,11 +152,7 @@ module SmartSuite
                 'type' => 'boolean',
                 'description' => 'Optional: Include usage and activity metrics (status, last_access, records_count, etc.). Default: false.'
               },
-              'format' => {
-                'type' => 'string',
-                'enum' => %w[toon json],
-                'description' => 'Output format: "toon" (default, TOON format, ~50-60% token savings), or "json" (standard JSON).'
-              }
+              'format' => SCHEMA_FORMAT
             },
             'required' => ['owner_id']
           }
@@ -199,11 +191,7 @@ module SmartSuite
                 'items' => { 'type' => 'string' },
                 'description' => 'Optional: Array of field slugs to include in response (e.g., ["name", "id", "structure"]). When specified, only these fields are returned. When omitted, returns only essential fields (id, name, solution_id) for minimal token usage.'
               },
-              'format' => {
-                'type' => 'string',
-                'enum' => %w[toon json],
-                'description' => 'Output format: "toon" (default, TOON format, ~50-60% token savings), or "json" (standard JSON).'
-              }
+              'format' => SCHEMA_FORMAT
             },
             'required' => []
           }
@@ -306,11 +294,7 @@ module SmartSuite
                 'type' => 'boolean',
                 'description' => 'Optional: If true (default), fetches human-readable values for linked records, users, and other reference fields. If false, returns raw IDs. Default: true.'
               },
-              'format' => {
-                'type' => 'string',
-                'description' => 'Output format: "toon" (default, TOON format, ~50-60% token savings), or "json" (standard JSON).',
-                'enum' => %w[toon json]
-              }
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id fields]
           }
@@ -525,11 +509,7 @@ module SmartSuite
             'properties' => {
               'solution_id' => SCHEMA_SOLUTION_ID,
               'preview' => SCHEMA_PREVIEW,
-              'format' => {
-                'type' => 'string',
-                'description' => 'Output format: "toon" (default, TOON format, ~50-60% token savings) or "json" (standard JSON).',
-                'enum' => %w[toon json]
-              }
+              'format' => SCHEMA_FORMAT
             },
             'required' => ['solution_id']
           }
@@ -722,11 +702,7 @@ See `add_field` tool description for complete example.',
                 'type' => 'boolean',
                 'description' => 'Optional: Include deleted members in results. Default: false (only active members are returned).'
               },
-              'format' => {
-                'type' => 'string',
-                'enum' => %w[toon json],
-                'description' => 'Output format: "toon" (default, TOON format, ~50-60% token savings), or "json" (standard JSON).'
-              }
+              'format' => SCHEMA_FORMAT
             },
             'required' => []
           }
@@ -737,11 +713,7 @@ See `add_field` tool description for complete example.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
-              'format' => {
-                'type' => 'string',
-                'enum' => %w[toon json],
-                'description' => 'Output format: "toon" (default, TOON format, ~50-60% token savings), or "json" (standard JSON).'
-              }
+              'format' => SCHEMA_FORMAT
             },
             'required' => []
           }
@@ -774,11 +746,7 @@ See `add_field` tool description for complete example.',
                 'type' => 'boolean',
                 'description' => 'Optional: Include deleted members in search results. Default: false (only active members are returned).'
               },
-              'format' => {
-                'type' => 'string',
-                'description' => 'Output format: "toon" (default, TOON format, ~50-60% token savings) or "json" (standard JSON).',
-                'enum' => %w[toon json]
-              }
+              'format' => SCHEMA_FORMAT
             },
             'required' => ['query']
           }
@@ -864,11 +832,7 @@ See `add_field` tool description for complete example.',
                 'type' => 'string',
                 'description' => 'The ID of the record whose comments to retrieve'
               },
-              'format' => {
-                'type' => 'string',
-                'description' => 'Output format: "toon" (default, TOON format, ~50-60% token savings) or "json" (standard JSON).',
-                'enum' => %w[toon json]
-              }
+              'format' => SCHEMA_FORMAT
             },
             'required' => ['record_id']
           }
@@ -916,11 +880,7 @@ See `add_field` tool description for complete example.',
                 'type' => 'boolean',
                 'description' => 'Optional: Whether to include empty field values in the response. Default: false.'
               },
-              'format' => {
-                'type' => 'string',
-                'description' => 'Output format: "toon" (default, TOON format, ~50-60% token savings) or "json" (standard JSON).',
-                'enum' => %w[toon json]
-              }
+              'format' => SCHEMA_FORMAT
             },
             'required' => %w[table_id view_id]
           }
