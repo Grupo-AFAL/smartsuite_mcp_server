@@ -31,7 +31,7 @@ module SmartSuite
       # @param offset [Integer] Pagination offset (default: 0, ignored with solution_id)
       # @param solution_id [String, nil] Optional solution ID to filter members
       # @param include_inactive [Boolean] Include deactivated members (default: false)
-      # @param format [Symbol] Output format: :toon (default, ~50-60% savings), :plain_text, or :json
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
       # @return [String, Hash] TOON/plain text string or JSON hash depending on format
       # @example List all members (TOON format by default)
       #   list_members(limit: 100, offset: 0)
@@ -106,7 +106,7 @@ module SmartSuite
       # Uses cache-first strategy: checks SQLite cache before making API calls.
       # Teams are cached for 7 days by default.
       #
-      # @param format [Symbol] Output format: :toon (default, ~50-60% savings), :plain_text, or :json
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
       # @return [String, Hash] TOON/plain text string or JSON hash depending on format
       # @example List all teams (TOON format by default)
       #   list_teams
@@ -150,7 +150,7 @@ module SmartSuite
       # @param limit [Integer] Maximum members to return
       # @param offset [Integer] Pagination offset
       # @param include_inactive [Boolean] Include deactivated members
-      # @param format [Symbol] Output format: :toon, :plain_text, or :json
+      # @param format [Symbol] Output format: :toon or :json
       # @return [String, Hash] Formatted members
       def list_all_members(limit, offset, include_inactive: false, format: :toon)
         log_metric('→ Listing workspace members')
@@ -186,7 +186,7 @@ module SmartSuite
       #
       # @param solution_id [String] Solution ID to filter members
       # @param include_inactive [Boolean] Include deactivated members
-      # @param format [Symbol] Output format: :toon, :plain_text, or :json
+      # @param format [Symbol] Output format: :toon or :json
       # @return [String, Hash] Formatted members
       def list_members_by_solution(solution_id, include_inactive: false, format: :toon)
         log_metric("→ Listing members for solution: #{solution_id}")
@@ -521,7 +521,7 @@ module SmartSuite
       # Replaces members array with member_count to reduce token usage.
       #
       # @param teams [Array<Hash>] Array of team objects from API/cache
-      # @param format [Symbol] Output format: :toon, :plain_text, or :json
+      # @param format [Symbol] Output format: :toon or :json
       # @return [String, Hash] Formatted teams
       def format_team_list(teams, format = :toon)
         return teams unless teams.is_a?(Array)

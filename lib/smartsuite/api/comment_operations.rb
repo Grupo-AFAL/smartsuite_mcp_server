@@ -37,31 +37,6 @@ module SmartSuite
         format_comments_output(comments, count, format)
       end
 
-      private
-
-      # Format comments output based on format parameter
-      #
-      # @param comments [Array<Hash>] Comments data
-      # @param count [Integer] Number of comments
-      # @param format [Symbol] Output format (:toon or :json)
-      # @return [String, Hash] Formatted output
-      def format_comments_output(comments, count, format)
-        message = "Found #{count} comments"
-
-        case format
-        when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format(comments)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
-        else # :json
-          result = { 'results' => comments, 'count' => count }
-          track_response_size(result, message)
-        end
-      end
-
-      public
-
       # Add a comment to a record.
       #
       # Automatically converts plain text messages to SmartSuite's rich text format (TipTap/ProseMirror).
@@ -96,6 +71,27 @@ module SmartSuite
       end
 
       private
+
+      # Format comments output based on format parameter
+      #
+      # @param comments [Array<Hash>] Comments data
+      # @param count [Integer] Number of comments
+      # @param format [Symbol] Output format (:toon or :json)
+      # @return [String, Hash] Formatted output
+      def format_comments_output(comments, count, format)
+        message = "Found #{count} comments"
+
+        case format
+        when :toon
+          result = SmartSuite::Formatters::ToonFormatter.format(comments)
+          log_metric("✓ #{message}")
+          log_metric('📊 TOON format (~50-60% token savings)')
+          result
+        else # :json
+          result = { 'results' => comments, 'count' => count }
+          track_response_size(result, message)
+        end
+      end
 
       # Format plain text message into SmartSuite's rich text format (TipTap/ProseMirror)
       # SmartSuite uses a document structure with content blocks

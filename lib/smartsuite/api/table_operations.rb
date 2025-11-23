@@ -25,7 +25,7 @@ module SmartSuite
       #
       # @param solution_id [String, nil] Optional solution ID to filter tables
       # @param fields [Array<String>, nil] Optional array of field slugs to include in response
-      # @param format [Symbol] Output format: :toon (default, ~50-60% savings), :plain_text, or :json
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
       # @return [String, Hash] TOON/plain text string or JSON hash depending on format
       # @example List all tables (TOON format by default)
       #   list_tables
@@ -74,7 +74,7 @@ module SmartSuite
       #
       # @param response [Hash, Array] API response or cached tables
       # @param fields [Array<String>] Specific fields requested
-      # @param format [Symbol] Output format: :toon, :plain_text, or :json
+      # @param format [Symbol] Output format: :toon or :json
       # @return [String, Hash] Formatted tables (TOON/plain_text as string, JSON as hash)
       def format_tables_response(response, fields, format = :toon)
         # Handle both API response format and cached array format

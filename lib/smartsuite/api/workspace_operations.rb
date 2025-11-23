@@ -29,7 +29,7 @@ module SmartSuite
       # @param include_activity_data [Boolean] Include activity/usage fields (default: false)
       # @param fields [Array<String>] Specific fields to return (client-side filtered, optional)
       # @param name [String] Filter by solution name using fuzzy matching (optional)
-      # @param format [Symbol] Output format: :toon (default, ~50-60% savings), :plain_text, or :json
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
       # @return [String, Hash] TOON/plain text string or JSON hash depending on format
       # @example List all solutions (TOON format by default)
       #   list_solutions
@@ -46,7 +46,6 @@ module SmartSuite
       #
       # @example Explicit format selection
       #   list_solutions(format: :json)  # JSON format
-      #   list_solutions(format: :plain_text)  # Plain text format
       def list_solutions(include_activity_data: false, fields: nil, name: nil, format: :toon)
         # Try cache first if enabled
         # Note: Even if fields parameter is specified, we use cache and filter client-side
@@ -85,7 +84,7 @@ module SmartSuite
       # @param include_activity_data [Boolean] Include activity/usage fields
       # @param fields [Array<String>] Specific fields to request
       # @param name [String, nil] Name filter for fuzzy matching
-      # @param format [Symbol] Output format: :toon, :plain_text, or :json
+      # @param format [Symbol] Output format: :toon or :json
       # @return [String, Hash] Formatted solutions (TOON/plain_text as string, JSON as hash)
       def format_solutions_response(response, include_activity_data, fields, name = nil, format = :toon)
         # Handle both API response format and cached array format
@@ -198,7 +197,7 @@ module SmartSuite
       #
       # @param owner_id [String] User ID of the solution owner
       # @param include_activity_data [Boolean] Include activity/usage metrics (default: false)
-      # @param format [Symbol] Output format: :toon (default, ~50-60% savings), :plain_text, or :json
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
       # @return [String, Hash] TOON/plain text string or JSON hash depending on format
       # @raise [ArgumentError] If owner_id is missing
       # @example List solutions by owner (TOON format by default)
