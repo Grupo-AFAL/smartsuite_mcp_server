@@ -223,7 +223,7 @@ This server is heavily optimized to minimize Claude's token usage:
 1. **Filtered Table Structures**: `get_table` returns only essential fields (slug, label, field_type, minimal params), removing 83.8% of UI/display metadata
 2. **TOON Format (Default)**: `list_records` uses TOON (Token-Oriented Object Notation) format by default (~50-60% savings vs JSON)
    - Tabular format for uniform arrays eliminates repetitive field names
-   - Alternative formats available: `:plain_text` (~40% savings), `:json`
+   - Alternative format available: `:json` (standard JSON output)
 3. **Required Field Selection**: `list_records` requires explicit `fields` parameter to prevent returning all columns
 4. **No Truncation**: Fields returned in full (user must specify only needed fields to control tokens)
 5. **Total vs Filtered Counts**: Always shows "X of Y total records" to help AI make informed decisions

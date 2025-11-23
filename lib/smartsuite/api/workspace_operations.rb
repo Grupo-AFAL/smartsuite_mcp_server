@@ -85,7 +85,7 @@ module SmartSuite
       # @param fields [Array<String>] Specific fields to request
       # @param name [String, nil] Name filter for fuzzy matching
       # @param format [Symbol] Output format: :toon or :json
-      # @return [String, Hash] Formatted solutions (TOON/plain_text as string, JSON as hash)
+      # @return [String, Hash] Formatted solutions (TOON as string, JSON as hash)
       def format_solutions_response(response, include_activity_data, fields, name = nil, format = :toon)
         # Handle both API response format and cached array format
         solutions_list = extract_items_safely(response)

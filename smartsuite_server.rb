@@ -362,7 +362,7 @@ class SmartSuiteServer
                }
              end
 
-    # Format result - if already a string (TOON/plain_text), use as-is
+    # Format result - if already a string (TOON format), use as-is
     # Otherwise, convert to JSON
     result_text = result.is_a?(String) ? result : JSON.pretty_generate(result)
 

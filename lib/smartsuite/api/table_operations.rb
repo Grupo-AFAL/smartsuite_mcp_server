@@ -75,7 +75,7 @@ module SmartSuite
       # @param response [Hash, Array] API response or cached tables
       # @param fields [Array<String>] Specific fields requested
       # @param format [Symbol] Output format: :toon or :json
-      # @return [String, Hash] Formatted tables (TOON/plain_text as string, JSON as hash)
+      # @return [String, Hash] Formatted tables (TOON as string, JSON as hash)
       def format_tables_response(response, fields, format = :toon)
         # Handle both API response format and cached array format
         # /applications/ endpoint returns an Array directly, not a Hash with 'items' key
