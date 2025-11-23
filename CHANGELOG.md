@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Condensed ROADMAP.md** - Reduced from 497 lines to 141 lines (72% reduction)
+  - Collapsed completed milestones (v1.0-v1.9) into a compact summary table
+  - Updated v2.0 section to show TOON format as "In Progress" (was incorrectly listed as deferred)
+  - Removed verbose Community/Ecosystem phases
+  - Simplified Feature Backlog and Technical Debt sections
+
+### Removed
+
+- **Obsolete documentation files**
+  - `RELEASE_CHECKLIST_v1.9.0.md` - Version 1.9 already released
+  - `REFACTORING_REPORT.md` - Recommendations already implemented
+  - `docs/ROADMAP_RECOMMENDATIONS.md` - Duplicated and outdated content
+
 ### Added
 
 - **TOON format is now default for all list tools** - Standardized token-optimized output across all listing operations
