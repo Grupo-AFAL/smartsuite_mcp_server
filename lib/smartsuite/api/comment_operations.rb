@@ -67,7 +67,7 @@ module SmartSuite
         }
 
         response = api_request(:post, '/comments/', body)
-        format_single_response(response, format, "Comment added to record: #{record_id}")
+        format_single_response(response, format)
       end
 
       private

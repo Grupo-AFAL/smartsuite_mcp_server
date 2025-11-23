@@ -340,9 +340,9 @@ module SmartSuite
       # @param message [String] Log message for metrics
       # @return [String, Hash] TOON string or JSON hash depending on format
       # @example
-      #   format_single_response(record, :toon, "Retrieved record: rec_123")
-      #   format_single_response(team, :json, "Retrieved team: team_abc")
-      def format_single_response(data, format, _message)
+      #   format_single_response(record, :toon)
+      #   format_single_response(team, :json)
+      def format_single_response(data, format)
         case format
         when :toon
           require_relative '../formatters/toon_formatter'
@@ -363,8 +363,8 @@ module SmartSuite
       # @param message [String] Log message for metrics
       # @return [String, Hash] TOON string or JSON hash depending on format
       # @example
-      #   format_array_response(records, :toon, :records, "Created 5 records")
-      def format_array_response(data, format, collection_name, _message)
+      #   format_array_response(records, :toon, :records)
+      def format_array_response(data, format, collection_name)
         case format
         when :toon
           require_relative '../formatters/toon_formatter'

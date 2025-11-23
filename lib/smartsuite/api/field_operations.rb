@@ -49,7 +49,7 @@ module SmartSuite
         if response.is_a?(Hash)
           # Invalidate cache since table structure changed
           @cache&.invalidate_table_cache(table_id, structure_changed: true)
-          format_single_response(response, format, "Field added: #{field_data['label']}")
+          format_single_response(response, format)
         else
           response
         end
@@ -88,7 +88,7 @@ module SmartSuite
         # Invalidate cache since table structure changed
         @cache&.invalidate_table_cache(table_id, structure_changed: true)
 
-        format_single_response(response, format, "Added #{fields.size} fields")
+        format_single_response(response, format)
       end
 
       # Updates an existing field's configuration.
@@ -124,7 +124,7 @@ module SmartSuite
         if response.is_a?(Hash)
           # Invalidate cache since table structure changed
           @cache&.invalidate_table_cache(table_id, structure_changed: true)
-          format_single_response(response, format, "Field updated: #{slug}")
+          format_single_response(response, format)
         else
           response
         end
@@ -156,7 +156,7 @@ module SmartSuite
         if response.is_a?(Hash)
           # Invalidate cache since table structure changed
           @cache&.invalidate_table_cache(table_id, structure_changed: true)
-          format_single_response(response, format, "Field deleted: #{slug}")
+          format_single_response(response, format)
         else
           response
         end
