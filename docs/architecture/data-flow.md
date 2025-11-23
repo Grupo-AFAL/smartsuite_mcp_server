@@ -90,23 +90,20 @@ This document traces the path of data through the system for different operation
                             │ Raw records
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│         RESPONSE FORMATTER (lib/smartsuite/formatters/)         │
+│           TOON FORMATTER (lib/smartsuite/formatters/)           │
 │  ┌───────────────────────────────────────────────────────────┐  │
-│  │ format_records(records, total_count: 127)                 │  │
+│  │ ToonFormatter.format_records(records, total_count: 127)   │  │
 │  │                                                           │  │
-│  │ Output:                                                   │  │
-│  │ === RECORDS (10 of 127 total) ===                         │  │
-│  │                                                           │  │
-│  │ --- Record 1 of 10 ---                                    │  │
-│  │ id: rec_123                                               │  │
-│  │ status: Active                                            │  │
-│  │ priority: High                                            │  │
-│  │                                                           │  │
-│  │ --- Record 2 of 10 ---                                    │  │
+│  │ Output (TOON format - 50-60% token savings):              │  │
+│  │ 10 of 127 filtered (127 total)                            │  │
+│  │ records[10]{id|status|priority}:                          │  │
+│  │ rec_123|Active|High                                       │  │
+│  │ rec_456|Pending|Medium                                    │  │
+│  │ rec_789|Active|Low                                        │  │
 │  │ ...                                                       │  │
 │  └───────────────────────────────────────────────────────────┘  │
 └───────────────────────────┬─────────────────────────────────────┘
-                            │ Plain text response
+                            │ TOON format response
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │               SERVER LAYER (smartsuite_server.rb)               │
@@ -118,7 +115,7 @@ This document traces the path of data through the system for different operation
 │  │   "result": {                                             │  │
 │  │     "content": [{                                         │  │
 │  │       "type": "text",                                     │  │
-│  │       "text": "=== RECORDS (10 of 127 total) ===\n..."    │  │
+│  │       "text": "10 of 127 filtered (127 total)\n..."       │  │
 │  │     }],                                                   │  │
 │  │     "isError": false                                      │  │
 │  │   }                                                       │  │
@@ -289,7 +286,7 @@ API calls: 0
 │                                                                 │
 │  1. Query cached data with SQL                                 │
 │  2. Get 10 records                                             │
-│  3. Format as plain text                                       │
+│  3. Format as TOON                                             │
 │  4. Return to Claude                                           │
 └───────────────────────────┬─────────────────────────────────────┘
                             │

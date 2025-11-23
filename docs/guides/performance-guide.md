@@ -48,7 +48,7 @@ Time: 5-20 milliseconds (99% faster!)
 **Result:**
 - ✅ 1 API call instead of 2 (50% reduction)
 - ✅ Instant responses
-- ✅ Minimal tokens (plain text format)
+- ✅ Minimal tokens (TOON format)
 
 ---
 
@@ -135,12 +135,13 @@ Cache expires after 4 hours. After expiration:
 Show me task ID, status, and priority
 ```
 
-Response:
+Response (TOON format):
 ```
---- Record 1 ---
-id: rec_123
-status: Active
-priority: High
+3 of 100 filtered (100 total)
+records[3]{id|status|priority}:
+rec_123|Active|High
+rec_456|Pending|Medium
+rec_789|Done|Low
 ```
 
 **❌ Avoid (all fields):**
@@ -168,21 +169,20 @@ Show me 1000 tasks
 
 1000 records can fill Claude's context quickly.
 
-### 3. Use Plain Text Responses
+### 3. TOON Format Responses
 
-The server automatically returns plain text instead of JSON:
+The server automatically returns TOON format instead of JSON (50-60% token savings):
 
-**Plain text (what you get):**
+**TOON format (what you get):**
 ```
-=== RECORDS (3 total) ===
-
---- Record 1 ---
-id: rec_123
-status: Active
-priority: High
+3 of 3 filtered (3 total)
+records[3]{id|status|priority}:
+rec_123|Active|High
+rec_456|Pending|Medium
+rec_789|Done|Low
 ```
 
-~50 tokens
+~30-40 tokens
 
 **JSON (what you'd get without optimization):**
 ```json
@@ -509,7 +509,7 @@ Hit rate: 85% ✅
 **Causes:**
 1. Requesting all fields
 2. Large record counts
-3. Not using plain text format (shouldn't happen)
+3. Not using TOON format (shouldn't happen)
 
 **Solutions:**
 ```
@@ -602,7 +602,7 @@ Or wait 4 hours for cache to expire naturally
 7. **Paginate large results** - Don't fetch thousands at once
 8. **Batch related queries** - Use same cache
 9. **Request fresh data strategically** - Only when needed
-10. **Use plain text** - Automatic token savings
+10. **Use TOON format** - Automatic 50-60% token savings
 
 **Result:** 75% fewer API calls, 60% token savings, 99% faster responses
 
@@ -620,7 +620,7 @@ Or wait 4 hours for cache to expire naturally
 **Cache Hit (subsequent queries):**
 - Time: 5-20ms (99% faster!)
 - API calls: 0
-- Tokens: Minimal (plain text)
+- Tokens: Minimal (TOON format)
 
 ### Example Session
 

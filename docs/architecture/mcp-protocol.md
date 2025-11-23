@@ -7,6 +7,7 @@ Deep dive into how SmartSuite MCP Server implements the Model Context Protocol.
 The Model Context Protocol (MCP) is a JSON-RPC 2.0-based protocol that enables AI assistants like Claude to interact with external tools and data sources. SmartSuite MCP Server implements MCP to bridge Claude with SmartSuite's REST API.
 
 **Key aspects:**
+
 - Transport: stdin/stdout
 - Protocol: JSON-RPC 2.0
 - Paradigm: Tools, Prompts, Resources
@@ -64,6 +65,7 @@ SmartSuite MCP Server
 ### Message Format
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -74,6 +76,7 @@ SmartSuite MCP Server
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -85,6 +88,7 @@ SmartSuite MCP Server
 ```
 
 **Error:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -115,6 +119,7 @@ INTERNAL_ERROR = -32603   # Server error
 **Purpose:** Handshake and capability negotiation
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -123,7 +128,7 @@ INTERNAL_ERROR = -32603   # Server error
   "params": {
     "protocolVersion": "2024-11-05",
     "capabilities": {
-      "roots": {"listChanged": true},
+      "roots": { "listChanged": true },
       "sampling": {}
     },
     "clientInfo": {
@@ -135,6 +140,7 @@ INTERNAL_ERROR = -32603   # Server error
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -155,6 +161,7 @@ INTERNAL_ERROR = -32603   # Server error
 ```
 
 **Implementation:**
+
 ```ruby
 def handle_initialize(params)
   {
@@ -177,6 +184,7 @@ end
 **Purpose:** Discover available tools
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -187,6 +195,7 @@ end
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -201,7 +210,7 @@ end
           "properties": {
             "fields": {
               "type": "array",
-              "items": {"type": "string"},
+              "items": { "type": "string" },
               "description": "Optional: Array of field names to request"
             },
             "include_activity_data": {
@@ -218,6 +227,7 @@ end
 ```
 
 **Implementation:**
+
 ```ruby
 def handle_tools_list
   {
@@ -231,6 +241,7 @@ end
 **Purpose:** Execute a tool
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -247,6 +258,7 @@ end
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -255,7 +267,7 @@ end
     "content": [
       {
         "type": "text",
-        "text": "=== SOLUTIONS (5 total) ===\n\n--- Solution 1 ---\nid: sol_abc123\nname: Project Management\n..."
+        "text": "5 of 5 filtered (5 total)\nsolutions[5]{id|name|logo_icon|logo_color}:\nsol_abc123|Project Management|briefcase|blue\nsol_def456|Customer CRM|users|green\n..."
       }
     ],
     "isError": false
@@ -264,6 +276,7 @@ end
 ```
 
 **Implementation:**
+
 ```ruby
 def handle_tools_call(name, arguments)
   result = execute_tool(name, arguments)
@@ -295,6 +308,7 @@ end
 **Purpose:** Discover available prompt templates
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -305,6 +319,7 @@ end
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -332,6 +347,7 @@ end
 **Purpose:** Get specific prompt template
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -347,6 +363,7 @@ end
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -371,6 +388,7 @@ end
 **Purpose:** List available resources
 
 **Request:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -381,6 +399,7 @@ end
 ```
 
 **Response:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -440,42 +459,50 @@ end
 ### Tool Categories
 
 **Workspace Tools (3):**
+
 - `list_solutions` - List solutions/workspaces
 - `analyze_solution_usage` - Analyze inactive solutions
 - `list_solutions_by_owner` - Filter by owner
 
 **Table Tools (3):**
+
 - `list_tables` - List tables in solution
 - `get_table` - Get table structure
 - `create_table` - Create new table
 
 **Record Tools (4):**
+
 - `list_records` - Query records (cache-first)
 - `create_record` - Create record
 - `update_record` - Update record
 - `delete_record` - Delete record
 
 **Field Tools (4):**
+
 - `add_field` - Add single field
 - `bulk_add_fields` - Add multiple fields
 - `update_field` - Update field definition
 - `delete_field` - Remove field
 
 **Member Tools (4):**
+
 - `list_members` - List workspace users
 - `search_member` - Search by name/email
 - `list_teams` - List teams
 - `get_team` - Get team details
 
 **Comment Tools (2):**
+
 - `list_comments` - Get record comments
 - `add_comment` - Add comment
 
 **View Tools (2):**
+
 - `get_view_records` - Query view
 - `create_view` - Create new view
 
 **Stats Tools (3):**
+
 - `get_api_stats` - API usage statistics
 - `reset_api_stats` - Clear statistics
 - `get_solution_most_recent_record_update` - Check solution activity
@@ -591,6 +618,7 @@ end
 ### Server Layer (`smartsuite_server.rb`)
 
 **Main Loop:**
+
 ```ruby
 def run
   loop do
@@ -605,6 +633,7 @@ end
 ```
 
 **Request Router:**
+
 ```ruby
 def handle_request(request)
   case request[:method]
@@ -631,6 +660,7 @@ end
 ### Tool Registry (`lib/smartsuite/mcp/tool_registry.rb`)
 
 **Organization:**
+
 ```ruby
 module ToolRegistry
   WORKSPACE_TOOLS = [...]
@@ -651,6 +681,7 @@ end
 ```
 
 **Tool Schema:**
+
 ```ruby
 {
   name: "list_solutions",
@@ -676,6 +707,7 @@ end
 ### Prompt Registry (`lib/smartsuite/mcp/prompt_registry.rb`)
 
 **Prompt Categories:**
+
 ```ruby
 module PromptRegistry
   FILTER_PROMPTS = [
@@ -705,6 +737,7 @@ end
 ### Custom Capabilities
 
 **Server capabilities:**
+
 ```json
 {
   "capabilities": {
@@ -716,6 +749,7 @@ end
 ```
 
 **Future extensions:**
+
 ```json
 {
   "capabilities": {
@@ -736,6 +770,7 @@ end
 ### Notifications
 
 **Server can send notifications:**
+
 ```ruby
 def send_notification(method, params)
   notification = {
@@ -749,6 +784,7 @@ end
 ```
 
 **Example:**
+
 ```ruby
 send_notification("notifications/tools/list_changed", {})
 ```
@@ -760,6 +796,7 @@ send_notification("notifications/tools/list_changed", {})
 ### Message Parsing
 
 **Efficient JSON parsing:**
+
 ```ruby
 # Stream parsing (one message per line)
 line = $stdin.gets
@@ -767,6 +804,7 @@ request = JSON.parse(line, symbolize_names: true)
 ```
 
 **Benefits:**
+
 - Low memory overhead
 - Fast parsing
 - Supports large responses
@@ -774,12 +812,14 @@ request = JSON.parse(line, symbolize_names: true)
 ### Response Buffering
 
 **Flush after each response:**
+
 ```ruby
 $stdout.puts(response.to_json)
 $stdout.flush
 ```
 
 **Why:**
+
 - Prevents buffering delays
 - Ensures Claude receives responses immediately
 - Critical for interactive experience
@@ -787,6 +827,7 @@ $stdout.flush
 ### Tool Execution
 
 **Async execution (future):**
+
 ```ruby
 # Current: Synchronous
 result = execute_tool(name, arguments)
@@ -803,6 +844,7 @@ result = execute_tool(name, arguments)
 ### Error Categories
 
 **1. Protocol Errors:**
+
 ```ruby
 PARSE_ERROR = -32700       # Invalid JSON
 INVALID_REQUEST = -32600   # Malformed request
@@ -811,6 +853,7 @@ INVALID_PARAMS = -32602    # Bad parameters
 ```
 
 **2. Tool Errors:**
+
 ```ruby
 # Returned in tool result with isError: true
 {
@@ -823,6 +866,7 @@ INVALID_PARAMS = -32602    # Bad parameters
 ```
 
 **3. API Errors:**
+
 ```ruby
 # HTTP errors from SmartSuite
 401 Unauthorized → "Invalid API credentials"
@@ -834,6 +878,7 @@ INVALID_PARAMS = -32602    # Bad parameters
 ### Error Response Format
 
 **Protocol error:**
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -846,15 +891,18 @@ INVALID_PARAMS = -32602    # Bad parameters
 ```
 
 **Tool error:**
+
 ```json
 {
   "jsonrpc": "2.0",
   "id": 1,
   "result": {
-    "content": [{
-      "type": "text",
-      "text": "Error: Invalid table ID"
-    }],
+    "content": [
+      {
+        "type": "text",
+        "text": "Error: Invalid table ID"
+      }
+    ],
     "isError": true
   }
 }
@@ -867,6 +915,7 @@ INVALID_PARAMS = -32602    # Bad parameters
 ### Protocol Compliance
 
 **Test JSON-RPC format:**
+
 ```ruby
 def test_valid_request
   request = {
@@ -886,6 +935,7 @@ end
 ### Tool Execution
 
 **Test tool calls:**
+
 ```ruby
 def test_list_solutions
   stub_api_request do
@@ -899,6 +949,7 @@ end
 ### Error Handling
 
 **Test error responses:**
+
 ```ruby
 def test_invalid_method
   request = {
@@ -921,6 +972,7 @@ end
 ### MCP vs REST API
 
 **MCP:**
+
 - ✅ Bidirectional (stdin/stdout)
 - ✅ Tool discovery
 - ✅ Prompt templates
@@ -928,6 +980,7 @@ end
 - ❌ Requires persistent process
 
 **REST:**
+
 - ✅ Stateless
 - ✅ Standard HTTP
 - ✅ Wide tool support
@@ -937,12 +990,14 @@ end
 ### MCP vs GraphQL
 
 **MCP:**
+
 - ✅ Tool-oriented
 - ✅ AI-native design
 - ✅ Prompts for guidance
 - ❌ Less flexible queries
 
 **GraphQL:**
+
 - ✅ Flexible queries
 - ✅ Schema introspection
 - ✅ Wide adoption
@@ -955,21 +1010,25 @@ end
 ### Planned Features
 
 1. **Streaming Responses**
+
    - Large result sets
    - Progress notifications
    - Partial results
 
 2. **Batch Operations**
+
    - Multiple tool calls in one request
    - Transactional semantics
    - Rollback on error
 
 3. **Resource Support**
+
    - Dynamic resources
    - Table schemas as resources
    - Cached data as resources
 
 4. **Enhanced Prompts**
+
    - More templates
    - Custom prompts
    - Prompt composition

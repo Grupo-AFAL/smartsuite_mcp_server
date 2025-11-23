@@ -190,14 +190,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Section 11: Changed from "Ruby Standard Library Only (No Gems)" to "Minimal Dependencies (Essential Gems Only)"
   - Updated summary principles to reflect TOON format and minimal gems (sqlite3, toon-ruby)
 
-- **Updated API documentation to show TOON format** - All response format examples now reflect TOON format
-  - Updated `docs/api/README.md` - Response Formats section with TOON example
-  - Updated `docs/api/records.md` - list_records response format and format parameter
-  - Updated `docs/api/workspace.md` - list_solutions, list_solutions_by_owner response formats
-  - Updated `docs/api/tables.md` - list_tables response format
-  - Updated `docs/api/members.md` - list_members, search_member, list_teams, get_team response formats
-  - Updated `docs/api/comments.md` - list_comments response format
-  - Updated `docs/api/views.md` - get_view_records response format
+- **Updated all documentation to show TOON format** - Replaced plain text references with TOON format
+  - API docs: README.md, records.md, workspace.md, tables.md, members.md, comments.md, views.md
+  - Architecture docs: overview.md, mcp-protocol.md, data-flow.md
+  - Guides: user-guide.md, caching-guide.md, performance-guide.md
 
 - **Condensed ROADMAP.md** - Reduced from 497 lines to 141 lines (72% reduction)
   - Collapsed completed milestones (v1.0-v1.9) into a compact summary table

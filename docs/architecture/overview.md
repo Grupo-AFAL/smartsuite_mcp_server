@@ -67,8 +67,8 @@ The SmartSuite MCP Server is a Ruby-based MCP (Model Context Protocol) server th
 │                           │                                  │
 │  ┌────────────────────────┴───────────────────────────────┐  │
 │  │      Formatters Layer (lib/smartsuite/formatters/)     │  │
-│  │  - ResponseFormatter (plain text, filtering)           │  │
-│  │  - Token optimization (no truncation)                  │  │
+│  │  - ToonFormatter (TOON format, 50-60% token savings)   │  │
+│  │  - ResponseFormatter (filtering, no truncation)        │  │
 │  └────────────────────────────────────────────────────────┘  │
 └──────────────────────────┬───────────────────────────────────┘
                            │ HTTPS REST API
@@ -187,9 +187,14 @@ The SmartSuite MCP Server is a Ruby-based MCP (Model Context Protocol) server th
 
 ### 6. Response Formatters
 
+**ToonFormatter** (`lib/smartsuite/formatters/toon_formatter.rb`)
+
+- TOON format output (50-60% token savings vs JSON)
+- Tabular format eliminates repetitive field names
+- Default format for all list operations
+
 **ResponseFormatter** (`lib/smartsuite/formatters/response_formatter.rb`)
 
-- Plain text formatting (30-50% token savings vs JSON)
 - Table structure filtering (removes 83.8% of UI metadata)
 - No value truncation (user controls via field selection)
 - "X of Y total" counts for pagination decisions
@@ -209,7 +214,7 @@ The SmartSuite MCP Server is a Ruby-based MCP (Model Context Protocol) server th
 6. CacheQuery builds SQL →
 7. Execute on SQLite →
 8. Filter/paginate results →
-9. ResponseFormatter converts to plain text →
+9. ToonFormatter converts to TOON format →
 10. Return to Claude
 
 Time: 5-20ms
@@ -232,7 +237,7 @@ API calls: 0
 11. CacheQuery builds SQL →
 12. Execute on cached data →
 13. Filter/paginate results →
-14. ResponseFormatter converts to plain text →
+14. ToonFormatter converts to TOON format →
 15. Return to Claude
 
 Time: 500-2000ms (first time), then 5-20ms
@@ -301,14 +306,14 @@ Notes:
 
 **Implementation:**
 
-- Plain text responses (not JSON)
+- TOON format responses (not JSON)
 - Filtered table structures (only essential fields)
 - No value truncation (user controls field selection)
 - "X of Y total" counts (helps AI make decisions)
 
 **Benefits:**
 
-- 30-50% token savings on responses
+- 50-60% token savings on responses (TOON format)
 - 83.8% reduction in table structure data
 - Better context utilization
 
@@ -404,7 +409,7 @@ Notes:
 
 - Latency: 5-20ms
 - API calls: 0
-- Tokens: Minimal (plain text)
+- Tokens: Minimal (TOON format)
 
 **Cache MISS:**
 
@@ -430,7 +435,7 @@ Notes:
 
 ### Token Usage
 
-**Typical record (3 fields, plain text):**
+**Typical record (3 fields, TOON format):**
 
 - ~30-50 tokens
 
@@ -491,7 +496,7 @@ Each user runs their own server instance:
 
 - Cache TTL (4 hours default)
 - Pagination size (1000 per request)
-- Plain text formatting (automatic)
+- TOON format (automatic, 50-60% token savings)
 
 ---
 
