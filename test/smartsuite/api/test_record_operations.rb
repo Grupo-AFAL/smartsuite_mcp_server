@@ -148,7 +148,7 @@ class TestRecordOperations < Minitest::Test
         body: { id: 'rec_456', title: 'Test Record' }.to_json
       )
 
-    result = client.get_record('tbl_123', 'rec_456')
+    result = client.get_record('tbl_123', 'rec_456', format: :json)
 
     assert result.is_a?(Hash), 'Should return hash'
     assert_equal 'rec_456', result['id']
@@ -341,7 +341,7 @@ class TestRecordOperations < Minitest::Test
         }.to_json
       )
 
-    result = client.get_record('tbl_123', 'rec_456')
+    result = client.get_record('tbl_123', 'rec_456', format: :json)
 
     # Verify: description should be ONLY the HTML string
     assert_equal '<div><h1>Meeting Notes</h1><p>Important discussion</p></div>', result['description'],
@@ -375,7 +375,7 @@ class TestRecordOperations < Minitest::Test
         }.to_json
       )
 
-    result = client.get_record('tbl_123', 'rec_456')
+    result = client.get_record('tbl_123', 'rec_456', format: :json)
 
     # Should return empty string, not nil
     assert_equal '', result['transcript'], 'Should return empty string for empty SmartDoc HTML'
@@ -397,7 +397,7 @@ class TestRecordOperations < Minitest::Test
         }.to_json
       )
 
-    result = client.get_record('tbl_123', 'rec_456')
+    result = client.get_record('tbl_123', 'rec_456', format: :json)
 
     # Should not be modified (not a SmartDoc structure)
     assert_equal regular_json, result['metadata'], 'Non-SmartDoc JSON should not be modified'
@@ -433,7 +433,7 @@ class TestRecordOperations < Minitest::Test
         }.to_json
       )
 
-    result = client.get_record('tbl_123', 'rec_456')
+    result = client.get_record('tbl_123', 'rec_456', format: :json)
 
     # Both SmartDoc fields should be extracted
     assert_equal '<p>Description content</p>', result['description']
@@ -865,7 +865,7 @@ class TestRecordOperations < Minitest::Test
         body: { id: 'rec_456', title: 'Task 1 (Restored)', status: 'Active' }.to_json
       )
 
-    result = client.restore_deleted_record('tbl_123', 'rec_456')
+    result = client.restore_deleted_record('tbl_123', 'rec_456', format: :json)
 
     assert result.is_a?(Hash), 'Should return hash'
     assert_equal 'rec_456', result['id']
@@ -1491,7 +1491,7 @@ class TestRecordOperations < Minitest::Test
       client.list_records('tbl_cache_get', 10, 0, fields: %w[title status])
 
       # Now get_record should retrieve from cache (no API call)
-      result = client.get_record('tbl_cache_get', 'rec_cached')
+      result = client.get_record('tbl_cache_get', 'rec_cached', format: :json)
 
       assert result.is_a?(Hash), 'Should return hash'
       assert_equal 'rec_cached', result['id']

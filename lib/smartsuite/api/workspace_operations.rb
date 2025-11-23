@@ -354,11 +354,12 @@ module SmartSuite
       #
       # @param days_inactive [Integer] Days since last access to consider inactive (default: 90)
       # @param min_records [Integer] Minimum records to not be considered empty (default: 10)
-      # @return [Hash] Solutions categorized by usage with analysis
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Solutions categorized by usage in requested format
       # @example
       #   analyze_solution_usage
-      #   analyze_solution_usage(days_inactive: 60, min_records: 5)
-      def analyze_solution_usage(days_inactive: 90, min_records: 10)
+      #   analyze_solution_usage(days_inactive: 60, min_records: 5, format: :json)
+      def analyze_solution_usage(days_inactive: 90, min_records: 10, format: :toon)
         log_metric("→ Analyzing solution usage (inactive: #{days_inactive} days, min_records: #{min_records})")
 
         # Get all solutions with activity data (use JSON format for internal processing)
@@ -442,7 +443,7 @@ module SmartSuite
 
         message = "Analysis complete: #{inactive.size} inactive, " \
                   "#{potentially_unused.size} potentially unused, #{active.size} active"
-        track_response_size(result, message)
+        format_single_response(result, format, message)
       end
     end
   end

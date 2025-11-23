@@ -234,7 +234,7 @@ class TestMemberOperations < Minitest::Test
       end
     end
 
-    result = client.get_team('team_123')
+    result = client.get_team('team_123', format: :json)
 
     assert result.is_a?(Hash)
     assert_equal 'team_123', result['id']
@@ -794,7 +794,7 @@ class TestMemberOperations < Minitest::Test
       raise 'Should not call API'
     end
 
-    result = client.get_team('team_cached')
+    result = client.get_team('team_cached', format: :json)
 
     refute api_called, 'Should use cache when team is cached'
     assert_equal 'team_cached', result['id']

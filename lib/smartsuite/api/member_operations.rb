@@ -127,17 +127,20 @@ module SmartSuite
       # populates the cache.
       #
       # @param team_id [String] Team identifier
-      # @return [Hash, nil] Team object with enriched members or nil if not found
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash, nil] Team object in requested format or nil if not found
       # @raise [ArgumentError] If team_id is missing
       # @example
       #   get_team('team_abc')
-      def get_team(team_id)
+      #   get_team('team_abc', format: :json)
+      def get_team(team_id, format: :toon)
         validate_required_parameter!('team_id', team_id)
 
         team = fetch_team_by_id(team_id)
         return nil unless team
 
-        enrich_team_with_members(team)
+        enriched_team = enrich_team_with_members(team)
+        format_single_response(enriched_team, format, "Retrieved team: #{team_id}")
       end
 
       private

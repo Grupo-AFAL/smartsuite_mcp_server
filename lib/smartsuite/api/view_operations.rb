@@ -92,7 +92,8 @@ module SmartSuite
       # @option options [Hash] :state View state (filter, fields, sort, group settings)
       # @option options [Hash] :map_state Map configuration for map views
       # @option options [Hash] :sharing Sharing settings
-      # @return [Hash] Created view details
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Created view details in requested format
       # @raise [ArgumentError] If required parameters are missing
       # @example Basic grid view
       #   create_view("tbl_123", "sol_456", "My View", "grid")
@@ -100,7 +101,7 @@ module SmartSuite
       # @example Map view with state
       #   create_view("tbl_123", "sol_456", "Location Map", "map",
       #               state: {filter: {...}}, map_state: {center: [...]})
-      def create_view(application, solution, label, view_mode, **options)
+      def create_view(application, solution, label, view_mode, format: :toon, **options)
         validate_required_parameter!('application', application)
         validate_required_parameter!('solution', solution)
         validate_required_parameter!('label', label)
@@ -128,9 +129,9 @@ module SmartSuite
 
         response = api_request(:post, '/reports/', body)
 
-        log_metric("✓ Created view: #{response['label']} (#{response['id']})") if response.is_a?(Hash)
+        return response unless response.is_a?(Hash)
 
-        response
+        format_single_response(response, format, "Created view: #{response['label']} (#{response['id']})")
       end
     end
   end

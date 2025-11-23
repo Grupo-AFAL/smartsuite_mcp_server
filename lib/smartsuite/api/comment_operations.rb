@@ -70,7 +70,8 @@ module SmartSuite
       # @param record_id [String] The ID of the record
       # @param message [String] The comment text (plain text will be converted to rich text format)
       # @param assigned_to [String, nil] Optional user ID to assign the comment to
-      # @return [Hash] API response containing the created comment object
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Created comment in requested format
       # @raise [ArgumentError] If required parameters are nil or empty
       # @raise [RuntimeError] If the API request fails
       # @example Basic usage
@@ -78,7 +79,7 @@ module SmartSuite
       #
       # @example With assignment
       #   add_comment("tbl_123", "rec_456", "Review needed", "user_789")
-      def add_comment(table_id, record_id, message, assigned_to = nil)
+      def add_comment(table_id, record_id, message, assigned_to = nil, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('record_id', record_id)
         validate_required_parameter!('message', message)
@@ -90,7 +91,8 @@ module SmartSuite
           'record' => record_id
         }
 
-        api_request(:post, '/comments/', body)
+        response = api_request(:post, '/comments/', body)
+        format_single_response(response, format, "Comment added to record: #{record_id}")
       end
 
       private

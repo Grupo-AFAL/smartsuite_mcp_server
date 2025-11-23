@@ -635,7 +635,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.get_table('tbl_123')
+    result = client.get_table('tbl_123', format: :json)
 
     assert_equal 'tbl_123', result['id']
     assert_equal 'Customers', result['name']
@@ -1101,7 +1101,7 @@ class SmartSuiteServerTest < Minitest::Test
       'is_new' => true
     }
 
-    result = client.add_field('tbl_123', field_data)
+    result = client.add_field('tbl_123', field_data, format: :json)
 
     assert_equal :post, api_method, 'Should use POST method'
     assert_equal '/applications/tbl_123/add_field/', api_endpoint
@@ -1169,7 +1169,7 @@ class SmartSuiteServerTest < Minitest::Test
       { 'slug' => 'field2', 'label' => 'Field 2', 'field_type' => 'numberfield', 'is_new' => true }
     ]
 
-    result = client.bulk_add_fields('tbl_123', fields)
+    result = client.bulk_add_fields('tbl_123', fields, format: :json)
 
     assert_equal :post, api_method, 'Should use POST method'
     assert_equal '/applications/tbl_123/bulk-add-fields/', api_endpoint
@@ -1231,7 +1231,7 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     field_data = { 'label' => 'Updated Label', 'field_type' => 'textfield' }
-    result = client.update_field('tbl_123', 'test_field', field_data)
+    result = client.update_field('tbl_123', 'test_field', field_data, format: :json)
 
     assert_equal :put, api_method, 'Should use PUT method'
     assert_equal '/applications/tbl_123/change_field/', api_endpoint
@@ -1294,7 +1294,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.delete_field('tbl_123', 'deleted_field')
+    result = client.delete_field('tbl_123', 'deleted_field', format: :json)
 
     assert_equal :post, api_method, 'Should use POST method'
     assert_equal '/applications/tbl_123/delete_field/', api_endpoint
@@ -1458,6 +1458,7 @@ class SmartSuiteServerTest < Minitest::Test
       'sol_456',
       'Test View',
       'grid',
+      format: :json,
       is_private: false
     )
 
@@ -1499,6 +1500,7 @@ class SmartSuiteServerTest < Minitest::Test
       'sol_456',
       'Filtered View',
       'grid',
+      format: :json,
       state: filter_state
     )
 
@@ -2149,7 +2151,7 @@ class SmartSuiteServerTest < Minitest::Test
       api_call_count = 0
 
       # Mock get_table (for structure)
-      client.define_singleton_method(:get_table) do |table_id|
+      client.define_singleton_method(:get_table) do |table_id, format: :toon|
         api_call_count += 1
         {
           'id' => table_id,
