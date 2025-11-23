@@ -307,20 +307,20 @@ class TestSecureFileAttacher < Minitest::Test
     refute_includes output, '[SecureFileAttacher]'
   end
 
-  def test_s3_logging_uses_query_logger
+  def test_s3_logging_uses_unified_logger
     attacher = create_stubbed_attacher(fetch_timeout: 0)
 
     # Stub SmartSuite API call
     stub_request(:patch, %r{/applications/tbl_123/records/rec_456/})
       .to_return(status: 200, body: { 'id' => 'rec_456' }.to_json)
 
-    # Capture what QueryLogger receives
+    # Capture what SmartSuite::Logger receives
     logged_operations = []
-    QueryLogger.stub(:log_s3_operation, ->(action, message) { logged_operations << [action, message] }) do
+    SmartSuite::Logger.stub(:s3, ->(action, message) { logged_operations << [action, message] }) do
       attacher.attach_file_securely('tbl_123', 'rec_456', 'attachments', @temp_file1.path)
     end
 
-    # Should have S3 action logging via QueryLogger
+    # Should have S3 action logging via unified logger
     assert logged_operations.any? { |op| op[0] == 'UPLOAD' }, "Expected UPLOAD log, got: #{logged_operations}"
     assert logged_operations.any? { |op| op[0] == 'UPLOAD_COMPLETE' }, 'Expected UPLOAD_COMPLETE log'
     assert logged_operations.any? { |op| op[0] == 'CLEANUP' }, 'Expected CLEANUP log'

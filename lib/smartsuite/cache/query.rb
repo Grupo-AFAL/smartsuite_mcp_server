@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative '../../query_logger'
+require_relative '../logger'
 
 module SmartSuite
   module Cache
@@ -191,17 +191,17 @@ module SmartSuite
 
         # Log and execute query
         start_time = Time.now
-        QueryLogger.log_db_query(sql, @params)
+        SmartSuite::Logger.db_query(sql, @params)
 
         result = @cache.db.execute(sql, @params)
 
         duration = Time.now - start_time
-        QueryLogger.log_db_result(result.length, duration)
+        SmartSuite::Logger.db_result(result.length, duration)
 
         # Map transliterated column names back to original field slugs
         map_column_names_to_field_slugs(result, schema['field_mapping'])
       rescue StandardError => e
-        QueryLogger.log_error('Cache Query Execute', e)
+        SmartSuite::Logger.error('Cache Query Execute', error: e)
         raise
       end
 
@@ -222,17 +222,17 @@ module SmartSuite
 
         # Log and execute query
         start_time = Time.now
-        QueryLogger.log_db_query(sql, @params)
+        SmartSuite::Logger.db_query(sql, @params)
 
         result = @cache.db.execute(sql, @params).first
 
         duration = Time.now - start_time
         count = result ? result['count'] : 0
-        QueryLogger.log_db_result(1, duration) # COUNT always returns 1 row
+        SmartSuite::Logger.db_result(1, duration) # COUNT always returns 1 row
 
         count
       rescue StandardError => e
-        QueryLogger.log_error('Cache Query Count', e)
+        SmartSuite::Logger.error('Cache Query Count', error: e)
         raise
       end
 

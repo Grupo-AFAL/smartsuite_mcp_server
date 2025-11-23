@@ -632,15 +632,40 @@ Comments use SmartSuite's rich text format (TipTap/ProseMirror). Plain text is a
 
 ## Logging and Metrics
 
+### Unified Logging System
+
+The server uses a unified logging system (`SmartSuite::Logger`) that consolidates all logging into a single configurable class:
+
+**Log File:**
+- Production: `~/.smartsuite_mcp.log`
+- Test: `~/.smartsuite_mcp_test.log`
+- Integration tests: `~/.smartsuite_mcp_integration.log`
+
+**Features:**
+- Multiple log levels: DEBUG, INFO, WARN, ERROR
+- Log categories: API, DB, CACHE, S3, SERVER, METRIC
+- ANSI color support (configurable via `colors_enabled`)
+- Daily log rotation
+- Configurable via environment variables
+
+**Environment Variables:**
+- `SMARTSUITE_LOG_LEVEL`: Set log level (debug, info, warn, error)
+- `SMARTSUITE_LOG_STDERR`: Set to 'true' to also output to stderr
+
+**Usage:**
+```ruby
+SmartSuite::Logger.info('Server started')
+SmartSuite::Logger.api_request(:get, url, params)
+SmartSuite::Logger.cache('hit', table_id, details)
+SmartSuite::Logger.error('Failed', error: exception)
+```
+
 **Database File:**
 - `~/.smartsuite_mcp_cache.db`: SQLite database containing:
   - Cached table records (one SQL table per SmartSuite table)
   - API call logs with session tracking
   - API statistics summaries
   - Cache metadata (TTL config, table schemas)
-
-**Metrics Log:**
-- `~/.smartsuite_mcp_metrics.log`: Tool calls and token usage (append-only)
 
 ## SmartSuite API Rate Limits
 
