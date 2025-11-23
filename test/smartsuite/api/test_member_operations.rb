@@ -43,7 +43,7 @@ class TestMemberOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_members
+    result = client.list_members(format: :json)
 
     assert result.is_a?(Hash)
     assert_equal 2, result['count']
@@ -59,7 +59,7 @@ class TestMemberOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_members
+    result = client.list_members(format: :json)
 
     assert_equal 'array@test.com', result['members'][0]['email']
   end
@@ -73,7 +73,7 @@ class TestMemberOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_members
+    result = client.list_members(format: :json)
 
     assert_equal 'active', result['members'][0]['status']
   end
@@ -89,12 +89,12 @@ class TestMemberOperations < Minitest::Test
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
 
     # Without include_inactive - should filter out deleted members
-    result_active = client.list_members(include_inactive: false)
+    result_active = client.list_members(include_inactive: false, format: :json)
     assert_equal 1, result_active['count']
     assert_equal 'mem_active', result_active['members'][0]['id']
 
     # With include_inactive - should include all
-    result_all = client.list_members(include_inactive: true)
+    result_all = client.list_members(include_inactive: true, format: :json)
     assert_equal 2, result_all['count']
   end
 
@@ -111,7 +111,7 @@ class TestMemberOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.search_member('Doe')
+    result = client.search_member('Doe', format: :json)
 
     assert result.is_a?(Hash)
     assert_equal 2, result['count']
@@ -141,7 +141,7 @@ class TestMemberOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.search_member('John')
+    result = client.search_member('John', format: :json)
 
     # Fuzzy matching - should find John
     assert(result['members'].any? { |m| m['first_name'] == 'John' })
@@ -158,7 +158,7 @@ class TestMemberOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.search_member('Vania')
+    result = client.search_member('Vania', format: :json)
 
     # Vania should come first (exact match)
     assert_equal 'Vania', result['members'][0]['first_name']
@@ -173,13 +173,13 @@ class TestMemberOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_teams
+    result = client.list_teams(format: :json)
 
-    assert result.is_a?(Array)
-    assert_equal 2, result.size
-    assert_equal 'team_1', result[0]['id']
-    assert_equal 'Team A', result[0]['name']
-    assert_equal 2, result[0]['member_count']
+    assert result.is_a?(Hash)
+    assert_equal 2, result['teams'].size
+    assert_equal 'team_1', result['teams'][0]['id']
+    assert_equal 'Team A', result['teams'][0]['name']
+    assert_equal 2, result['teams'][0]['member_count']
   end
 
   def test_list_teams_returns_member_count_not_ids
@@ -188,9 +188,9 @@ class TestMemberOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_teams
+    result = client.list_teams(format: :json)
 
-    team = result[0]
+    team = result['teams'][0]
     assert_equal 5, team['member_count']
     refute team.key?('members'), 'Should not include member IDs array'
   end
@@ -203,10 +203,10 @@ class TestMemberOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_teams
+    result = client.list_teams(format: :json)
 
-    assert_equal 1, result.size
-    assert_equal 'team_1', result[0]['id']
+    assert_equal 1, result['teams'].size
+    assert_equal 'team_1', result['teams'][0]['id']
   end
 
   # ========== get_team tests ==========
@@ -378,10 +378,10 @@ class TestMemberOperations < Minitest::Test
       { 'id' => 'team_1', 'name' => 'Team A', 'description' => 'Desc', 'members' => %w[m1 m2 m3] }
     ]
 
-    result = client.send(:format_team_list, teams)
+    result = client.send(:format_team_list, teams, :json)
 
-    assert_equal 3, result[0]['member_count']
-    refute result[0].key?('members')
+    assert_equal 3, result['teams'][0]['member_count']
+    refute result['teams'][0].key?('members')
   end
 
   def test_format_team_list_handles_nil_members
@@ -390,9 +390,9 @@ class TestMemberOperations < Minitest::Test
       { 'id' => 'team_1', 'name' => 'Team A', 'members' => nil }
     ]
 
-    result = client.send(:format_team_list, teams)
+    result = client.send(:format_team_list, teams, :json)
 
-    assert_equal 0, result[0]['member_count']
+    assert_equal 0, result['teams'][0]['member_count']
   end
 
   def test_format_team_list_handles_non_array
@@ -434,7 +434,7 @@ class TestMemberOperations < Minitest::Test
       raise 'Should not call API'
     end
 
-    result = client.list_members
+    result = client.list_members(format: :json)
 
     refute api_called, 'Should use cache when members are cached'
     assert_equal 2, result['count']
@@ -456,7 +456,7 @@ class TestMemberOperations < Minitest::Test
       raise 'Should not call API'
     end
 
-    result = client.search_member('john')
+    result = client.search_member('john', format: :json)
 
     refute api_called, 'Should use cache when searching members'
     assert_equal 1, result['count']
@@ -478,7 +478,7 @@ class TestMemberOperations < Minitest::Test
       api_response
     end
 
-    result = client.search_member('john')
+    result = client.search_member('john', format: :json)
 
     assert_equal 1, result['count']
   end
@@ -499,7 +499,7 @@ class TestMemberOperations < Minitest::Test
       solution_response
     end
 
-    result = client.list_members(solution_id: solution_id)
+    result = client.list_members(solution_id: solution_id, format: :json)
 
     assert_equal 0, result['count']
     assert_equal [], result['members']
@@ -522,7 +522,7 @@ class TestMemberOperations < Minitest::Test
       raise 'Should not call API'
     end
 
-    result = client.list_members(include_inactive: true)
+    result = client.list_members(include_inactive: true, format: :json)
 
     refute api_called, 'Should use cache'
     assert_equal 2, result['count'], 'Should include inactive when flag is true'
@@ -543,7 +543,7 @@ class TestMemberOperations < Minitest::Test
       api_response
     end
 
-    result = client.list_members
+    result = client.list_members(format: :json)
 
     assert_equal 1, result['count']
     assert_equal 'mem_api', result['members'][0]['id']
@@ -722,7 +722,7 @@ class TestMemberOperations < Minitest::Test
       end
     end
 
-    result = client.list_members(solution_id: 'sol_123')
+    result = client.list_members(solution_id: 'sol_123', format: :json)
 
     # Should include all members: direct, owner, and team members
     assert_equal 4, result['count']
@@ -745,7 +745,7 @@ class TestMemberOperations < Minitest::Test
       solution_response
     end
 
-    result = client.list_members(solution_id: 'sol_123')
+    result = client.list_members(solution_id: 'sol_123', format: :json)
 
     assert_equal 0, result['count']
     assert_equal [], result['members']
@@ -768,11 +768,11 @@ class TestMemberOperations < Minitest::Test
       raise 'Should not call API'
     end
 
-    result = client.list_teams
+    result = client.list_teams(format: :json)
 
     refute api_called, 'Should use cache when teams are cached'
-    assert_equal 1, result.size
-    assert_equal 'team_cached', result[0]['id']
+    assert_equal 1, result['teams'].size
+    assert_equal 'team_cached', result['teams'][0]['id']
   end
 
   def test_get_team_uses_cache_when_available
@@ -816,12 +816,12 @@ class TestMemberOperations < Minitest::Test
     client.cache.cache_members(cached_members)
 
     # Without include_inactive - should only find active
-    result_active = client.search_member('User', include_inactive: false)
+    result_active = client.search_member('User', include_inactive: false, format: :json)
     assert_equal 1, result_active['count']
     assert_equal 'mem_active', result_active['members'][0]['id']
 
     # With include_inactive - should find both
-    result_all = client.search_member('User', include_inactive: true)
+    result_all = client.search_member('User', include_inactive: true, format: :json)
     assert_equal 2, result_all['count']
   end
 

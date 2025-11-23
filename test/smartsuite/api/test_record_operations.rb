@@ -793,7 +793,7 @@ class TestRecordOperations < Minitest::Test
         ].to_json
       )
 
-    result = client.list_deleted_records('sol_123', preview: true)
+    result = client.list_deleted_records('sol_123', preview: true, format: :json)
 
     assert result.is_a?(Array), 'Should return array'
     assert_equal 2, result.length
@@ -814,7 +814,7 @@ class TestRecordOperations < Minitest::Test
         ].to_json
       )
 
-    result = client.list_deleted_records('sol_123', preview: false)
+    result = client.list_deleted_records('sol_123', preview: false, format: :json)
 
     assert result.is_a?(Array), 'Should return array'
     assert_equal 1, result.length
@@ -833,7 +833,7 @@ class TestRecordOperations < Minitest::Test
         body: [].to_json
       )
 
-    result = client.list_deleted_records('sol_123')
+    result = client.list_deleted_records('sol_123', format: :json)
 
     assert result.is_a?(Array), 'Should return array'
   end

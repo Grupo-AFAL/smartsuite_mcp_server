@@ -29,7 +29,7 @@ module SmartSuite
       #
       # TIP: Specify `fields` parameter to minimize token usage by only returning needed fields.
       #
-      # Returns plain text format by default (saves ~40% tokens vs JSON).
+      # Returns TOON format by default (~50-60% token savings vs JSON).
       # Always includes total_records and filtered_records counts to help AI make informed decisions.
       #
       # @param table_id [String] Table identifier
@@ -39,11 +39,14 @@ module SmartSuite
       # @param sort [Array<Hash>, nil] Sort criteria (field + direction)
       # @param fields [Array<String>, nil] Field slugs to include in response (recommended for token efficiency)
       # @param hydrated [Boolean] Fetch human-readable values for linked records, users, etc. (default: true)
-      # @return [String] Plain text formatted records with total/filtered counts
+      # @param format [Symbol] Output format: :toon (default, ~50-60% token savings) or :json
+      # @return [String] Formatted records with total/filtered counts
       # @raise [ArgumentError] If table_id is missing
       # @example
       #   list_records('tbl_123', 10, 0, fields: ['status', 'priority'])
-      def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, hydrated: true)
+      #   list_records('tbl_123', 10, 0, fields: ['status'], format: :json)
+      def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, hydrated: true,
+                       format: :toon)
         validate_required_parameter!('table_id', table_id)
 
         # Handle nil values (when called via MCP with missing parameters)
@@ -62,17 +65,17 @@ module SmartSuite
         # Try cache-first strategy if enabled
         unless should_bypass_cache?
           return list_records_from_cache(table_id, limit, offset, filter, sort, fields,
-                                         hydrated)
+                                         hydrated, format)
         end
 
         # Fallback to direct API call (cache disabled)
-        list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
+        list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated, format)
       end
 
       private
 
       # List records using cache (aggressive fetch strategy)
-      def list_records_from_cache(table_id, limit, offset, filter, sort, fields, hydrated)
+      def list_records_from_cache(table_id, limit, offset, filter, sort, fields, hydrated, format)
         # Ensure cache is populated
         ensure_records_cached(table_id)
 
@@ -104,7 +107,8 @@ module SmartSuite
         }
 
         # Apply filtering and formatting with counts
-        filter_records_response(response, fields, plain_text: true, hydrated: hydrated)
+        format_options = format_to_options(format)
+        filter_records_response(response, fields, **format_options, hydrated: hydrated)
       end
 
       # Apply SmartSuite filter criteria to cache query
@@ -141,7 +145,7 @@ module SmartSuite
       end
 
       # Direct API call (original behavior, used when cache disabled/bypassed)
-      def list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated)
+      def list_records_direct_api(table_id, limit, offset, filter, sort, fields, hydrated, format)
         # Build endpoint with query parameters using Base helper
         base_path = "/applications/#{table_id}/records/list/"
         endpoint = build_endpoint(base_path, limit: limit, offset: offset, hydrated: hydrated || nil)
@@ -155,8 +159,21 @@ module SmartSuite
         response = api_request(:post, endpoint, body.empty? ? nil : body)
 
         # Apply aggressive filtering to reduce response size
-        # Returns plain text format to save ~40% tokens vs JSON
-        filter_records_response(response, fields, plain_text: true, hydrated: hydrated)
+        format_options = format_to_options(format)
+        filter_records_response(response, fields, **format_options, hydrated: hydrated)
+      end
+
+      # Converts format symbol to filter_records_response options.
+      #
+      # @param format [Symbol] Output format (:toon or :json)
+      # @return [Hash] Options hash for filter_records_response
+      def format_to_options(format)
+        case format
+        when :json
+          {}
+        else # :toon (default)
+          { toon: true }
+        end
       end
 
       # Sanitize filter before sending to SmartSuite API.
@@ -552,11 +569,13 @@ module SmartSuite
       #
       # @param solution_id [String] Solution identifier
       # @param preview [Boolean] If true, returns limited fields (default: true)
-      # @return [Array<Hash>] Array of deleted records with deletion metadata
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
+      # @return [String, Array<Hash>] TOON string or JSON array depending on format
       # @raise [ArgumentError] If solution_id is missing
       # @example
       #   list_deleted_records('sol_123', preview: true)
-      def list_deleted_records(solution_id, preview: true)
+      #   list_deleted_records('sol_123', format: :json)
+      def list_deleted_records(solution_id, preview: true, format: :toon)
         validate_required_parameter!('solution_id', solution_id)
 
         # Build endpoint with query parameter
@@ -565,7 +584,30 @@ module SmartSuite
         # Body contains solution_id
         body = { solution_id: solution_id }
 
-        api_request(:post, endpoint, body)
+        response = api_request(:post, endpoint, body)
+
+        return response unless response.is_a?(Array)
+
+        format_deleted_records_output(response, format)
+      end
+
+      # Format deleted records output based on format parameter
+      #
+      # @param records [Array<Hash>] Deleted records data
+      # @param format [Symbol] Output format (:toon or :json)
+      # @return [String, Array<Hash>] Formatted output
+      def format_deleted_records_output(records, format)
+        message = "Found #{records.size} deleted records"
+
+        case format
+        when :toon
+          result = SmartSuite::Formatters::ToonFormatter.format(records)
+          log_metric("✓ #{message}")
+          log_metric('📊 TOON format (~50-60% token savings)')
+          result
+        else # :json
+          track_response_size(records, message)
+        end
       end
 
       # Restores a deleted record.

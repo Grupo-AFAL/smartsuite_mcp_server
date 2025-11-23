@@ -31,7 +31,7 @@ class TestViewOperations < Minitest::Test
       expected_response
     end
 
-    result = @client.get_view_records(table_id, view_id)
+    result = @client.get_view_records(table_id, view_id, format: :json)
 
     assert_equal :get, captured_args[:method]
     assert_includes captured_args[:endpoint], '/applications/tbl_123/records-for-report/'
@@ -82,7 +82,7 @@ class TestViewOperations < Minitest::Test
       expected_response
     end
 
-    result = @client.get_view_records(table_id, view_id)
+    result = @client.get_view_records(table_id, view_id, format: :json)
 
     assert_equal 0, result['records'].length
   end

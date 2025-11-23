@@ -7,6 +7,9 @@ ruby '>= 3.0.0'
 # SQLite for caching layer
 gem 'sqlite3'
 
+# Token-optimized formatting for LLM responses
+gem 'toon-ruby'
+
 # The server uses:
 # - json (stdlib)
 # - net/http (stdlib)

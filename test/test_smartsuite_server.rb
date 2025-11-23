@@ -261,7 +261,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions
+    result = client.list_solutions(format: :json)
 
     assert_equal 2, result['count']
     assert_equal 2, result['solutions'].length
@@ -287,7 +287,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions
+    result = client.list_solutions(format: :json)
 
     assert_equal 1, result['count']
     assert_equal 1, result['solutions'].length
@@ -312,7 +312,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_tables
+    result = client.list_tables(format: :json)
 
     assert_equal 1, result['count']
     assert_equal 'tbl_1', result['tables'][0]['id']
@@ -350,7 +350,7 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     # Test filtering by solution_id
-    result = client.list_tables(solution_id: 'sol_1')
+    result = client.list_tables(solution_id: 'sol_1', format: :json)
 
     # Verify the API was called with the solution query parameter
     assert_equal '/applications/?solution=sol_1', called_endpoint, 'Should use solution query parameter'
@@ -386,7 +386,7 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     # Test with fields parameter
-    result = client.list_tables(fields: %w[name id structure])
+    result = client.list_tables(fields: %w[name id structure], format: :json)
 
     # Verify the API was called with fields query parameters
     assert_includes called_endpoint, 'fields=name', 'Should include fields=name'
@@ -411,7 +411,7 @@ class SmartSuiteServerTest < Minitest::Test
     end
 
     # Test with both solution_id and fields
-    client.list_tables(solution_id: 'sol_123', fields: %w[name id])
+    client.list_tables(solution_id: 'sol_123', fields: %w[name id], format: :json)
 
     # Verify both parameters are in the endpoint
     assert_includes called_endpoint, 'solution=sol_123', 'Should include solution parameter'
@@ -486,7 +486,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_members
+    result = client.list_members(format: :json)
 
     assert_equal 2, result['count']
     assert_equal 2, result['total_count']
@@ -593,7 +593,7 @@ class SmartSuiteServerTest < Minitest::Test
       end
     end
 
-    result = client.list_members(limit: 100, offset: 0, solution_id: 'sol_123')
+    result = client.list_members(limit: 100, offset: 0, solution_id: 'sol_123', format: :json)
 
     # Should return 4 members: usr_123 (direct member), usr_789 (owner), usr_456 and usr_999 (from team)
     assert_equal 4, result['count']
@@ -776,17 +776,17 @@ class SmartSuiteServerTest < Minitest::Test
     # Providing fields parameter to pass validation
     result = client.list_records('tbl_123', 10, 0, fields: ['title'])
 
-    # Result is now plain text string
-    assert result.is_a?(String), 'Should return plain text string'
+    # Result is now TOON format string
+    assert result.is_a?(String), 'Should return TOON format string'
 
-    # Should contain id and title
-    assert_includes result, 'id: rec_123', 'Should include id'
-    assert_includes result, 'title: Test Record', 'Should include title'
+    # Should contain id and title (TOON uses tabular format)
+    assert_includes result, 'rec_123', 'Should include id'
+    assert_includes result, 'Test Record', 'Should include title'
 
-    # Should not contain verbose fields
-    refute_includes result, 'description:', 'Should not include description'
-    refute_includes result, 'comments_count:', 'Should not include comments_count'
-    refute_includes result, 'ranking:', 'Should not include ranking'
+    # Should not contain verbose fields (not requested)
+    refute_includes result, 'description', 'Should not include description field in header'
+    refute_includes result, 'comments_count', 'Should not include comments_count'
+    refute_includes result, 'ranking', 'Should not include ranking'
   end
 
   def test_client_list_records_with_fields_parameter
@@ -812,15 +812,15 @@ class SmartSuiteServerTest < Minitest::Test
 
     result = client.list_records('tbl_123', 10, 0, fields: %w[status priority])
 
-    # Result is now plain text string
-    assert result.is_a?(String), 'Should return plain text string'
+    # Result is now TOON format string
+    assert result.is_a?(String), 'Should return TOON format string'
 
-    # Check that requested fields are included in plain text
-    assert_includes result, 'id: rec_123', 'Should include id (essential)'
-    assert_includes result, 'title: Test Record', 'Should include title (essential)'
-    assert_includes result, 'status: active', 'Should include status (requested)'
-    assert_includes result, 'priority: 5', 'Should include priority (requested)'
-    refute_includes result, 'description:', 'Should not include description'
+    # Check that requested fields are included in TOON tabular format
+    assert_includes result, 'rec_123', 'Should include id (essential)'
+    assert_includes result, 'Test Record', 'Should include title (essential)'
+    assert_includes result, 'active', 'Should include status value (requested)'
+    assert_includes result, '5', 'Should include priority value (requested)'
+    refute_includes result, 'description', 'Should not include description field'
   end
 
   def test_client_returns_full_field_values
@@ -922,7 +922,7 @@ class SmartSuiteServerTest < Minitest::Test
 
     list_members_called = false
 
-    client.define_singleton_method(:list_members) do |limit: 100, offset: 0, solution_id: nil|
+    client.define_singleton_method(:list_members) do |limit: 100, offset: 0, solution_id: nil, include_inactive: false, format: :toon|
       list_members_called = true
       {
         'members' => [
@@ -960,7 +960,7 @@ class SmartSuiteServerTest < Minitest::Test
 
     solution_id_param = nil
 
-    client.define_singleton_method(:list_members) do |limit: 100, offset: 0, solution_id: nil|
+    client.define_singleton_method(:list_members) do |limit: 100, offset: 0, solution_id: nil, include_inactive: false, format: :toon|
       solution_id_param = solution_id
       {
         'members' => [
@@ -1358,7 +1358,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.get_view_records('tbl_123', 'view_456')
+    result = client.get_view_records('tbl_123', 'view_456', format: :json)
 
     assert_equal :get, api_method, 'Should use GET method'
     assert_equal '/applications/tbl_123/records-for-report/?report=view_456', api_endpoint
@@ -1377,7 +1377,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    client.get_view_records('tbl_123', 'view_456', with_empty_values: true)
+    client.get_view_records('tbl_123', 'view_456', with_empty_values: true, format: :json)
 
     assert_includes api_endpoint, 'with_empty_values=true', 'Should include with_empty_values parameter'
   end
@@ -1389,7 +1389,7 @@ class SmartSuiteServerTest < Minitest::Test
     table_id_param = nil
     view_id_param = nil
 
-    client.define_singleton_method(:get_view_records) do |table_id, view_id, with_empty_values: false|
+    client.define_singleton_method(:get_view_records) do |table_id, view_id, with_empty_values: false, format: :toon|
       get_view_called = true
       table_id_param = table_id
       view_id_param = view_id
@@ -1623,7 +1623,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions_by_owner('user_123')
+    result = client.list_solutions_by_owner('user_123', format: :json)
 
     assert_equal 2, result['count'], 'Should return 2 solutions owned by user_123'
     assert_equal 2, result['solutions'].length
@@ -1658,7 +1658,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions_by_owner('user_123', include_activity_data: true)
+    result = client.list_solutions_by_owner('user_123', include_activity_data: true, format: :json)
 
     assert_equal 1, result['count']
     solution = result['solutions'][0]
@@ -1687,7 +1687,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions_by_owner('user_123')
+    result = client.list_solutions_by_owner('user_123', format: :json)
 
     assert_equal 0, result['count']
     assert_equal 0, result['solutions'].length
@@ -1746,7 +1746,7 @@ class SmartSuiteServerTest < Minitest::Test
       }
     }
 
-    client.define_singleton_method(:list_tables) do |solution_id: nil|
+    client.define_singleton_method(:list_tables) do |solution_id: nil, fields: nil, format: :toon|
       mock_tables_response
     end
 
@@ -1774,7 +1774,7 @@ class SmartSuiteServerTest < Minitest::Test
       'count' => 1
     }
 
-    client.define_singleton_method(:list_tables) do |solution_id: nil|
+    client.define_singleton_method(:list_tables) do |solution_id: nil, fields: nil, format: :toon|
       mock_tables_response
     end
 
@@ -1791,7 +1791,7 @@ class SmartSuiteServerTest < Minitest::Test
     # Use cache_enabled: false to test the fallback API path
     client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
-    client.define_singleton_method(:list_tables) do |solution_id: nil|
+    client.define_singleton_method(:list_tables) do |solution_id: nil, fields: nil, format: :toon|
       { 'tables' => [], 'count' => 0 }
     end
 
@@ -1835,7 +1835,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.search_member('john.doe')
+    result = client.search_member('john.doe', format: :json)
 
     assert_equal 1, result['count'], 'Should find 1 member by email'
     assert_equal 'john.doe', result['query']
@@ -1877,7 +1877,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.search_member('jane')
+    result = client.search_member('jane', format: :json)
 
     assert_equal 1, result['count'], 'Should find 1 member by first name'
     assert_equal 'user_2', result['members'][0]['id']
@@ -1907,7 +1907,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.search_member('doe')
+    result = client.search_member('doe', format: :json)
 
     assert_equal 1, result['count'], 'Should find 1 member by last name'
     assert_equal 'user_1', result['members'][0]['id']
@@ -1937,7 +1937,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.search_member('JOHN')
+    result = client.search_member('JOHN', format: :json)
 
     assert_equal 1, result['count'], 'Should be case insensitive'
     assert_equal 'user_1', result['members'][0]['id']
@@ -1966,7 +1966,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.search_member('nonexistent')
+    result = client.search_member('nonexistent', format: :json)
 
     assert_equal 0, result['count'], 'Should return 0 when no matches'
     assert_equal 0, result['members'].length
@@ -1995,7 +1995,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.search_member('john.doe')
+    result = client.search_member('john.doe', format: :json)
 
     assert_equal 1, result['count'], 'Should handle email as array'
     assert_equal 'user_1', result['members'][0]['id']
@@ -2026,7 +2026,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.search_member('john')
+    result = client.search_member('john', format: :json)
 
     assert_equal 1, result['count']
     member = result['members'][0]
@@ -2073,7 +2073,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions(fields: %w[id name created])
+    result = client.list_solutions(fields: %w[id name created], format: :json)
 
     assert_equal 1, result['count']
     solution = result['solutions'][0]
@@ -2104,7 +2104,7 @@ class SmartSuiteServerTest < Minitest::Test
       mock_response
     end
 
-    result = client.list_solutions
+    result = client.list_solutions(format: :json)
 
     assert_equal 1, result['count']
     solution = result['solutions'][0]
@@ -2242,13 +2242,13 @@ class SmartSuiteServerTest < Minitest::Test
       end
 
       # First call should populate cache (1 API call)
-      result1 = client.list_solutions
+      result1 = client.list_solutions(format: :json)
       assert_equal 1, api_call_count, 'Should make 1 API call to populate cache'
       assert_equal 2, result1['count'], 'Should return 2 solutions'
 
       # Second call WITH fields parameter should use cache (no additional API call)
       # This is the regression test - previously this would bypass cache
-      result2 = client.list_solutions(fields: %w[id name created])
+      result2 = client.list_solutions(fields: %w[id name created], format: :json)
       assert_equal 1, api_call_count, 'Should NOT make additional API call (cache hit)'
       assert_equal 2, result2['count'], 'Should return 2 solutions from cache'
 
@@ -2261,7 +2261,7 @@ class SmartSuiteServerTest < Minitest::Test
       refute solution.key?('status'), 'Should not include fields not requested (client-side filtered)'
 
       # Third call with different fields should still use cache
-      result3 = client.list_solutions(fields: %w[id name])
+      result3 = client.list_solutions(fields: %w[id name], format: :json)
       assert_equal 1, api_call_count, 'Should still NOT make additional API call (cache hit)'
       assert_equal 2, result3['count'], 'Should return 2 solutions from cache'
 
@@ -2297,7 +2297,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_list_solutions_by_owner
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:list_solutions_by_owner) do |owner_id, include_activity_data:|
+    client.define_singleton_method(:list_solutions_by_owner) do |owner_id, include_activity_data:, format: :toon|
       { 'solutions' => [{ 'id' => 'sol_1', 'owner' => owner_id }], 'count' => 1 }
     end
 
@@ -2330,7 +2330,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_search_member
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:search_member) do |query, include_inactive:|
+    client.define_singleton_method(:search_member) do |query, include_inactive:, format: :toon|
       { 'members' => [{ 'id' => 'mem_1', 'name' => 'John' }], 'count' => 1, 'query' => query }
     end
 
@@ -2347,7 +2347,9 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_list_teams
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:list_teams) { [{ 'id' => 'team_1', 'name' => 'Engineering' }] }
+    client.define_singleton_method(:list_teams) do |format: :toon|
+      { 'teams' => [{ 'id' => 'team_1', 'name' => 'Engineering' }], 'count' => 1 }
+    end
 
     request = {
       'id' => 24,
@@ -2357,7 +2359,7 @@ class SmartSuiteServerTest < Minitest::Test
 
     response = call_private_method(:handle_tool_call, request)
     result = JSON.parse(response['result']['content'][0]['text'])
-    assert_equal 'team_1', result[0]['id']
+    assert_equal 'team_1', result['teams'][0]['id']
   end
 
   def test_handle_tool_call_get_team
@@ -2517,7 +2519,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_list_deleted_records
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:list_deleted_records) do |solution_id, preview:|
+    client.define_singleton_method(:list_deleted_records) do |solution_id, preview:, format: :toon|
       { 'deleted_records' => [{ 'id' => 'rec_del' }], 'count' => 1 }
     end
 
@@ -2569,7 +2571,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_list_records
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:list_records) do |table_id, limit, offset, filter:, sort:, fields:, hydrated:|
+    client.define_singleton_method(:list_records) do |table_id, limit, offset, filter:, sort:, fields:, hydrated:, format:|
       "2 of 10 filtered records (100 total)\n\nRecord 1\nRecord 2"
     end
 
@@ -2590,7 +2592,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_list_comments
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:list_comments) do |record_id|
+    client.define_singleton_method(:list_comments) do |record_id, format: :toon|
       [
         { 'id' => 'comment_1', 'message' => { 'preview' => 'Test comment' }, 'record' => record_id }
       ]
@@ -2814,7 +2816,9 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_request_routes_to_tools_call
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:list_teams) { [{ 'id' => 'team_1' }] }
+    client.define_singleton_method(:list_teams) do |format: :toon|
+      { 'teams' => [{ 'id' => 'team_1' }], 'count' => 1 }
+    end
 
     request = {
       'id' => 52,
@@ -2865,8 +2869,13 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_list_solutions
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:list_solutions) do |include_activity_data:, fields:, name:|
-      { 'solutions' => [{ 'id' => 'sol_1', 'name' => name || 'Test' }], 'include_activity' => include_activity_data }
+    client.define_singleton_method(:list_solutions) do |include_activity_data:, fields:, name:, format:|
+      # Return TOON-like string when format is :toon (default), otherwise JSON
+      if format == :toon
+        "solutions[1]:\n  id, name\n  sol_1, #{name || 'Test'}"
+      else
+        { 'solutions' => [{ 'id' => 'sol_1', 'name' => name || 'Test' }], 'include_activity' => include_activity_data }
+      end
     end
 
     request = {
@@ -2885,8 +2894,8 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_list_tables
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:list_tables) do |solution_id:, fields:|
-      [{ 'id' => 'tbl_1', 'name' => 'Test Table', 'solution_id' => solution_id }]
+    client.define_singleton_method(:list_tables) do |solution_id:, fields:, format: :toon|
+      { 'tables' => [{ 'id' => 'tbl_1', 'name' => 'Test Table', 'solution_id' => solution_id }], 'count' => 1 }
     end
 
     request = {
@@ -3034,7 +3043,9 @@ class SmartSuiteServerTest < Minitest::Test
   def test_run_logs_tool_calls
     # Set up client mock
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:list_teams) { [{ 'id' => 'team_1' }] }
+    client.define_singleton_method(:list_teams) do |format: :toon|
+      { 'teams' => [{ 'id' => 'team_1' }], 'count' => 1 }
+    end
 
     request = {
       'jsonrpc' => '2.0',

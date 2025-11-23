@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'base'
+require_relative '../formatters/toon_formatter'
 
 module SmartSuite
   module API
@@ -24,8 +25,9 @@ module SmartSuite
       #
       # @param solution_id [String, nil] Optional solution ID to filter tables
       # @param fields [Array<String>, nil] Optional array of field slugs to include in response
-      # @return [Hash] Tables with count and filtered data
-      # @example List all tables
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings), :plain_text, or :json
+      # @return [String, Hash] TOON/plain text string or JSON hash depending on format
+      # @example List all tables (TOON format by default)
       #   list_tables
       #
       # @example List tables in a solution
@@ -33,7 +35,10 @@ module SmartSuite
       #
       # @example List with specific fields
       #   list_tables(fields: ["id", "name", "structure"])
-      def list_tables(solution_id: nil, fields: nil)
+      #
+      # @example Explicit format selection
+      #   list_tables(format: :json)
+      def list_tables(solution_id: nil, fields: nil, format: :toon)
         validate_optional_parameter!('fields', fields, Array) if fields
 
         # Try cache first if enabled and no custom fields specified
@@ -41,7 +46,7 @@ module SmartSuite
         cached_tables = with_cache_check('tables', cache_key, bypass: fields&.any?) do
           @cache.get_cached_table_list(solution_id)
         end
-        return format_tables_response(cached_tables, fields) if cached_tables
+        return format_tables_response(cached_tables, fields, format) if cached_tables
 
         # Log filtering info
         log_metric("→ Filtering tables by solution: #{solution_id}") if solution_id
@@ -60,7 +65,7 @@ module SmartSuite
           log_metric("✓ Cached #{tables_list.size} tables (#{cache_key})")
         end
 
-        format_tables_response(response, fields)
+        format_tables_response(response, fields, format)
       end
 
       private
@@ -69,8 +74,9 @@ module SmartSuite
       #
       # @param response [Hash, Array] API response or cached tables
       # @param fields [Array<String>] Specific fields requested
-      # @return [Hash] Formatted tables with count
-      def format_tables_response(response, fields)
+      # @param format [Symbol] Output format: :toon, :plain_text, or :json
+      # @return [String, Hash] Formatted tables (TOON/plain_text as string, JSON as hash)
+      def format_tables_response(response, fields, format = :toon)
         # Handle both API response format and cached array format
         # /applications/ endpoint returns an Array directly, not a Hash with 'items' key
         tables_list = extract_items_safely(response)
@@ -92,8 +98,26 @@ module SmartSuite
                    end
                  end
 
-        result = build_collection_response(tables, :tables)
-        track_response_size(result, "Found #{tables.size} tables")
+        format_tables_output(tables, format, "Found #{tables.size} tables")
+      end
+
+      # Format tables output based on format parameter
+      #
+      # @param tables [Array<Hash>] Filtered tables data
+      # @param format [Symbol] Output format (:toon or :json)
+      # @param message [String] Log message
+      # @return [String, Hash] Formatted output
+      def format_tables_output(tables, format, message)
+        case format
+        when :toon
+          result = SmartSuite::Formatters::ToonFormatter.format_tables(tables)
+          log_metric("✓ #{message}")
+          log_metric('📊 TOON format (~50-60% token savings)')
+          result
+        else # :json
+          result = build_collection_response(tables, :tables)
+          track_response_size(result, message)
+        end
       end
 
       public

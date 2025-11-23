@@ -1,18 +1,20 @@
 # frozen_string_literal: true
 
+require_relative 'toon_formatter'
+
 module SmartSuite
   # Response formatting module
   #
   # Contains formatters for optimizing API responses to minimize token usage.
-  # Implements aggressive filtering and plain text formatting strategies.
+  # Implements aggressive filtering and TOON formatting strategies.
   module Formatters
     # ResponseFormatter handles aggressive response filtering to minimize token usage.
     #
     # This module implements the core token optimization strategy:
     # - Filters table field structures (saves ~80% tokens)
-    # - Filters record responses and formats as plain text (saves ~40% tokens)
+    # - Filters record responses and formats as TOON (saves ~50-60% tokens)
     # - Generates summary statistics instead of full data
-    # - Truncates long field values
+    # - Processes SmartDoc fields to extract only HTML content
     # - Estimates token usage for logging
     #
     # All methods prioritize minimizing Claude's context window consumption.
@@ -88,68 +90,75 @@ module SmartSuite
 
       # Filters and formats record list responses for minimal token usage.
       #
-      # Applies field filtering, converts to plain text format (saves ~40% tokens vs JSON),
+      # Applies field filtering, converts to optimized format (saves ~50-60% tokens vs JSON),
       # and logs token reduction metrics. Always includes total vs filtered record counts.
+      #
+      # Supports two output formats:
+      # - TOON (default): Token-Oriented Object Notation (~50-60% savings)
+      # - JSON: Standard JSON output
       #
       # @param response [Hash] Raw API response with 'items' array
       # @param fields [Array<String>, nil] Field slugs to include
-      # @param plain_text [Boolean] Format as plain text instead of JSON (default: false)
+      # @param toon [Boolean] Format as TOON for maximum token savings (default: false)
       # @param hydrated [Boolean] Whether response includes hydrated values (informational only)
-      # @return [String, Hash] Plain text string or filtered JSON hash
-      def filter_records_response(response, fields, plain_text: false, hydrated: true)
+      # @return [String, Hash] Formatted string (toon) or filtered JSON hash
+      def filter_records_response(response, fields, toon: false, hydrated: true)
         return response unless response.is_a?(Hash) && response['items'].is_a?(Array)
 
-        # Calculate original size in tokens (approximate)
-        original_json = JSON.generate(response)
-        original_tokens = estimate_tokens(original_json)
+        original_tokens = estimate_tokens(JSON.generate(response))
+        filtered_items = filter_items(response['items'], fields)
+        filtered_count = response['filtered_count'] || response['total_count']
 
-        filtered_items = response['items'].map do |record|
-          if fields && !fields.empty?
-            # If specific fields requested, only return those + id/title
-            requested_fields = (fields + %w[id title]).uniq
-            filter_record_fields(record, requested_fields)
-          else
-            # Default: only id and title (minimal context usage)
-            filter_record_fields(record, %w[id title])
-          end
+        if toon
+          format_as_toon_response(filtered_items, response, original_tokens, filtered_count)
+        else
+          format_as_json_response(filtered_items, response, original_tokens)
         end
+      end
 
-        # Format as plain text to save ~40% tokens vs JSON
-        if plain_text
-          filtered_count = response['filtered_count'] || response['total_count']
-          result_text = format_as_plain_text(filtered_items, response['total_count'], filtered_count)
-          tokens = estimate_tokens(result_text)
-          reduction_percent = ((original_tokens - tokens).to_f / original_tokens * 100).round(1)
+      private
 
-          if filtered_count && filtered_count < response['total_count']
-            log_metric("✓ Found #{filtered_items.size} records (#{filtered_count} matching filter from #{response['total_count']} total)")
-          else
-            log_metric("✓ Found #{filtered_items.size} of #{response['total_count']} total records (plain text)")
-          end
-          log_metric("📊 #{original_tokens} → #{tokens} tokens (saved #{reduction_percent}%)")
-          log_token_usage(tokens)
-
-          return result_text
+      # Filter items based on requested fields
+      def filter_items(items, fields)
+        items.map do |record|
+          requested_fields = fields&.any? ? (fields + %w[id title]).uniq : %w[id title]
+          filter_record_fields(record, requested_fields)
         end
+      end
 
-        # JSON format (for backward compatibility)
-        result = {
-          'items' => filtered_items,
-          'total_count' => response['total_count'],
-          'count' => filtered_items.size
-        }
-
-        # Calculate filtered size in tokens and log reduction
-        filtered_json = JSON.generate(result)
-        filtered_tokens = estimate_tokens(filtered_json)
-        reduction_percent = ((original_tokens - filtered_tokens).to_f / original_tokens * 100).round(1)
-
-        log_metric("✓ Found #{result['count']} of #{response['total_count']} total records")
-        log_metric("📊 #{original_tokens} → #{filtered_tokens} tokens (saved #{reduction_percent}%)")
-        log_token_usage(filtered_tokens)
-
+      # Format response as TOON
+      def format_as_toon_response(items, response, original_tokens, filtered_count)
+        result = ToonFormatter.format_records(items, total_count: response['total_count'], filtered_count: filtered_count)
+        log_format_metrics(items.size, response['total_count'], filtered_count, original_tokens, result, 'TOON')
         result
       end
+
+      # Format response as JSON
+      def format_as_json_response(items, response, original_tokens)
+        result = { 'items' => items, 'total_count' => response['total_count'], 'count' => items.size }
+        tokens = estimate_tokens(JSON.generate(result))
+        reduction = ((original_tokens - tokens).to_f / original_tokens * 100).round(1)
+        log_metric("✓ Found #{items.size} of #{response['total_count']} total records")
+        log_metric("📊 #{original_tokens} → #{tokens} tokens (saved #{reduction}%)")
+        log_token_usage(tokens)
+        result
+      end
+
+      # Log format metrics consistently
+      def log_format_metrics(count, total, filtered, original_tokens, result, format_name)
+        tokens = estimate_tokens(result)
+        reduction = ((original_tokens - tokens).to_f / original_tokens * 100).round(1)
+        msg = if filtered && filtered < total
+                "#{count} records (#{filtered} matching filter from #{total} total)"
+              else
+                "#{count} of #{total} total records (#{format_name})"
+              end
+        log_metric("✓ Found #{msg}")
+        log_metric("📊 #{original_tokens} → #{tokens} tokens (saved #{reduction}%)")
+        log_token_usage(tokens)
+      end
+
+      public
 
       # Estimates token count for text.
       #
@@ -220,55 +229,6 @@ module SmartSuite
         log_token_usage(tokens)
 
         result
-      end
-
-      # Formats records as human-readable plain text.
-      #
-      # Converts record array to indented text format. Saves ~40% tokens
-      # compared to JSON representation.
-      #
-      # @param records [Array<Hash>] Filtered record data
-      # @param total_count [Integer, nil] Total record count (all records in table)
-      # @param filtered_count [Integer, nil] Count after filtering (before limit/offset)
-      # @return [String] Plain text formatted records
-      def format_as_plain_text(records, total_count, filtered_count = nil)
-        filtered_count ||= total_count
-
-        if records.empty?
-          if filtered_count && filtered_count < total_count
-            return "No records found in displayed page (0 shown from #{filtered_count} matching filter, #{total_count} total)."
-          end
-
-          return "No records found (0 of #{total_count || 0} total)."
-
-        end
-
-        lines = []
-        lines << if filtered_count && filtered_count < total_count
-                   "=== Showing #{records.size} of #{filtered_count} filtered records (#{total_count} total) ==="
-                 else
-                   "=== Showing #{records.size} of #{total_count || records.size} total records ==="
-                 end
-        lines << ''
-
-        records.each_with_index do |record, index|
-          lines << "Record #{index + 1}:"
-          record.each do |key, value|
-            # Format value appropriately - values are already truncated by truncate_value
-            formatted_value = case value
-                              when Hash
-                                value.inspect
-                              when Array
-                                value.join(', ')
-                              else
-                                value.to_s
-                              end
-            lines << "  #{key}: #{formatted_value}"
-          end
-          lines << ''
-        end
-
-        lines.join("\n")
       end
 
       # Filters a record to only include specified fields.
