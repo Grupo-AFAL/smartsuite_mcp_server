@@ -142,7 +142,7 @@ class ToonFormatterTest < Minitest::Test
     )
 
     assert result.is_a?(String)
-    # Pipe delimiter should be used in the output
+    # Pipe delimiter should be used in the output (including header notation)
     assert_includes result, 'records[1|]'
   end
 

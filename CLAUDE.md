@@ -376,7 +376,7 @@ Each solution includes:
 - `sort` (optional): Sort criteria (array of {field, direction} pairs)
 - `fields` (required): Array of field slugs to return (e.g., `['status', 'priority']`)
 - `hydrated` (default: true): Fetch human-readable values for linked records, users, etc.
-- `format` (default: `:toon`): Output format - `:toon` (TOON, ~50-60% savings), `:plain_text` (~40% savings), or `:json`
+- `format` (default: `:toon`): Output format - `:toon` (TOON, ~50-60% savings) or `:json`
 
 **Behavior:**
 - Filters, sorts, limits, and offsets work consistently regardless of cache state
@@ -401,7 +401,7 @@ Each solution includes:
 list_records('tbl_123', 10, 0, fields: ['status', 'priority', 'assigned_to'])
 
 # Explicit format selection
-list_records('tbl_123', 10, 0, fields: ['status'], format: :plain_text)
+list_records('tbl_123', 10, 0, fields: ['status'], format: :toon)
 list_records('tbl_123', 10, 0, fields: ['status'], format: :json)
 
 # Returns error - missing fields
