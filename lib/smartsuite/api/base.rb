@@ -261,18 +261,11 @@ module SmartSuite
       #   cached = with_cache_check('tables', nil, bypass: fields&.any?) do
       #     @cache.get_cached_table_list(solution_id)
       #   end
-      def with_cache_check(resource_type, cache_key = nil, bypass: false)
+      def with_cache_check(_resource_type, _cache_key = nil, bypass: false)
         return nil if should_bypass_cache? || bypass
 
-        cached_data = yield
-        if cached_data
-          count = cached_data.respond_to?(:size) ? cached_data.size : 1
-          log_cache_hit(resource_type, count, cache_key)
-          cached_data
-        else
-          log_cache_miss(resource_type, cache_key)
-          nil
-        end
+        # Cache layer logs hits/misses, so we just return the data
+        yield
       end
 
       # Extract items from response, handling both Array and Hash formats.
