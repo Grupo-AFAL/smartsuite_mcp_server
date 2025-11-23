@@ -220,6 +220,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **`warm_cache` tool** - Removed unused cache warming functionality
+  - Tool, server handler, client method, and tests all removed
+  - Cache is automatically populated on first table access
+  - Use `list_records` with minimal fields to manually pre-populate cache if needed
+
 - **Obsolete documentation files**
   - `RELEASE_CHECKLIST_v1.9.0.md` - Version 1.9 already released
   - `REFACTORING_REPORT.md` - Recommendations already implemented

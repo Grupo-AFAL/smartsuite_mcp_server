@@ -417,33 +417,6 @@ class TestIntegration < Minitest::Test
     puts "  #{result['message']}"
   end
 
-  def test_cache_warm
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
-    skip 'Cache not enabled' unless @client.cache_enabled?
-
-    # Get first table to warm
-    tables = @client.list_tables
-    skip 'No tables to warm' if tables['count'].zero?
-
-    table_id = tables['tables'].first['id']
-
-    result = @client.warm_cache(tables: [table_id])
-
-    assert result.is_a?(Hash), 'Expected Hash response'
-    assert_equal 'completed', result['status'], 'Expected status=completed'
-    assert_equal 'warm', result['operation'], 'Expected operation=warm'
-    assert result.key?('summary'), "Missing 'summary' key"
-    assert result.key?('results'), "Missing 'results' key"
-    assert result.key?('timestamp'), "Missing 'timestamp' key"
-
-    summary = result['summary']
-    puts "\n✓ Cache warming completed"
-    puts "  Total tables: #{summary['total_tables']}"
-    puts "  Warmed: #{summary['warmed']}"
-    puts "  Skipped: #{summary['skipped']}"
-    puts "  Errors: #{summary['errors']}"
-  end
-
   # ==================== API Stats Tests ====================
 
   def test_stats_get_api_stats
