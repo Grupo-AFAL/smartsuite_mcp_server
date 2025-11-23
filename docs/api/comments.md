@@ -33,31 +33,18 @@ list_comments('rec_68e3d5fb98c0282a4f1e2614')
 
 ### Response Format
 
+Default TOON format:
+
 ```
-=== COMMENTS ON RECORD rec_68e3d5fb98c0282a4f1e2614 (5 total) ===
-
---- Comment 1 of 5 ---
-id: comment_123abc
-key: 1
-created_on: 2025-01-10T14:30:00Z
-member: user_abc123 (John Doe)
-message: Started working on this task
-assigned_to: null
-followers: []
-reactions: []
-
---- Comment 2 of 5 ---
-id: comment_456def
-key: 2
-created_on: 2025-01-11T09:15:00Z
-member: user_def456 (Jane Smith)
-message: Need clarification on requirements
-assigned_to: user_abc123
-followers: [user_abc123]
-reactions: [👍, ❤️]
-
+5 of 5 filtered (5 total)
+comments[5]{id|key|created_on|member|message|assigned_to}:
+comment_123abc|1|2025-01-10T14:30:00Z|user_abc123|Started working on this task|
+comment_456def|2|2025-01-11T09:15:00Z|user_def456|Need clarification on requirements|user_abc123
+comment_789ghi|3|2025-01-12T11:00:00Z|user_abc123|Updated status|
 [... etc]
 ```
+
+Use `format: "json"` for full response including followers and reactions arrays.
 
 ### Comment Information
 

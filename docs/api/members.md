@@ -36,27 +36,18 @@ list_members
 
 ### Response Format
 
+Default TOON format (50-60% token savings):
+
 ```
-=== MEMBERS (45 total) ===
-
---- Member 1 of 45 ---
-id: user_abc123def456
-email: john.doe@example.com
-first_name: John
-last_name: Doe
-role: Member
-status: active
-
---- Member 2 of 45 ---
-id: user_789ghi012jkl
-email: jane.smith@example.com
-first_name: Jane
-last_name: Smith
-role: Admin
-status: active
-
+45 of 45 filtered (45 total)
+members[45]{id|email|first_name|last_name|role|status}:
+user_abc123def456|john.doe@example.com|John|Doe|Member|active
+user_789ghi012jkl|jane.smith@example.com|Jane|Smith|Admin|active
+user_345mno678pqr|bob.wilson@example.com|Bob|Wilson|Member|active
 [... etc]
 ```
+
+Use `format: "json"` for JSON output if needed.
 
 ### With Pagination
 
@@ -169,33 +160,17 @@ search_member('smith')
 
 ### Response Format
 
+Default TOON format:
+
 ```
-=== MEMBER SEARCH RESULTS (3 matching "smith") ===
-
---- Member 1 of 3 ---
-id: user_abc123
-email: john.smith@example.com
-first_name: John
-last_name: Smith
-role: Member
-status: active
-
---- Member 2 of 3 ---
-id: user_def456
-email: jane.smithson@example.com
-first_name: Jane
-last_name: Smithson
-role: Admin
-status: active
-
---- Member 3 of 3 ---
-id: user_ghi789
-email: bob.jones@smith.com
-first_name: Bob
-last_name: Jones
-role: Member
-status: active
+3 of 3 filtered (3 total)
+members[3]{id|email|first_name|last_name|role|status}:
+user_abc123|john.smith@example.com|John|Smith|Member|active
+user_def456|jane.smithson@example.com|Jane|Smithson|Admin|active
+user_ghi789|bob.jones@smith.com|Bob|Jones|Member|active
 ```
+
+Use `format: "json"` for JSON output if needed.
 
 ### Search Behavior
 
@@ -267,25 +242,18 @@ list_teams
 
 ### Response Format
 
+Default TOON format:
+
 ```
-=== TEAMS (8 total) ===
-
---- Team 1 of 8 ---
-id: team_abc123
-name: Engineering
-description: Engineering team members
-member_count: 12
-created: 2024-01-15T10:30:00Z
-
---- Team 2 of 8 ---
-id: team_def456
-name: Sales
-description: Sales team members
-member_count: 8
-created: 2024-02-01T14:22:00Z
-
+8 of 8 filtered (8 total)
+teams[8]{id|name|description|member_count|created}:
+team_abc123|Engineering|Engineering team members|12|2024-01-15T10:30:00Z
+team_def456|Sales|Sales team members|8|2024-02-01T14:22:00Z
+team_ghi789|Marketing|Marketing team|6|2024-03-10T09:00:00Z
 [... etc]
 ```
+
+Use `format: "json"` for JSON output if needed.
 
 ### Team Information
 
@@ -345,35 +313,20 @@ get_team('team_abc123def456')
 
 ### Response Format
 
+Default TOON format:
+
 ```
-=== TEAM DETAILS ===
+team{id|name|description}:
+team_abc123def456|Engineering Team|All engineering department members
 
-id: team_abc123def456
-name: Engineering Team
-description: All engineering department members
-
-Members (12):
-
---- Member 1 ---
-id: user_123abc
-email: john.doe@example.com
-first_name: John
-last_name: Doe
-role: Member
-
---- Member 2 ---
-id: user_456def
-email: jane.smith@example.com
-first_name: Jane
-last_name: Smith
-role: Admin
-
+members[12]{id|email|first_name|last_name|role}:
+user_123abc|john.doe@example.com|John|Doe|Member
+user_456def|jane.smith@example.com|Jane|Smith|Admin
+user_789ghi|bob.wilson@example.com|Bob|Wilson|Member
 [... etc]
-
-Permissions:
-  Solutions: 5
-  Tables: 15
 ```
+
+Use `format: "json"` for full JSON response with nested permissions.
 
 ### Team Information
 

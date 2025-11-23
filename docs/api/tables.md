@@ -35,21 +35,18 @@ list_tables
 
 ### Response Format
 
+Default TOON format (50-60% token savings):
+
 ```
-=== TABLES (25 total) ===
-
---- Table 1 of 25 ---
-id: tbl_123abc456def
-name: Customers
-solution_id: sol_xyz789
-
---- Table 2 of 25 ---
-id: tbl_789ghi012jkl
-name: Orders
-solution_id: sol_xyz789
-
+25 of 25 filtered (25 total)
+tables[25]{id|name|solution_id}:
+tbl_123abc456def|Customers|sol_xyz789
+tbl_789ghi012jkl|Orders|sol_xyz789
+tbl_345mno678pqr|Products|sol_xyz789
 [... etc]
 ```
+
+Use `format: "json"` for JSON output if needed.
 
 ### Filter by Solution
 
@@ -61,18 +58,11 @@ list_tables(solution_id: 'sol_xyz789')
 Returns:
 
 ```
-=== TABLES in solution sol_xyz789 (5 total) ===
-
---- Table 1 of 5 ---
-id: tbl_123abc
-name: Customers
-solution_id: sol_xyz789
-
---- Table 2 of 5 ---
-id: tbl_456def
-name: Orders
-solution_id: sol_xyz789
-
+5 of 5 filtered (5 total)
+tables[5]{id|name|solution_id}:
+tbl_123abc|Customers|sol_xyz789
+tbl_456def|Orders|sol_xyz789
+tbl_789ghi|Products|sol_xyz789
 [... etc]
 ```
 

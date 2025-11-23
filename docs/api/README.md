@@ -82,7 +82,7 @@ Core data operations with intelligent caching.
 **Key features:**
 - Cache-first strategy (4-hour TTL)
 - Local SQL filtering on cached data
-- Plain text responses (60%+ token savings)
+- TOON format responses (50-60% token savings)
 - Required field selection
 - Pagination support
 
@@ -263,27 +263,23 @@ list_records('tbl_123', 10, 0,
 
 ## Response Formats
 
-### Plain Text (Token-Optimized)
+### TOON Format (Token-Optimized)
 
-Most operations return plain text instead of JSON for 30-50% token savings:
+Most list operations return TOON (Token-Oriented Object Notation) format by default for 50-60% token savings:
 
 ```
-=== RECORDS (10 of 127 total) ===
-
---- Record 1 of 10 ---
-id: rec_123abc
-title: Q4 Planning
-status: Active
-priority: High
-
---- Record 2 of 10 ---
-id: rec_456def
-title: Budget Review
-status: Pending
-priority: Medium
-
-[... etc]
+3 of 127 filtered (127 total)
+records[3]{id|title|status|priority}:
+rec_123abc|Q4 Planning|Active|High
+rec_456def|Budget Review|Pending|Medium
+rec_789ghi|Team Sync|Active|Low
 ```
+
+**Why TOON?**
+- Tabular format eliminates repetitive field names
+- 50-60% fewer tokens than JSON
+- Claude parses it accurately
+- Use `format: "json"` parameter if you need JSON output
 
 ### Structured Information
 
