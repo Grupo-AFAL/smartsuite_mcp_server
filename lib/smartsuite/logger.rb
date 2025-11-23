@@ -273,17 +273,11 @@ module SmartSuite
         log(:info, msg, category: :cache, override_color: op_color)
       end
 
-      # Get color for cache operation
-      # @param operation [String] operation type
+      # Get color for cache operation - all cache logs use purple/magenta
+      # @param _operation [String] operation type (unused, all cache logs are purple)
       # @return [String] ANSI color code
-      def cache_operation_color(operation)
-        case operation
-        when 'HIT' then "#{BOLD}#{BRIGHT_GREEN}"
-        when 'MISS', 'EXPIRED' then "#{BOLD}#{BRIGHT_YELLOW}"
-        when 'INVALIDATE', 'DELETE' then "#{BOLD}#{BRIGHT_RED}"
-        when 'STORE', 'POPULATE' then "#{BOLD}#{BRIGHT_BLUE}"
-        else "#{BOLD}#{BRIGHT_MAGENTA}"
-        end
+      def cache_operation_color(_operation)
+        "#{BOLD}#{BRIGHT_MAGENTA}"
       end
 
       # Log cache query

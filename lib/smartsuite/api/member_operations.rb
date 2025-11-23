@@ -273,13 +273,10 @@ module SmartSuite
       # @param team_id [String] Team identifier
       # @return [Hash, nil] Raw team object or nil if not found
       def fetch_team_by_id(team_id)
-        # Try to get specific team from cache first
+        # Try to get specific team from cache first (cache layer logs hits)
         unless should_bypass_cache?
           cached_team = @cache.get_cached_team(team_id)
-          if cached_team
-            log_cache_hit('team', team_id)
-            return cached_team
-          end
+          return cached_team if cached_team
         end
 
         # Fetch all teams (which will cache them) and find the specific one
