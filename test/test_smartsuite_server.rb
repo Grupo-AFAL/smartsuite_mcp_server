@@ -2759,26 +2759,8 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   # ==========================================
-  # Tests for log_metric method
-  # ==========================================
-
-  def test_log_metric_writes_to_metrics_log
-    metrics_log = @server.instance_variable_get(:@metrics_log)
-    # Get the metrics log path
-    metrics_path = metrics_log.path
-
-    # Call log_metric
-    @server.send(:log_metric, 'Test metric entry')
-
-    # Read the file to verify the entry was written
-    content = File.read(metrics_path)
-    assert_includes content, 'Test metric entry'
-    # Should include a timestamp
-    assert_match(/\[\d{2}:\d{2}:\d{2}\]/, content)
-  end
-
-  # ==========================================
   # Tests for handle_request routing
+  # (Note: log_metric tests removed - server now uses SmartSuite::Logger)
   # ==========================================
 
   def test_handle_request_routes_to_initialize

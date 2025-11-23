@@ -2,7 +2,7 @@
 
 require 'aws-sdk-s3'
 require 'securerandom'
-require_relative 'query_logger'
+require_relative 'smartsuite/logger'
 
 # SecureFileAttacher provides a secure way to attach local files to SmartSuite records.
 #
@@ -330,9 +330,9 @@ class SecureFileAttacher
     warn "[SecureFileAttacher] #{message}"
   end
 
-  # S3 action logging - uses QueryLogger for consistent logging to queries log
+  # S3 action logging - uses unified logger
   def log_s3(action, message)
-    QueryLogger.log_s3_operation(action, message)
+    SmartSuite::Logger.s3(action, message)
   end
 
   # Simple error logging

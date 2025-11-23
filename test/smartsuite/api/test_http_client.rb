@@ -2,6 +2,7 @@
 
 require_relative '../../test_helper'
 require_relative '../../../lib/smartsuite/api/http_client'
+require_relative '../../../lib/smartsuite/logger'
 require 'webmock/minitest'
 require 'stringio'
 
@@ -273,17 +274,22 @@ class TestHttpClient < Minitest::Test
     assert_equal 42.5, result['number']
   end
 
-  # Test log_metric
+  # Test log_metric delegates to SmartSuite::Logger
   def test_log_metric
+    SmartSuite::Logger.reset!
+    log_file = SmartSuite::Logger.log_file_path
+
     @client.log_metric('Test message')
 
-    output = @client.metrics_log.string
+    output = File.read(log_file)
     assert_includes output, 'Test message', 'Log should contain message'
-    assert_match(/\[\d{2}:\d{2}:\d{2}\]/, output, 'Log should contain timestamp')
+    assert_match(/\[\d{4}-\d{2}-\d{2}/, output, 'Log should contain timestamp')
   end
 
-  # Test log_token_usage
+  # Test log_token_usage updates token count and logs
   def test_log_token_usage
+    SmartSuite::Logger.reset!
+    log_file = SmartSuite::Logger.log_file_path
     @client.total_tokens_used = 1000
     @client.context_limit = 200_000
 
@@ -291,7 +297,7 @@ class TestHttpClient < Minitest::Test
 
     assert_equal 1500, @client.total_tokens_used, 'Should update total tokens'
 
-    output = @client.metrics_log.string
+    output = File.read(log_file)
     assert_includes output, '+500', 'Should log tokens used'
     assert_includes output, '1500', 'Should log total'
     assert_includes output, '198500', 'Should log remaining (200000 - 1500)'
@@ -299,12 +305,14 @@ class TestHttpClient < Minitest::Test
 
   # Test log_token_usage at context limit
   def test_log_token_usage_near_limit
+    SmartSuite::Logger.reset!
+    log_file = SmartSuite::Logger.log_file_path
     @client.total_tokens_used = 199_900
     @client.context_limit = 200_000
 
     @client.log_token_usage(50)
 
-    output = @client.metrics_log.string
+    output = File.read(log_file)
     assert_includes output, 'Remaining: 50'
   end
 
