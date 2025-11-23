@@ -159,18 +159,14 @@ module SmartSuite
       #
       # @param solutions [Array<Hash>] Filtered solutions data
       # @param format [Symbol] Output format (:toon or :json)
-      # @param message [String] Log message
+      # @param message [String] Log message (unused for TOON, count is already logged by cache)
       # @return [String, Hash] Formatted output
-      def format_solutions_output(solutions, format, message)
+      def format_solutions_output(solutions, format, _message)
         case format
         when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format_solutions(solutions)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format_solutions(solutions)
         else # :json
-          result = build_collection_response(solutions, :solutions)
-          track_response_size(result, message)
+          build_collection_response(solutions, :solutions)
         end
       end
 

@@ -107,16 +107,12 @@ module SmartSuite
       # @param format [Symbol] Output format (:toon or :json)
       # @param message [String] Log message
       # @return [String, Hash] Formatted output
-      def format_tables_output(tables, format, message)
+      def format_tables_output(tables, format, _message)
         case format
         when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format_tables(tables)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format_tables(tables)
         else # :json
-          result = build_collection_response(tables, :tables)
-          track_response_size(result, message)
+          build_collection_response(tables, :tables)
         end
       end
 

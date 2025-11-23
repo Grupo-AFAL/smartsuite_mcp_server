@@ -57,17 +57,12 @@ module SmartSuite
       def format_view_records_output(response, format)
         records = response['records']
         record_count = records.size
-        message = "Retrieved #{record_count} records for view"
 
         case format
         when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format_records(records, total_count: record_count)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format_records(records, total_count: record_count)
         else # :json
-          log_metric("✓ #{message}")
-          track_response_size(response, message)
+          response
         end
       end
 

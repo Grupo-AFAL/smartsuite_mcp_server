@@ -611,16 +611,11 @@ module SmartSuite
       # @param format [Symbol] Output format (:toon or :json)
       # @return [String, Array<Hash>] Formatted output
       def format_deleted_records_output(records, format)
-        message = "Found #{records.size} deleted records"
-
         case format
         when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format(records)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format(records)
         else # :json
-          track_response_size(records, message)
+          records
         end
       end
 
