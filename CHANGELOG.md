@@ -229,6 +229,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `RELEASE_CHECKLIST_v1.9.0.md` - Version 1.9 already released
   - `REFACTORING_REPORT.md` - Recommendations already implemented
   - `docs/ROADMAP_RECOMMENDATIONS.md` - Duplicated and outdated content
+  - `docs/architecture/response-formats-analysis.md` - Planning doc, recommendations implemented
+  - `docs/analysis/toon_format_evaluation.md` - Decision to defer TOON superseded (TOON now implemented)
+  - `docs/analysis/` directory - Empty after above deletion
 
 - **Removed `plain_text` format option** - Simplified format parameter to only `:toon` (default) and `:json`
   - `:plain_text` format was removed from all list tools (`list_records`, `list_solutions`, `list_tables`, `list_members`, `list_teams`, `list_solutions_by_owner`)
