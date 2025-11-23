@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **TOON format is now default for all list tools** - Standardized token-optimized output across all listing operations
+  - TOON (Token-Oriented Object Notation) is now the **default format** for ALL list operations
+  - Provides ~50-60% token savings compared to JSON for structured data
+  - Uses tabular format for uniform arrays, reducing repetitive field names
+  - **Simplified format options**: Only `:toon` (default) and `:json` - removed `:plain_text` format
+  - New `format` parameter added to all list tools:
+    - `list_records`: `:toon` (default) or `:json`
+    - `list_solutions`: `:toon` (default) or `:json`
+    - `list_tables`: `:toon` (default) or `:json`
+    - `list_members`: `:toon` (default) or `:json`
+    - `list_teams`: `:toon` (default) or `:json`
+    - `list_solutions_by_owner`: `:toon` (default) or `:json`
+    - `search_member`: `:toon` (default) or `:json`
+    - `list_comments`: `:toon` (default) or `:json`
+    - `list_deleted_records`: `:toon` (default) or `:json`
+    - `get_view_records`: `:toon` (default) or `:json`
+  - `ToonFormatter` module (`lib/smartsuite/formatters/toon_formatter.rb`) with specialized formatters:
+    - `format_records` - Format record lists with counts header
+    - `format_record` - Format single record
+    - `format_solutions`, `format_tables`, `format_members` - Specialized formatters
+    - `format` - Generic TOON encoding for any data
+  - Tool schemas updated with `format` parameter enum
+  - Internal methods that require hash responses use `:json` format internally
+  - Server properly handles string responses (TOON) without re-encoding as JSON
+
 - **AWS profile support for S3 credentials** - `SMARTSUITE_AWS_PROFILE` environment variable for credential isolation
   - Recommended approach for security: use dedicated AWS profile instead of shared environment variables
   - Profile references credentials in `~/.aws/credentials` file
@@ -181,6 +206,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prevents confusion where AI would use `resource: "solutions"` (all solutions) instead of `resource: "tables", solution_id: "X"` (one solution)
 
 ### Removed
+
+- **Removed `plain_text` format option** - Simplified format parameter to only `:toon` (default) and `:json`
+  - `:plain_text` format was removed from all list tools (`list_records`, `list_solutions`, `list_tables`, `list_members`, `list_teams`, `list_solutions_by_owner`)
+  - TOON format provides better token savings (~50-60%) than plain_text (~40%)
+  - Reduces code complexity by having only two format options
+  - Existing code using `format: :plain_text` should switch to `format: :toon` (or remove the parameter to use default)
 
 ### Fixed
 

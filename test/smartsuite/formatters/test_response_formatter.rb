@@ -137,7 +137,7 @@ class TestResponseFormatter < Minitest::Test
       'total_count' => 2
     }
 
-    result = filter_records_response(response, ['status'], plain_text: false)
+    result = filter_records_response(response, ['status'])
 
     assert result.is_a?(Hash), 'Should return hash in JSON format'
     assert_equal 2, result['count']
@@ -151,8 +151,8 @@ class TestResponseFormatter < Minitest::Test
     refute result['items'][0].key?('priority'), 'Should not include unrequested fields'
   end
 
-  # Test filter_records_response with plain text format
-  def test_filter_records_response_plain_text
+  # Test filter_records_response with TOON format
+  def test_filter_records_response_toon_format
     response = {
       'items' => [
         { 'id' => 'rec_1', 'title' => 'Task 1', 'status' => 'active' }
@@ -160,29 +160,12 @@ class TestResponseFormatter < Minitest::Test
       'total_count' => 1
     }
 
-    result = filter_records_response(response, ['status'], plain_text: true)
+    result = filter_records_response(response, ['status'], toon: true)
 
-    assert result.is_a?(String), 'Should return string in plain text format'
+    assert result.is_a?(String), 'Should return string in TOON format'
     assert_includes result, 'rec_1'
     assert_includes result, 'Task 1'
     assert_includes result, 'active'
-    assert_includes result, '1 of 1 total'
-  end
-
-  # Test filter_records_response with filtered count
-  def test_filter_records_response_with_filtered_count
-    response = {
-      'items' => [
-        { 'id' => 'rec_1', 'title' => 'Task 1', 'status' => 'active' }
-      ],
-      'total_count' => 100,
-      'filtered_count' => 50
-    }
-
-    result = filter_records_response(response, ['status'], plain_text: true)
-
-    assert_includes result, '50 filtered'
-    assert_includes result, '100 total'
   end
 
   # Test filter_records_response with no fields specified
@@ -194,7 +177,7 @@ class TestResponseFormatter < Minitest::Test
       'total_count' => 1
     }
 
-    result = filter_records_response(response, nil, plain_text: false)
+    result = filter_records_response(response, nil)
 
     # Should only include id and title when no fields specified
     assert result['items'][0].key?('id')
@@ -276,76 +259,6 @@ class TestResponseFormatter < Minitest::Test
     result = generate_summary('not a hash')
 
     assert_equal 'not a hash', result, 'Should return input unchanged for invalid response'
-  end
-
-  # Test format_as_plain_text with records
-  def test_format_as_plain_text_with_records
-    records = [
-      { 'id' => 'rec_1', 'title' => 'Task 1', 'status' => 'active' },
-      { 'id' => 'rec_2', 'title' => 'Task 2', 'status' => 'pending' }
-    ]
-
-    result = format_as_plain_text(records, 2)
-
-    assert_includes result, 'Showing 2 of 2 total'
-    assert_includes result, 'Record 1:'
-    assert_includes result, 'rec_1'
-    assert_includes result, 'Task 1'
-    assert_includes result, 'active'
-    assert_includes result, 'Record 2:'
-    assert_includes result, 'rec_2'
-    assert_includes result, 'pending'
-  end
-
-  # Test format_as_plain_text with filtered count
-  def test_format_as_plain_text_with_filtered_count
-    records = [
-      { 'id' => 'rec_1', 'title' => 'Task 1' }
-    ]
-
-    result = format_as_plain_text(records, 100, 50)
-
-    assert_includes result, 'Showing 1 of 50 filtered'
-    assert_includes result, '100 total'
-  end
-
-  # Test format_as_plain_text with empty records
-  def test_format_as_plain_text_empty
-    result = format_as_plain_text([], 0)
-
-    assert_includes result, 'No records found'
-    assert_includes result, '0 of 0 total'
-  end
-
-  # Test format_as_plain_text with empty records but total > 0
-  def test_format_as_plain_text_empty_with_total
-    result = format_as_plain_text([], 100, 50)
-
-    assert_includes result, 'No records found in displayed page'
-    assert_includes result, '50 matching filter'
-    assert_includes result, '100 total'
-  end
-
-  # Test format_as_plain_text with array values
-  def test_format_as_plain_text_with_arrays
-    records = [
-      { 'id' => 'rec_1', 'tags' => %w[urgent bug] }
-    ]
-
-    result = format_as_plain_text(records, 1)
-
-    assert_includes result, 'tags: urgent, bug'
-  end
-
-  # Test format_as_plain_text with hash values
-  def test_format_as_plain_text_with_hashes
-    records = [
-      { 'id' => 'rec_1', 'metadata' => { 'key' => 'value' } }
-    ]
-
-    result = format_as_plain_text(records, 1)
-
-    assert_includes result, 'metadata: '
   end
 
   # Test filter_record_fields

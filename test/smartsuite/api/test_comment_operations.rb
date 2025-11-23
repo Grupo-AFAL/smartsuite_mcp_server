@@ -13,7 +13,7 @@ class TestCommentOperations < Minitest::Test
 
   def test_list_comments_success
     record_id = 'rec123'
-    expected_response = [
+    comments = [
       {
         'id' => 'comment1',
         'message' => {
@@ -47,18 +47,20 @@ class TestCommentOperations < Minitest::Test
         'created_on' => '2025-01-02T10:00:00Z'
       }
     ]
+    # API returns hash with 'results' key
+    expected_response = { 'results' => comments, 'count' => nil }
 
     # Mock api_request method
     @client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
       expected_response
     end
 
-    result = @client.list_comments(record_id)
+    result = @client.list_comments(record_id, format: :json)
 
-    assert_equal 2, result.length
-    assert_equal 'comment1', result[0]['id']
-    assert_equal 'comment2', result[1]['id']
-    assert_equal 'First comment', result[0]['message']['data']['content'][0]['content'][0]['text']
+    assert_equal 2, result['count']
+    assert_equal 'comment1', result['results'][0]['id']
+    assert_equal 'comment2', result['results'][1]['id']
+    assert_equal 'First comment', result['results'][0]['message']['data']['content'][0]['content'][0]['text']
   end
 
   def test_list_comments_missing_record_id
@@ -199,7 +201,7 @@ class TestCommentOperations < Minitest::Test
     @client.define_singleton_method(:api_request) do |method, endpoint, _body = nil|
       endpoint_called = endpoint
       method_called = method
-      []
+      { 'results' => [], 'count' => nil }
     end
 
     @client.list_comments(record_id)

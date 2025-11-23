@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'base'
+require_relative '../formatters/toon_formatter'
 
 module SmartSuite
   module API
@@ -23,12 +24,13 @@ module SmartSuite
       # @param table_id [String] Table identifier
       # @param view_id [String] View (report) identifier
       # @param with_empty_values [Boolean] Whether to include empty field values (default: false)
-      # @return [Hash] Records array with view configuration
+      # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
+      # @return [String, Hash] TOON string or JSON hash depending on format
       # @raise [ArgumentError] If required parameters are missing
       # @example
       #   get_view_records("tbl_123", "view_456")
-      #   get_view_records("tbl_123", "view_456", with_empty_values: true)
-      def get_view_records(table_id, view_id, with_empty_values: false)
+      #   get_view_records("tbl_123", "view_456", format: :json)
+      def get_view_records(table_id, view_id, with_empty_values: false, format: :toon)
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('view_id', view_id)
 
@@ -40,13 +42,36 @@ module SmartSuite
 
         response = api_request(:get, endpoint)
 
-        if response.is_a?(Hash)
-          record_count = response['records']&.size || 0
-          log_metric("✓ Retrieved #{record_count} records for view")
-        end
+        return response unless response.is_a?(Hash) && response['records'].is_a?(Array)
 
-        response
+        format_view_records_output(response, format)
       end
+
+      private
+
+      # Format view records output based on format parameter
+      #
+      # @param response [Hash] API response with records array
+      # @param format [Symbol] Output format (:toon or :json)
+      # @return [String, Hash] Formatted output
+      def format_view_records_output(response, format)
+        records = response['records']
+        record_count = records.size
+        message = "Retrieved #{record_count} records for view"
+
+        case format
+        when :toon
+          result = SmartSuite::Formatters::ToonFormatter.format_records(records, total_count: record_count)
+          log_metric("✓ #{message}")
+          log_metric('📊 TOON format (~50-60% token savings)')
+          result
+        else # :json
+          log_metric("✓ #{message}")
+          track_response_size(response, message)
+        end
+      end
+
+      public
 
       # Creates a new view (report) in a table.
       #

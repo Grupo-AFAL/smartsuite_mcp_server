@@ -39,7 +39,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_solutions
+    result = client.list_solutions(format: :json)
 
     assert result.is_a?(Hash)
     assert_equal 2, result['count']
@@ -63,7 +63,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_solutions
+    result = client.list_solutions(format: :json)
 
     solution = result['solutions'][0]
     # Essential fields should be present
@@ -90,7 +90,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_solutions(include_activity_data: true)
+    result = client.list_solutions(include_activity_data: true, format: :json)
 
     solution = result['solutions'][0]
     assert_equal 'active', solution['status']
@@ -111,7 +111,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_solutions(fields: %w[id name permissions])
+    result = client.list_solutions(fields: %w[id name permissions], format: :json)
 
     solution = result['solutions'][0]
     # Should only include requested fields
@@ -130,7 +130,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_solutions(name: 'desarrollo')
+    result = client.list_solutions(name: 'desarrollo', format: :json)
 
     # Should only match the first solution using fuzzy matching
     assert result['count'] >= 1
@@ -145,7 +145,7 @@ class TestWorkspaceOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_solutions
+    result = client.list_solutions(format: :json)
 
     assert_equal 1, result['count']
     assert_equal 'sol_1', result['solutions'][0]['id']
@@ -168,7 +168,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_solutions_by_owner('owner_1')
+    result = client.list_solutions_by_owner('owner_1', format: :json)
 
     assert_equal 1, result['count']
     assert_equal 'sol_1', result['solutions'][0]['id']
@@ -200,7 +200,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_solutions_by_owner('owner_1', include_activity_data: true)
+    result = client.list_solutions_by_owner('owner_1', include_activity_data: true, format: :json)
 
     solution = result['solutions'][0]
     assert_equal 'active', solution['status']
@@ -218,7 +218,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_solutions_by_owner('user_a')
+    result = client.list_solutions_by_owner('user_a', format: :json)
 
     # Should only return sol_1 and sol_3
     assert_equal 2, result['count']
@@ -460,7 +460,7 @@ class TestWorkspaceOperations < Minitest::Test
     ]
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_solutions
+    result = client.list_solutions(format: :json)
 
     assert_equal 1, result['count']
   end
@@ -471,8 +471,21 @@ class TestWorkspaceOperations < Minitest::Test
     }
 
     client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
-    result = client.list_solutions
+    result = client.list_solutions(format: :json)
 
     assert_equal 1, result['count']
+  end
+
+  def test_list_solutions_default_toon_format
+    expected_response = [
+      { 'id' => 'sol_1', 'name' => 'Solution 1', 'logo_icon' => 'icon1', 'logo_color' => '#FF0000' }
+    ]
+
+    client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
+    result = client.list_solutions
+
+    # Default format should be TOON (string output)
+    assert result.is_a?(String), 'Default format should be TOON (string)'
+    assert result.include?('solutions'), 'TOON output should contain solutions'
   end
 end
