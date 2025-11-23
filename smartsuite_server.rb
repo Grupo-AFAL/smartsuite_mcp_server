@@ -42,11 +42,10 @@ class SmartSuiteServer
         next
       end
 
-      # Log the tool call
+      # Log the tool call with a centered header
       if request['method'] == 'tools/call'
         tool_name = request.dig('params', 'name')
-        SmartSuite::Logger.separator
-        SmartSuite::Logger.metric("🔧 #{tool_name}")
+        SmartSuite::Logger.tool_header(tool_name)
       end
 
       response = handle_request(request)
