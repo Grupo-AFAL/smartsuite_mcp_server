@@ -126,7 +126,7 @@ module SmartSuite
 
         return response unless response.is_a?(Hash)
 
-        format_single_response(response, format, "Created view: #{response['label']} (#{response['id']})")
+        format_single_response(response, format)
       end
     end
   end

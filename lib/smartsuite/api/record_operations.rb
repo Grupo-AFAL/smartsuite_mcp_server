@@ -242,7 +242,7 @@ module SmartSuite
           record = process_smartdoc_fields(record)
         end
 
-        format_single_response(record, format, "Retrieved record: #{record_id}")
+        format_single_response(record, format)
       end
 
       # Process SmartDoc fields in a record to extract only HTML content.
@@ -330,7 +330,7 @@ module SmartSuite
             cached: @cache ? true : false
           )
         else
-          format_single_response(response, format, "Created record: #{response['id']}")
+          format_single_response(response, format)
         end
       end
 
@@ -371,7 +371,7 @@ module SmartSuite
             cached: @cache ? true : false
           )
         else
-          format_single_response(response, format, "Updated record: #{response['id']}")
+          format_single_response(response, format)
         end
       end
 
@@ -409,7 +409,7 @@ module SmartSuite
             cached: false
           )
         else
-          format_single_response(response, format, "Deleted record: #{record_id}")
+          format_single_response(response, format)
         end
       end
 
@@ -461,7 +461,7 @@ module SmartSuite
             response # Fallback if response format unexpected
           end
         else
-          format_array_response(response, format, 'records', "Bulk created #{response.length} records")
+          format_array_response(response, format, 'records')
         end
       end
 
@@ -513,7 +513,7 @@ module SmartSuite
             response # Fallback if response format unexpected
           end
         else
-          format_array_response(response, format, 'records', "Bulk updated #{response.length} records")
+          format_array_response(response, format, 'records')
         end
       end
 
@@ -555,7 +555,7 @@ module SmartSuite
             'cached' => false # Records removed from cache
           }
         else
-          format_single_response(response, format, "Bulk deleted #{record_ids.length} records")
+          format_single_response(response, format)
         end
       end
 
@@ -636,7 +636,7 @@ module SmartSuite
         validate_required_parameter!('record_id', record_id)
 
         response = api_request(:post, "/applications/#{table_id}/records/#{record_id}/restore/", {})
-        format_single_response(response, format, "Restored record: #{record_id}")
+        format_single_response(response, format)
       end
 
       # Attach files to a record by URL or local file path.

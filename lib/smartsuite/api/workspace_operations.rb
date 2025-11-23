@@ -117,8 +117,7 @@ module SmartSuite
             filtered
           end
 
-          return format_solutions_output(filtered_solutions, format,
-                                         "Found #{filtered_solutions.size} solutions with custom fields (client-side filtered)")
+          return format_solutions_output(filtered_solutions, format)
         end
 
         # Extract only essential fields to reduce response size (client-side filtering)
@@ -152,16 +151,15 @@ module SmartSuite
           base_fields
         end
 
-        format_solutions_output(solutions, format, "Found #{solutions.size} solutions")
+        format_solutions_output(solutions, format)
       end
 
       # Format solutions output based on format parameter
       #
       # @param solutions [Array<Hash>] Filtered solutions data
       # @param format [Symbol] Output format (:toon or :json)
-      # @param message [String] Log message (unused for TOON, count is already logged by cache)
       # @return [String, Hash] Formatted output
-      def format_solutions_output(solutions, format, _message)
+      def format_solutions_output(solutions, format)
         case format
         when :toon
           SmartSuite::Formatters::ToonFormatter.format_solutions(solutions)
@@ -247,7 +245,7 @@ module SmartSuite
           base_fields
         end
 
-        format_solutions_output(filtered_solutions, format, "Found #{filtered_solutions.size} solutions owned by user #{owner_id}")
+        format_solutions_output(filtered_solutions, format)
       end
 
       # Gets the most recent record update timestamp across all tables in a solution.
@@ -436,9 +434,7 @@ module SmartSuite
           'active_solutions_count' => active.size
         }
 
-        message = "Analysis complete: #{inactive.size} inactive, " \
-                  "#{potentially_unused.size} potentially unused, #{active.size} active"
-        format_single_response(result, format, message)
+        format_single_response(result, format)
       end
     end
   end

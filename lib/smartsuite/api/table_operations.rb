@@ -98,16 +98,15 @@ module SmartSuite
                    end
                  end
 
-        format_tables_output(tables, format, "Found #{tables.size} tables")
+        format_tables_output(tables, format)
       end
 
       # Format tables output based on format parameter
       #
       # @param tables [Array<Hash>] Filtered tables data
       # @param format [Symbol] Output format (:toon or :json)
-      # @param message [String] Log message
       # @return [String, Hash] Formatted output
-      def format_tables_output(tables, format, _message)
+      def format_tables_output(tables, format)
         case format
         when :toon
           SmartSuite::Formatters::ToonFormatter.format_tables(tables)
@@ -167,7 +166,7 @@ module SmartSuite
           }
         end
 
-        format_single_response(result, format, "Retrieved table: #{table_id} (#{result['structure'].length} fields)")
+        format_single_response(result, format)
       end
 
       # Creates a new table (application) in a solution.
@@ -207,7 +206,7 @@ module SmartSuite
 
         return response unless response.is_a?(Hash)
 
-        format_single_response(response, format, "Created table: #{response['name']} (#{response['id']})")
+        format_single_response(response, format)
       end
     end
   end
