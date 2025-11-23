@@ -221,9 +221,9 @@ module SmartSuite
       #   log_cache_hit('solutions', 110)
       #   log_cache_hit('tables', 25, 'sol_abc123')
       def log_cache_hit(resource_type, count, cache_key = nil)
-        msg = "✓ Cache hit: #{count} #{resource_type}"
-        msg += " (#{cache_key})" if cache_key
-        log_metric(msg)
+        details = { count: count }
+        details[:key] = cache_key if cache_key
+        SmartSuite::Logger.cache('hit', resource_type, details)
       end
 
       # Log cache miss with standardized format.
@@ -235,10 +235,9 @@ module SmartSuite
       #   log_cache_miss('solutions')
       #   log_cache_miss('tables', 'sol_abc123')
       def log_cache_miss(resource_type, cache_key = nil)
-        msg = "→ Cache miss for #{resource_type}"
-        msg += " (#{cache_key})" if cache_key
-        msg += ', fetching from API...'
-        log_metric(msg)
+        details = { status: 'fetching from API' }
+        details[:key] = cache_key if cache_key
+        SmartSuite::Logger.cache('miss', resource_type, details)
       end
 
       # Check cache and return cached data if available.
