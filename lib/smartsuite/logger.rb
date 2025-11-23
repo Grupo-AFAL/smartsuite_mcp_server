@@ -35,21 +35,44 @@ module SmartSuite
       error: 3
     }.freeze
 
-    # Log categories with their associated colors
-    CATEGORIES = {
-      api: { color: "\e[36m", prefix: 'API' },       # Cyan
-      db: { color: "\e[32m", prefix: 'DB' },         # Green
-      cache: { color: "\e[35m", prefix: 'CACHE' },   # Magenta
-      s3: { color: "\e[34m", prefix: 'S3' },         # Blue
-      server: { color: "\e[37m", prefix: 'SERVER' }, # White
-      metric: { color: "\e[33m", prefix: '📊' } # Yellow
-    }.freeze
-
-    # ANSI codes
+    # ANSI color codes
     RESET = "\e[0m"
+    BOLD = "\e[1m"
+    DIM = "\e[2m"
+
+    # Standard colors
     RED = "\e[31m"
     GREEN = "\e[32m"
     YELLOW = "\e[33m"
+    BLUE = "\e[34m"
+    MAGENTA = "\e[35m"
+    CYAN = "\e[36m"
+    WHITE = "\e[37m"
+
+    # Bright colors (more vibrant)
+    BRIGHT_RED = "\e[91m"
+    BRIGHT_GREEN = "\e[92m"
+    BRIGHT_YELLOW = "\e[93m"
+    BRIGHT_BLUE = "\e[94m"
+    BRIGHT_MAGENTA = "\e[95m"
+    BRIGHT_CYAN = "\e[96m"
+    BRIGHT_WHITE = "\e[97m"
+
+    # Background colors for emphasis
+    BG_RED = "\e[41m"
+    BG_GREEN = "\e[42m"
+    BG_YELLOW = "\e[43m"
+    BG_BLUE = "\e[44m"
+
+    # Log categories with their associated colors
+    CATEGORIES = {
+      api: { color: "#{BOLD}#{BRIGHT_CYAN}", prefix: 'API' },        # Bold Bright Cyan
+      db: { color: "#{BOLD}#{BRIGHT_GREEN}", prefix: 'DB' },         # Bold Bright Green
+      cache: { color: "#{BOLD}#{BRIGHT_MAGENTA}", prefix: 'CACHE' }, # Bold Bright Magenta
+      s3: { color: "#{BOLD}#{BRIGHT_BLUE}", prefix: 'S3' },          # Bold Bright Blue
+      server: { color: "#{BOLD}#{BRIGHT_WHITE}", prefix: 'SERVER' }, # Bold Bright White
+      metric: { color: "#{BOLD}#{BRIGHT_YELLOW}", prefix: 'METRIC' } # Bold Bright Yellow
+    }.freeze
 
     class << self
       # Get/set the current log level
@@ -241,10 +264,26 @@ module SmartSuite
       def cache(operation, table_id, details = {})
         return unless should_log?(:info)
 
-        msg = "#{operation.upcase} | Table: #{table_id}"
+        op_upper = operation.to_s.upcase
+        msg = "#{op_upper} | Table: #{table_id}"
         details.each { |k, v| msg += " | #{k}: #{v}" }
 
-        log(:info, msg, category: :cache)
+        # Use operation-specific colors
+        op_color = cache_operation_color(op_upper)
+        log(:info, msg, category: :cache, override_color: op_color)
+      end
+
+      # Get color for cache operation
+      # @param operation [String] operation type
+      # @return [String] ANSI color code
+      def cache_operation_color(operation)
+        case operation
+        when 'HIT' then "#{BOLD}#{BRIGHT_GREEN}"
+        when 'MISS', 'EXPIRED' then "#{BOLD}#{BRIGHT_YELLOW}"
+        when 'INVALIDATE', 'DELETE' then "#{BOLD}#{BRIGHT_RED}"
+        when 'STORE', 'POPULATE' then "#{BOLD}#{BRIGHT_BLUE}"
+        else "#{BOLD}#{BRIGHT_MAGENTA}"
+        end
       end
 
       # Log cache query
@@ -304,10 +343,11 @@ module SmartSuite
       # @param message [String] message to log
       # @param category [Symbol] optional category
       # @param success [Boolean] for success/failure coloring
-      def log(level, message, category: nil, success: nil)
+      # @param override_color [String] optional color override
+      def log(level, message, category: nil, success: nil, override_color: nil)
         return unless should_log?(level)
 
-        formatted = format_message(message, category: category, success: success)
+        formatted = format_message(message, category: category, success: success, override_color: override_color)
 
         # Log to file (without colors)
         file_logger.send(level, strip_colors(formatted))
@@ -319,7 +359,11 @@ module SmartSuite
       end
 
       # Format message with category prefix and colors
-      def format_message(message, category: nil, success: nil)
+      # @param message [String] message to format
+      # @param category [Symbol] optional category
+      # @param success [Boolean] for success/failure coloring
+      # @param override_color [String] optional color override
+      def format_message(message, category: nil, success: nil, override_color: nil)
         return message unless category
 
         cat_config = CATEGORIES[category]
@@ -328,13 +372,15 @@ module SmartSuite
         prefix = cat_config[:prefix]
         color = cat_config[:color]
 
-        # Override color for success/failure
-        unless success.nil?
-          color = success ? GREEN : RED
+        # Priority: override_color > success color > category color
+        if override_color
+          color = override_color
+        elsif !success.nil?
+          color = success ? "#{BOLD}#{BRIGHT_GREEN}" : "#{BOLD}#{BRIGHT_RED}"
         end
 
         if colors_enabled
-          "#{color}#{prefix.ljust(6)} #{message}#{RESET}"
+          "#{color}#{prefix.ljust(6)}#{RESET} #{color}#{message}#{RESET}"
         else
           "#{prefix.ljust(6)} #{message}"
         end
