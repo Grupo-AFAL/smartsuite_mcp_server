@@ -153,6 +153,9 @@ module SmartSuite
           # Return filtered structure including only essential fields
           return response unless response.is_a?(Hash)
 
+          # Cache the full response before filtering
+          @cache&.cache_single_table(response)
+
           # Filter structure to only essential fields
           filtered_structure = response['structure'].map { |field| filter_field_structure(field) }
 
