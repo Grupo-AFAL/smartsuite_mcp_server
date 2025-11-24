@@ -105,15 +105,15 @@ module SmartSuite
         SmartSuite::Logger.metric(message)
       end
 
-      # Logs token usage and updates running totals.
+      # Updates token usage totals and returns the new total.
       #
-      # Tracks cumulative token usage and calculates remaining context window.
+      # Tracks cumulative token usage. Does not log - caller handles logging.
       #
       # @param tokens_used [Integer] Number of tokens used in this operation
-      def log_token_usage(tokens_used)
+      # @return [Integer] New total tokens used
+      def update_token_usage(tokens_used)
         @total_tokens_used += tokens_used
-        remaining = @context_limit - @total_tokens_used
-        SmartSuite::Logger.metric("📊 Tokens: +#{tokens_used} | Total: #{@total_tokens_used} | Remaining: #{remaining}")
+        @total_tokens_used
       end
     end
   end
