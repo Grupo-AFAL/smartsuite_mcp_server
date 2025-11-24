@@ -187,10 +187,11 @@ Query → Check cache validity →
 - `lib/smartsuite/cache/metadata.rb` - TTL, schema tracking
 - Database: `~/.smartsuite_mcp_cache.db`
 
-### Bypass Cache
+### Refresh Cache
 
 ```ruby
-list_records('tbl_123', 10, 0, fields: ['status'], bypass_cache: true)
+# Invalidate cache for a specific table
+refresh_cache('records', table_id: 'tbl_123')
 ```
 
 ---

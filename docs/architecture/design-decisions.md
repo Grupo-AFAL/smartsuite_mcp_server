@@ -47,15 +47,14 @@ This document explains **why** specific design decisions were made, covering tra
 ### Implementation
 
 ```ruby
-def list_records(table_id, limit, offset, fields:, filter:, bypass_cache: false)
+def list_records(table_id, limit, offset, fields:, filter:)
   # Check cache validity
-  unless bypass_cache || !cache_valid?(table_id)
-    # Cache HIT - query locally
-    return query_cache(table_id, limit, offset, fields: fields, filter: filter)
+  unless cache_valid?(table_id)
+    # Cache MISS - fetch from API
+    populate_cache(table_id)
   end
 
-  # Cache MISS or bypass - fetch from API
-  refresh_cache(table_id)
+  # Query cached data
   query_cache(table_id, limit, offset, fields: fields, filter: filter)
 end
 ```
@@ -64,7 +63,7 @@ end
 1. **Default:** Always use cache (5-20ms responses)
 2. **Cache miss:** Fetch ALL records, cache, then query (one-time cost)
 3. **Mutations:** Don't invalidate (cache expires naturally)
-4. **Override:** User can `bypass_cache: true` for fresh data
+4. **Override:** User can use `refresh_cache` tool to invalidate cache
 
 ### Trade-offs
 

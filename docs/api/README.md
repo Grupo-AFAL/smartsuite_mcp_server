@@ -239,22 +239,19 @@ These operations use intelligent caching by default (4-hour TTL):
 - `get_view_records`
 - `analyze_solution_usage`
 
-### Bypass Cache
+### Refresh Cache
 
-Force fresh data from API:
+Get fresh data after making changes:
 
 ```ruby
-# Normal (uses cache)
-list_records('tbl_123', 10, 0, fields: ['status'])
+# Invalidate cache for a specific table
+refresh_cache('records', table_id: 'tbl_123')
 
-# Bypass cache
-list_records('tbl_123', 10, 0,
-  fields: ['status'],
-  bypass_cache: true
-)
+# Then query to get fresh data
+list_records('tbl_123', 10, 0, fields: ['status'])
 ```
 
-**When to bypass:**
+**When to refresh:**
 - Immediately after create/update/delete
 - Need guaranteed fresh data
 - Debugging cache issues
@@ -322,11 +319,9 @@ create_record('tbl_abc123', {
   'priority' => 5
 })
 
-# 3. Verify creation (bypass cache)
-list_records('tbl_abc123', 10, 0,
-  fields: ['title', 'status'],
-  bypass_cache: true
-)
+# 3. Verify creation (refresh cache first)
+refresh_cache('records', table_id: 'tbl_abc123')
+list_records('tbl_abc123', 10, 0, fields: ['title', 'status'])
 ```
 
 ### Filter and Update
@@ -401,11 +396,9 @@ list_records('tbl_123', 10, 10, fields: ['status'])  # Uses cache
 
 **❌ Avoid:**
 ```ruby
-# Bypass cache unnecessarily
-list_records('tbl_123', 10, 0,
-  fields: ['status'],
-  bypass_cache: true  # Every time
-)
+# Refreshing cache unnecessarily
+refresh_cache('records', table_id: 'tbl_123')  # Every time before query
+list_records('tbl_123', 10, 0, fields: ['status'])
 ```
 
 ### 3. Get Structure First

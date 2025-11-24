@@ -89,7 +89,7 @@ This documentation aims to be:
 
 ## 🔄 Documentation Updates
 
-Last updated: November 16, 2025
-Current version: 1.5.0
+Last updated: November 24, 2025
+Current version: 2.0.0
 
 See [CHANGELOG.md](../CHANGELOG.md) for recent changes.

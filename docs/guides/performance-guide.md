@@ -307,7 +307,7 @@ Result: X calls in Y seconds = X/Y req/sec
 
 **If exceeded:**
 - Increase cache usage
-- Reduce bypass_cache operations
+- Use `refresh_cache` tool sparingly (only when needed)
 - Space out bulk operations
 
 ---
@@ -532,7 +532,7 @@ Error: 429 Too Many Requests
 
 **Solutions:**
 ```
-1. Enable caching (remove bypass_cache)
+1. Enable caching (default behavior)
 2. Space out bulk operations
 3. Check API stats for hot spots
 4. Wait 1 minute and retry
