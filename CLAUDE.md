@@ -727,25 +727,28 @@ The server provides a `convert_markdown_to_smartdoc` tool that converts Markdown
 **Usage Pattern for Batch Updates (optimized for API efficiency):**
 
 1. Fetch records with markdown content:
-```ruby
-records = list_records(table_id, 100, 0,
-  filter: { operator: 'and', fields: [{ field: 'status', comparison: 'is', value: 'pending' }] },
-  fields: ['id', 'description']
-)
-```
 
-2. Convert markdown fields and prepare update batch:
-```ruby
-updates = records.map do |record|
-  smartdoc = convert_markdown_to_smartdoc(record['description'])
-  { 'id' => record['id'], 'description' => smartdoc }
-end
-```
+    ```ruby
+    records = list_records(table_id, 100, 0,
+      filter: { operator: 'and', fields: [{ field: 'status', comparison: 'is', value: 'pending' }] },
+      fields: ['id', 'description']
+    )
+    ```
 
-3. Bulk update with converted SmartDoc (single API call):
-```ruby
-bulk_update_records(table_id, updates)
-```
+1. Convert markdown fields and prepare update batch:
+
+    ```ruby
+    updates = records.map do |record|
+      smartdoc = convert_markdown_to_smartdoc(record['description'])
+      { 'id' => record['id'], 'description' => smartdoc }
+    end
+    ```
+
+1. Bulk update with converted SmartDoc (single API call):
+
+    ```ruby
+    bulk_update_records(table_id, updates)
+    ```
 
 **Implementation:** `SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown_string)`
 
