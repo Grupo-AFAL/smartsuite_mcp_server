@@ -120,33 +120,7 @@ module SmartSuite
 
         # Extract only essential fields to reduce response size (client-side filtering)
         solutions = solutions_list.map do |solution|
-          base_fields = {
-            'id' => solution['id'],
-            'name' => solution['name'],
-            'logo_icon' => solution['logo_icon'],
-            'logo_color' => solution['logo_color']
-          }
-
-          # Add activity/usage fields if requested
-          if include_activity_data
-            base_fields.merge!({
-                                 'status' => solution['status'],
-                                 'hidden' => solution['hidden'],
-                                 'last_access' => solution['last_access'],
-                                 'updated' => solution['updated'],
-                                 'created' => solution['created'],
-                                 'records_count' => solution['records_count'],
-                                 'members_count' => solution['members_count'],
-                                 'applications_count' => solution['applications_count'],
-                                 'automation_count' => solution['automation_count'],
-                                 'has_demo_data' => solution['has_demo_data'],
-                                 'delete_date' => solution['delete_date'],
-                                 'deleted_by' => solution['deleted_by'],
-                                 'updated_by' => solution['updated_by']
-                               })
-          end
-
-          base_fields
+          extract_essential_solution_fields(solution, include_activity_data)
         end
 
         format_solutions_output(solutions, format)
@@ -227,30 +201,7 @@ module SmartSuite
 
         # Extract only essential fields to reduce response size
         filtered_solutions = owned_solutions.map do |solution|
-          base_fields = {
-            'id' => solution['id'],
-            'name' => solution['name'],
-            'logo_icon' => solution['logo_icon'],
-            'logo_color' => solution['logo_color']
-          }
-
-          # Add activity/usage fields if requested
-          if include_activity_data
-            base_fields.merge!({
-                                 'status' => solution['status'],
-                                 'hidden' => solution['hidden'],
-                                 'last_access' => solution['last_access'],
-                                 'updated' => solution['updated'],
-                                 'created' => solution['created'],
-                                 'records_count' => solution['records_count'],
-                                 'members_count' => solution['members_count'],
-                                 'applications_count' => solution['applications_count'],
-                                 'automation_count' => solution['automation_count'],
-                                 'has_demo_data' => solution['has_demo_data']
-                               })
-          end
-
-          base_fields
+          extract_essential_solution_fields(solution, include_activity_data)
         end
 
         format_solutions_output(filtered_solutions, format)
@@ -344,6 +295,38 @@ module SmartSuite
         return last_updated['on'] if last_updated.is_a?(Hash)
 
         nil
+      end
+
+      # Extracts essential fields from a solution to reduce response size.
+      #
+      # @param solution [Hash] Full solution data from API
+      # @param include_activity_data [Boolean] Whether to include usage metrics
+      # @return [Hash] Solution with only essential fields
+      def extract_essential_solution_fields(solution, include_activity_data = false)
+        base_fields = {
+          'id' => solution['id'],
+          'name' => solution['name'],
+          'logo_icon' => solution['logo_icon'],
+          'logo_color' => solution['logo_color']
+        }
+
+        return base_fields unless include_activity_data
+
+        base_fields.merge(
+          'status' => solution['status'],
+          'hidden' => solution['hidden'],
+          'last_access' => solution['last_access'],
+          'updated' => solution['updated'],
+          'created' => solution['created'],
+          'records_count' => solution['records_count'],
+          'members_count' => solution['members_count'],
+          'applications_count' => solution['applications_count'],
+          'automation_count' => solution['automation_count'],
+          'has_demo_data' => solution['has_demo_data'],
+          'delete_date' => solution['delete_date'],
+          'deleted_by' => solution['deleted_by'],
+          'updated_by' => solution['updated_by']
+        )
       end
 
       public
