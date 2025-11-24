@@ -83,16 +83,20 @@ module SmartSuite
             next
           end
 
-          # Find field info
-          field_info = fields_info.find { |f| f['slug'] == field_slug_str }
+          # For daterangefield and duedatefield sub-fields (e.g., "s31437fa81.to_date"),
+          # extract the base field slug to find the field info
+          base_field_slug = field_slug_str.sub(/\.(from_date|to_date)$/, '')
+
+          # Find field info using base slug
+          field_info = fields_info.find { |f| f['slug'] == base_field_slug }
           next unless field_info # Skip unknown fields
 
-          # Get SQL column name(s)
-          columns = field_mapping[field_slug_str]
+          # Get SQL column name(s) using base slug (field_mapping uses base slug)
+          columns = field_mapping[base_field_slug]
           next unless columns
 
-          # Build condition
-          clause, params = build_condition(field_info, columns, condition)
+          # Build condition (pass full field_slug_str for .from_date/.to_date handling)
+          clause, params = build_condition(field_info, columns, condition, field_slug_str)
           @where_clauses << clause
           @params.concat(params)
         end
@@ -357,10 +361,12 @@ module SmartSuite
       # @param field_info [Hash] Field definition
       # @param columns [Hash] Column name => type mapping
       # @param condition [Object] Condition value or hash
+      # @param full_field_slug [String] Full field slug including .from_date/.to_date suffix (optional)
       # @return [Array<String, Array>] [SQL clause, parameters]
-      def build_condition(field_info, columns, condition)
+      def build_condition(field_info, columns, condition, full_field_slug = nil)
         field_type = field_info['field_type'].downcase
-        field_slug = field_info['slug']
+        # Use full_field_slug if provided, otherwise fall back to field_info slug
+        field_slug = full_field_slug || field_info['slug']
 
         # Select appropriate column based on field type and slug
         # For duedatefield and daterangefield, SmartSuite API uses to_date for all comparisons

@@ -340,6 +340,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Daterangefield sub-field filtering (.to_date/.from_date)** - Fixed filtering by daterangefield sub-fields like `field_slug.to_date` or `field_slug.from_date`
+  - **Root cause**: `Cache::Query.where()` looked for field info using the full slug including `.to_date`/`.from_date` suffix, but field_mapping uses base slugs
+  - **Example**: Filtering by `s31437fa81.to_date` would skip the filter because no field with slug `s31437fa81.to_date` exists
+  - **Fix**: Extract base field slug for field lookup, but pass full slug to `build_condition` for column selection
+  - Now correctly filters daterangefield End dates (uses `_to` column) and Start dates (uses `_from` column)
+  - Added regression tests for `.to_date` and `.from_date` sub-field filtering
+
+- **Date-only filter values now convert to UTC range with DST support** - Fixed date filtering to account for timezone differences and daylight saving time
+  - **Root cause**: Date-only filters like `"2026-06-15"` were compared directly against UTC timestamps in cache
+  - **Example**: Filtering for June 15 in -0700 timezone missed records at 23:30 local time (06:30 UTC next day)
+  - **Fix**: `FilterBuilder.convert_to_utc_for_filter` converts date-only strings to UTC start-of-day timestamps
+  - **"is" operator**: Now converts date-only values to BETWEEN range covering the full local calendar day
+  - **DST-aware offset calculation**: `local_timezone_offset` now accepts a reference date parameter
+    - Calculates the correct timezone offset for the specific date being filtered
+    - Example: July dates use -0700 (PDT), November dates use -0800 (PST) for US Pacific timezone
+    - Fixes issue where filtering July dates in November would use wrong offset
+
+- **Date-only strings preserved in DateFormatter** - Fixed date-only values being incorrectly converted with timezone offset
+  - **Root cause**: `DateFormatter.to_local` was attempting timezone conversion on date-only strings
+  - **Example**: `2025-01-15` was becoming `2025-01-14` on servers in UTC+ timezones
+  - **Fix**: Date-only strings now pass through unchanged (they represent calendar days, not instants)
+
 - **Cache layer `include_time` column matching bug** - Fixed issue where date values were incorrectly stored in `_include_time` columns instead of 0/1 values
   - The `find_matching_value` method now matches `_from_include_time` and `_to_include_time` columns before `_from` and `_to` columns
   - This ensures proper date-only vs datetime display in responses
