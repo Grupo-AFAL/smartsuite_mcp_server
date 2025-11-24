@@ -235,10 +235,21 @@ module SmartSuite
         end
 
         unless record
-          # Cache miss or disabled - fetch from API
-          record = api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
-          # Process SmartDoc fields in API response too
-          record = process_smartdoc_fields(record)
+          # Cache miss - use aggressive caching strategy: fetch ALL records first
+          if cache_enabled?
+            ensure_records_cached(table_id)
+            # Now get from cache
+            cached_record = @cache.get_cached_record(table_id, record_id)
+            if cached_record
+              record = process_smartdoc_fields(cached_record)
+            end
+          end
+
+          # Fallback to direct API call if cache disabled or record not found
+          unless record
+            record = api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
+            record = process_smartdoc_fields(record)
+          end
         end
 
         format_single_response(record, format)
