@@ -3,6 +3,7 @@
 require 'json'
 require_relative 'api_stats_tracker'
 require_relative 'smartsuite/logger'
+require_relative 'smartsuite/date_formatter'
 require_relative 'smartsuite/api/http_client'
 require_relative 'smartsuite/api/workspace_operations'
 require_relative 'smartsuite/api/table_operations'
@@ -127,5 +128,39 @@ class SmartSuiteClient
   #   client.cache_enabled? #=> true
   def cache_enabled?
     !@cache.nil?
+  end
+
+  # Configure timezone from the current user's SmartSuite profile.
+  #
+  # Fetches the first member (typically the API key owner) and configures
+  # DateFormatter with their timezone setting. This ensures dates display
+  # consistently with what the user sees in the SmartSuite UI.
+  #
+  # @return [String, nil] The configured timezone, or nil if not found
+  # @example
+  #   client.configure_user_timezone
+  #   #=> "America/Mexico_City"
+  def configure_user_timezone
+    # Fetch members to find the current user's timezone
+    # The API key owner is typically in the member list
+    members = list_members(limit: 10, format: :json)
+
+    return nil unless members.is_a?(Hash) && members['members'].is_a?(Array)
+
+    # Find a member with timezone set (first one found)
+    member_with_tz = members['members'].find { |m| m['time_zone'] }
+
+    if member_with_tz && member_with_tz['time_zone']
+      timezone = member_with_tz['time_zone']
+      SmartSuite::DateFormatter.timezone = timezone
+      SmartSuite::Logger.info("Configured timezone from user profile: #{timezone}")
+      timezone
+    else
+      SmartSuite::Logger.info('No timezone found in user profile, using system default')
+      nil
+    end
+  rescue StandardError => e
+    SmartSuite::Logger.warn("Failed to configure timezone from user profile: #{e.message}")
+    nil
   end
 end

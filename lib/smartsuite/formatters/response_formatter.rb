@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'toon_formatter'
+require_relative '../date_formatter'
 
 module SmartSuite
   # Response formatting module
@@ -247,15 +248,15 @@ module SmartSuite
 
       # Processes field values for AI consumption.
       #
-      # For SmartDoc fields (rich text with data/html/preview/yjsData keys),
-      # extracts only the HTML content to minimize tokens while preserving readability.
+      # Applies several transformations:
+      # 1. SmartDoc fields: extracts only HTML content to minimize tokens
+      # 2. Timestamps: converts UTC dates to local time for user readability
+      # 3. Complex JSON structures: recursively converts nested timestamps
+      #
       # Cache stores the complete JSON structure as JSON strings, so we parse them first.
       #
-      # Previously truncated values, but per user request we now return full values
-      # except for SmartDoc optimization.
-      #
       # @param value [Object] Field value
-      # @return [Object] Processed value (HTML string for SmartDoc, original value otherwise)
+      # @return [Object] Processed value (HTML for SmartDoc, local time for timestamps)
       def truncate_value(value)
         # Try to parse JSON strings (cache stores complex values as JSON)
         parsed_value = value.is_a?(String) ? parse_json_safe(value) : value
@@ -265,8 +266,14 @@ module SmartSuite
           # Return only HTML content for AI
           # Cache still stores complete JSON with all keys
           parsed_value['html'] || parsed_value[:html] || ''
+        elsif parsed_value.is_a?(Hash) || parsed_value.is_a?(Array)
+          # Complex structure - recursively convert timestamps
+          DateFormatter.convert_all(parsed_value)
+        elsif value.is_a?(String) && DateFormatter.timestamp?(value)
+          # Simple timestamp string - convert to local time
+          DateFormatter.to_local(value)
         else
-          value # Return original value if not SmartDoc
+          value # Return original value
         end
       end
 
