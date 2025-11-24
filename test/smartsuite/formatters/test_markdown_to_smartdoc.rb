@@ -194,7 +194,7 @@ class TestMarkdownToSmartdoc < Minitest::Test
   end
 
   def test_strip_html_br_tags
-    markdown = "Line one<br>Line two<br/>Line three"
+    markdown = 'Line one<br>Line two<br/>Line three'
     result = SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown)
 
     # br tags should be converted to newlines, creating separate paragraphs
