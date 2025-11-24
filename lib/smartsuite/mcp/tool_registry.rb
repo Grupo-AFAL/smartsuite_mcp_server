@@ -313,46 +313,34 @@ module SmartSuite
         },
         {
           'name' => 'create_record',
-          'description' => 'Create a new record in a SmartSuite table. For rich text fields (richtextareafield), use SmartDoc format with TipTap/ProseMirror structure. See /Users/fede/code/ruby/smartsuite_mcp/docs/smartdoc_examples.md for complete examples.
+          'description' => 'Create a new record in a SmartSuite table.
 
-**SmartDoc Quick Reference:**
-- Always use `{"data": {"type": "doc", "content": [...]}}` structure
-- Bold: `{"type": "strong"}` mark (NOT "bold")
-- Italic: `{"type": "em"}` mark (NOT "italic")
-- Paragraphs: `{"type": "paragraph", "attrs": {"textAlign": "left", "size": "medium"}, "content": [...]}`
-- Lists: `{"type": "bullet_list"}` or `{"type": "ordered_list", "attrs": {"order": 1}}`
-- Links: `{"type": "link", "attrs": {"href": "url"}}` mark
-- Callouts: `{"type": "callout", "attrs": {"type": "info"}}`
+**Date Fields - Transparent Handling:**
+Date fields are automatically formatted. Just use simple strings:
+- Date only: `"2025-06-20"` (no time component will be stored)
+- With time (UTC): `"2025-06-20T14:30:00Z"`
+- With time (any timezone): `"2025-06-20T14:30:00-07:00"` (auto-converted to UTC)
+- Space format: `"2025-06-20 14:30"` (assumed UTC)
 
-**Example - Simple rich text:**
+**Date field examples:**
 ```json
-{
-  "title": "My Record",
-  "description": {
-    "data": {
-      "type": "doc",
-      "content": [
-        {
-          "type": "paragraph",
-          "attrs": {"textAlign": "left", "size": "medium"},
-          "content": [
-            {"type": "text", "text": "This is "},
-            {"type": "text", "marks": [{"type": "strong"}], "text": "bold"},
-            {"type": "text", "text": " text."}
-          ]
-        }
-      ]
-    }
-  }
-}
-```',
+{"due_date": {"from_date": "2025-06-20", "to_date": "2025-06-25T17:00:00Z"}}
+{"fecha": "2025-09-10"}
+{"fecha": "2025-09-10T14:30:00-07:00"}
+```
+
+**Rich Text Fields (SmartDoc):**
+For rich text fields (richtextareafield), use SmartDoc format. See docs/smartdoc_examples.md.
+- Bold: `{"type": "strong"}` mark
+- Italic: `{"type": "em"}` mark
+- Structure: `{"data": {"type": "doc", "content": [...]}}`',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
               'table_id' => SCHEMA_TABLE_ID,
               'data' => {
                 'type' => 'object',
-                'description' => 'The record data as key-value pairs (field_slug: value). For rich text fields, use SmartDoc format with {"data": {"type": "doc", "content": [...]}} structure.'
+                'description' => 'The record data as key-value pairs (field_slug: value). Date fields accept simple strings like "2025-06-20" (date only) or "2025-06-20T14:30:00Z" (with time). For rich text fields, use SmartDoc format.'
               },
               'minimal_response' => {
                 'type' => 'boolean',
@@ -365,45 +353,27 @@ module SmartSuite
         },
         {
           'name' => 'update_record',
-          'description' => 'Update an existing record in a SmartSuite table. For rich text fields (richtextareafield), use SmartDoc format with TipTap/ProseMirror structure. See /Users/fede/code/ruby/smartsuite_mcp/docs/smartdoc_examples.md for complete examples.
+          'description' => 'Update an existing record in a SmartSuite table.
 
-**SmartDoc Quick Reference:**
-- Always use `{"data": {"type": "doc", "content": [...]}}` structure
-- Bold: `{"type": "strong"}` mark (NOT "bold")
-- Italic: `{"type": "em"}` mark (NOT "italic")
-- Paragraphs: `{"type": "paragraph", "attrs": {"textAlign": "left", "size": "medium"}, "content": [...]}`
-- Lists: `{"type": "bullet_list"}` or `{"type": "ordered_list", "attrs": {"order": 1}}`
-- Checklists: `{"type": "check_list"}` with `{"type": "check_list_item", "attrs": {"checked": true/false}}`
-- Links: `{"type": "link", "attrs": {"href": "url"}}` mark
-- Callouts: `{"type": "callout", "attrs": {"type": "info|warning|success|error"}}`
-- Horizontal rule: `{"type": "horizontal_rule"}`
+**Date Fields - Transparent Handling:**
+Date fields are automatically formatted. Just use simple strings:
+- Date only: `"2025-06-20"` (no time component will be stored)
+- With time (UTC): `"2025-06-20T14:30:00Z"`
+- With time (any timezone): `"2025-06-20T14:30:00-07:00"` (auto-converted to UTC)
+- Space format: `"2025-06-20 14:30"` (assumed UTC)
 
-**Example - Updating description with formatted text:**
+**Date field examples:**
 ```json
-{
-  "description": {
-    "data": {
-      "type": "doc",
-      "content": [
-        {
-          "type": "heading",
-          "attrs": {"level": 2},
-          "content": [{"type": "text", "text": "Updated Summary"}]
-        },
-        {
-          "type": "paragraph",
-          "attrs": {"textAlign": "left", "size": "medium"},
-          "content": [
-            {"type": "text", "text": "Updated with "},
-            {"type": "text", "marks": [{"type": "em"}], "text": "italic"},
-            {"type": "text", "text": " formatting."}
-          ]
-        }
-      ]
-    }
-  }
-}
-```',
+{"due_date": {"from_date": "2025-06-20", "to_date": "2025-06-25T17:00:00Z"}}
+{"fecha": "2025-09-10"}
+{"fecha": "2025-09-10T14:30:00-07:00"}
+```
+
+**Rich Text Fields (SmartDoc):**
+For rich text fields (richtextareafield), use SmartDoc format. See docs/smartdoc_examples.md.
+- Bold: `{"type": "strong"}` mark
+- Italic: `{"type": "em"}` mark
+- Structure: `{"data": {"type": "doc", "content": [...]}}`',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
@@ -411,7 +381,7 @@ module SmartSuite
               'record_id' => SCHEMA_RECORD_ID,
               'data' => {
                 'type' => 'object',
-                'description' => 'The record data to update as key-value pairs (field_slug: value). For rich text fields, use SmartDoc format with {"data": {"type": "doc", "content": [...]}} structure.'
+                'description' => 'The record data to update as key-value pairs (field_slug: value). Date fields accept simple strings like "2025-06-20" (date only) or "2025-06-20T14:30:00Z" (with time). For rich text fields, use SmartDoc format.'
               },
               'minimal_response' => {
                 'type' => 'boolean',

@@ -428,22 +428,37 @@ class TestCacheMetadata < Minitest::Test
     assert_equal 'TEXT', result['status_updated_on']
   end
 
+  def test_get_field_columns_date_field
+    field = { 'slug' => 's123', 'label' => 'Event Date', 'field_type' => 'datefield' }
+    result = @cache.send(:get_field_columns, field)
+
+    assert_equal 2, result.size, 'Date field should create 2 columns (date, include_time)'
+    assert result.key?('event_date'), 'Should have date column'
+    assert result.key?('event_date_include_time'), 'Should have include_time column'
+    assert_equal 'TEXT', result['event_date']
+    assert_equal 'INTEGER', result['event_date_include_time']
+  end
+
   def test_get_field_columns_date_range_field
     field = { 'slug' => 's123', 'label' => 'Date Range', 'field_type' => 'daterangefield' }
     result = @cache.send(:get_field_columns, field)
 
-    assert_equal 2, result.size, 'Date range should create 2 columns'
+    assert_equal 4, result.size, 'Date range should create 4 columns (from, from_include_time, to, to_include_time)'
     assert result.key?('date_range_from'), 'Should have from column'
+    assert result.key?('date_range_from_include_time'), 'Should have from_include_time column'
     assert result.key?('date_range_to'), 'Should have to column'
+    assert result.key?('date_range_to_include_time'), 'Should have to_include_time column'
   end
 
   def test_get_field_columns_due_date_field
     field = { 'slug' => 's123', 'label' => 'Due Date', 'field_type' => 'duedatefield' }
     result = @cache.send(:get_field_columns, field)
 
-    assert_equal 4, result.size, 'Due date should create 4 columns'
+    assert_equal 6, result.size, 'Due date should create 6 columns (from, from_include_time, to, to_include_time, is_overdue, is_completed)'
     assert result.key?('due_date_from'), 'Should have from column'
+    assert result.key?('due_date_from_include_time'), 'Should have from_include_time column'
     assert result.key?('due_date_to'), 'Should have to column'
+    assert result.key?('due_date_to_include_time'), 'Should have to_include_time column'
     assert result.key?('due_date_is_overdue'), 'Should have is_overdue column'
     assert result.key?('due_date_is_completed'), 'Should have is_completed column'
   end

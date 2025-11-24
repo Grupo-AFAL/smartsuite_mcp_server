@@ -9,6 +9,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Transparent Date Input Interface** - AI can now use simple date strings without worrying about SmartSuite's internal format
+  - New `SmartSuite::DateTransformer` module for automatic date format conversion
+  - Supported input formats:
+    - Date only: `"2025-06-20"` → stored without time component
+    - UTC datetime: `"2025-06-20T14:30:00Z"` → stored with time
+    - Space format: `"2025-06-20 14:30"` → assumed UTC, stored with time
+    - Any timezone: `"2025-06-20T14:30:00-07:00"` → auto-converted to UTC
+  - Automatically infers `include_time` flag from input format
+  - Integrated into `create_record`, `update_record`, `bulk_add_records`, `bulk_update_records`
+  - Updated tool descriptions with date handling examples
+  - New documentation: `docs/guides/date-handling.md`
+  - New test suite: `test/smartsuite/test_date_transformer.rb` with 30 tests
+
+### Fixed
+
+- **Cache layer `include_time` column matching bug** - Fixed issue where date values were incorrectly stored in `_include_time` columns instead of 0/1 values
+  - The `find_matching_value` method now matches `_from_include_time` and `_to_include_time` columns before `_from` and `_to` columns
+  - This ensures proper date-only vs datetime display in responses
+
+- **UTC to Local Time Conversion** - Automatic conversion of timestamps for user-friendly display
+  - New `SmartSuite::DateFormatter` module for timestamp conversion
+  - **Automatic timezone detection from SmartSuite user profile** on server startup
+    - `SmartSuiteClient.configure_user_timezone` fetches the logged-in user's timezone
+    - Ensures dates display consistently with what the user sees in the SmartSuite UI
+  - **Named timezone support** (e.g., `America/Mexico_City`, `Europe/London`)
+    - Properly handles DST transitions (e.g., -0700 PDT vs -0800 PST)
+    - Uses Ruby's TZ environment variable technique for timezone conversion
+    - `DateFormatter.named_timezone?` helper to detect named timezone format
+  - **Smart midnight detection** to work around SmartSuite API bug where `include_time` is always `false` for `duedatefield` and `daterangefield` types:
+    - Non-midnight UTC timestamps are always treated as datetime (have time component)
+    - Midnight UTC timestamps trust the `include_time` flag
+    - This ensures date-only fields display correctly while datetime fields convert timezone
+  - Properly handles SmartSuite's `include_time` flag to distinguish date-only vs datetime fields:
+    - **Date-only fields** (`include_time: false`): Return calendar date without timezone conversion (e.g., "Feb 1" stays "Feb 1" regardless of timezone)
+    - **Datetime fields** (`include_time: true`): Convert UTC to local timezone (e.g., "11:15 UTC" → "03:15 PST")
+  - Configurable timezone via multiple methods (in priority order):
+    1. Automatic from SmartSuite user profile (on server startup)
+    2. Programmatic: `SmartSuite::DateFormatter.timezone = 'America/Mexico_City'` or `'-0500'`
+    3. Environment variable: `SMARTSUITE_TIMEZONE=America/New_York` or `+0530`
+    4. System TZ variable: Ruby respects standard `TZ` environment variable
+    5. System default: Uses operating system's local timezone
+  - Special timezone values:
+    - `:utc` - Keep timestamps in UTC (no conversion)
+    - `:local` or `:system` - Use system timezone
+  - Cache layer updated to store and retrieve `include_time` metadata for all date fields:
+    - `datefield`: Added `_include_time` column
+    - `daterangefield`: Added `_from_include_time` and `_to_include_time` columns
+    - `duedatefield`: Added `_from_include_time` and `_to_include_time` columns
+  - Multi-column date field reconstruction for `duedatefield` and `daterangefield`:
+    - Displays both `from_date` and `to_date` values
+    - Includes `is_overdue` and `is_completed` flags for due date fields
+  - `DateFormatter.convert_all` recursively converts timestamps in complex structures
+  - `DateFormatter.timezone_info` returns current timezone configuration details with type indicator
+  - `DateFormatter.midnight_utc?` helper for smart date-only detection
+  - Integrated into `ResponseFormatter.truncate_value` for automatic conversion in all record responses
+  - MemberOperations updated to include `time_zone` field in member data
+  - New test suite: `test/smartsuite/test_date_formatter.rb` with 50 tests
+
 - **Unified Logging System** - Consolidated all logging into `SmartSuite::Logger` class
   - Single log file: `~/.smartsuite_mcp.log` (production), `~/.smartsuite_mcp_test.log` (test)
   - Replaced multiple logging mechanisms (metrics log, query logger, stderr)

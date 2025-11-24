@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../filter_builder'
+require_relative '../date_transformer'
 require_relative 'base'
 
 module SmartSuite
@@ -324,7 +325,10 @@ module SmartSuite
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('data', data, Hash)
 
-        response = api_request(:post, "/applications/#{table_id}/records/", data)
+        # Transform date fields to SmartSuite format (transparent date handling)
+        transformed_data = DateTransformer.transform_dates(data)
+
+        response = api_request(:post, "/applications/#{table_id}/records/", transformed_data)
 
         if minimal_response
           # Smart cache coordination: Update cache with full response
@@ -365,7 +369,10 @@ module SmartSuite
         validate_required_parameter!('record_id', record_id)
         validate_required_parameter!('data', data, Hash)
 
-        response = api_request(:patch, "/applications/#{table_id}/records/#{record_id}/", data)
+        # Transform date fields to SmartSuite format (transparent date handling)
+        transformed_data = DateTransformer.transform_dates(data)
+
+        response = api_request(:patch, "/applications/#{table_id}/records/#{record_id}/", transformed_data)
 
         if minimal_response
           # Smart cache coordination: Update cache with full response
@@ -449,7 +456,10 @@ module SmartSuite
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('records', records, Array)
 
-        response = api_request(:post, "/applications/#{table_id}/records/bulk/", { 'items' => records })
+        # Transform date fields in all records (transparent date handling)
+        transformed_records = records.map { |record| DateTransformer.transform_dates(record) }
+
+        response = api_request(:post, "/applications/#{table_id}/records/bulk/", { 'items' => transformed_records })
 
         if minimal_response
           # Smart cache coordination: Cache all created records
@@ -501,7 +511,10 @@ module SmartSuite
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('records', records, Array)
 
-        response = api_request(:patch, "/applications/#{table_id}/records/bulk/", { 'items' => records })
+        # Transform date fields in all records (transparent date handling)
+        transformed_records = records.map { |record| DateTransformer.transform_dates(record) }
+
+        response = api_request(:patch, "/applications/#{table_id}/records/bulk/", { 'items' => transformed_records })
 
         if minimal_response
           # Smart cache coordination: Update all records in cache
