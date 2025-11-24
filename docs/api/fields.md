@@ -246,7 +246,7 @@ Successfully added field to table tbl_abc123
 ### Notes
 
 - **No cache invalidation** - table structure cache not updated
-- **Use bypass_cache** on next `get_table` to see changes
+- **Use `refresh_cache('tables')`** to see changes immediately
 - **Field slugs must be unique** within the table
 - **auto_fill_structure_layout** defaults to `true` (automatic layout)
 
@@ -567,8 +567,9 @@ add_field('tbl_abc123', {
   is_new: true
 })
 
-# 3. Verify field was added (bypass cache)
-get_table('tbl_abc123')  # Or use bypass_cache
+# 3. Verify field was added (refresh cache first)
+refresh_cache('tables')
+get_table('tbl_abc123')
 ```
 
 ### Update Select Field Choices

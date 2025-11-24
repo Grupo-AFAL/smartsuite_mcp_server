@@ -444,11 +444,7 @@ end
       },
       filter: {
         type: "object",
-        description: "Optional: Filter criteria (only used when cache disabled)"
-      },
-      bypass_cache: {
-        type: "boolean",
-        description: "Optional: Force direct API call (default: false)"
+        description: "Optional: Filter criteria"
       }
     },
     required: ["table_id", "fields"]

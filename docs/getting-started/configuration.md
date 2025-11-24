@@ -220,24 +220,24 @@ Customize the location of the SQLite cache database.
 1. **First query:** Cache miss → Fetch all records → Store in cache
 2. **Subsequent queries:** Cache hit → Query local SQLite
 3. **After 4 hours:** Cache expires → Next query refetches data
-4. **On mutations:** Cache not invalidated (use `bypass_cache: true` for fresh data)
+4. **On mutations:** Cache not invalidated (use `refresh_cache` tool for fresh data)
 
-### Bypass Cache
+### Refresh Cache
 
-To force fresh data from the API:
+To get fresh data after making changes, use the `refresh_cache` tool:
 
 ```ruby
-list_records('table_id', 10, 0,
-  fields: ['status'],
-  bypass_cache: true
-)
+# Invalidate cache for a specific table
+refresh_cache('records', table_id: 'tbl_123')
+
+# Then query to get fresh data
+list_records('tbl_123', 10, 0, fields: ['status'])
 ```
 
-**When to bypass:**
+**When to refresh:**
 - After creating/updating/deleting records
 - When you need guaranteed fresh data
 - Testing or debugging
-- Real-time monitoring scenarios
 
 ---
 

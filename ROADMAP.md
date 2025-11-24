@@ -1,8 +1,8 @@
 # SmartSuite MCP Server - Product Roadmap
 
-**Last Updated:** November 23, 2025
-**Current Version:** 2.0.0 (in progress)
-**Next Release:** 2.0.0 (Q4 2025)
+**Last Updated:** November 24, 2025
+**Current Version:** 2.0.0
+**Next Release:** 2.1.0 (Q2 2026)
 
 ## Vision
 
@@ -20,62 +20,28 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 | v1.7    | Code Quality         | Split cache_layer.rb into 5 focused modules under `SmartSuite::Cache` namespace                         |
 | v1.8    | Developer Experience | FilterBuilder, API::Base, 97.47% test coverage, comprehensive YARD docs                                 |
 | v1.9    | Extended Operations  | Bulk ops, file attachment/URLs, deleted records, SecureFileAttacher helper                              |
-
-**Post v1.9:** SmartDoc documentation, single select field format fix, cache invalidation cascade, date filter fix.
+| v2.0    | Token Optimization   | TOON format (50-60% savings), unified logging, UTC→local time, transparent date input, minimal responses |
 
 ---
 
 ## Current Focus
 
-### v2.0 - Token Optimization & TOON Format (In Progress - Nov 2025)
-
-**Goal:** Massive token savings through optimized responses and TOON format
-
-#### Completed
-
-- **Minimal mutation responses** - 50-95% token reduction
-
-  - `minimal_response: true` (default) for all 6 mutation operations
-  - Returns: `{success, id, title, operation, timestamp, cached}`
-  - Smart cache updates without table-wide invalidation
-
-- **Installation scripts** - One-liner bootstrap for macOS/Linux/Windows
-
-  - Automatic Ruby installation via Homebrew/WinGet
-  - Claude Desktop configuration
-
-- **Test coverage:** 97.47% (927 tests, 2,799 assertions)
-- **Cache::Schema module** - Centralized SQLite table schema definitions
-- **SmartSuite::Paths module** - Centralized path management for test isolation
-- **Unified Logging System** - Consolidated all logging into `SmartSuite::Logger`
-  - Single log file: `~/.smartsuite_mcp.log`
-  - Multiple log levels (DEBUG, INFO, WARN, ERROR)
-  - Log categories (API, DB, CACHE, S3, SERVER, METRIC)
-  - Removed QueryLogger (direct usage of unified logger)
-
-#### In Progress
-
-- **TOON format** - Token-Oriented Object Notation (~50-60% savings vs JSON)
-  - Default format for list operations (records, solutions, tables, members)
-  - `format: :toon` (default) or `format: :json` parameter
-  - Tabular format eliminates repetitive field names
-
-#### Remaining
-
-- [ ] Convert UTC timestamps to local time
-- [ ] Smart field selection intelligence (analyze usage patterns)
-- [ ] Query optimization for complex filters
-
----
-
-## Upcoming Releases
-
 ### v2.1 - Advanced Filtering & Search (Q2 2026)
+
+**Goal:** Enhanced query capabilities and cross-table operations
+
+#### Planned Features
 
 - Full-text search across cached records
 - Saved filter templates
 - Cross-table queries (JOIN support)
 - Aggregation functions (COUNT, SUM, AVG)
+- Smart field selection intelligence (analyze usage patterns)
+- Query optimization for complex filters
+
+---
+
+## Upcoming Releases
 
 ### v2.2 - Real-time Updates (Q2 2026)
 
@@ -131,7 +97,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 | API call reduction | >75% vs uncached          |
 | Token savings      | >60% average per session  |
 | Response time      | <100ms for cached queries |
-| Test coverage      | >90% (current: 97.47%)    |
+| Test coverage      | >90% (current: 93.23%)    |
 
 ---
 
@@ -140,8 +106,8 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 | Version  | Status      | Target   | Completion |
 | -------- | ----------- | -------- | ---------- |
 | v1.0-1.9 | Released    | Nov 2025 | 100%       |
-| v2.0     | In Progress | Nov 2025 | 85%        |
-| v2.1     | Planned     | Q2 2026  | 0%         |
+| v2.0     | Released    | Nov 2025 | 100%       |
+| v2.1     | In Progress | Q2 2026  | 0%         |
 | v2.2     | Planned     | Q2 2026  | 0%         |
 | v3.0     | Planned     | Q3 2026  | 0%         |
 

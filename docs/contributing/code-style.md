@@ -284,7 +284,7 @@ def list_records(table_id, limit = 10, offset = 0, **options)
   cached_data = cache.get(cache_key)
 
   # Return cached or fetch fresh
-  if cached_data && !options[:bypass_cache]
+  if cached_data
     query_cache(cached_data, limit, offset, options)
   else
     fetch_from_api(table_id, limit, offset, options)
@@ -298,7 +298,7 @@ def list_records(table_id, limit = 10, offset = 0, **options)
   return error('fields parameter required') unless options[:fields]
   cache_key = "table_#{table_id}"
   cached_data = cache.get(cache_key)
-  if cached_data && !options[:bypass_cache]
+  if cached_data
     query_cache(cached_data, limit, offset, options)
   else
     fetch_from_api(table_id, limit, offset, options)
@@ -454,14 +454,13 @@ end
 def list_records(table_id, limit = 10, offset = 0, **options)
   fields = options[:fields]
   filter = options[:filter]
-  bypass_cache = options.fetch(:bypass_cache, false)
   # ...
 end
 ```
 
 **Usage:**
 ```ruby
-list_records('tbl_123', 10, 0, fields: ['status'], bypass_cache: true)
+list_records('tbl_123', 10, 0, fields: ['status'], filter: {...})
 ```
 
 ---
@@ -567,14 +566,13 @@ bundle exec rubocop lib/smartsuite_client.rb
 # @param options [Hash] Additional options
 # @option options [Array<String>] :fields Required field slugs to return
 # @option options [Hash] :filter SmartSuite filter criteria
-# @option options [Boolean] :bypass_cache Force API call (default: false)
 # @return [Hash] Formatted response with records and metadata
 def list_records(table_id, limit = 10, offset = 0, **options)
   # Validate required parameters
   return {error: 'fields parameter is required'} unless options[:fields]
 
   # Check cache first
-  if cache_valid?(table_id) && !options[:bypass_cache]
+  if cache_valid?(table_id)
     return query_cached_records(table_id, limit, offset, options)
   end
 

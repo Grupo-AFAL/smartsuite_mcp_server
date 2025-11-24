@@ -79,7 +79,7 @@ class SmartSuiteServerTest < Minitest::Test
     assert_equal 1, response['id']
     assert_equal '2024-11-05', response['result']['protocolVersion']
     assert_equal 'smartsuite-server', response['result']['serverInfo']['name']
-    assert_equal '1.0.1', response['result']['serverInfo']['version']
+    assert_equal '2.0.0', response['result']['serverInfo']['version']
     assert response['result']['capabilities']['tools']
     assert response['result']['capabilities']['prompts']
     assert response['result']['capabilities']['resources']

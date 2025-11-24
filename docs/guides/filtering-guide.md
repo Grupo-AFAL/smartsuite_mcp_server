@@ -700,17 +700,19 @@ list_records('tbl_123', 10, 0,
 )
 ```
 
-**Cache bypassed:**
+**After refreshing cache:**
 ```ruby
-# Filter sent to SmartSuite API
+# Invalidate cache first if you need fresh data
+refresh_cache('records', table_id: 'tbl_123')
+
+# Then query - filter applied locally on fresh cached records
 list_records('tbl_123', 10, 0,
   fields: ['status'],
-  filter: {...},  # Applied by SmartSuite
-  bypass_cache: true
+  filter: {...}
 )
 ```
 
-**Both produce same results**, but cache is faster and uses fewer API calls.
+Cache is fast and uses fewer API calls. Use `refresh_cache` when you need guaranteed fresh data.
 
 ---
 

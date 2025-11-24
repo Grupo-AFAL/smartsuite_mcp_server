@@ -2,9 +2,9 @@
 
 A Model Context Protocol (MCP) server for SmartSuite that enables AI assistants like Claude to interact with your SmartSuite workspace through natural language.
 
-[![Version](https://img.shields.io/badge/version-1.9.0-blue)]()
+[![Version](https://img.shields.io/badge/version-2.0.0-blue)]()
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-97.47%25-brightgreen)]()
+[![Coverage](https://img.shields.io/badge/coverage-93.23%25-brightgreen)]()
 [![Ruby](https://img.shields.io/badge/ruby-3.0+-red)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
 
@@ -12,7 +12,7 @@ A Model Context Protocol (MCP) server for SmartSuite that enables AI assistants 
 
 - **Comprehensive SmartSuite API Coverage** - Solutions, tables, records (including bulk operations), fields, members, comments, views, and deleted records management
 - **Aggressive SQLite Caching** - 4-hour TTL with cache-first strategy (75%+ API call reduction)
-- **Token Optimization** - Plain text responses and filtered structures (60%+ token savings)
+- **Token Optimization** - TOON format responses and filtered structures (60%+ token savings)
 - **Session Tracking** - Monitor API usage by user, solution, table, and endpoint
 - **Smart Filtering** - Local SQL queries on cached data with SmartSuite filter syntax support
 
@@ -146,11 +146,8 @@ create_record('table_abc123', {
   'assigned_to' => ['user_xyz789']
 })
 
-# Bypass cache for fresh data
-list_records('table_abc123', 10, 0,
-  fields: ['status'],
-  bypass_cache: true
-)
+# Refresh cache when needed
+refresh_cache('records', table_id: 'table_abc123')
 ```
 
 See [examples/](docs/examples/) for more usage patterns.
