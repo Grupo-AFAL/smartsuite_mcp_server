@@ -3,9 +3,15 @@
 require_relative '../test_helper'
 require_relative '../../lib/smartsuite/filter_builder'
 require_relative '../../lib/smartsuite/cache/query'
+require_relative '../../lib/smartsuite/date_formatter'
 
 class TestFilterBuilder < Minitest::Test
   def setup
+    # Configure UTC timezone for predictable test results
+    # Date-only values will be converted to UTC midnight (no offset)
+    @original_timezone = SmartSuite::DateFormatter.timezone
+    SmartSuite::DateFormatter.timezone = :utc
+
     # Create mock query object
     @query = Object.new
     @query.define_singleton_method(:where) do |conditions|
@@ -14,6 +20,11 @@ class TestFilterBuilder < Minitest::Test
       self
     end
     @query.define_singleton_method(:conditions) { @conditions || [] }
+  end
+
+  def teardown
+    # Restore original timezone
+    SmartSuite::DateFormatter.timezone = @original_timezone
   end
 
   # Test equality operators
@@ -82,20 +93,22 @@ class TestFilterBuilder < Minitest::Test
   end
 
   # Test date operators
+  # Note: Date-only strings are converted to UTC timestamps (start of day)
   def test_convert_comparison_is_before
-    assert_equal({ lt: '2025-01-01' }, SmartSuite::FilterBuilder.convert_comparison('is_before', '2025-01-01'))
+    # With UTC timezone, 2025-01-01 becomes 2025-01-01T00:00:00Z
+    assert_equal({ lt: '2025-01-01T00:00:00Z' }, SmartSuite::FilterBuilder.convert_comparison('is_before', '2025-01-01'))
   end
 
   def test_convert_comparison_is_after
-    assert_equal({ gt: '2025-01-01' }, SmartSuite::FilterBuilder.convert_comparison('is_after', '2025-01-01'))
+    assert_equal({ gt: '2025-01-01T00:00:00Z' }, SmartSuite::FilterBuilder.convert_comparison('is_after', '2025-01-01'))
   end
 
   def test_convert_comparison_is_on_or_before
-    assert_equal({ lte: '2025-01-01' }, SmartSuite::FilterBuilder.convert_comparison('is_on_or_before', '2025-01-01'))
+    assert_equal({ lte: '2025-01-01T00:00:00Z' }, SmartSuite::FilterBuilder.convert_comparison('is_on_or_before', '2025-01-01'))
   end
 
   def test_convert_comparison_is_on_or_after
-    assert_equal({ gte: '2025-01-01' }, SmartSuite::FilterBuilder.convert_comparison('is_on_or_after', '2025-01-01'))
+    assert_equal({ gte: '2025-01-01T00:00:00Z' }, SmartSuite::FilterBuilder.convert_comparison('is_on_or_after', '2025-01-01'))
   end
 
   # Test default behavior for unknown operator
@@ -167,7 +180,8 @@ class TestFilterBuilder < Minitest::Test
     assert_equal 4, @query.conditions.size
     assert_equal({ title: { contains: 'Important' } }, @query.conditions[0])
     assert_equal({ tags: { has_any_of: %w[urgent critical] } }, @query.conditions[1])
-    assert_equal({ due_date: { gte: '2025-01-01' } }, @query.conditions[2])
+    # Date-only values are converted to UTC timestamp
+    assert_equal({ due_date: { gte: '2025-01-01T00:00:00Z' } }, @query.conditions[2])
     assert_equal({ assigned_to: { is_not_null: true } }, @query.conditions[3])
   end
 
@@ -216,10 +230,13 @@ class TestFilterBuilder < Minitest::Test
   end
 
   # Edge case: nested hash values (for date fields with mode)
+  # Date-only values are now converted to a range for "is" operator
   def test_convert_comparison_with_nested_hash
     date_value = { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-01-01' }
     result = SmartSuite::FilterBuilder.convert_comparison('is', date_value)
-    assert_equal date_value, result
+    # With UTC timezone, date-only becomes a range covering the whole day
+    expected = { between: { min: '2025-01-01T00:00:00Z', max: '2025-01-01T23:59:59Z' } }
+    assert_equal expected, result
   end
 
   # ============================================================================
@@ -274,11 +291,11 @@ class TestFilterBuilder < Minitest::Test
       'is_exactly' => { is_exactly: ['a'] },
       'has_none_of' => { has_none_of: ['a'] },
 
-      # Date operators
-      'is_before' => { lt: '2025-01-01' },
-      'is_after' => { gt: '2025-01-01' },
-      'is_on_or_before' => { lte: '2025-01-01' },
-      'is_on_or_after' => { gte: '2025-01-01' }
+      # Date operators (date-only values are converted to UTC timestamps)
+      'is_before' => { lt: '2025-01-01T00:00:00Z' },
+      'is_after' => { gt: '2025-01-01T00:00:00Z' },
+      'is_on_or_before' => { lte: '2025-01-01T00:00:00Z' },
+      'is_on_or_after' => { gte: '2025-01-01T00:00:00Z' }
     }
 
     test_cases.each do |operator, expected|
@@ -348,15 +365,18 @@ class TestFilterBuilder < Minitest::Test
   # Fix: Added extract_date_value helper to extract date_mode_value from nested hash
 
   # Test extract_date_value helper method
+  # Note: Date-only strings are converted to UTC timestamps
   def test_extract_date_value_with_simple_string
     result = SmartSuite::FilterBuilder.extract_date_value('2025-01-01')
-    assert_equal '2025-01-01', result
+    # With UTC timezone, date-only becomes midnight UTC
+    assert_equal '2025-01-01T00:00:00Z', result
   end
 
   def test_extract_date_value_with_nested_hash
     date_value = { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-11-18' }
     result = SmartSuite::FilterBuilder.extract_date_value(date_value)
-    assert_equal '2025-11-18', result
+    # With UTC timezone, date-only becomes midnight UTC
+    assert_equal '2025-11-18T00:00:00Z', result
   end
 
   def test_extract_date_value_with_nil
@@ -365,40 +385,41 @@ class TestFilterBuilder < Minitest::Test
   end
 
   # Test convert_comparison with nested date hash for all date operators
+  # Note: Date-only strings are converted to UTC timestamps
   def test_is_after_with_nested_date_hash
     date_value = { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-11-18' }
     result = SmartSuite::FilterBuilder.convert_comparison('is_after', date_value)
-    # CRITICAL: Should extract the date string, not pass the entire hash
-    assert_equal({ gt: '2025-11-18' }, result)
+    # CRITICAL: Should extract the date string and convert to UTC
+    assert_equal({ gt: '2025-11-18T00:00:00Z' }, result)
   end
 
   def test_is_before_with_nested_date_hash
     date_value = { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-11-18' }
     result = SmartSuite::FilterBuilder.convert_comparison('is_before', date_value)
-    assert_equal({ lt: '2025-11-18' }, result)
+    assert_equal({ lt: '2025-11-18T00:00:00Z' }, result)
   end
 
   def test_is_on_or_after_with_nested_date_hash
     date_value = { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-11-18' }
     result = SmartSuite::FilterBuilder.convert_comparison('is_on_or_after', date_value)
-    assert_equal({ gte: '2025-11-18' }, result)
+    assert_equal({ gte: '2025-11-18T00:00:00Z' }, result)
   end
 
   def test_is_on_or_before_with_nested_date_hash
     date_value = { 'date_mode' => 'exact_date', 'date_mode_value' => '2025-11-18' }
     result = SmartSuite::FilterBuilder.convert_comparison('is_on_or_before', date_value)
-    assert_equal({ lte: '2025-11-18' }, result)
+    assert_equal({ lte: '2025-11-18T00:00:00Z' }, result)
   end
 
-  # Test that simple date strings still work (backward compatibility)
+  # Test that simple date strings still work (converted to UTC)
   def test_is_after_with_simple_date_string
     result = SmartSuite::FilterBuilder.convert_comparison('is_after', '2025-11-18')
-    assert_equal({ gt: '2025-11-18' }, result)
+    assert_equal({ gt: '2025-11-18T00:00:00Z' }, result)
   end
 
   def test_is_before_with_simple_date_string
     result = SmartSuite::FilterBuilder.convert_comparison('is_before', '2025-11-18')
-    assert_equal({ lt: '2025-11-18' }, result)
+    assert_equal({ lt: '2025-11-18T00:00:00Z' }, result)
   end
 
   # Integration test: apply_to_query with nested date filter
@@ -417,8 +438,8 @@ class TestFilterBuilder < Minitest::Test
     result = SmartSuite::FilterBuilder.apply_to_query(@query, filter)
     assert_equal @query, result
     assert_equal 1, @query.conditions.size
-    # Should extract date string from nested hash
-    assert_equal({ due_date: { gt: '2025-11-18' } }, @query.conditions.first)
+    # Should extract date string from nested hash and convert to UTC
+    assert_equal({ due_date: { gt: '2025-11-18T00:00:00Z' } }, @query.conditions.first)
   end
 
   # Integration test: multiple date filters with mixed formats
@@ -441,7 +462,28 @@ class TestFilterBuilder < Minitest::Test
 
     SmartSuite::FilterBuilder.apply_to_query(@query, filter)
     assert_equal 2, @query.conditions.size
-    assert_equal({ start_date: { gte: '2025-01-01' } }, @query.conditions[0])
-    assert_equal({ end_date: { lte: '2025-12-31' } }, @query.conditions[1])
+    # Both dates converted to UTC timestamps
+    assert_equal({ start_date: { gte: '2025-01-01T00:00:00Z' } }, @query.conditions[0])
+    assert_equal({ end_date: { lte: '2025-12-31T00:00:00Z' } }, @query.conditions[1])
+  end
+
+  # Test that datetime strings with time component are not modified
+  def test_extract_date_value_with_datetime_string
+    # Datetime with time component should pass through unchanged
+    result = SmartSuite::FilterBuilder.extract_date_value('2025-06-15T14:30:00Z')
+    assert_equal '2025-06-15T14:30:00Z', result
+  end
+
+  # Test timezone offset conversion
+  def test_date_filter_with_local_timezone
+    # Temporarily set a non-UTC timezone
+    SmartSuite::DateFormatter.timezone = '-0700'
+
+    result = SmartSuite::FilterBuilder.extract_date_value('2026-06-15')
+    # Midnight in -0700 is 07:00 UTC
+    assert_equal '2026-06-15T07:00:00Z', result
+
+    # Restore UTC for other tests
+    SmartSuite::DateFormatter.timezone = :utc
   end
 end
