@@ -370,7 +370,7 @@ Created successfully!
 ### Notes
 
 - **No cache invalidation** - new table won't appear in cache until TTL expires
-- **Use bypass_cache** on next `list_tables` to see it immediately
+- **Use `refresh_cache('tables')`** to see the new table immediately
 - **Structure optional** - can create empty table and add fields later
 - **Field slugs must be unique** within the table
 - See [Field Operations](fields.md) for adding fields to existing tables

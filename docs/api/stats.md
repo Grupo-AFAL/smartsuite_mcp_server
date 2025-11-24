@@ -408,8 +408,8 @@ get_api_stats
 
 # Look for repeated endpoint calls:
 # /records/list/ = 20 calls to same table?
-# Indicates: cache miss or bypass_cache usage
-# Fix: ensure caching enabled
+# Indicates: cache miss or frequent refresh_cache usage
+# Fix: ensure caching enabled, reduce cache refreshes
 ```
 
 ### Session Performance Comparison
@@ -544,7 +544,7 @@ get_api_stats
 - Use caching (default: enabled)
 - Batch operations when possible
 - Request minimal fields
-- Avoid bypass_cache unless necessary
+- Use `refresh_cache` tool sparingly (only when needed)
 
 ### Cache Effectiveness
 

@@ -371,9 +371,9 @@ API calls: 2-5 (pagination), then 0
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │              CACHE LAYER: NO ACTION                              │
-│  ⚠️ Cache NOT invalidated (by design)                           │
+│  Cache NOT invalidated (by design)                              │
 │  - Cache will expire naturally by TTL                           │
-│  - User can bypass_cache on next query for fresh data          │
+│  - User can use refresh_cache tool for fresh data              │
 └───────────────────────────┬─────────────────────────────────────┘
                             │
                             ▼

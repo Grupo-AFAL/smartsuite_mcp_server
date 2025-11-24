@@ -411,7 +411,7 @@ result = create_record(nil, {})
 # @param limit [Integer] Maximum records to return (default: 10)
 # @param options [Hash] Additional options
 # @option options [Array<String>] :fields Required field slugs
-# @option options [Boolean] :bypass_cache Force API call
+# @option options [Hash] :filter Filter criteria
 # @return [Hash] Response containing records array and metadata
 # @raise [ArgumentError] If table_id is nil
 # @example Basic usage

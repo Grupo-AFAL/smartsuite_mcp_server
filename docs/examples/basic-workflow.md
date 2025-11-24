@@ -308,12 +308,12 @@ due_date: 2025-01-20
 ```
 
 **What happened:**
-- Claude used `bypass_cache: true` parameter
+- Claude used `refresh_cache('records', table_id: 'tbl_...')` tool first
 - **Cache refreshed:** Fetched all 128 tasks from API (~1.5 seconds)
 - **Cache updated:** Now shows correct count
 - **Next queries:** Will use new cache (instant)
 
-**💡 Key learning:** After creating/updating records, request "fresh data" or "latest" to bypass cache.
+**Key learning:** After creating/updating records, use `refresh_cache` tool to invalidate cache, then query.
 
 ---
 
@@ -363,8 +363,8 @@ due_date: 2025-01-20
 ```
 
 **What happened:**
-- `bypass_cache: true` fetched fresh data
-- Cache refreshed with updated status
+- Claude used `refresh_cache('records', table_id: 'tbl_...')` to invalidate cache
+- Then fetched fresh data with updated status
 
 ---
 

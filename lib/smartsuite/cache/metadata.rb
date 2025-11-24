@@ -17,6 +17,51 @@ module SmartSuite
     #
     # @note Table and column names are human-readable (v1.6+) using field labels
     module Metadata
+      # SmartSuite field type to SQLite column type mapping
+      # @api private
+      FIELD_TYPE_SQL_MAP = {
+        # System fields
+        'autonumber' => 'INTEGER',
+        'comments_count' => 'INTEGER',
+        'record_id' => 'TEXT',
+        'application_slug' => 'TEXT',
+        'application_id' => 'TEXT',
+        'followed_by' => 'TEXT',
+        # Text fields
+        'textfield' => 'TEXT',
+        'textarea' => 'TEXT',
+        'title' => 'TEXT',
+        'emailfield' => 'TEXT',
+        'phonefield' => 'TEXT',
+        'linkfield' => 'TEXT',
+        'ipaddressfield' => 'TEXT',
+        'colorpickerfield' => 'TEXT',
+        'socialnetworkfield' => 'TEXT',
+        # Date fields
+        'datefield' => 'TEXT',
+        'durationfield' => 'REAL',
+        'timefield' => 'TEXT',
+        # Number fields
+        'numberfield' => 'REAL',
+        'currencyfield' => 'REAL',
+        'percentfield' => 'REAL',
+        'ratingfield' => 'REAL',
+        'numbersliderfield' => 'REAL',
+        'percentcompletefield' => 'REAL',
+        # List fields
+        'singleselectfield' => 'TEXT',
+        'multipleselectfield' => 'TEXT',
+        'tagfield' => 'TEXT',
+        'yesnofield' => 'INTEGER',
+        # Reference fields
+        'assignedtofield' => 'TEXT',
+        'linkedrecordfield' => 'TEXT',
+        'buttonfield' => 'TEXT',
+        # File fields
+        'filesfield' => 'TEXT',
+        'imagesfield' => 'TEXT',
+        'signaturefield' => 'TEXT'
+      }.freeze
       # Get or create a cache table for a SmartSuite table
       #
       # @param table_id [String] SmartSuite table ID
@@ -198,61 +243,11 @@ module SmartSuite
       # Map SmartSuite field type to SQLite type
       #
       # @param field_type [String] SmartSuite field type
-      # @return [String] SQLite column type
+      # @return [String] SQLite column type (defaults to TEXT for unknown types)
       def map_field_type_to_sql(field_type)
         return 'TEXT' if field_type.nil? || field_type.empty?
 
-        case field_type.downcase
-        # System fields
-        when 'autonumber', 'comments_count'
-          'INTEGER'
-        when 'record_id', 'application_slug', 'application_id'
-          'TEXT'
-        when 'followed_by'
-          'TEXT' # JSON array
-
-        # Text fields
-        when 'textfield', 'textarea', 'title'
-          'TEXT'
-        when 'emailfield', 'phonefield', 'linkfield'
-          'TEXT'  # JSON array or single value
-        when 'ipaddressfield', 'colorpickerfield', 'socialnetworkfield'
-          'TEXT'  # JSON
-
-        # Date fields
-        when 'datefield'
-          'TEXT'  # ISO 8601 string
-        when 'durationfield'
-          'REAL'  # Seconds
-        when 'timefield'
-          'TEXT'  # HH:MM:SS format
-
-        # Number fields
-        when 'numberfield', 'currencyfield', 'percentfield',
-             'ratingfield', 'numbersliderfield', 'percentcompletefield'
-          'REAL'
-
-        # List fields
-        when 'singleselectfield'
-          'TEXT'  # Choice ID
-        when 'multipleselectfield', 'tagfield'
-          'TEXT'  # JSON array of IDs
-        when 'yesnofield'
-          'INTEGER' # 0 or 1
-
-        # Reference fields
-        when 'assignedtofield', 'linkedrecordfield'
-          'TEXT'  # JSON array
-        when 'buttonfield'
-          'TEXT'  # URL or null
-
-        # File fields
-        when 'filesfield', 'imagesfield', 'signaturefield'
-          'TEXT'  # JSON
-
-        else
-          'TEXT'  # Default for unknown types
-        end
+        FIELD_TYPE_SQL_MAP.fetch(field_type.downcase, 'TEXT')
       end
 
       # Create indexes for commonly-filtered fields

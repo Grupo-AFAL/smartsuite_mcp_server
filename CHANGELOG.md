@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2025-11-24
+
 ### Added
 
 - **Transparent Date Input Interface** - AI can now use simple date strings without worrying about SmartSuite's internal format
@@ -1146,7 +1148,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite
 - Solution usage analysis tools
 
-[Unreleased]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.9.0...v2.0.0
+[1.9.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.8.0...v1.9.0
+[1.8.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.0.0...v1.5.0

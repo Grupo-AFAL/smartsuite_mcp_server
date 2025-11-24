@@ -74,7 +74,7 @@ class TestPromptRegistry < Minitest::Test
     assert_includes text, 'status'
     assert_includes text, 'active'
     assert_includes text, '["id", "name", "status"]'
-    assert_includes text, 'NOTE: When cache is enabled'
+    assert_includes text, 'NOTE: With cache enabled'
   end
 
   def test_generate_filter_active_records_with_defaults
