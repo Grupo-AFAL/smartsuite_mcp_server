@@ -58,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `DateFormatter.timezone_info` returns current timezone configuration details with type indicator
   - `DateFormatter.midnight_utc?` helper for smart date-only detection
   - Integrated into `ResponseFormatter.truncate_value` for automatic conversion in all record responses
-  - MemberOperations updated to include `time_zone` field in member data
+  - MemberOperations updated to include `timezone` field in member data (matching SmartSuite API field name)
   - New test suite: `test/smartsuite/test_date_formatter.rb` with 50 tests
 
 - **Unified Logging System** - Consolidated all logging into `SmartSuite::Logger` class
@@ -339,6 +339,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing code using `format: :plain_text` should switch to `format: :toon` (or remove the parameter to use default)
 
 ### Fixed
+
+- **Timezone field name mismatch** - Fixed `configure_user_timezone` to use correct API field name
+  - SmartSuite API returns `timezone` (no underscore), not `time_zone`
+  - Updated MemberOperations, SmartSuiteClient, and Cache layer to use `timezone`
+  - Added `timezone` column to `cached_members` table schema with migration for existing databases
 
 - **Daterangefield sub-field filtering (.to_date/.from_date)** - Fixed filtering by daterangefield sub-fields like `field_slug.to_date` or `field_slug.from_date`
   - **Root cause**: `Cache::Query.where()` looked for field info using the full slug including `.to_date`/`.from_date` suffix, but field_mapping uses base slugs

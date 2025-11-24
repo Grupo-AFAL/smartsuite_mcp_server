@@ -1014,8 +1014,8 @@ module SmartSuite
             "INSERT INTO cached_members (
               id, email, role, status, status_updated_on, deleted_date,
               first_name, last_name, full_name, job_title, department,
-              cached_at, expires_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              timezone, cached_at, expires_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             member['id'],
             email,
             member['role'],
@@ -1027,6 +1027,7 @@ module SmartSuite
             member['full_name'],
             member['job_title'],
             member['department'],
+            member['timezone'],
             cached_at,
             expires_at
           )
@@ -1088,6 +1089,7 @@ module SmartSuite
           # Add other fields if present
           member['job_title'] = row['job_title'] if row['job_title']
           member['department'] = row['department'] if row['department']
+          member['timezone'] = row['timezone'] if row['timezone']
 
           member.compact
         end

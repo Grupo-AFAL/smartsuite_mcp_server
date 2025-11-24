@@ -164,6 +164,7 @@ module SmartSuite
               full_name TEXT,
               job_title TEXT,
               department TEXT,
+              timezone TEXT,
               cached_at TEXT NOT NULL,
               expires_at TEXT NOT NULL
             );
