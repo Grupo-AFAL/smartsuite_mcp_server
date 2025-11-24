@@ -235,14 +235,22 @@ module SmartSuite
         end
 
         unless record
-          # Cache miss or disabled - fetch from API
-          log_metric("→ Getting record from API: #{record_id}")
-          record = api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
-          # Process SmartDoc fields in API response too
-          record = process_smartdoc_fields(record)
+          # Cache miss - use aggressive caching strategy: fetch ALL records first
+          if cache_enabled?
+            ensure_records_cached(table_id)
+            # Now get from cache
+            cached_record = @cache.get_cached_record(table_id, record_id)
+            record = process_smartdoc_fields(cached_record) if cached_record
+          end
+
+          # Fallback to direct API call if cache disabled or record not found
+          unless record
+            record = api_request(:get, "/applications/#{table_id}/records/#{record_id}/")
+            record = process_smartdoc_fields(record)
+          end
         end
 
-        format_single_response(record, format, "Retrieved record: #{record_id}")
+        format_single_response(record, format)
       end
 
       # Process SmartDoc fields in a record to extract only HTML content.
@@ -330,7 +338,7 @@ module SmartSuite
             cached: @cache ? true : false
           )
         else
-          format_single_response(response, format, "Created record: #{response['id']}")
+          format_single_response(response, format)
         end
       end
 
@@ -371,7 +379,7 @@ module SmartSuite
             cached: @cache ? true : false
           )
         else
-          format_single_response(response, format, "Updated record: #{response['id']}")
+          format_single_response(response, format)
         end
       end
 
@@ -409,7 +417,7 @@ module SmartSuite
             cached: false
           )
         else
-          format_single_response(response, format, "Deleted record: #{record_id}")
+          format_single_response(response, format)
         end
       end
 
@@ -461,7 +469,7 @@ module SmartSuite
             response # Fallback if response format unexpected
           end
         else
-          format_array_response(response, format, 'records', "Bulk created #{response.length} records")
+          format_array_response(response, format, 'records')
         end
       end
 
@@ -513,7 +521,7 @@ module SmartSuite
             response # Fallback if response format unexpected
           end
         else
-          format_array_response(response, format, 'records', "Bulk updated #{response.length} records")
+          format_array_response(response, format, 'records')
         end
       end
 
@@ -555,7 +563,7 @@ module SmartSuite
             'cached' => false # Records removed from cache
           }
         else
-          format_single_response(response, format, "Bulk deleted #{record_ids.length} records")
+          format_single_response(response, format)
         end
       end
 
@@ -578,32 +586,72 @@ module SmartSuite
 
       # Lists deleted records from a solution.
       #
-      # Returns records that have been soft-deleted and can be restored.
-      # The preview parameter limits which fields are returned.
+      # Uses cache-first strategy: caches all deleted records, returns only ID and title by default.
+      # Set full_data: true to get all fields from the cached data.
       #
       # @param solution_id [String] Solution identifier
-      # @param preview [Boolean] If true, returns limited fields (default: true)
+      # @param full_data [Boolean] If true, returns all fields; if false, returns only id and title (default: false)
       # @param format [Symbol] Output format: :toon (default, ~50-60% savings) or :json
       # @return [String, Array<Hash>] TOON string or JSON array depending on format
       # @raise [ArgumentError] If solution_id is missing
       # @example
-      #   list_deleted_records('sol_123', preview: true)
+      #   list_deleted_records('sol_123')  # Returns only id and title
+      #   list_deleted_records('sol_123', full_data: true)  # Returns all fields
       #   list_deleted_records('sol_123', format: :json)
-      def list_deleted_records(solution_id, preview: true, format: :toon)
+      def list_deleted_records(solution_id, full_data: false, format: :toon)
         validate_required_parameter!('solution_id', solution_id)
 
-        # Build endpoint with query parameter
-        endpoint = build_endpoint('/deleted-records/', preview: preview)
+        # Cache-first strategy
+        if cache_enabled? && @cache
+          # Check if we have valid cached data
+          cached_records = @cache.get_cached_deleted_records(solution_id, full_data: full_data)
 
-        # Body contains solution_id
-        body = { solution_id: solution_id }
+          if cached_records
+            log_metric("✓ Retrieved #{cached_records.size} deleted records from cache (full_data: #{full_data})")
+            return format_deleted_records_output(cached_records, format)
+          end
 
-        response = api_request(:post, endpoint, body)
+          # Cache miss - fetch from API and cache everything
+          log_metric('→ Cache miss for deleted records, fetching from API')
+          response = fetch_deleted_records_from_api(solution_id)
 
+          if response.is_a?(Array) && response.any?
+            @cache.cache_deleted_records(solution_id, response)
+            log_metric("✓ Cached #{response.size} deleted records for solution #{solution_id}")
+
+            # Now get from cache with the requested full_data setting
+            cached_records = @cache.get_cached_deleted_records(solution_id, full_data: full_data)
+            return format_deleted_records_output(cached_records || response, format)
+          end
+
+          return format_deleted_records_output(response, format) if response.is_a?(Array)
+
+          return response
+        end
+
+        # Cache disabled - direct API call
+        response = fetch_deleted_records_from_api(solution_id)
         return response unless response.is_a?(Array)
 
-        format_deleted_records_output(response, format)
+        # Filter to just id and title if full_data is false
+        records = full_data ? response : response.map { |r| { 'id' => r['id'], 'title' => r['title'] } }
+        format_deleted_records_output(records, format)
       end
+
+      private
+
+      # Fetch deleted records from API
+      #
+      # @param solution_id [String] Solution identifier
+      # @return [Array<Hash>, Hash] Array of deleted records or error response
+      def fetch_deleted_records_from_api(solution_id)
+        # Build endpoint with preview: false to get all data for caching
+        endpoint = build_endpoint('/deleted-records/', preview: false)
+        body = { solution_id: solution_id }
+        api_request(:post, endpoint, body)
+      end
+
+      public
 
       # Format deleted records output based on format parameter
       #
@@ -611,16 +659,11 @@ module SmartSuite
       # @param format [Symbol] Output format (:toon or :json)
       # @return [String, Array<Hash>] Formatted output
       def format_deleted_records_output(records, format)
-        message = "Found #{records.size} deleted records"
-
         case format
         when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format(records)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format(records)
         else # :json
-          track_response_size(records, message)
+          records
         end
       end
 
@@ -641,7 +684,7 @@ module SmartSuite
         validate_required_parameter!('record_id', record_id)
 
         response = api_request(:post, "/applications/#{table_id}/records/#{record_id}/restore/", {})
-        format_single_response(response, format, "Restored record: #{record_id}")
+        format_single_response(response, format)
       end
 
       # Attach files to a record by URL or local file path.

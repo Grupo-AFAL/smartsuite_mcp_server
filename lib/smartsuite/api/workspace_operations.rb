@@ -60,8 +60,6 @@ module SmartSuite
         # Build endpoint with query parameters using Base helper
         endpoint = build_endpoint('/solutions/', fields: fields)
 
-        log_metric("→ Requesting endpoint: #{endpoint}") if fields && !fields.empty?
-
         response = api_request(:get, endpoint)
 
         # Cache the full response if cache enabled
@@ -117,8 +115,7 @@ module SmartSuite
             filtered
           end
 
-          return format_solutions_output(filtered_solutions, format,
-                                         "Found #{filtered_solutions.size} solutions with custom fields (client-side filtered)")
+          return format_solutions_output(filtered_solutions, format)
         end
 
         # Extract only essential fields to reduce response size (client-side filtering)
@@ -152,25 +149,20 @@ module SmartSuite
           base_fields
         end
 
-        format_solutions_output(solutions, format, "Found #{solutions.size} solutions")
+        format_solutions_output(solutions, format)
       end
 
       # Format solutions output based on format parameter
       #
       # @param solutions [Array<Hash>] Filtered solutions data
       # @param format [Symbol] Output format (:toon or :json)
-      # @param message [String] Log message
       # @return [String, Hash] Formatted output
-      def format_solutions_output(solutions, format, message)
+      def format_solutions_output(solutions, format)
         case format
         when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format_solutions(solutions)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format_solutions(solutions)
         else # :json
-          result = build_collection_response(solutions, :solutions)
-          track_response_size(result, message)
+          build_collection_response(solutions, :solutions)
         end
       end
 
@@ -186,7 +178,6 @@ module SmartSuite
       def get_solution(solution_id)
         validate_required_parameter!('solution_id', solution_id)
 
-        log_metric("→ Getting solution details: #{solution_id}")
         api_request(:get, "/solutions/#{solution_id}/")
       end
 
@@ -211,10 +202,21 @@ module SmartSuite
 
         log_metric("→ Listing solutions owned by user: #{owner_id}")
 
-        # Fetch all solutions (this gets full data including permissions)
-        response = api_request(:get, '/solutions/')
+        # Use cache-first strategy - cache stores full data including permissions
+        cached_solutions = with_cache_check('solutions') { @cache.get_cached_solutions }
+        if cached_solutions
+          solutions_list = cached_solutions
+        else
+          # Cache miss - fetch and cache all solutions
+          response = api_request(:get, '/solutions/')
+          solutions_list = extract_items_safely(response)
 
-        solutions_list = extract_items_safely(response)
+          # Cache the full response
+          if cache_enabled?
+            @cache.cache_solutions(solutions_list)
+            log_metric("✓ Cached #{solutions_list.size} solutions")
+          end
+        end
 
         # Filter solutions where the user is in the owners array
         owned_solutions = solutions_list.select do |solution|
@@ -251,7 +253,7 @@ module SmartSuite
           base_fields
         end
 
-        format_solutions_output(filtered_solutions, format, "Found #{filtered_solutions.size} solutions owned by user #{owner_id}")
+        format_solutions_output(filtered_solutions, format)
       end
 
       # Gets the most recent record update timestamp across all tables in a solution.
@@ -440,9 +442,7 @@ module SmartSuite
           'active_solutions_count' => active.size
         }
 
-        message = "Analysis complete: #{inactive.size} inactive, " \
-                  "#{potentially_unused.size} potentially unused, #{active.size} active"
-        format_single_response(result, format, message)
+        format_single_response(result, format)
       end
     end
   end

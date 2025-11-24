@@ -8,13 +8,14 @@ class TestResponseFormatter < Minitest::Test
   # Include the module to test
   include SmartSuite::Formatters::ResponseFormatter
 
-  # Mock log_metric and log_token_usage methods since they're used but not in this module
+  # Mock log_metric and update_token_usage methods since they're used but not in this module
   def log_metric(_message)
     # Silently ignore logging in tests
   end
 
-  def log_token_usage(_tokens)
-    # Silently ignore logging in tests
+  def update_token_usage(tokens)
+    # Return the tokens as mock total
+    tokens
   end
 
   # Test filter_field_structure with full field data

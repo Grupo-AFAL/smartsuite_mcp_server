@@ -2,6 +2,7 @@
 
 require 'json'
 require_relative 'api_stats_tracker'
+require_relative 'smartsuite/logger'
 require_relative 'smartsuite/api/http_client'
 require_relative 'smartsuite/api/workspace_operations'
 require_relative 'smartsuite/api/table_operations'
@@ -99,11 +100,6 @@ class SmartSuiteClient
     # Generate unique session ID if not provided
     @session_id = session_id || "#{Time.now.strftime('%Y%m%d_%H%M%S')}_#{rand(36**6).to_s(36)}"
 
-    # Create a separate, clean log file for metrics (must be before any log_metric calls)
-    # Uses SmartSuite::Paths for consistent path handling (test mode vs production)
-    @metrics_log = File.open(SmartSuite::Paths.metrics_log_path, 'a')
-    @metrics_log.sync = true # Auto-flush
-
     # Token usage tracking
     @total_tokens_used = 0
     @context_limit = 200_000 # Claude's context window
@@ -111,16 +107,16 @@ class SmartSuiteClient
     # Initialize cache layer
     if cache_enabled
       @cache = SmartSuite::Cache::Layer.new(db_path: cache_path)
-      log_metric("✓ Cache layer initialized: #{@cache.db_path}")
-      log_metric("✓ Session ID: #{@session_id}")
+      SmartSuite::Logger.metric("✓ Cache layer initialized: #{@cache.db_path}")
+      SmartSuite::Logger.metric("✓ Session ID: #{@session_id}")
 
       # Initialize stats tracker to use same database as cache with session tracking
       @stats_tracker = ApiStatsTracker.new(api_key, db: @cache.db, session_id: @session_id)
-      log_metric('✓ Stats tracker sharing cache database')
+      SmartSuite::Logger.metric('✓ Stats tracker sharing cache database')
     else
       @cache = nil
       @stats_tracker = stats_tracker # Use provided tracker or nil
-      log_metric('⚠ Cache layer disabled')
+      SmartSuite::Logger.metric('⚠ Cache layer disabled')
     end
   end
 

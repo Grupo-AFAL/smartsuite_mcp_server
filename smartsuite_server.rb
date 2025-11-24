@@ -4,7 +4,7 @@
 require 'json'
 require_relative 'lib/smartsuite_client'
 require_relative 'lib/api_stats_tracker'
-require_relative 'lib/smartsuite/paths'
+require_relative 'lib/smartsuite/logger'
 require_relative 'lib/smartsuite/mcp/tool_registry'
 require_relative 'lib/smartsuite/mcp/prompt_registry'
 require_relative 'lib/smartsuite/mcp/resource_registry'
@@ -20,17 +20,12 @@ class SmartSuiteServer
 
     # Initialize SmartSuite API client (creates its own stats tracker with shared cache database)
     @client = SmartSuiteClient.new(@api_key, @account_id)
-
-    # Open metrics log file
-    # Uses SmartSuite::Paths for consistent path handling (test mode vs production)
-    @metrics_log = File.open(SmartSuite::Paths.metrics_log_path, 'a')
-    @metrics_log.sync = true
   end
 
   def run
-    warn '=' * 60
-    warn 'SmartSuite MCP Server starting...'
-    warn '=' * 60
+    SmartSuite::Logger.separator('=', 60)
+    SmartSuite::Logger.server('SmartSuite MCP Server starting...')
+    SmartSuite::Logger.separator('=', 60)
     loop do
       input = $stdin.gets
       break unless input
@@ -43,22 +38,21 @@ class SmartSuiteServer
       # Check if this is a notification (no id field)
       # Notifications should not receive responses
       if request['id'].nil?
-        warn "\n📩 Notification: #{request['method']}"
+        SmartSuite::Logger.server("Notification: #{request['method']}")
         next
       end
 
-      # Log the tool call
+      # Log the tool call with a centered header
       if request['method'] == 'tools/call'
         tool_name = request.dig('params', 'name')
-        log_metric('=' * 50)
-        log_metric("🔧 #{tool_name}")
+        SmartSuite::Logger.tool_header(tool_name)
       end
 
       response = handle_request(request)
       $stdout.puts JSON.generate(response)
       $stdout.flush
     rescue JSON::ParserError => e
-      warn "JSON Parse Error: #{e.message}"
+      SmartSuite::Logger.error('JSON Parse Error', error: e)
       # For parse errors, we can't know the request ID, so we must omit id
       error_response = {
         'jsonrpc' => '2.0',
@@ -70,7 +64,7 @@ class SmartSuiteServer
       $stdout.puts JSON.generate(error_response)
       $stdout.flush
     rescue StandardError => e
-      warn "Error: #{e.message}\n#{e.backtrace.join("\n")}"
+      SmartSuite::Logger.error('Server error', error: e)
       # Generic error - we also can't know the request ID
       error_response = {
         'jsonrpc' => '2.0',
@@ -262,7 +256,7 @@ class SmartSuiteServer
              when 'list_deleted_records'
                @client.list_deleted_records(
                  arguments['solution_id'],
-                 preview: arguments['preview'],
+                 full_data: arguments['full_data'] || false,
                  format: (arguments['format'] || 'toon').to_sym
                )
              when 'restore_deleted_record'
@@ -395,11 +389,6 @@ class SmartSuiteServer
     }
     $stdout.puts JSON.generate(response)
     $stdout.flush
-  end
-
-  def log_metric(message)
-    timestamp = Time.now.strftime('%H:%M:%S')
-    @metrics_log.puts "[#{timestamp}] #{message}"
   end
 end
 # rubocop:enable Metrics/ClassLength

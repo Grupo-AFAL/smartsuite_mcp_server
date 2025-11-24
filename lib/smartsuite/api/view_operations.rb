@@ -34,8 +34,6 @@ module SmartSuite
         validate_required_parameter!('table_id', table_id)
         validate_required_parameter!('view_id', view_id)
 
-        log_metric("→ Getting records for view: #{view_id} in table: #{table_id}")
-
         # Build endpoint with query parameters using Base helper
         base_path = "/applications/#{table_id}/records-for-report/"
         endpoint = build_endpoint(base_path, report: view_id, with_empty_values: with_empty_values || nil)
@@ -57,17 +55,12 @@ module SmartSuite
       def format_view_records_output(response, format)
         records = response['records']
         record_count = records.size
-        message = "Retrieved #{record_count} records for view"
 
         case format
         when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format_records(records, total_count: record_count)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format_records(records, total_count: record_count)
         else # :json
-          log_metric("✓ #{message}")
-          track_response_size(response, message)
+          response
         end
       end
 
@@ -107,8 +100,6 @@ module SmartSuite
         validate_required_parameter!('label', label)
         validate_required_parameter!('view_mode', view_mode)
 
-        log_metric("→ Creating view: #{label} in application: #{application}")
-
         body = {
           'application' => application,
           'solution' => solution,
@@ -131,7 +122,7 @@ module SmartSuite
 
         return response unless response.is_a?(Hash)
 
-        format_single_response(response, format, "Created view: #{response['label']} (#{response['id']})")
+        format_single_response(response, format)
       end
     end
   end

@@ -12,7 +12,7 @@ require_relative 'schema'
 require_relative '../response_formats'
 require_relative '../fuzzy_matcher'
 require_relative '../paths'
-require_relative '../../query_logger'
+require_relative '../logger'
 
 module SmartSuite
   # Cache layer module
@@ -106,7 +106,7 @@ module SmartSuite
       # @return [Array] Query results
       def db_execute(sql, *params)
         start_time = Time.now
-        QueryLogger.log_db_query(sql, params)
+        SmartSuite::Logger.db_query(sql, params)
 
         # SQLite3 gem expects params as array, not as splat args
         result = if params.empty?
@@ -116,11 +116,11 @@ module SmartSuite
                  end
 
         duration = Time.now - start_time
-        QueryLogger.log_db_result(result.length, duration)
+        SmartSuite::Logger.db_result(result.length, duration)
 
         result
       rescue StandardError => e
-        QueryLogger.log_error('DB Query', e)
+        SmartSuite::Logger.error('DB Query', error: e)
         raise
       end
 
@@ -129,7 +129,7 @@ module SmartSuite
       def log_warning(message)
         return if SmartSuite::Paths.test_mode?
 
-        warn message
+        SmartSuite::Logger.warn(message, category: :cache)
       end
 
       # Invalidate a simple cache table (members, teams)
@@ -139,7 +139,7 @@ module SmartSuite
       def invalidate_simple_cache(table_name, resource_type)
         db_execute("UPDATE #{table_name} SET expires_at = 0")
         record_stat('invalidation', resource_type, resource_type)
-        QueryLogger.log_cache_operation('invalidate', resource_type)
+        SmartSuite::Logger.cache('invalidate', resource_type)
       end
 
       # Cache all records from a SmartSuite table
@@ -448,7 +448,7 @@ module SmartSuite
 
         db_execute('UPDATE cached_tables SET expires_at = 0 WHERE id = ?', table_id)
         record_stat('invalidation', 'table_structure', table_id)
-        QueryLogger.log_cache_operation('invalidate', "table_structure:#{table_id}")
+        SmartSuite::Logger.cache('invalidate', "table_structure:#{table_id}")
       end
 
       # Check if cached records are valid (not expired)
@@ -515,7 +515,7 @@ module SmartSuite
         result = query(table_id).where(id: record_id).limit(1).execute.first
 
         if result
-          QueryLogger.log_cache_operation('hit', "record:#{table_id}:#{record_id}")
+          SmartSuite::Logger.cache('hit', "record:#{table_id}:#{record_id}")
           record_stat('record_cached', 'hit', table_id)
         end
 
@@ -643,7 +643,7 @@ module SmartSuite
 
         record_stat('solutions_cached', 'bulk_insert', 'solutions', { count: solutions.size, ttl: ttl })
 
-        QueryLogger.log_cache_operation('insert', 'solutions', count: solutions.size, ttl: ttl)
+        SmartSuite::Logger.cache('insert', 'solutions', count: solutions.size, ttl: ttl)
 
         solutions.size
       end
@@ -701,7 +701,7 @@ module SmartSuite
           solution
         end
 
-        QueryLogger.log_cache_operation('hit', 'solutions', count: solutions.size)
+        SmartSuite::Logger.cache('hit', 'solutions', count: solutions.size)
 
         solutions
       end
@@ -717,7 +717,7 @@ module SmartSuite
 
         valid = result && result['count'].to_i.positive?
 
-        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'solutions')
+        SmartSuite::Logger.cache(valid ? 'valid' : 'expired', 'solutions')
 
         valid
       end
@@ -732,7 +732,7 @@ module SmartSuite
         # Invalidate solutions
         db_execute('UPDATE cached_solutions SET expires_at = 0')
         record_stat('invalidation', 'solutions', 'solutions')
-        QueryLogger.log_cache_operation('invalidate', 'solutions')
+        SmartSuite::Logger.cache('invalidate', 'solutions')
       end
 
       # ========== Table List Caching ==========
@@ -758,69 +758,34 @@ module SmartSuite
 
         # Insert all tables with fixed columns
         tables.each do |table|
-          # Convert structure to JSON if it exists
-          structure_json = table['structure']&.to_json
-
-          # API returns 'solution' but we normalize to 'solution_id'
-          solution_id_value = table['solution'] || table['solution_id']
-
-          # API returns first_created as object with 'by' and 'on'
-          created = table.dig('first_created', 'on')
-          created_by = table.dig('first_created', 'by')
-
-          # Convert permissions and field_permissions to JSON
-          permissions_json = table['permissions']&.to_json
-          field_permissions_json = table['field_permissions']&.to_json
-
-          # Extract fields_count values
-          fields_count_total = table.dig('fields_count', 'total')
-          fields_count_linked = table.dig('fields_count', 'linkedrecordfield')
-
-          # Convert hidden boolean to integer (0/1)
-          hidden = table['hidden'] ? 1 : 0
-
-          # Convert integer fields (default to nil if not present)
-          table_order = table['order']&.to_i if table['order']
-          fields_total = fields_count_total.to_i if fields_count_total
-          fields_linked = fields_count_linked.to_i if fields_count_linked
-
-          db_execute(
-            "INSERT INTO cached_tables (
-            id, slug, name, solution_id, structure,
-            created, created_by,
-            status, hidden, icon, primary_field, table_order,
-            permissions, field_permissions, record_term,
-            fields_count_total, fields_count_linkedrecordfield,
-            cached_at, expires_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            table['id'],
-            table['slug'],
-            table['name'],
-            solution_id_value,
-            structure_json,
-            created ? parse_timestamp(created) : nil,
-            created_by,
-            table['status'],
-            hidden,
-            table['icon'],
-            table['primary_field'],
-            table_order,
-            permissions_json,
-            field_permissions_json,
-            table['record_term'],
-            fields_total,
-            fields_linked,
-            cached_at,
-            expires_at
-          )
+          insert_table_row(table, cached_at, expires_at)
         end
 
         cache_key = solution_id ? "solution:#{solution_id}" : 'all_tables'
         record_stat('table_list_cached', 'insert', cache_key, { count: tables.size, ttl: ttl })
-        QueryLogger.log_cache_operation('insert', "table_list:#{cache_key}", count: tables.size, ttl: ttl)
+        SmartSuite::Logger.cache('insert', "table_list:#{cache_key}", count: tables.size, ttl: ttl)
 
         tables.size
       end
+
+      # Cache a single table (insert or replace existing)
+      #
+      # @param table [Hash] Table data from API response
+      # @param ttl [Integer] Time-to-live in seconds (default: 7 days)
+      # @return [Boolean] true if cached successfully
+      # rubocop:disable Naming/PredicateMethod -- This is an action method, not a predicate
+      def cache_single_table(table, ttl: 7 * 24 * 3600)
+        expires_at = (Time.now + ttl).utc.iso8601
+        cached_at = Time.now.utc.iso8601
+
+        insert_table_row(table, cached_at, expires_at, replace: true)
+
+        SmartSuite::Logger.cache('insert', "table:#{table['id']}", name: table['name'])
+        record_stat('table_cached', 'insert', table['id'])
+
+        true
+      end
+      # rubocop:enable Naming/PredicateMethod
 
       # Get cached table list for a solution
       #
@@ -845,7 +810,7 @@ module SmartSuite
         # Parse structure JSON back to array
         structure = result['structure'] ? JSON.parse(result['structure']) : []
 
-        QueryLogger.log_cache_operation('hit', "table:#{table_id}")
+        SmartSuite::Logger.cache('hit', "table:#{table_id}")
         record_stat('table_cached', 'hit', table_id)
 
         {
@@ -904,7 +869,7 @@ module SmartSuite
         end
 
         cache_key = solution_id ? "solution:#{solution_id}" : 'all_tables'
-        QueryLogger.log_cache_operation('hit', "table_list:#{cache_key}", count: tables.size)
+        SmartSuite::Logger.cache('hit', "table_list:#{cache_key}", count: tables.size)
 
         tables
       end
@@ -921,7 +886,7 @@ module SmartSuite
           ).first
 
           valid = result && result['count'].to_i.positive?
-          QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', "table_list:solution:#{solution_id}")
+          SmartSuite::Logger.cache(valid ? 'valid' : 'expired', "table_list:solution:#{solution_id}")
         else
           # For "all tables" request, we must verify we have a complete cache
           # Check if we have the "all_tables" scope marker set and not expired
@@ -930,7 +895,7 @@ module SmartSuite
           ).first
 
           if scope_result.nil? || scope_result['expires_at'].nil?
-            QueryLogger.log_cache_operation('expired', 'table_list:all_tables (no scope marker)')
+            SmartSuite::Logger.cache('expired', 'table_list:all_tables (no scope marker)')
             return false
           end
 
@@ -940,7 +905,7 @@ module SmartSuite
             nil
           end
           if scope_expires.nil? || scope_expires <= Time.now.utc
-            QueryLogger.log_cache_operation('expired', 'table_list:all_tables (scope expired)')
+            SmartSuite::Logger.cache('expired', 'table_list:all_tables (scope expired)')
             return false
           end
 
@@ -951,7 +916,7 @@ module SmartSuite
           ).first
 
           valid = result && result['count'].to_i.positive?
-          QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'table_list:all_tables')
+          SmartSuite::Logger.cache(valid ? 'valid' : 'expired', 'table_list:all_tables')
         end
         valid
       end
@@ -968,13 +933,13 @@ module SmartSuite
         if solution_id
           db_execute('UPDATE cached_tables SET expires_at = 0 WHERE solution_id = ?', solution_id)
           record_stat('invalidation', 'table_list', solution_id)
-          QueryLogger.log_cache_operation('invalidate', "table_list:solution:#{solution_id}")
+          SmartSuite::Logger.cache('invalidate', "table_list:solution:#{solution_id}")
         else
           db_execute('UPDATE cached_tables SET expires_at = 0')
           # Also clear the "all_tables" scope marker
           clear_table_list_scope
           record_stat('invalidation', 'table_list', 'all_tables')
-          QueryLogger.log_cache_operation('invalidate', 'table_list:all_tables')
+          SmartSuite::Logger.cache('invalidate', 'table_list:all_tables')
         end
       end
 
@@ -989,13 +954,13 @@ module SmartSuite
            VALUES ('__table_list_scope__', 0, ?, ?, ?)",
           scope, expires_at, Time.now.utc.iso8601
         )
-        QueryLogger.log_cache_operation('set_scope', "table_list:#{scope}")
+        SmartSuite::Logger.cache('set_scope', "table_list:#{scope}")
       end
 
       # Clear table list cache scope marker
       def clear_table_list_scope
         db_execute("DELETE FROM cache_ttl_config WHERE table_id = '__table_list_scope__'")
-        QueryLogger.log_cache_operation('clear_scope', 'table_list')
+        SmartSuite::Logger.cache('clear_scope', 'table_list')
       end
 
       # ========== Member Caching ==========
@@ -1047,7 +1012,7 @@ module SmartSuite
         end
 
         record_stat('members_cached', 'bulk_insert', 'members', { count: members.size, ttl: ttl })
-        QueryLogger.log_cache_operation('insert', 'members', count: members.size, ttl: ttl)
+        SmartSuite::Logger.cache('insert', 'members', count: members.size, ttl: ttl)
 
         members.size
       end
@@ -1106,7 +1071,7 @@ module SmartSuite
           member.compact
         end
 
-        QueryLogger.log_cache_operation('hit', 'members', count: members.size)
+        SmartSuite::Logger.cache('hit', 'members', count: members.size)
 
         members
       end
@@ -1122,7 +1087,7 @@ module SmartSuite
 
         valid = result && result['count'].to_i.positive?
 
-        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'members')
+        SmartSuite::Logger.cache(valid ? 'valid' : 'expired', 'members')
 
         valid
       end
@@ -1163,7 +1128,7 @@ module SmartSuite
         end
 
         record_stat('teams_cached', 'bulk_insert', 'teams', { count: teams.size, ttl: ttl })
-        QueryLogger.log_cache_operation('insert', 'teams', count: teams.size, ttl: ttl)
+        SmartSuite::Logger.cache('insert', 'teams', count: teams.size, ttl: ttl)
 
         teams.size
       end
@@ -1195,7 +1160,7 @@ module SmartSuite
           team
         end
 
-        QueryLogger.log_cache_operation('hit', 'teams', count: teams.size)
+        SmartSuite::Logger.cache('hit', 'teams', count: teams.size)
 
         teams
       end
@@ -1222,7 +1187,7 @@ module SmartSuite
         team['description'] = result['description'] if result['description']
         team['members'] = JSON.parse(result['members']) if result['members']
 
-        QueryLogger.log_cache_operation('hit', "team:#{team_id}")
+        SmartSuite::Logger.cache('hit', "team:#{team_id}")
 
         team
       end
@@ -1238,7 +1203,7 @@ module SmartSuite
 
         valid = result && result['count'].to_i.positive?
 
-        QueryLogger.log_cache_operation(valid ? 'valid' : 'expired', 'teams')
+        SmartSuite::Logger.cache(valid ? 'valid' : 'expired', 'teams')
 
         valid
       end
@@ -1246,6 +1211,116 @@ module SmartSuite
       # Invalidate teams cache
       def invalidate_teams_cache
         invalidate_simple_cache('cached_teams', 'teams')
+      end
+
+      # ========== Deleted Records Caching ==========
+
+      # Cache deleted records for a solution
+      #
+      # Stores all deleted records but keeps them separate from regular (non-deleted) records.
+      # Full record data is stored in `full_data` column for retrieval when requested.
+      #
+      # @param solution_id [String] Solution ID
+      # @param records [Array<Hash>] Array of deleted record hashes from API
+      # @param ttl [Integer] Time-to-live in seconds (default: 4 hours)
+      # @return [Integer] Number of records cached
+      def cache_deleted_records(solution_id, records, ttl: 4 * 3600)
+        expires_at = (Time.now + ttl).utc.iso8601
+        cached_at = Time.now.utc.iso8601
+
+        # Clear existing cached deleted records for this solution
+        db_execute('DELETE FROM cached_deleted_records WHERE solution = ?', solution_id)
+
+        # Insert all deleted records
+        records.each do |record|
+          db_execute(
+            'INSERT INTO cached_deleted_records (
+              id, title, application, solution, deleted_by, deleted_date,
+              full_data, cached_at, expires_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            record['id'],
+            record['title'],
+            record['application'],
+            record['solution'] || solution_id,
+            record['deleted_by'],
+            record['deleted_date'].is_a?(Hash) ? record['deleted_date']['date'] : record['deleted_date'],
+            record.to_json,
+            cached_at,
+            expires_at
+          )
+        end
+
+        record_stat('deleted_records_cached', 'bulk_insert', solution_id, { count: records.size, ttl: ttl })
+        SmartSuite::Logger.cache('insert', "deleted_records:#{solution_id}", count: records.size, ttl: ttl)
+
+        records.size
+      end
+
+      # Get cached deleted records for a solution
+      #
+      # @param solution_id [String] Solution ID
+      # @param full_data [Boolean] If true, returns full record data; if false, returns only id and title
+      # @return [Array<Hash>, nil] Array of deleted records or nil if cache invalid
+      def get_cached_deleted_records(solution_id, full_data: false)
+        # Check if cache is valid
+        return nil unless deleted_records_cache_valid?(solution_id)
+
+        results = db_execute(
+          'SELECT * FROM cached_deleted_records WHERE solution = ? AND expires_at > ?',
+          solution_id, Time.now.utc.iso8601
+        )
+
+        return nil if results.empty?
+
+        # Reconstruct record hashes
+        records = results.map do |row|
+          if full_data && row['full_data']
+            # Return full record data
+            JSON.parse(row['full_data'])
+          else
+            # Return only essential fields (id, title)
+            {
+              'id' => row['id'],
+              'title' => row['title']
+            }
+          end
+        end
+
+        SmartSuite::Logger.cache('hit', "deleted_records:#{solution_id}", count: records.size, full_data: full_data)
+
+        records
+      end
+
+      # Check if deleted records cache is valid for a solution
+      #
+      # @param solution_id [String] Solution ID
+      # @return [Boolean] true if cache is valid
+      def deleted_records_cache_valid?(solution_id)
+        result = db_execute(
+          'SELECT COUNT(*) as count FROM cached_deleted_records WHERE solution = ? AND expires_at > ?',
+          solution_id, Time.now.utc.iso8601
+        ).first
+
+        valid = result && result['count'].to_i.positive?
+
+        SmartSuite::Logger.cache(valid ? 'valid' : 'expired', "deleted_records:#{solution_id}")
+
+        valid
+      end
+
+      # Invalidate deleted records cache for a solution
+      #
+      # @param solution_id [String, nil] Solution ID (nil for all solutions)
+      def invalidate_deleted_records_cache(solution_id = nil)
+        if solution_id
+          db_execute('UPDATE cached_deleted_records SET expires_at = 0 WHERE solution = ?', solution_id)
+          record_stat('invalidation', 'deleted_records', solution_id)
+          SmartSuite::Logger.cache('invalidate', "deleted_records:#{solution_id}")
+        else
+          db_execute('UPDATE cached_deleted_records SET expires_at = 0')
+          record_stat('invalidation', 'deleted_records', 'all')
+          SmartSuite::Logger.cache('invalidate', 'deleted_records:all')
+        end
       end
 
       # Refresh (invalidate) cache for specific resources
@@ -1354,6 +1429,72 @@ module SmartSuite
 
       private
 
+      # Insert a single table row into cached_tables
+      #
+      # @param table [Hash] Table data from API response
+      # @param cached_at [String] ISO8601 timestamp when cached
+      # @param expires_at [String] ISO8601 timestamp when cache expires
+      # @param replace [Boolean] Use INSERT OR REPLACE (default: false for INSERT)
+      def insert_table_row(table, cached_at, expires_at, replace: false)
+        # Convert structure to JSON if it exists
+        structure_json = table['structure']&.to_json
+
+        # API returns 'solution' but we normalize to 'solution_id'
+        solution_id_value = table['solution'] || table['solution_id']
+
+        # API returns first_created as object with 'by' and 'on'
+        created = table.dig('first_created', 'on')
+        created_by = table.dig('first_created', 'by')
+
+        # Convert permissions and field_permissions to JSON
+        permissions_json = table['permissions']&.to_json
+        field_permissions_json = table['field_permissions']&.to_json
+
+        # Extract fields_count values
+        fields_count_total = table.dig('fields_count', 'total')
+        fields_count_linked = table.dig('fields_count', 'linkedrecordfield')
+
+        # Convert hidden boolean to integer (0/1)
+        hidden = table['hidden'] ? 1 : 0
+
+        # Convert integer fields (default to nil if not present)
+        table_order = table['order']&.to_i if table['order']
+        fields_total = fields_count_total.to_i if fields_count_total
+        fields_linked = fields_count_linked.to_i if fields_count_linked
+
+        sql_command = replace ? 'INSERT OR REPLACE' : 'INSERT'
+
+        db_execute(
+          "#{sql_command} INTO cached_tables (
+          id, slug, name, solution_id, structure,
+          created, created_by,
+          status, hidden, icon, primary_field, table_order,
+          permissions, field_permissions, record_term,
+          fields_count_total, fields_count_linkedrecordfield,
+          cached_at, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          table['id'],
+          table['slug'],
+          table['name'],
+          solution_id_value,
+          structure_json,
+          created ? parse_timestamp(created) : nil,
+          created_by,
+          table['status'],
+          hidden,
+          table['icon'],
+          table['primary_field'],
+          table_order,
+          permissions_json,
+          field_permissions_json,
+          table['record_term'],
+          fields_total,
+          fields_linked,
+          cached_at,
+          expires_at
+        )
+      end
+
       # Register custom SQLite functions for advanced querying
       #
       # Registers:
@@ -1410,7 +1551,7 @@ module SmartSuite
           invalidated_count += 1
         end
 
-        QueryLogger.log_cache_operation(
+        SmartSuite::Logger.cache(
           'invalidate',
           solution_id ? "records:solution:#{solution_id}" : 'records:all_tables',
           count: invalidated_count
