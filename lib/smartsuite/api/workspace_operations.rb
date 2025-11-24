@@ -120,7 +120,7 @@ module SmartSuite
 
         # Extract only essential fields to reduce response size (client-side filtering)
         solutions = solutions_list.map do |solution|
-          extract_essential_solution_fields(solution, include_activity_data)
+          extract_essential_solution_fields(solution, include_activity_data: include_activity_data)
         end
 
         format_solutions_output(solutions, format)
@@ -201,7 +201,7 @@ module SmartSuite
 
         # Extract only essential fields to reduce response size
         filtered_solutions = owned_solutions.map do |solution|
-          extract_essential_solution_fields(solution, include_activity_data)
+          extract_essential_solution_fields(solution, include_activity_data: include_activity_data)
         end
 
         format_solutions_output(filtered_solutions, format)
@@ -302,7 +302,7 @@ module SmartSuite
       # @param solution [Hash] Full solution data from API
       # @param include_activity_data [Boolean] Whether to include usage metrics
       # @return [Hash] Solution with only essential fields
-      def extract_essential_solution_fields(solution, include_activity_data = false)
+      def extract_essential_solution_fields(solution, include_activity_data: false)
         base_fields = {
           'id' => solution['id'],
           'name' => solution['name'],
