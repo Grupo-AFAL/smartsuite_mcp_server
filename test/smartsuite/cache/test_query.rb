@@ -906,6 +906,139 @@ class TestCacheQuery < Minitest::Test
     assert_equal 'rec_3', results[0]['id']
   end
 
+  # ============================================================================
+  # REGRESSION TESTS: Daterangefield Sub-field Filtering (.to_date/.from_date)
+  # ============================================================================
+  # Critical fix: When filtering by sub-field (e.g., "date_field.to_date"), the query
+  # should extract the base field slug for field lookup but use the full slug for
+  # determining which column to use (_from or _to).
+
+  def test_daterangefield_filter_by_to_date_subfield
+    # Create table with daterangefield
+    table_id = 'tbl_subfield_test'
+    structure = {
+      'name' => 'Subfield Test Table',
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'date_range', 'label' => 'Date Range', 'field_type' => 'daterangefield' }
+      ]
+    }
+
+    # Create cache table (creates date_range_from and date_range_to columns)
+    sql_table_name = @cache.create_cache_table(table_id, structure)
+
+    # Insert records with different date ranges
+    now = Time.now.to_i
+    expires = now + 3600
+
+    records_data = [
+      ['rec_hawaii', 'Hawaii', '2025-11-10T00:00:00Z', '2025-11-19T07:00:00Z'],
+      ['rec_nepal', 'Nepal', '2025-11-15T00:00:00Z', '2025-11-19T18:15:00Z'],
+      ['rec_other', 'Other', '2025-11-01T00:00:00Z', '2025-11-15T00:00:00Z']
+    ]
+
+    records_data.each do |id, title, from_date, to_date|
+      @cache.db.execute(
+        "INSERT INTO #{sql_table_name} (id, title, date_range_from, date_range_to, cached_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?)",
+        [id, title, from_date, to_date, now, expires]
+      )
+    end
+
+    # Test: Filter by date_range.to_date should use the _to column
+    # Filter for dates between 2025-11-19 07:00:00Z and 2025-11-19 23:59:59Z (day in UTC)
+    results = @cache.query(table_id)
+                    .where('date_range.to_date': { between: { min: '2025-11-19T07:00:00Z', max: '2025-11-19T23:59:59Z' } })
+                    .execute
+
+    assert_equal 2, results.size, 'Should find Hawaii and Nepal records'
+    ids = results.map { |r| r['id'] }
+    assert_includes ids, 'rec_hawaii', 'Should include Hawaii'
+    assert_includes ids, 'rec_nepal', 'Should include Nepal'
+    refute_includes ids, 'rec_other', 'Should not include Other'
+  end
+
+  def test_daterangefield_filter_by_from_date_subfield
+    # Create table with daterangefield
+    table_id = 'tbl_from_subfield'
+    structure = {
+      'name' => 'From Subfield Test',
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'project_dates', 'label' => 'Project Dates', 'field_type' => 'daterangefield' }
+      ]
+    }
+
+    sql_table_name = @cache.create_cache_table(table_id, structure)
+
+    now = Time.now.to_i
+    expires = now + 3600
+
+    records_data = [
+      ['rec_1', 'Project A', '2025-01-01T00:00:00Z', '2025-01-31T00:00:00Z'],
+      ['rec_2', 'Project B', '2025-02-01T00:00:00Z', '2025-02-28T00:00:00Z'],
+      ['rec_3', 'Project C', '2025-01-15T00:00:00Z', '2025-02-15T00:00:00Z']
+    ]
+
+    records_data.each do |id, title, from_date, to_date|
+      @cache.db.execute(
+        "INSERT INTO #{sql_table_name} (id, title, project_dates_from, project_dates_to, cached_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?)",
+        [id, title, from_date, to_date, now, expires]
+      )
+    end
+
+    # Test: Filter by project_dates.from_date should use the _from column
+    results = @cache.query(table_id)
+                    .where('project_dates.from_date': { gte: '2025-01-15T00:00:00Z' })
+                    .execute
+
+    assert_equal 2, results.size, 'Should find Projects B and C'
+    ids = results.map { |r| r['id'] }
+    assert_includes ids, 'rec_2', 'Should include Project B (from: 2025-02-01)'
+    assert_includes ids, 'rec_3', 'Should include Project C (from: 2025-01-15)'
+    refute_includes ids, 'rec_1', 'Should not include Project A (from: 2025-01-01)'
+  end
+
+  def test_daterangefield_default_uses_to_date
+    # Verify that without sub-field suffix, default is to use _to column
+    table_id = 'tbl_default_to'
+    structure = {
+      'name' => 'Default To Test',
+      'structure' => [
+        { 'slug' => 'title', 'label' => 'Title', 'field_type' => 'textfield' },
+        { 'slug' => 'dates', 'label' => 'Dates', 'field_type' => 'daterangefield' }
+      ]
+    }
+
+    sql_table_name = @cache.create_cache_table(table_id, structure)
+
+    now = Time.now.to_i
+    expires = now + 3600
+
+    records_data = [
+      ['rec_1', 'Range A', '2025-01-01T00:00:00Z', '2025-01-15T00:00:00Z'],
+      ['rec_2', 'Range B', '2025-01-10T00:00:00Z', '2025-01-25T00:00:00Z']
+    ]
+
+    records_data.each do |id, title, from_date, to_date|
+      @cache.db.execute(
+        "INSERT INTO #{sql_table_name} (id, title, dates_from, dates_to, cached_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?)",
+        [id, title, from_date, to_date, now, expires]
+      )
+    end
+
+    # Filter without sub-field suffix should use _to column by default
+    results = @cache.query(table_id)
+                    .where(dates: { gte: '2025-01-20T00:00:00Z' })
+                    .execute
+
+    # Only Range B has to_date >= 2025-01-20
+    assert_equal 1, results.size, 'Should find only Range B'
+    assert_equal 'rec_2', results[0]['id']
+  end
+
   # Regression test for bug where get_record returned wrong record
   # Bug: Query.where() didn't handle built-in 'id' field, so WHERE clause was never added
   # Result: get_record() returned first cached record instead of requested record

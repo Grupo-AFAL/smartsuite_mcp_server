@@ -200,8 +200,8 @@ module SmartSuite
 
       # Check if it's a date-only format (YYYY-MM-DD)
       if date_str.match?(/\A\d{4}-\d{2}-\d{2}\z/)
-        # Get the timezone offset from DateFormatter
-        offset = local_timezone_offset
+        # Get the timezone offset for the specific date (handles DST correctly)
+        offset = local_timezone_offset(date_str)
         # Convert local midnight to UTC
         # e.g., 2026-06-15 00:00:00 -0700 = 2026-06-15T07:00:00Z
         local_time = Time.parse("#{date_str}T00:00:00#{offset}")
@@ -235,8 +235,8 @@ module SmartSuite
       # Only convert date-only format (YYYY-MM-DD)
       return nil unless date_str.match?(/\A\d{4}-\d{2}-\d{2}\z/)
 
-      # Get timezone offset
-      offset = local_timezone_offset
+      # Get timezone offset for the specific date (handles DST correctly)
+      offset = local_timezone_offset(date_str)
 
       # Calculate start of day (midnight local) in UTC
       start_of_day_local = Time.parse("#{date_str}T00:00:00#{offset}")
@@ -251,24 +251,43 @@ module SmartSuite
 
     # Get the local timezone offset string for the configured timezone.
     #
+    # When a reference_date is provided, calculates the offset for that specific date.
+    # This is important for proper DST handling - a date in July might have a different
+    # offset than a date in January for the same timezone.
+    #
+    # @param reference_date [String, nil] Date string (YYYY-MM-DD) to calculate offset for
     # @return [String] Timezone offset (e.g., "-0700", "+0530")
-    def self.local_timezone_offset
+    def self.local_timezone_offset(reference_date = nil)
       eff_tz = DateFormatter.effective_timezone
+
+      # Helper to get offset for a specific time
+      get_offset_for_time = lambda do |time_to_check|
+        time_to_check.strftime('%z')
+      end
+
+      # Parse reference date or use current time
+      ref_time = if reference_date&.match?(/\A\d{4}-\d{2}-\d{2}\z/)
+                   Time.parse("#{reference_date}T12:00:00") # Use noon to avoid edge cases
+                 else
+                   Time.now
+                 end
 
       if eff_tz == :utc
         '+0000'
       elsif eff_tz.nil?
-        # Use system timezone
-        Time.now.strftime('%z')
+        # Use system timezone for the reference date
+        get_offset_for_time.call(ref_time)
       elsif eff_tz.match?(/\A[+-]\d{4}\z/)
-        # Already in offset format
+        # Already in offset format (no DST adjustment possible)
         eff_tz
       elsif eff_tz.match?(%r{\A[A-Za-z]+/[A-Za-z_]+})
-        # Named timezone - temporarily set TZ to get offset
+        # Named timezone - temporarily set TZ to get offset for reference date
         original_tz = ENV.fetch('TZ', nil)
         begin
           ENV['TZ'] = eff_tz
-          Time.now.strftime('%z')
+          # Re-parse time with new TZ to get correct offset
+          ref_time_in_tz = Time.parse("#{reference_date || Time.now.strftime('%Y-%m-%d')}T12:00:00")
+          get_offset_for_time.call(ref_time_in_tz)
         ensure
           if original_tz
             ENV['TZ'] = original_tz
@@ -278,7 +297,7 @@ module SmartSuite
         end
       else
         # Fallback to system timezone
-        Time.now.strftime('%z')
+        get_offset_for_time.call(ref_time)
       end
     end
   end
