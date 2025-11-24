@@ -142,12 +142,11 @@ module SmartSuite
       # If UTC mode, return original timestamp unchanged
       return value if effective_tz == :utc
 
-      # If it's a date-only format (no time component), keep it as date
-      if date_only?(value)
-        convert_time(time, effective_tz).strftime('%Y-%m-%d')
-      else
-        convert_time(time, effective_tz).strftime('%Y-%m-%d %H:%M:%S %z')
-      end
+      # If it's a date-only format (no time component), return as-is
+      # Date-only values represent calendar days, not instants in time
+      return value if date_only?(value)
+
+      convert_time(time, effective_tz).strftime('%Y-%m-%d %H:%M:%S %z')
     rescue ArgumentError
       # Return original if parsing fails
       value
