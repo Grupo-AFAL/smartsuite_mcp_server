@@ -288,6 +288,10 @@ Always required:
 - `SMARTSUITE_API_KEY`: SmartSuite API authentication
 - `SMARTSUITE_ACCOUNT_ID`: Workspace identifier
 
+Optional (timezone configuration):
+- `SMARTSUITE_USER_EMAIL`: Your SmartSuite email for automatic timezone detection from your profile
+- `SMARTSUITE_TIMEZONE`: Manual timezone override (e.g., `America/Mexico_City` or `+0530`)
+
 ### SmartSuite API Parameter Conventions
 The SmartSuite API requires specific parameter placement:
 
