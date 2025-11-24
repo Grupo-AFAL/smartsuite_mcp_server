@@ -202,10 +202,21 @@ module SmartSuite
 
         log_metric("→ Listing solutions owned by user: #{owner_id}")
 
-        # Fetch all solutions (this gets full data including permissions)
-        response = api_request(:get, '/solutions/')
+        # Use cache-first strategy - cache stores full data including permissions
+        cached_solutions = with_cache_check('solutions') { @cache.get_cached_solutions }
+        if cached_solutions
+          solutions_list = cached_solutions
+        else
+          # Cache miss - fetch and cache all solutions
+          response = api_request(:get, '/solutions/')
+          solutions_list = extract_items_safely(response)
 
-        solutions_list = extract_items_safely(response)
+          # Cache the full response
+          if cache_enabled?
+            @cache.cache_solutions(solutions_list)
+            log_metric("✓ Cached #{solutions_list.size} solutions")
+          end
+        end
 
         # Filter solutions where the user is in the owners array
         owned_solutions = solutions_list.select do |solution|

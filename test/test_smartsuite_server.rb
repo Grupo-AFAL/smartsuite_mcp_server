@@ -1587,7 +1587,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test list_solutions_by_owner
   def test_list_solutions_by_owner_filters_by_owner
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -1636,7 +1636,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_list_solutions_by_owner_with_activity_data
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -1671,7 +1671,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_list_solutions_by_owner_returns_empty_when_no_matches
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
