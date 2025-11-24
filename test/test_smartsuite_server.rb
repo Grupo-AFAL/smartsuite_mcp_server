@@ -2521,8 +2521,8 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_list_deleted_records
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:list_deleted_records) do |solution_id, preview:, format: :toon|
-      { 'deleted_records' => [{ 'id' => 'rec_del' }], 'count' => 1 }
+    client.define_singleton_method(:list_deleted_records) do |solution_id, full_data:, format: :toon|
+      [{ 'id' => 'rec_del', 'title' => 'Deleted Record' }]
     end
 
     request = {
@@ -2533,7 +2533,8 @@ class SmartSuiteServerTest < Minitest::Test
 
     response = call_private_method(:handle_tool_call, request)
     result = JSON.parse(response['result']['content'][0]['text'])
-    assert_equal 1, result['count']
+    assert result.is_a?(Array), 'Should return array'
+    assert_equal 'rec_del', result[0]['id']
   end
 
   def test_handle_tool_call_restore_deleted_record

@@ -63,10 +63,10 @@ module SmartSuite
         'description' => 'File handle from a file/image field'
       }.freeze
 
-      # Preview parameter for deleted records (used in list_deleted_records)
-      SCHEMA_PREVIEW = {
+      # Full data parameter for deleted records (used in list_deleted_records)
+      SCHEMA_FULL_DATA = {
         'type' => 'boolean',
-        'description' => 'Optional: If true, returns limited fields (default: true)'
+        'description' => 'Optional: If true, returns all fields; if false (default), returns only id and title. Set to true if you need full record details.'
       }.freeze
 
       # Output format parameter (used across many list/get/create/update/delete operations)
@@ -503,12 +503,12 @@ module SmartSuite
         },
         {
           'name' => 'list_deleted_records',
-          'description' => 'List deleted records from a solution. Returns records that have been soft-deleted and can be restored.',
+          'description' => 'List deleted records from a solution. Returns records that have been soft-deleted and can be restored. By default returns only id and title for token efficiency; set full_data: true for all fields.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {
               'solution_id' => SCHEMA_SOLUTION_ID,
-              'preview' => SCHEMA_PREVIEW,
+              'full_data' => SCHEMA_FULL_DATA,
               'format' => SCHEMA_FORMAT
             },
             'required' => ['solution_id']

@@ -1211,6 +1211,116 @@ module SmartSuite
         invalidate_simple_cache('cached_teams', 'teams')
       end
 
+      # ========== Deleted Records Caching ==========
+
+      # Cache deleted records for a solution
+      #
+      # Stores all deleted records but keeps them separate from regular (non-deleted) records.
+      # Full record data is stored in `full_data` column for retrieval when requested.
+      #
+      # @param solution_id [String] Solution ID
+      # @param records [Array<Hash>] Array of deleted record hashes from API
+      # @param ttl [Integer] Time-to-live in seconds (default: 4 hours)
+      # @return [Integer] Number of records cached
+      def cache_deleted_records(solution_id, records, ttl: 4 * 3600)
+        expires_at = (Time.now + ttl).utc.iso8601
+        cached_at = Time.now.utc.iso8601
+
+        # Clear existing cached deleted records for this solution
+        db_execute('DELETE FROM cached_deleted_records WHERE solution = ?', solution_id)
+
+        # Insert all deleted records
+        records.each do |record|
+          db_execute(
+            'INSERT INTO cached_deleted_records (
+              id, title, application, solution, deleted_by, deleted_date,
+              full_data, cached_at, expires_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            record['id'],
+            record['title'],
+            record['application'],
+            record['solution'] || solution_id,
+            record['deleted_by'],
+            record['deleted_date']&.is_a?(Hash) ? record['deleted_date']['date'] : record['deleted_date'],
+            record.to_json,
+            cached_at,
+            expires_at
+          )
+        end
+
+        record_stat('deleted_records_cached', 'bulk_insert', solution_id, { count: records.size, ttl: ttl })
+        SmartSuite::Logger.cache('insert', "deleted_records:#{solution_id}", count: records.size, ttl: ttl)
+
+        records.size
+      end
+
+      # Get cached deleted records for a solution
+      #
+      # @param solution_id [String] Solution ID
+      # @param full_data [Boolean] If true, returns full record data; if false, returns only id and title
+      # @return [Array<Hash>, nil] Array of deleted records or nil if cache invalid
+      def get_cached_deleted_records(solution_id, full_data: false)
+        # Check if cache is valid
+        return nil unless deleted_records_cache_valid?(solution_id)
+
+        results = db_execute(
+          'SELECT * FROM cached_deleted_records WHERE solution = ? AND expires_at > ?',
+          solution_id, Time.now.utc.iso8601
+        )
+
+        return nil if results.empty?
+
+        # Reconstruct record hashes
+        records = results.map do |row|
+          if full_data && row['full_data']
+            # Return full record data
+            JSON.parse(row['full_data'])
+          else
+            # Return only essential fields (id, title)
+            {
+              'id' => row['id'],
+              'title' => row['title']
+            }
+          end
+        end
+
+        SmartSuite::Logger.cache('hit', "deleted_records:#{solution_id}", count: records.size, full_data: full_data)
+
+        records
+      end
+
+      # Check if deleted records cache is valid for a solution
+      #
+      # @param solution_id [String] Solution ID
+      # @return [Boolean] true if cache is valid
+      def deleted_records_cache_valid?(solution_id)
+        result = db_execute(
+          'SELECT COUNT(*) as count FROM cached_deleted_records WHERE solution = ? AND expires_at > ?',
+          solution_id, Time.now.utc.iso8601
+        ).first
+
+        valid = result && result['count'].to_i.positive?
+
+        SmartSuite::Logger.cache(valid ? 'valid' : 'expired', "deleted_records:#{solution_id}")
+
+        valid
+      end
+
+      # Invalidate deleted records cache for a solution
+      #
+      # @param solution_id [String, nil] Solution ID (nil for all solutions)
+      def invalidate_deleted_records_cache(solution_id = nil)
+        if solution_id
+          db_execute('UPDATE cached_deleted_records SET expires_at = 0 WHERE solution = ?', solution_id)
+          record_stat('invalidation', 'deleted_records', solution_id)
+          SmartSuite::Logger.cache('invalidate', "deleted_records:#{solution_id}")
+        else
+          db_execute('UPDATE cached_deleted_records SET expires_at = 0')
+          record_stat('invalidation', 'deleted_records', 'all')
+          SmartSuite::Logger.cache('invalidate', 'deleted_records:all')
+        end
+      end
+
       # Refresh (invalidate) cache for specific resources
       #
       # Invalidates cache without refetching - data will be refreshed on next access.

@@ -178,11 +178,26 @@ module SmartSuite
               expires_at TEXT NOT NULL
             );
 
+            -- Cache for deleted records (separate from regular records)
+            CREATE TABLE IF NOT EXISTS cached_deleted_records (
+              id TEXT PRIMARY KEY,
+              title TEXT,
+              application TEXT,
+              solution TEXT,
+              deleted_by TEXT,
+              deleted_date TEXT,
+              full_data TEXT,
+              cached_at TEXT NOT NULL,
+              expires_at TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_cached_tables_solution ON cached_tables(solution_id);
             CREATE INDEX IF NOT EXISTS idx_cached_tables_expires ON cached_tables(expires_at);
             CREATE INDEX IF NOT EXISTS idx_cached_solutions_expires ON cached_solutions(expires_at);
             CREATE INDEX IF NOT EXISTS idx_cached_members_expires ON cached_members(expires_at);
             CREATE INDEX IF NOT EXISTS idx_cached_teams_expires ON cached_teams(expires_at);
+            CREATE INDEX IF NOT EXISTS idx_cached_deleted_records_solution ON cached_deleted_records(solution);
+            CREATE INDEX IF NOT EXISTS idx_cached_deleted_records_expires ON cached_deleted_records(expires_at);
           SQL
         end
 

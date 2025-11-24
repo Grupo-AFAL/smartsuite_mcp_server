@@ -256,7 +256,7 @@ class SmartSuiteServer
              when 'list_deleted_records'
                @client.list_deleted_records(
                  arguments['solution_id'],
-                 preview: arguments['preview'],
+                 full_data: arguments['full_data'] || false,
                  format: (arguments['format'] || 'toon').to_sym
                )
              when 'restore_deleted_record'
