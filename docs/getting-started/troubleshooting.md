@@ -282,7 +282,7 @@ Error: Field 'xyz' not found in table
 
 3. **Wait for cache to expire** (default TTL: 12 hours for records, 7 days for solutions/tables)
 
-5. **Clear cache manually (nuclear option):**
+4. **Clear cache manually (nuclear option):**
    ```bash
    rm ~/.smartsuite_mcp_cache.db
    # Will rebuild automatically on next use
