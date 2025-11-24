@@ -47,14 +47,17 @@ Add this configuration:
       "args": ["/absolute/path/to/smartsuite_mcp_server/smartsuite_server.rb"],
       "env": {
         "SMARTSUITE_API_KEY": "your_api_key_here",
-        "SMARTSUITE_ACCOUNT_ID": "your_account_id_here"
+        "SMARTSUITE_ACCOUNT_ID": "your_account_id_here",
+        "SMARTSUITE_USER_EMAIL": "your_email@company.com"
       }
     }
   }
 }
 ```
 
-**Important:** Replace `/absolute/path/to` with the actual path on your system.
+**Important:**
+- Replace `/absolute/path/to` with the actual path on your system
+- `SMARTSUITE_USER_EMAIL` ensures dates display in your timezone (uses your profile settings)
 
 ## Step 4: Restart Claude Desktop
 

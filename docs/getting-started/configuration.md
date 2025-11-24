@@ -60,6 +60,62 @@ Your SmartSuite workspace account identifier.
 
 ## Optional Configuration
 
+### Timezone Configuration
+
+The server automatically converts UTC timestamps from SmartSuite to your local timezone. Configure your timezone for accurate date display.
+
+#### `SMARTSUITE_USER_EMAIL` (Recommended)
+
+Your SmartSuite email address for automatic timezone detection from your user profile.
+
+**Example:**
+```json
+{
+  "env": {
+    "SMARTSUITE_API_KEY": "...",
+    "SMARTSUITE_ACCOUNT_ID": "...",
+    "SMARTSUITE_USER_EMAIL": "user@example.com"
+  }
+}
+```
+
+**How it works:**
+1. On startup, the server searches for your user by email
+2. Retrieves your timezone setting from your SmartSuite profile
+3. Automatically configures date formatting to match what you see in SmartSuite UI
+
+**Why use this?** The SmartSuite API doesn't provide a way to identify the API key owner, so without this setting, the server uses the first member's timezone found in your workspace (which may not be yours).
+
+#### `SMARTSUITE_TIMEZONE` (Manual Override)
+
+Directly specify your timezone if you prefer not to use automatic detection.
+
+**Supported formats:**
+- Named timezones: `America/Mexico_City`, `Europe/London`, `Asia/Tokyo`
+- UTC offsets: `+0530`, `-0800`, `+0000`
+- Special values: `utc` (no conversion)
+
+**Example:**
+```json
+{
+  "env": {
+    "SMARTSUITE_API_KEY": "...",
+    "SMARTSUITE_ACCOUNT_ID": "...",
+    "SMARTSUITE_TIMEZONE": "America/Mexico_City"
+  }
+}
+```
+
+**Named timezone advantages:**
+- Automatically handles Daylight Saving Time (DST) transitions
+- July dates use summer offset (e.g., -0700 PDT)
+- January dates use winter offset (e.g., -0800 PST)
+
+**Priority order:**
+1. `SMARTSUITE_TIMEZONE` (if set, takes precedence)
+2. `SMARTSUITE_USER_EMAIL` (automatic detection from profile)
+3. System timezone (fallback)
+
 ### Cache Configuration
 
 #### `CACHE_PATH`
@@ -105,7 +161,7 @@ Customize the location of the SQLite cache database.
       "env": {
         "SMARTSUITE_API_KEY": "sk_live_abc123def456...",
         "SMARTSUITE_ACCOUNT_ID": "acc_xyz789...",
-        "CACHE_PATH": "/Users/yourname/.smartsuite_cache/cache.db"
+        "SMARTSUITE_USER_EMAIL": "yourname@company.com"
       }
     }
   }
@@ -123,7 +179,7 @@ Customize the location of the SQLite cache database.
       "env": {
         "SMARTSUITE_API_KEY": "sk_live_abc123def456...",
         "SMARTSUITE_ACCOUNT_ID": "acc_xyz789...",
-        "CACHE_PATH": "C:\\Users\\YourName\\AppData\\Local\\SmartSuite\\cache.db"
+        "SMARTSUITE_USER_EMAIL": "yourname@company.com"
       }
     }
   }
@@ -141,7 +197,7 @@ Customize the location of the SQLite cache database.
       "env": {
         "SMARTSUITE_API_KEY": "sk_live_abc123def456...",
         "SMARTSUITE_ACCOUNT_ID": "acc_xyz789...",
-        "CACHE_PATH": "/home/yourname/.config/smartsuite/cache.db"
+        "SMARTSUITE_USER_EMAIL": "yourname@company.com"
       }
     }
   }

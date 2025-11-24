@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'set'
 require_relative '../logger'
 
 module SmartSuite
@@ -82,16 +83,20 @@ module SmartSuite
             next
           end
 
-          # Find field info
-          field_info = fields_info.find { |f| f['slug'] == field_slug_str }
+          # For daterangefield and duedatefield sub-fields (e.g., "s31437fa81.to_date"),
+          # extract the base field slug to find the field info
+          base_field_slug = field_slug_str.sub(/\.(from_date|to_date)$/, '')
+
+          # Find field info using base slug
+          field_info = fields_info.find { |f| f['slug'] == base_field_slug }
           next unless field_info # Skip unknown fields
 
-          # Get SQL column name(s)
-          columns = field_mapping[field_slug_str]
+          # Get SQL column name(s) using base slug (field_mapping uses base slug)
+          columns = field_mapping[base_field_slug]
           next unless columns
 
-          # Build condition
-          clause, params = build_condition(field_info, columns, condition)
+          # Build condition (pass full field_slug_str for .from_date/.to_date handling)
+          clause, params = build_condition(field_info, columns, condition, field_slug_str)
           @where_clauses << clause
           @params.concat(params)
         end
@@ -240,31 +245,115 @@ module SmartSuite
 
       # Map transliterated column names back to original SmartSuite field slugs
       #
+      # For date fields with include_time metadata, creates a hash structure:
+      #   {date: "2025-01-15T10:30:00Z", include_time: true}
+      #
       # @param results [Array<Hash>] Query results with transliterated column names
       # @param field_mapping [Hash] Mapping of field_slug => {column_name => type}
       # @return [Array<Hash>] Results with original field slugs as keys
       def map_column_names_to_field_slugs(results, field_mapping)
         # Build reverse mapping: {column_name => field_slug}
+        # Also track which columns are _include_time columns
         reverse_mapping = {}
+        include_time_columns = {}
+
         field_mapping.each do |field_slug, columns|
           columns.each_key do |col_name|
+            if col_name.end_with?('_include_time')
+              # Store include_time column reference: col_name => base_column_name
+              base_col = col_name.sub(/_include_time$/, '')
+              include_time_columns[col_name] = base_col
+            end
             reverse_mapping[col_name] = field_slug
           end
         end
 
         # Transform each result row
+        # rubocop:disable Metrics/BlockLength
         results.map do |row|
           mapped_row = {}
-          row.each do |col_name, value|
-            # Map column name to original field slug (or keep column name if no mapping)
-            field_slug = reverse_mapping[col_name] || col_name
+          include_time_values = {} # Temporary storage for include_time values keyed by base_col
+          date_column_values = {} # Store date column values keyed by column name
+          multi_column_fields = {} # Track fields with from/to structure
 
-            # For fields with multiple columns (e.g., status has status + status_updated_on),
-            # prefer the first column value (don't overwrite)
-            mapped_row[field_slug] ||= value
+          row.each do |col_name, value|
+            if include_time_columns.key?(col_name)
+              # Store include_time value keyed by base column name
+              base_col = include_time_columns[col_name]
+              include_time_values[base_col] = [1, true].include?(value)
+            else
+              # Store the raw value keyed by column name for later processing
+              date_column_values[col_name] = value
+
+              # Map column name to original field slug (or keep column name if no mapping)
+              field_slug = reverse_mapping[col_name] || col_name
+
+              # Check if this is a multi-column date field (from/to structure)
+              if col_name.end_with?('_from')
+                multi_column_fields[field_slug] ||= {}
+                multi_column_fields[field_slug][:from_col] = col_name
+              elsif col_name.end_with?('_to')
+                multi_column_fields[field_slug] ||= {}
+                multi_column_fields[field_slug][:to_col] = col_name
+              elsif col_name.end_with?('_is_overdue')
+                multi_column_fields[field_slug] ||= {}
+                multi_column_fields[field_slug][:is_overdue] = value == 1
+              elsif col_name.end_with?('_is_completed')
+                multi_column_fields[field_slug] ||= {}
+                multi_column_fields[field_slug][:is_completed] = value == 1
+              else
+                # For fields with multiple columns (e.g., status has status + status_updated_on),
+                # prefer the first column value (don't overwrite)
+                mapped_row[field_slug] ||= value
+              end
+            end
           end
+
+          # Build composite structures for multi-column date fields
+          multi_column_fields.each do |field_slug, cols|
+            result = {}
+
+            if cols[:from_col]
+              from_date = date_column_values[cols[:from_col]]
+              from_include_time = include_time_values[cols[:from_col]]
+              result['from_date'] = { 'date' => from_date, 'include_time' => from_include_time || false } if from_date
+            end
+
+            if cols[:to_col]
+              to_date = date_column_values[cols[:to_col]]
+              to_include_time = include_time_values[cols[:to_col]]
+              result['to_date'] = { 'date' => to_date, 'include_time' => to_include_time || false } if to_date
+            end
+
+            result['is_overdue'] = cols[:is_overdue] if cols.key?(:is_overdue)
+            result['is_completed'] = cols[:is_completed] if cols.key?(:is_completed)
+
+            mapped_row[field_slug] = result unless result.empty?
+          end
+
+          # Combine simple date values with their include_time flags
+          # Track which field_slugs have been processed to avoid nested hash issue
+          processed_fields = Set.new(multi_column_fields.keys)
+
+          include_time_values.each do |base_col, include_time|
+            field_slug = reverse_mapping[base_col]
+            next unless field_slug
+            next if processed_fields.include?(field_slug) # Skip multi-column fields
+
+            # Get the date value from the original column
+            date_value = date_column_values[base_col]
+            next if date_value.nil?
+
+            # Mark as processed before modifying
+            processed_fields.add(field_slug)
+
+            # Create hash with date and include_time flag
+            mapped_row[field_slug] = { 'date' => date_value, 'include_time' => include_time }
+          end
+
           mapped_row
         end
+        # rubocop:enable Metrics/BlockLength
       end
 
       # Build SQL condition for a field
@@ -272,10 +361,12 @@ module SmartSuite
       # @param field_info [Hash] Field definition
       # @param columns [Hash] Column name => type mapping
       # @param condition [Object] Condition value or hash
+      # @param full_field_slug [String] Full field slug including .from_date/.to_date suffix (optional)
       # @return [Array<String, Array>] [SQL clause, parameters]
-      def build_condition(field_info, columns, condition)
+      def build_condition(field_info, columns, condition, full_field_slug = nil)
         field_type = field_info['field_type'].downcase
-        field_slug = field_info['slug']
+        # Use full_field_slug if provided, otherwise fall back to field_info slug
+        field_slug = full_field_slug || field_info['slug']
 
         # Select appropriate column based on field type and slug
         # For duedatefield and daterangefield, SmartSuite API uses to_date for all comparisons

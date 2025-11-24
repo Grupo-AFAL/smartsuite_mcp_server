@@ -269,15 +269,21 @@ module SmartSuite
           return extracted_values["#{col_base}_updated_on"] if stored_col_name.include?('_updated_on')
         when 'daterangefield', 'duedatefield'
           # Match by suffix pattern for daterange fields
+          # IMPORTANT: Match _include_time columns BEFORE _from/_to to avoid partial matches
           extracted_values.each do |extracted_col, val|
-            # Match by suffix: "fecha_from" matches anything ending with "_from"
-            if extracted_col.end_with?('_from') && stored_col_name.include?('_from')
+            # Exact match for include_time columns first (most specific)
+            if extracted_col.end_with?('_from_include_time') && stored_col_name.end_with?('_from_include_time')
               return val
-            elsif extracted_col.end_with?('_to') && stored_col_name.include?('_to')
+            elsif extracted_col.end_with?('_to_include_time') && stored_col_name.end_with?('_to_include_time')
               return val
-            elsif extracted_col.include?('_is_overdue') && stored_col_name.include?('_is_overdue')
+            elsif extracted_col.end_with?('_is_overdue') && stored_col_name.end_with?('_is_overdue')
               return val
-            elsif extracted_col.include?('_is_completed') && stored_col_name.include?('_is_completed')
+            elsif extracted_col.end_with?('_is_completed') && stored_col_name.end_with?('_is_completed')
+              return val
+            # Match _from/_to only if NOT an include_time column (less specific)
+            elsif extracted_col.end_with?('_from') && stored_col_name.end_with?('_from')
+              return val
+            elsif extracted_col.end_with?('_to') && stored_col_name.end_with?('_to')
               return val
             end
           end
@@ -344,16 +350,23 @@ module SmartSuite
             'deleted_by' => value['deleted_by']
           }
         when 'datefield'
-          { col_name => parse_timestamp(value['date']) }
+          {
+            col_name => parse_timestamp(value['date']),
+            "#{col_name}_include_time" => value['include_time'] ? 1 : 0
+          }
         when 'daterangefield'
           {
             "#{col_name}_from" => value['from_date'] ? parse_timestamp(value['from_date']['date']) : nil,
-            "#{col_name}_to" => value['to_date'] ? parse_timestamp(value['to_date']['date']) : nil
+            "#{col_name}_from_include_time" => value['from_date'] && value['from_date']['include_time'] ? 1 : 0,
+            "#{col_name}_to" => value['to_date'] ? parse_timestamp(value['to_date']['date']) : nil,
+            "#{col_name}_to_include_time" => value['to_date'] && value['to_date']['include_time'] ? 1 : 0
           }
         when 'duedatefield'
           {
             "#{col_name}_from" => (parse_timestamp(value['from_date']['date']) if value['from_date'] && value['from_date']['date']),
+            "#{col_name}_from_include_time" => value['from_date'] && value['from_date']['include_time'] ? 1 : 0,
             "#{col_name}_to" => (parse_timestamp(value['to_date']['date']) if value['to_date'] && value['to_date']['date']),
+            "#{col_name}_to_include_time" => value['to_date'] && value['to_date']['include_time'] ? 1 : 0,
             "#{col_name}_is_overdue" => value['is_overdue'] ? 1 : 0,
             "#{col_name}_is_completed" => value['status_is_completed'] ? 1 : 0
           }
@@ -468,6 +481,14 @@ module SmartSuite
         ).first
 
         result && result['count'].to_i.positive?
+      rescue SQLite3::SQLException => e
+        # Handle case where dynamic table was deleted but registry entry remains
+        if e.message.include?('no such table')
+          # Clean up orphaned registry entry
+          remove_cached_table_schema(table_id)
+          return false
+        end
+        raise
       end
 
       # Record cache statistics
@@ -993,8 +1014,8 @@ module SmartSuite
             "INSERT INTO cached_members (
               id, email, role, status, status_updated_on, deleted_date,
               first_name, last_name, full_name, job_title, department,
-              cached_at, expires_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              timezone, cached_at, expires_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             member['id'],
             email,
             member['role'],
@@ -1006,6 +1027,7 @@ module SmartSuite
             member['full_name'],
             member['job_title'],
             member['department'],
+            member['timezone'],
             cached_at,
             expires_at
           )
@@ -1067,6 +1089,7 @@ module SmartSuite
           # Add other fields if present
           member['job_title'] = row['job_title'] if row['job_title']
           member['department'] = row['department'] if row['department']
+          member['timezone'] = row['timezone'] if row['timezone']
 
           member.compact
         end

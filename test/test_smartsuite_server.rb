@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative 'test_helper'
+require 'webmock/minitest'
 require_relative '../smartsuite_server'
 require_relative '../lib/smartsuite_client'
 require_relative '../lib/api_stats_tracker'
@@ -11,6 +12,15 @@ class SmartSuiteServerTest < Minitest::Test
     ENV['SMARTSUITE_API_KEY'] = 'test_api_key_12345'
     ENV['SMARTSUITE_ACCOUNT_ID'] = 'test_account_id'
 
+    # Disable net connections and stub the members API call used by configure_user_timezone
+    WebMock.disable_net_connect!
+    stub_request(:post, %r{https://app\.smartsuite\.com/api/v1/members/list/})
+      .to_return(
+        status: 200,
+        body: { 'items' => [{ 'id' => 'user_1', 'timezone' => 'America/Mexico_City' }] }.to_json,
+        headers: { 'Content-Type' => 'application/json' }
+      )
+
     # Create a new server instance
     @server = SmartSuiteServer.new
   end
@@ -19,6 +29,10 @@ class SmartSuiteServerTest < Minitest::Test
     # Clean up any test stats file
     stats_file = File.join(Dir.home, '.smartsuite_mcp_stats.json')
     FileUtils.rm_f(stats_file)
+
+    # Reset WebMock
+    WebMock.reset!
+    WebMock.allow_net_connect!
   end
 
   # Helper method to call private methods for testing

@@ -390,6 +390,7 @@ module SmartSuite
           # Add other useful fields
           result['job_title'] = member['job_title'] if member['job_title']
           result['department'] = member['department'] if member['department']
+          result['timezone'] = member['timezone'] if member['timezone']
 
           result.compact # Remove nil values
         end
