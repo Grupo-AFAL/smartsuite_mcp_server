@@ -240,9 +240,7 @@ module SmartSuite
             ensure_records_cached(table_id)
             # Now get from cache
             cached_record = @cache.get_cached_record(table_id, record_id)
-            if cached_record
-              record = process_smartdoc_fields(cached_record)
-            end
+            record = process_smartdoc_fields(cached_record) if cached_record
           end
 
           # Fallback to direct API call if cache disabled or record not found

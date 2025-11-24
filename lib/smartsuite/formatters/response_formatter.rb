@@ -134,7 +134,7 @@ module SmartSuite
       end
 
       # Format response as JSON
-      def format_as_json_response(items, response, original_tokens)
+      def format_as_json_response(items, response, _original_tokens)
         result = { 'items' => items, 'total_count' => response['total_count'], 'count' => items.size }
         tokens = estimate_tokens(JSON.generate(result))
         total_tokens = update_token_usage(tokens)

@@ -773,6 +773,7 @@ module SmartSuite
       # @param table [Hash] Table data from API response
       # @param ttl [Integer] Time-to-live in seconds (default: 7 days)
       # @return [Boolean] true if cached successfully
+      # rubocop:disable Naming/PredicateMethod -- This is an action method, not a predicate
       def cache_single_table(table, ttl: 7 * 24 * 3600)
         expires_at = (Time.now + ttl).utc.iso8601
         cached_at = Time.now.utc.iso8601
@@ -784,6 +785,7 @@ module SmartSuite
 
         true
       end
+      # rubocop:enable Naming/PredicateMethod
 
       # Get cached table list for a solution
       #
@@ -1241,7 +1243,7 @@ module SmartSuite
             record['application'],
             record['solution'] || solution_id,
             record['deleted_by'],
-            record['deleted_date']&.is_a?(Hash) ? record['deleted_date']['date'] : record['deleted_date'],
+            record['deleted_date'].is_a?(Hash) ? record['deleted_date']['date'] : record['deleted_date'],
             record.to_json,
             cached_at,
             expires_at
