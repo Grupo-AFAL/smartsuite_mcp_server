@@ -758,61 +758,7 @@ module SmartSuite
 
         # Insert all tables with fixed columns
         tables.each do |table|
-          # Convert structure to JSON if it exists
-          structure_json = table['structure']&.to_json
-
-          # API returns 'solution' but we normalize to 'solution_id'
-          solution_id_value = table['solution'] || table['solution_id']
-
-          # API returns first_created as object with 'by' and 'on'
-          created = table.dig('first_created', 'on')
-          created_by = table.dig('first_created', 'by')
-
-          # Convert permissions and field_permissions to JSON
-          permissions_json = table['permissions']&.to_json
-          field_permissions_json = table['field_permissions']&.to_json
-
-          # Extract fields_count values
-          fields_count_total = table.dig('fields_count', 'total')
-          fields_count_linked = table.dig('fields_count', 'linkedrecordfield')
-
-          # Convert hidden boolean to integer (0/1)
-          hidden = table['hidden'] ? 1 : 0
-
-          # Convert integer fields (default to nil if not present)
-          table_order = table['order']&.to_i if table['order']
-          fields_total = fields_count_total.to_i if fields_count_total
-          fields_linked = fields_count_linked.to_i if fields_count_linked
-
-          db_execute(
-            "INSERT INTO cached_tables (
-            id, slug, name, solution_id, structure,
-            created, created_by,
-            status, hidden, icon, primary_field, table_order,
-            permissions, field_permissions, record_term,
-            fields_count_total, fields_count_linkedrecordfield,
-            cached_at, expires_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            table['id'],
-            table['slug'],
-            table['name'],
-            solution_id_value,
-            structure_json,
-            created ? parse_timestamp(created) : nil,
-            created_by,
-            table['status'],
-            hidden,
-            table['icon'],
-            table['primary_field'],
-            table_order,
-            permissions_json,
-            field_permissions_json,
-            table['record_term'],
-            fields_total,
-            fields_linked,
-            cached_at,
-            expires_at
-          )
+          insert_table_row(table, cached_at, expires_at)
         end
 
         cache_key = solution_id ? "solution:#{solution_id}" : 'all_tables'
@@ -820,6 +766,23 @@ module SmartSuite
         SmartSuite::Logger.cache('insert', "table_list:#{cache_key}", count: tables.size, ttl: ttl)
 
         tables.size
+      end
+
+      # Cache a single table (insert or replace existing)
+      #
+      # @param table [Hash] Table data from API response
+      # @param ttl [Integer] Time-to-live in seconds (default: 7 days)
+      # @return [Boolean] true if cached successfully
+      def cache_single_table(table, ttl: 7 * 24 * 3600)
+        expires_at = (Time.now + ttl).utc.iso8601
+        cached_at = Time.now.utc.iso8601
+
+        insert_table_row(table, cached_at, expires_at, replace: true)
+
+        SmartSuite::Logger.cache('insert', "table:#{table['id']}", name: table['name'])
+        record_stat('table_cached', 'insert', table['id'])
+
+        true
       end
 
       # Get cached table list for a solution
@@ -1353,6 +1316,72 @@ module SmartSuite
       end
 
       private
+
+      # Insert a single table row into cached_tables
+      #
+      # @param table [Hash] Table data from API response
+      # @param cached_at [String] ISO8601 timestamp when cached
+      # @param expires_at [String] ISO8601 timestamp when cache expires
+      # @param replace [Boolean] Use INSERT OR REPLACE (default: false for INSERT)
+      def insert_table_row(table, cached_at, expires_at, replace: false)
+        # Convert structure to JSON if it exists
+        structure_json = table['structure']&.to_json
+
+        # API returns 'solution' but we normalize to 'solution_id'
+        solution_id_value = table['solution'] || table['solution_id']
+
+        # API returns first_created as object with 'by' and 'on'
+        created = table.dig('first_created', 'on')
+        created_by = table.dig('first_created', 'by')
+
+        # Convert permissions and field_permissions to JSON
+        permissions_json = table['permissions']&.to_json
+        field_permissions_json = table['field_permissions']&.to_json
+
+        # Extract fields_count values
+        fields_count_total = table.dig('fields_count', 'total')
+        fields_count_linked = table.dig('fields_count', 'linkedrecordfield')
+
+        # Convert hidden boolean to integer (0/1)
+        hidden = table['hidden'] ? 1 : 0
+
+        # Convert integer fields (default to nil if not present)
+        table_order = table['order']&.to_i if table['order']
+        fields_total = fields_count_total.to_i if fields_count_total
+        fields_linked = fields_count_linked.to_i if fields_count_linked
+
+        sql_command = replace ? 'INSERT OR REPLACE' : 'INSERT'
+
+        db_execute(
+          "#{sql_command} INTO cached_tables (
+          id, slug, name, solution_id, structure,
+          created, created_by,
+          status, hidden, icon, primary_field, table_order,
+          permissions, field_permissions, record_term,
+          fields_count_total, fields_count_linkedrecordfield,
+          cached_at, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          table['id'],
+          table['slug'],
+          table['name'],
+          solution_id_value,
+          structure_json,
+          created ? parse_timestamp(created) : nil,
+          created_by,
+          table['status'],
+          hidden,
+          table['icon'],
+          table['primary_field'],
+          table_order,
+          permissions_json,
+          field_permissions_json,
+          table['record_term'],
+          fields_total,
+          fields_linked,
+          cached_at,
+          expires_at
+        )
+      end
 
       # Register custom SQLite functions for advanced querying
       #
