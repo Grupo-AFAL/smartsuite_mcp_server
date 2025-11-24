@@ -23,9 +23,10 @@ class TestApiBase < Minitest::Test
       @logged_messages << message
     end
 
-    def log_token_usage(tokens)
+    def update_token_usage(tokens)
       @logged_tokens ||= []
       @logged_tokens << tokens
+      tokens # Return the tokens as mock total
     end
 
     def estimate_tokens(json_str)
@@ -177,10 +178,11 @@ class TestApiBase < Minitest::Test
     # Should return the original result
     assert_equal result, returned
 
-    # Should log success message with checkmark
-    assert_equal ['✓ Found 10 items'], @test_obj.logged_messages
+    # Should log consolidated message with checkmark, tokens, and total
+    assert_equal 1, @test_obj.logged_messages.size
+    assert_match(/✓ Found 10 items \| \+\d+ tokens \(Total: \d+\)/, @test_obj.logged_messages.first)
 
-    # Should log token count (rough estimate)
+    # Should track token count
     refute_empty @test_obj.logged_tokens
     assert_kind_of Integer, @test_obj.logged_tokens.first
   end

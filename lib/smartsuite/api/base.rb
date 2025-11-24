@@ -148,8 +148,8 @@ module SmartSuite
       #   track_response_size(result, "Found #{solutions.size} solutions")
       def track_response_size(result, message)
         tokens = estimate_tokens(JSON.generate(result))
-        log_metric("✓ #{message}")
-        log_token_usage(tokens)
+        total_tokens = update_token_usage(tokens)
+        log_metric("✓ #{message} | +#{tokens} tokens (Total: #{total_tokens})")
         result
       end
 

@@ -286,34 +286,26 @@ class TestHttpClient < Minitest::Test
     assert_match(/\[\d{4}-\d{2}-\d{2}/, output, 'Log should contain timestamp')
   end
 
-  # Test log_token_usage updates token count and logs
-  def test_log_token_usage
-    SmartSuite::Logger.reset!
-    log_file = SmartSuite::Logger.log_file_path
+  # Test update_token_usage updates token count and returns total
+  def test_update_token_usage
     @client.total_tokens_used = 1000
-    @client.context_limit = 200_000
 
-    @client.log_token_usage(500)
+    result = @client.update_token_usage(500)
 
     assert_equal 1500, @client.total_tokens_used, 'Should update total tokens'
-
-    output = File.read(log_file)
-    assert_includes output, '+500', 'Should log tokens used'
-    assert_includes output, '1500', 'Should log total'
-    assert_includes output, '198500', 'Should log remaining (200000 - 1500)'
+    assert_equal 1500, result, 'Should return new total'
   end
 
-  # Test log_token_usage at context limit
-  def test_log_token_usage_near_limit
-    SmartSuite::Logger.reset!
-    log_file = SmartSuite::Logger.log_file_path
-    @client.total_tokens_used = 199_900
-    @client.context_limit = 200_000
+  # Test update_token_usage accumulates correctly
+  def test_update_token_usage_accumulates
+    @client.total_tokens_used = 0
 
-    @client.log_token_usage(50)
+    @client.update_token_usage(100)
+    @client.update_token_usage(200)
+    result = @client.update_token_usage(300)
 
-    output = File.read(log_file)
-    assert_includes output, 'Remaining: 50'
+    assert_equal 600, @client.total_tokens_used, 'Should accumulate tokens'
+    assert_equal 600, result, 'Should return accumulated total'
   end
 
   # Test SSL verification is disabled (as per code)
