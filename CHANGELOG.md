@@ -22,6 +22,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed `QueryLogger` class (all code now uses `SmartSuite::Logger` directly)
   - `log_metric` method in HttpClient preserved for API module compatibility
 
+- **Aggressive Caching Strategy** - Consistent cache-first approach across all operations
+  - `list_solutions_by_owner`: Now uses cache-first strategy, caches full solution data including permissions
+  - `get_table`: Now caches table structure after API fetch for subsequent requests
+  - `get_record`: Uses aggressive caching - fetches ALL records on cache miss, then returns requested record
+  - `list_deleted_records`: New cache layer for deleted records (stored separately from active records)
+    - Returns only `id` and `title` by default for token efficiency
+    - New `full_data` parameter to get all fields when needed
+    - Replaced `preview` parameter with `full_data` (inverted logic)
+  - New `cached_deleted_records` table in SQLite cache schema
+  - New cache methods: `cache_deleted_records`, `get_cached_deleted_records`, `deleted_records_cache_valid?`, `invalidate_deleted_records_cache`
+  - New helper method `cache_single_table` for individual table caching
+  - Refactored `insert_table_row` helper to reduce code duplication
+
 - **TOON format is now default for all list tools** - Standardized token-optimized output across all listing operations
   - TOON (Token-Oriented Object Notation) is now the **default format** for ALL list operations
   - Provides ~50-60% token savings compared to JSON for structured data
