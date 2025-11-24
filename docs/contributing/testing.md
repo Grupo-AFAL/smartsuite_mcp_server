@@ -6,7 +6,7 @@ Comprehensive testing standards for SmartSuite MCP Server.
 
 We use Minitest (Ruby standard library) for all testing. Tests ensure code quality, prevent regressions, and document expected behavior.
 
-**Current Coverage:** 97.47% (target: 90% - exceeded!)
+**Current Coverage:** 93.23% (target: 90% - exceeded!)
 
 ---
 
@@ -545,12 +545,12 @@ Finished in 0.123s
 
 ### Coverage Report
 
-Current baseline: **97.47%** (exceeded 90% target!)
+Current baseline: **93.23%** (exceeded 90% target!)
 
 ```
 Coverage report:
-  927 tests, 2799 assertions
-  Line Coverage: 97.47% (2470 / 2534)
+  1057 tests, 3100 assertions
+  Line Coverage: 93.23% (2932 / 3145)
 ```
 
 ---

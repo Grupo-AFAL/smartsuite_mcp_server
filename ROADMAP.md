@@ -97,7 +97,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 | API call reduction | >75% vs uncached          |
 | Token savings      | >60% average per session  |
 | Response time      | <100ms for cached queries |
-| Test coverage      | >90% (current: 97.47%)    |
+| Test coverage      | >90% (current: 93.23%)    |
 
 ---
 
