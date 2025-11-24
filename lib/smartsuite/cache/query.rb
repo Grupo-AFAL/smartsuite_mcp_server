@@ -265,6 +265,7 @@ module SmartSuite
         end
 
         # Transform each result row
+        # rubocop:disable Metrics/BlockLength
         results.map do |row|
           mapped_row = {}
           include_time_values = {} # Temporary storage for include_time values keyed by base_col
@@ -311,17 +312,13 @@ module SmartSuite
             if cols[:from_col]
               from_date = date_column_values[cols[:from_col]]
               from_include_time = include_time_values[cols[:from_col]]
-              if from_date
-                result['from_date'] = { 'date' => from_date, 'include_time' => from_include_time || false }
-              end
+              result['from_date'] = { 'date' => from_date, 'include_time' => from_include_time || false } if from_date
             end
 
             if cols[:to_col]
               to_date = date_column_values[cols[:to_col]]
               to_include_time = include_time_values[cols[:to_col]]
-              if to_date
-                result['to_date'] = { 'date' => to_date, 'include_time' => to_include_time || false }
-              end
+              result['to_date'] = { 'date' => to_date, 'include_time' => to_include_time || false } if to_date
             end
 
             result['is_overdue'] = cols[:is_overdue] if cols.key?(:is_overdue)
@@ -352,6 +349,7 @@ module SmartSuite
 
           mapped_row
         end
+        # rubocop:enable Metrics/BlockLength
       end
 
       # Build SQL condition for a field

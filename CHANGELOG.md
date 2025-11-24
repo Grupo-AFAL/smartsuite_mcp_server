@@ -22,12 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New documentation: `docs/guides/date-handling.md`
   - New test suite: `test/smartsuite/test_date_transformer.rb` with 30 tests
 
-### Fixed
-
-- **Cache layer `include_time` column matching bug** - Fixed issue where date values were incorrectly stored in `_include_time` columns instead of 0/1 values
-  - The `find_matching_value` method now matches `_from_include_time` and `_to_include_time` columns before `_from` and `_to` columns
-  - This ensures proper date-only vs datetime display in responses
-
 - **UTC to Local Time Conversion** - Automatic conversion of timestamps for user-friendly display
   - New `SmartSuite::DateFormatter` module for timestamp conversion
   - **Automatic timezone detection from SmartSuite user profile** on server startup
@@ -345,6 +339,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing code using `format: :plain_text` should switch to `format: :toon` (or remove the parameter to use default)
 
 ### Fixed
+
+- **Cache layer `include_time` column matching bug** - Fixed issue where date values were incorrectly stored in `_include_time` columns instead of 0/1 values
+  - The `find_matching_value` method now matches `_from_include_time` and `_to_include_time` columns before `_from` and `_to` columns
+  - This ensures proper date-only vs datetime display in responses
 
 - **`list_comments` returning null count** - Now correctly calculates count from results array
   - SmartSuite API returns `count: null` in the response
