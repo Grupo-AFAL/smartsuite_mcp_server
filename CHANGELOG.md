@@ -344,6 +344,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - SmartSuite API returns `timezone` (no underscore), not `time_zone`
   - Updated MemberOperations, SmartSuiteClient, and Cache layer to use `timezone`
   - Added `timezone` column to `cached_members` table schema with migration for existing databases
+  - **New `SMARTSUITE_USER_EMAIL` environment variable** for reliable timezone detection
+    - Set to your SmartSuite email to ensure your timezone is used (not just first member found)
+    - Example: `SMARTSUITE_USER_EMAIL=user@example.com`
+    - Falls back to first member with timezone if not set or user not found
 
 - **Daterangefield sub-field filtering (.to_date/.from_date)** - Fixed filtering by daterangefield sub-fields like `field_slug.to_date` or `field_slug.from_date`
   - **Root cause**: `Cache::Query.where()` looked for field info using the full slug including `.to_date`/`.from_date` suffix, but field_mapping uses base slugs
