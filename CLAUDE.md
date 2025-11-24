@@ -205,6 +205,28 @@ SQLite-based persistent caching for SmartSuite data (v1.7+: modular architecture
 - Hashes API keys for privacy (SHA256, first 8 chars)
 - Operates silently - never interrupts user work on errors
 
+**DateFormatter** (`lib/smartsuite/date_formatter.rb`)
+- **Responsibility**: UTC to local time conversion for user-friendly display
+- SmartSuite stores all dates in UTC; this module converts them for display
+- **Handles SmartSuite's `include_time` flag** to distinguish date-only vs datetime:
+  - `include_time: false` → Date-only field (e.g., due date without time)
+    - Returns calendar date WITHOUT timezone conversion: "2025-02-01"
+    - Prevents "Feb 1" from becoming "Jan 31" due to timezone shift
+  - `include_time: true` → Datetime field (e.g., meeting at specific time)
+    - Converts to local timezone: "2025-02-04 03:15:00 -0800"
+- Timezone configuration (priority order):
+  1. Programmatic: `SmartSuite::DateFormatter.timezone = '-0500'`
+  2. Environment: `SMARTSUITE_TIMEZONE=+0530` or `SMARTSUITE_TIMEZONE=utc`
+  3. System `TZ` variable (Ruby respects this automatically)
+  4. System default (operating system's local timezone)
+- Special values: `:utc` (no conversion), `:local`/`:system` (use system tz)
+- `to_local(value)`: Convert timestamp string OR date hash with include_time flag
+- `convert_all(data)`: Recursively convert timestamps in hash/array structures
+- `date_hash?(hash)`: Check if hash has date + include_time structure
+- `timestamp?(str)`: Check if string is ISO 8601 timestamp
+- `timezone_info`: Return current timezone configuration details
+- Integrated into ResponseFormatter for automatic conversion in all responses
+
 ## Key Design Patterns
 
 ### SQLite Caching Strategy
@@ -265,6 +287,10 @@ JSON-RPC Response (stdout)
 Always required:
 - `SMARTSUITE_API_KEY`: SmartSuite API authentication
 - `SMARTSUITE_ACCOUNT_ID`: Workspace identifier
+
+Optional (timezone configuration):
+- `SMARTSUITE_USER_EMAIL`: Your SmartSuite email for automatic timezone detection from your profile
+- `SMARTSUITE_TIMEZONE`: Manual timezone override (e.g., `America/Mexico_City` or `+0530`)
 
 ### SmartSuite API Parameter Conventions
 The SmartSuite API requires specific parameter placement:

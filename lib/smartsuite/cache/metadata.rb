@@ -132,15 +132,24 @@ module SmartSuite
             'deleted_on' => 'TEXT',
             'deleted_by' => 'TEXT'
           }
+        when 'datefield'
+          {
+            col_name => 'TEXT',
+            "#{col_name}_include_time" => 'INTEGER'
+          }
         when 'daterangefield'
           {
             "#{col_name}_from" => 'TEXT',
-            "#{col_name}_to" => 'TEXT'
+            "#{col_name}_from_include_time" => 'INTEGER',
+            "#{col_name}_to" => 'TEXT',
+            "#{col_name}_to_include_time" => 'INTEGER'
           }
         when 'duedatefield'
           {
             "#{col_name}_from" => 'TEXT',
+            "#{col_name}_from_include_time" => 'INTEGER',
             "#{col_name}_to" => 'TEXT',
+            "#{col_name}_to_include_time" => 'INTEGER',
             "#{col_name}_is_overdue" => 'INTEGER',
             "#{col_name}_is_completed" => 'INTEGER'
           }
@@ -448,6 +457,18 @@ module SmartSuite
         result['structure'] = JSON.parse(result['structure'])
         result['field_mapping'] = JSON.parse(result['field_mapping'])
         result
+      end
+
+      # Remove cached table schema from registry
+      #
+      # Used to clean up orphaned registry entries when dynamic table is missing.
+      #
+      # @param table_id [String] SmartSuite table ID
+      def remove_cached_table_schema(table_id)
+        @db.execute(
+          'DELETE FROM cache_table_registry WHERE table_id = ?',
+          [table_id]
+        )
       end
 
       # Handle schema evolution (new fields added to table)

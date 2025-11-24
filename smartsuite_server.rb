@@ -20,6 +20,9 @@ class SmartSuiteServer
 
     # Initialize SmartSuite API client (creates its own stats tracker with shared cache database)
     @client = SmartSuiteClient.new(@api_key, @account_id)
+
+    # Configure timezone from user's SmartSuite profile for consistent date display
+    @client.configure_user_timezone
   end
 
   def run

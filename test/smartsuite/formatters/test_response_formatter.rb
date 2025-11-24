@@ -464,13 +464,41 @@ class TestResponseFormatter < Minitest::Test
   end
 
   # Test truncate_value with non-SmartDoc JSON string
+  # JSON strings containing complex structures are parsed and have dates converted
   def test_truncate_value_non_smartdoc_json_string
     non_smartdoc = { 'name' => 'Test', 'value' => 123 }
     json_string = non_smartdoc.to_json
 
     result = truncate_value(json_string)
 
-    assert_equal json_string, result, 'Should return original JSON string if not a SmartDoc'
+    # Complex structures are returned as parsed objects (with date conversion applied)
+    assert_equal non_smartdoc, result, 'Should return parsed structure for non-SmartDoc JSON'
+  end
+
+  # Test truncate_value converts timestamps in JSON structures
+  def test_truncate_value_converts_dates_in_json_string
+    SmartSuite::DateFormatter.timezone = '-0500'
+    json_with_date = { 'created' => '2025-01-15T10:30:00Z', 'name' => 'Test' }.to_json
+
+    result = truncate_value(json_with_date)
+
+    assert_instance_of Hash, result
+    assert_equal '2025-01-15 05:30:00 -0500', result['created']
+    assert_equal 'Test', result['name']
+  ensure
+    SmartSuite::DateFormatter.reset_timezone!
+  end
+
+  # Test truncate_value converts simple timestamp strings
+  def test_truncate_value_converts_simple_timestamp
+    SmartSuite::DateFormatter.timezone = '-0500'
+    timestamp = '2025-01-15T10:30:00Z'
+
+    result = truncate_value(timestamp)
+
+    assert_equal '2025-01-15 05:30:00 -0500', result
+  ensure
+    SmartSuite::DateFormatter.reset_timezone!
   end
 
   # Test truncate_value with invalid JSON string

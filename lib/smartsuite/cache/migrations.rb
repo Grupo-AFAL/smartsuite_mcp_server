@@ -279,18 +279,24 @@ module SmartSuite
         log_metric('→ Migrated cached_tables schema: removed 6 unused fields, added 10 API fields')
       end
 
-      # Migrate cached_members schema to add deleted_date column
+      # Migrate cached_members schema to add missing columns
       #
       # @return [void]
       def migrate_cached_members_schema
         cols = @db.execute('PRAGMA table_info(cached_members)')
-        deleted_date_col = cols.find { |c| c['name'] == 'deleted_date' }
+        col_names = cols.map { |c| c['name'] }
 
-        # Only add column if it doesn't exist
-        return if deleted_date_col
+        # Add deleted_date column if it doesn't exist
+        unless col_names.include?('deleted_date')
+          @db.execute('ALTER TABLE cached_members ADD COLUMN deleted_date TEXT')
+          log_metric('→ Migrated cached_members schema: added deleted_date column')
+        end
 
-        @db.execute('ALTER TABLE cached_members ADD COLUMN deleted_date TEXT')
-        log_metric('→ Migrated cached_members schema: added deleted_date column')
+        # Add timezone column if it doesn't exist
+        return if col_names.include?('timezone')
+
+        @db.execute('ALTER TABLE cached_members ADD COLUMN timezone TEXT')
+        log_metric('→ Migrated cached_members schema: added timezone column')
       end
 
       # Migrate cache_ttl_config schema to add expires_at column
