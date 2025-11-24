@@ -656,6 +656,62 @@ Comments use SmartSuite's rich text format (TipTap/ProseMirror). Plain text is a
 - Endpoint paths must NOT include `/api/v1/` prefix as HttpClient already prepends the base URL
 - The API expects query parameter named `record`, not `record_id` (though the MCP tool parameter can use any name)
 
+### SmartDoc Format (Rich Text Fields)
+
+SmartSuite rich text fields (`richtextareafield`) use **TipTap/ProseMirror format but with snake_case type names** instead of the standard camelCase.
+
+**CRITICAL: Use snake_case for all type names:**
+
+| Standard TipTap (camelCase) | SmartSuite (snake_case) |
+|-----------------------------|-------------------------|
+| `bulletList`                | `bullet_list`           |
+| `orderedList`               | `ordered_list`          |
+| `listItem`                  | `list_item`             |
+| `checkList`                 | `check_list`            |
+| `checkListItem`             | `check_list_item`       |
+| `tableRow`                  | `table_row`             |
+| `tableCell`                 | `table_cell`            |
+| `tableHeader`               | `table_header`          |
+| `codeBlock`                 | `code_block`            |
+| `hardBreak`                 | `hard_break`            |
+| `horizontalRule`            | `horizontal_rule`       |
+
+**Types that remain the same:** `doc`, `paragraph`, `heading`, `text`, `table`, `image`, `mention`, `callout`, `attachment`
+
+**Marks (inline formatting):** `strong` (bold), `em` (italic), `underline`, `strikethrough`, `link`, `color`, `highlight`
+
+**Basic structure:**
+```json
+{
+  "data": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {"level": 2},
+        "content": [{"type": "text", "text": "Title"}]
+      },
+      {
+        "type": "bullet_list",
+        "content": [
+          {
+            "type": "list_item",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [{"type": "text", "text": "Item 1"}]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+For complete examples including tables, code blocks, callouts, mentions, and more, see `docs/smartdoc_examples.md`.
+
 ## Logging and Metrics
 
 ### Unified Logging System

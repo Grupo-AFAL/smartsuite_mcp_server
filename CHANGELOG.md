@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Markdown to SmartDoc Converter** - New formatter module for converting markdown text to SmartSuite's SmartDoc format
+  - New `SmartSuite::Formatters::MarkdownToSmartdoc` class (`lib/smartsuite/formatters/markdown_to_smartdoc.rb`)
+  - Supports headings (`#`, `##`, `###`), bullet lists (`-`, `*`), markdown tables, and inline formatting (`**bold**`, `*italic*`)
+  - Uses correct snake_case type names required by SmartSuite (e.g., `bullet_list`, `list_item`, `table_row`)
+  - Batch conversion script for processing multiple records (`scripts/convert_sessions_minuta.rb`)
+
+### Changed
+
+- **SmartDoc Format Documentation** - Added comprehensive documentation about SmartSuite's rich text format
+  - New section in CLAUDE.md documenting snake_case type name requirements
+  - Type conversion table: `bulletList` → `bullet_list`, `listItem` → `list_item`, etc.
+  - Updated `create_record` and `update_record` tool descriptions with SmartDoc format guidance
+
 ## [2.0.0] - 2025-11-24
 
 ### Added

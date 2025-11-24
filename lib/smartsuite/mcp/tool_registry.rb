@@ -330,7 +330,8 @@ Date fields are automatically formatted. Just use simple strings:
 ```
 
 **Rich Text Fields (SmartDoc):**
-For rich text fields (richtextareafield), use SmartDoc format. See docs/smartdoc_examples.md.
+For rich text fields (richtextareafield), use SmartDoc format (TipTap/ProseMirror with **snake_case** type names).
+- **CRITICAL:** Use snake_case: `bullet_list`, `list_item`, `table_row`, `table_cell`, `table_header`, `ordered_list`, `check_list`, `code_block`, `hard_break`
 - Bold: `{"type": "strong"}` mark
 - Italic: `{"type": "em"}` mark
 - Structure: `{"data": {"type": "doc", "content": [...]}}`',
@@ -340,7 +341,7 @@ For rich text fields (richtextareafield), use SmartDoc format. See docs/smartdoc
               'table_id' => SCHEMA_TABLE_ID,
               'data' => {
                 'type' => 'object',
-                'description' => 'The record data as key-value pairs (field_slug: value). Date fields accept simple strings like "2025-06-20" (date only) or "2025-06-20T14:30:00Z" (with time). For rich text fields, use SmartDoc format.'
+                'description' => 'The record data as key-value pairs (field_slug: value). Date fields accept simple strings like "2025-06-20" (date only) or "2025-06-20T14:30:00Z" (with time). For rich text fields, use SmartDoc format (TipTap/ProseMirror with snake_case types).'
               },
               'minimal_response' => {
                 'type' => 'boolean',
@@ -370,7 +371,8 @@ Date fields are automatically formatted. Just use simple strings:
 ```
 
 **Rich Text Fields (SmartDoc):**
-For rich text fields (richtextareafield), use SmartDoc format. See docs/smartdoc_examples.md.
+For rich text fields (richtextareafield), use SmartDoc format (TipTap/ProseMirror with **snake_case** type names).
+- **CRITICAL:** Use snake_case: `bullet_list`, `list_item`, `table_row`, `table_cell`, `table_header`, `ordered_list`, `check_list`, `code_block`, `hard_break`
 - Bold: `{"type": "strong"}` mark
 - Italic: `{"type": "em"}` mark
 - Structure: `{"data": {"type": "doc", "content": [...]}}`',
@@ -381,7 +383,7 @@ For rich text fields (richtextareafield), use SmartDoc format. See docs/smartdoc
               'record_id' => SCHEMA_RECORD_ID,
               'data' => {
                 'type' => 'object',
-                'description' => 'The record data to update as key-value pairs (field_slug: value). Date fields accept simple strings like "2025-06-20" (date only) or "2025-06-20T14:30:00Z" (with time). For rich text fields, use SmartDoc format.'
+                'description' => 'The record data to update as key-value pairs (field_slug: value). Date fields accept simple strings like "2025-06-20" (date only) or "2025-06-20T14:30:00Z" (with time). For rich text fields, use SmartDoc format (TipTap/ProseMirror with snake_case types).'
               },
               'minimal_response' => {
                 'type' => 'boolean',
