@@ -1587,7 +1587,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test list_solutions_by_owner
   def test_list_solutions_by_owner_filters_by_owner
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -1636,7 +1636,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_list_solutions_by_owner_with_activity_data
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -1671,7 +1671,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_list_solutions_by_owner_returns_empty_when_no_matches
-    client = SmartSuiteClient.new('test_key', 'test_account')
+    client = SmartSuiteClient.new('test_key', 'test_account', cache_enabled: false)
 
     mock_response = {
       'items' => [
@@ -2521,8 +2521,8 @@ class SmartSuiteServerTest < Minitest::Test
 
   def test_handle_tool_call_list_deleted_records
     client = @server.instance_variable_get(:@client)
-    client.define_singleton_method(:list_deleted_records) do |solution_id, preview:, format: :toon|
-      { 'deleted_records' => [{ 'id' => 'rec_del' }], 'count' => 1 }
+    client.define_singleton_method(:list_deleted_records) do |solution_id, full_data:, format: :toon|
+      [{ 'id' => 'rec_del', 'title' => 'Deleted Record' }]
     end
 
     request = {
@@ -2533,7 +2533,8 @@ class SmartSuiteServerTest < Minitest::Test
 
     response = call_private_method(:handle_tool_call, request)
     result = JSON.parse(response['result']['content'][0]['text'])
-    assert_equal 1, result['count']
+    assert result.is_a?(Array), 'Should return array'
+    assert_equal 'rec_del', result[0]['id']
   end
 
   def test_handle_tool_call_restore_deleted_record
@@ -2759,26 +2760,8 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   # ==========================================
-  # Tests for log_metric method
-  # ==========================================
-
-  def test_log_metric_writes_to_metrics_log
-    metrics_log = @server.instance_variable_get(:@metrics_log)
-    # Get the metrics log path
-    metrics_path = metrics_log.path
-
-    # Call log_metric
-    @server.send(:log_metric, 'Test metric entry')
-
-    # Read the file to verify the entry was written
-    content = File.read(metrics_path)
-    assert_includes content, 'Test metric entry'
-    # Should include a timestamp
-    assert_match(/\[\d{2}:\d{2}:\d{2}\]/, content)
-  end
-
-  # ==========================================
   # Tests for handle_request routing
+  # (Note: log_metric tests removed - server now uses SmartSuite::Logger)
   # ==========================================
 
   def test_handle_request_routes_to_initialize

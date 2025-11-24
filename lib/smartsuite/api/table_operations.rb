@@ -98,25 +98,20 @@ module SmartSuite
                    end
                  end
 
-        format_tables_output(tables, format, "Found #{tables.size} tables")
+        format_tables_output(tables, format)
       end
 
       # Format tables output based on format parameter
       #
       # @param tables [Array<Hash>] Filtered tables data
       # @param format [Symbol] Output format (:toon or :json)
-      # @param message [String] Log message
       # @return [String, Hash] Formatted output
-      def format_tables_output(tables, format, message)
+      def format_tables_output(tables, format)
         case format
         when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format_tables(tables)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format_tables(tables)
         else # :json
-          result = build_collection_response(tables, :tables)
-          track_response_size(result, message)
+          build_collection_response(tables, :tables)
         end
       end
 
@@ -153,11 +148,13 @@ module SmartSuite
 
         unless result
           # Cache miss - fetch from API
-          log_metric("→ Getting table structure from API: #{table_id}")
           response = api_request(:get, "/applications/#{table_id}/")
 
           # Return filtered structure including only essential fields
           return response unless response.is_a?(Hash)
+
+          # Cache the full response before filtering
+          @cache&.cache_single_table(response)
 
           # Filter structure to only essential fields
           filtered_structure = response['structure'].map { |field| filter_field_structure(field) }
@@ -171,7 +168,7 @@ module SmartSuite
           }
         end
 
-        format_single_response(result, format, "Retrieved table: #{table_id} (#{result['structure'].length} fields)")
+        format_single_response(result, format)
       end
 
       # Creates a new table (application) in a solution.
@@ -197,8 +194,6 @@ module SmartSuite
         validate_required_parameter!('name', name)
         validate_optional_parameter!('structure', structure, Array) if structure
 
-        log_metric("→ Creating table: #{name} in solution: #{solution_id}")
-
         body = {
           'name' => name,
           'solution' => solution_id,
@@ -211,7 +206,7 @@ module SmartSuite
 
         return response unless response.is_a?(Hash)
 
-        format_single_response(response, format, "Created table: #{response['name']} (#{response['id']})")
+        format_single_response(response, format)
       end
     end
   end

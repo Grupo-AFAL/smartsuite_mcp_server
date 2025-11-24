@@ -779,30 +779,33 @@ class TestRecordOperations < Minitest::Test
   # TESTS: Deleted Records Management
   # ============================================================================
 
-  # Test list_deleted_records success with preview
-  def test_list_deleted_records_success_with_preview
+  # Test list_deleted_records returns only id and title by default
+  def test_list_deleted_records_returns_minimal_by_default
     client = create_client
 
-    stub_request(:post, 'https://app.smartsuite.com/api/v1/deleted-records/?preview=true')
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/deleted-records/?preview=false')
       .with(body: { solution_id: 'sol_123' }.to_json)
       .to_return(
         status: 200,
         body: [
-          { id: 'rec_1', title: 'Deleted Task 1', deleted_at: '2025-01-01T00:00:00Z' },
-          { id: 'rec_2', title: 'Deleted Task 2', deleted_at: '2025-01-02T00:00:00Z' }
+          { id: 'rec_1', title: 'Deleted Task 1', deleted_at: '2025-01-01T00:00:00Z', all_fields: 'data' },
+          { id: 'rec_2', title: 'Deleted Task 2', deleted_at: '2025-01-02T00:00:00Z', all_fields: 'data2' }
         ].to_json
       )
 
-    result = client.list_deleted_records('sol_123', preview: true, format: :json)
+    result = client.list_deleted_records('sol_123', format: :json)
 
     assert result.is_a?(Array), 'Should return array'
     assert_equal 2, result.length
     assert_equal 'rec_1', result[0]['id']
     assert_equal 'Deleted Task 1', result[0]['title']
+    # By default, only id and title should be returned
+    refute result[0].key?('all_fields'), 'Should not include all_fields when full_data is false'
+    refute result[0].key?('deleted_at'), 'Should not include deleted_at when full_data is false'
   end
 
-  # Test list_deleted_records success without preview
-  def test_list_deleted_records_success_without_preview
+  # Test list_deleted_records with full_data returns all fields
+  def test_list_deleted_records_with_full_data
     client = create_client
 
     stub_request(:post, 'https://app.smartsuite.com/api/v1/deleted-records/?preview=false')
@@ -814,19 +817,19 @@ class TestRecordOperations < Minitest::Test
         ].to_json
       )
 
-    result = client.list_deleted_records('sol_123', preview: false, format: :json)
+    result = client.list_deleted_records('sol_123', full_data: true, format: :json)
 
     assert result.is_a?(Array), 'Should return array'
     assert_equal 1, result.length
-    assert result[0].key?('all_fields'), 'Should include all fields when preview is false'
+    assert result[0].key?('all_fields'), 'Should include all_fields when full_data is true'
+    assert result[0].key?('deleted_at'), 'Should include deleted_at when full_data is true'
   end
 
-  # Test list_deleted_records default preview value
-  def test_list_deleted_records_default_preview
+  # Test list_deleted_records empty result
+  def test_list_deleted_records_empty_result
     client = create_client
 
-    # Default preview should be true
-    stub_request(:post, 'https://app.smartsuite.com/api/v1/deleted-records/?preview=true')
+    stub_request(:post, 'https://app.smartsuite.com/api/v1/deleted-records/?preview=false')
       .with(body: { solution_id: 'sol_123' }.to_json)
       .to_return(
         status: 200,
@@ -836,6 +839,7 @@ class TestRecordOperations < Minitest::Test
     result = client.list_deleted_records('sol_123', format: :json)
 
     assert result.is_a?(Array), 'Should return array'
+    assert_empty result
   end
 
   # Test list_deleted_records requires solution_id
@@ -847,7 +851,7 @@ class TestRecordOperations < Minitest::Test
   def test_list_deleted_records_api_error
     assert_api_error(
       :list_deleted_records,
-      'https://app.smartsuite.com/api/v1/deleted-records/?preview=true',
+      'https://app.smartsuite.com/api/v1/deleted-records/?preview=false',
       :post,
       500,
       'sol_123'

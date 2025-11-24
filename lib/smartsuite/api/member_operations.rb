@@ -71,15 +71,13 @@ module SmartSuite
       def search_member(query, include_inactive: false, format: :toon)
         validate_required_parameter!('query', query)
 
-        log_metric("→ Searching members with query: #{query}")
-
         # Try cache first with query filtering
         cached_members = with_cache_check('members', "query:#{query}") do
           @cache.get_cached_members(query: query, include_inactive: include_inactive)
         end
         if cached_members
           sorted_members = sort_members_by_match_score(cached_members, query)
-          return format_search_results(sorted_members, query, format, cached: true)
+          return format_search_results(sorted_members, format, query: query)
         end
 
         # Fetch all members from API
@@ -98,7 +96,7 @@ module SmartSuite
         # Sort by match score (best matches first)
         sorted_members = sort_members_by_match_score(matching_members, query)
 
-        format_search_results(sorted_members, query, format, cached: false)
+        format_search_results(sorted_members, format, query: query)
       end
 
       # Lists all teams in the workspace with caching.
@@ -114,7 +112,6 @@ module SmartSuite
       # @example Explicit format selection
       #   list_teams(format: :json)
       def list_teams(format: :toon)
-        log_metric('→ Listing teams')
         teams = fetch_teams_with_cache
         format_team_list(teams, format)
       end
@@ -140,7 +137,7 @@ module SmartSuite
         return nil unless team
 
         enriched_team = enrich_team_with_members(team)
-        format_single_response(enriched_team, format, "Retrieved team: #{team_id}")
+        format_single_response(enriched_team, format)
       end
 
       private
@@ -153,8 +150,6 @@ module SmartSuite
       # @param format [Symbol] Output format: :toon or :json
       # @return [String, Hash] Formatted members
       def list_all_members(limit, offset, include_inactive: false, format: :toon)
-        log_metric('→ Listing workspace members')
-
         # Try cache first if enabled
         cached_members = with_cache_check('members') do
           @cache.get_cached_members(include_inactive: include_inactive)
@@ -162,9 +157,7 @@ module SmartSuite
         if cached_members
           # Apply pagination to cached results
           paginated = cached_members[offset, limit] || []
-          return format_members_output(paginated, format,
-                                       "Found #{paginated.size} members (cached, #{cached_members.size} total)",
-                                       total_count: cached_members.size)
+          return format_members_output(paginated, format, total_count: cached_members.size)
         end
 
         # Fetch all members from API and cache them
@@ -177,9 +170,7 @@ module SmartSuite
 
         # Apply pagination
         paginated = filtered_members[offset, limit] || []
-        format_members_output(paginated, format,
-                              "Found #{paginated.size} members (#{filtered_members.size} total)",
-                              total_count: filtered_members.size)
+        format_members_output(paginated, format, total_count: filtered_members.size)
       end
 
       # Lists members filtered by solution.
@@ -195,8 +186,7 @@ module SmartSuite
 
         if solution_member_ids.empty?
           log_metric('⚠️  Solution has no members')
-          return format_members_output([], format, 'Solution has no members',
-                                       total_count: 0, filtered_by_solution: solution_id)
+          return format_members_output([], format, total_count: 0, filtered_by_solution: solution_id)
         end
 
         # Try cache first if enabled
@@ -217,7 +207,6 @@ module SmartSuite
         filtered_members = all_members.select { |member| solution_member_ids.include?(member['id']) }
 
         format_members_output(filtered_members, format,
-                              "Found #{filtered_members.size} members (filtered from #{all_members.size} total)",
                               total_count: filtered_members.size, filtered_by_solution: solution_id)
       end
 
@@ -279,13 +268,10 @@ module SmartSuite
       # @param team_id [String] Team identifier
       # @return [Hash, nil] Raw team object or nil if not found
       def fetch_team_by_id(team_id)
-        # Try to get specific team from cache first
+        # Try to get specific team from cache first (cache layer logs hits)
         unless should_bypass_cache?
           cached_team = @cache.get_cached_team(team_id)
-          if cached_team
-            log_cache_hit('team', team_id)
-            return cached_team
-          end
+          return cached_team if cached_team
         end
 
         # Fetch all teams (which will cache them) and find the specific one
@@ -538,25 +524,20 @@ module SmartSuite
           }
         end
 
-        format_teams_output(formatted_teams, format, "Found #{formatted_teams.size} teams")
+        format_teams_output(formatted_teams, format)
       end
 
       # Format teams output based on format parameter
       #
       # @param teams [Array<Hash>] Formatted teams data
       # @param format [Symbol] Output format (:toon or :json)
-      # @param message [String] Log message
       # @return [String, Hash] Formatted output
-      def format_teams_output(teams, format, message)
+      def format_teams_output(teams, format)
         case format
         when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format(teams)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format(teams)
         else # :json
-          result = { 'teams' => teams, 'count' => teams.size }
-          track_response_size(result, message)
+          { 'teams' => teams, 'count' => teams.size }
         end
       end
 
@@ -564,44 +545,31 @@ module SmartSuite
       #
       # @param members [Array<Hash>] Formatted members data
       # @param format [Symbol] Output format (:toon or :json)
-      # @param message [String] Log message
       # @param total_count [Integer, nil] Total count for pagination context
       # @param filtered_by_solution [String, nil] Solution ID if filtered
       # @return [String, Hash] Formatted output
-      def format_members_output(members, format, message, total_count: nil, filtered_by_solution: nil)
+      def format_members_output(members, format, total_count: nil, filtered_by_solution: nil)
         case format
         when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format_members(members)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format_members(members)
         else # :json
-          result = build_collection_response(members, :members, total_count: total_count,
-                                                                filtered_by_solution: filtered_by_solution)
-          track_response_size(result, message)
+          build_collection_response(members, :members, total_count: total_count,
+                                                       filtered_by_solution: filtered_by_solution)
         end
       end
 
       # Format search results based on format parameter
       #
       # @param members [Array<Hash>] Matching members
-      # @param query [String] Search query
       # @param format [Symbol] Output format (:toon or :json)
-      # @param cached [Boolean] Whether results came from cache
+      # @param query [String] Search query (used in JSON response)
       # @return [String, Hash] Formatted output
-      def format_search_results(members, query, format, cached: false)
-        cache_suffix = cached ? ' (cached)' : ''
-        message = "Found #{members.size} matching members#{cache_suffix}"
-
+      def format_search_results(members, format, query: nil)
         case format
         when :toon
-          result = SmartSuite::Formatters::ToonFormatter.format_members(members)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format_members(members)
         else # :json
-          result = build_collection_response(members, :members, query: query)
-          track_response_size(result, message)
+          build_collection_response(members, :members, query: query)
         end
       end
     end

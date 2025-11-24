@@ -148,8 +148,8 @@ module SmartSuite
       #   track_response_size(result, "Found #{solutions.size} solutions")
       def track_response_size(result, message)
         tokens = estimate_tokens(JSON.generate(result))
-        log_metric("✓ #{message}")
-        log_token_usage(tokens)
+        total_tokens = update_token_usage(tokens)
+        log_metric("✓ #{message} | +#{tokens} tokens (Total: #{total_tokens})")
         result
       end
 
@@ -221,9 +221,9 @@ module SmartSuite
       #   log_cache_hit('solutions', 110)
       #   log_cache_hit('tables', 25, 'sol_abc123')
       def log_cache_hit(resource_type, count, cache_key = nil)
-        msg = "✓ Cache hit: #{count} #{resource_type}"
-        msg += " (#{cache_key})" if cache_key
-        log_metric(msg)
+        details = { count: count }
+        details[:key] = cache_key if cache_key
+        SmartSuite::Logger.cache('hit', resource_type, details)
       end
 
       # Log cache miss with standardized format.
@@ -235,10 +235,9 @@ module SmartSuite
       #   log_cache_miss('solutions')
       #   log_cache_miss('tables', 'sol_abc123')
       def log_cache_miss(resource_type, cache_key = nil)
-        msg = "→ Cache miss for #{resource_type}"
-        msg += " (#{cache_key})" if cache_key
-        msg += ', fetching from API...'
-        log_metric(msg)
+        details = { status: 'fetching from API' }
+        details[:key] = cache_key if cache_key
+        SmartSuite::Logger.cache('miss', resource_type, details)
       end
 
       # Check cache and return cached data if available.
@@ -262,18 +261,11 @@ module SmartSuite
       #   cached = with_cache_check('tables', nil, bypass: fields&.any?) do
       #     @cache.get_cached_table_list(solution_id)
       #   end
-      def with_cache_check(resource_type, cache_key = nil, bypass: false)
+      def with_cache_check(_resource_type, _cache_key = nil, bypass: false)
         return nil if should_bypass_cache? || bypass
 
-        cached_data = yield
-        if cached_data
-          count = cached_data.respond_to?(:size) ? cached_data.size : 1
-          log_cache_hit(resource_type, count, cache_key)
-          cached_data
-        else
-          log_cache_miss(resource_type, cache_key)
-          nil
-        end
+        # Cache layer logs hits/misses, so we just return the data
+        yield
       end
 
       # Extract items from response, handling both Array and Hash formats.
@@ -316,7 +308,7 @@ module SmartSuite
 
         # Track cache miss
         @cache.track_cache_miss(table_id)
-        log_metric("→ Cache miss for #{table_id}, fetching all records...")
+        SmartSuite::Logger.cache('miss', table_id, action: 'fetching all records')
 
         # Fetch table structure (use JSON format for internal processing)
         structure = get_table(table_id, format: :json)
@@ -327,7 +319,7 @@ module SmartSuite
         # Cache records
         @cache.cache_table_records(table_id, structure, all_records)
 
-        log_metric("✓ Cached #{all_records.size} records for #{table_id}")
+        SmartSuite::Logger.cache('cached', table_id, records: all_records.size)
       end
 
       # Format a single object response based on format parameter.
@@ -340,18 +332,15 @@ module SmartSuite
       # @param message [String] Log message for metrics
       # @return [String, Hash] TOON string or JSON hash depending on format
       # @example
-      #   format_single_response(record, :toon, "Retrieved record: rec_123")
-      #   format_single_response(team, :json, "Retrieved team: team_abc")
-      def format_single_response(data, format, message)
+      #   format_single_response(record, :toon)
+      #   format_single_response(team, :json)
+      def format_single_response(data, format)
         case format
         when :toon
           require_relative '../formatters/toon_formatter'
-          result = SmartSuite::Formatters::ToonFormatter.format(data)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format(data)
         else # :json
-          track_response_size(data, message)
+          data
         end
       end
 
@@ -366,18 +355,15 @@ module SmartSuite
       # @param message [String] Log message for metrics
       # @return [String, Hash] TOON string or JSON hash depending on format
       # @example
-      #   format_array_response(records, :toon, :records, "Created 5 records")
-      def format_array_response(data, format, collection_name, message)
+      #   format_array_response(records, :toon, :records)
+      def format_array_response(data, format, collection_name)
         case format
         when :toon
           require_relative '../formatters/toon_formatter'
           wrapped = { collection_name.to_s => data }
-          result = SmartSuite::Formatters::ToonFormatter.format(wrapped)
-          log_metric("✓ #{message}")
-          log_metric('📊 TOON format (~50-60% token savings)')
-          result
+          SmartSuite::Formatters::ToonFormatter.format(wrapped)
         else # :json - return raw array for backward compatibility
-          track_response_size(data, message)
+          data
         end
       end
 

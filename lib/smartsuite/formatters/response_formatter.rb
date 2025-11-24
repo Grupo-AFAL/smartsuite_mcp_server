@@ -134,28 +134,25 @@ module SmartSuite
       end
 
       # Format response as JSON
-      def format_as_json_response(items, response, original_tokens)
+      def format_as_json_response(items, response, _original_tokens)
         result = { 'items' => items, 'total_count' => response['total_count'], 'count' => items.size }
         tokens = estimate_tokens(JSON.generate(result))
-        reduction = ((original_tokens - tokens).to_f / original_tokens * 100).round(1)
-        log_metric("✓ Found #{items.size} of #{response['total_count']} total records")
-        log_metric("📊 #{original_tokens} → #{tokens} tokens (saved #{reduction}%)")
-        log_token_usage(tokens)
+        total_tokens = update_token_usage(tokens)
+        total_records = response['total_count'] || items.size
+        log_metric("✓ #{items.size} of #{total_records} records | +#{tokens} tokens (Total: #{total_tokens})")
         result
       end
 
       # Log format metrics consistently
-      def log_format_metrics(count, total, filtered, original_tokens, result, format_name)
+      def log_format_metrics(count, total, filtered, _original_tokens, result, _format_name)
         tokens = estimate_tokens(result)
-        reduction = ((original_tokens - tokens).to_f / original_tokens * 100).round(1)
-        msg = if filtered && filtered < total
-                "#{count} records (#{filtered} matching filter from #{total} total)"
-              else
-                "#{count} of #{total} total records (#{format_name})"
-              end
-        log_metric("✓ Found #{msg}")
-        log_metric("📊 #{original_tokens} → #{tokens} tokens (saved #{reduction}%)")
-        log_token_usage(tokens)
+        total_tokens = update_token_usage(tokens)
+        record_msg = if filtered && filtered < total
+                       "#{count} of #{filtered} records (#{total} in table)"
+                     else
+                       "#{count} of #{total} records"
+                     end
+        log_metric("✓ #{record_msg} | +#{tokens} tokens (Total: #{total_tokens})")
       end
 
       public
@@ -224,9 +221,8 @@ module SmartSuite
         }
 
         tokens = estimate_tokens(JSON.generate(result))
-        log_metric("✓ Summary: #{items.size} records analyzed")
-        log_metric('📊 Minimal context (summary mode)')
-        log_token_usage(tokens)
+        total_tokens = update_token_usage(tokens)
+        log_metric("✓ #{items.size} records (summary) | +#{tokens} tokens (Total: #{total_tokens})")
 
         result
       end

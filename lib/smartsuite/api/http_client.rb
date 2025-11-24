@@ -4,7 +4,7 @@ require 'json'
 require 'net/http'
 require 'uri'
 require 'openssl'
-require_relative '../../query_logger'
+require_relative '../logger'
 
 # SmartSuite namespace module
 #
@@ -23,9 +23,8 @@ module SmartSuite
     # - HTTP request execution (GET, POST, PUT, PATCH, DELETE)
     # - Authentication header management
     # - Error handling for failed requests
-    # - Metrics logging for all API calls
+    # - Unified logging for all API calls
     # - Token usage tracking
-    # - Query logging for debugging
     module HttpClient
       # Base URL for all SmartSuite API requests
       API_BASE_URL = 'https://app.smartsuite.com/api/v1'
@@ -44,12 +43,10 @@ module SmartSuite
         # Track the API call if stats tracker is available
         @stats_tracker&.track_api_call(method, endpoint)
 
-        log_metric("→ #{method.upcase} #{endpoint}")
-
         uri = URI.parse("#{API_BASE_URL}#{endpoint}")
 
         # Log API request
-        QueryLogger.log_api_request(method, uri.to_s, body: body)
+        SmartSuite::Logger.api_request(method, uri.to_s, body: body)
 
         start_time = Time.now
 
@@ -81,40 +78,42 @@ module SmartSuite
         duration = Time.now - start_time
 
         unless response.is_a?(Net::HTTPSuccess)
-          QueryLogger.log_api_response(response.code.to_i, duration, response.body&.length)
+          SmartSuite::Logger.api_response(response.code.to_i, duration, response.body&.length)
           raise "API request failed: #{response.code} - #{response.body}"
         end
 
         # Log successful response
         body_size = response.body&.length
-        QueryLogger.log_api_response(response.code.to_i, duration, body_size)
+        SmartSuite::Logger.api_response(response.code.to_i, duration, body_size)
 
         # Handle empty responses (some endpoints return empty body on success)
         return {} if response.body.nil? || response.body.strip.empty?
 
         JSON.parse(response.body)
       rescue StandardError => e
-        QueryLogger.log_error('API Request', e)
+        SmartSuite::Logger.error('API Request', error: e)
         raise
       end
 
-      # Logs a message to the metrics log file with timestamp.
+      # Logs a metric message to the unified logger.
+      #
+      # This method provides backward compatibility for all API modules
+      # that use log_metric for status messages.
       #
       # @param message [String] Message to log
       def log_metric(message)
-        timestamp = Time.now.strftime('%H:%M:%S')
-        @metrics_log.puts "[#{timestamp}] #{message}"
+        SmartSuite::Logger.metric(message)
       end
 
-      # Logs token usage and updates running totals.
+      # Updates token usage totals and returns the new total.
       #
-      # Tracks cumulative token usage and calculates remaining context window.
+      # Tracks cumulative token usage. Does not log - caller handles logging.
       #
       # @param tokens_used [Integer] Number of tokens used in this operation
-      def log_token_usage(tokens_used)
+      # @return [Integer] New total tokens used
+      def update_token_usage(tokens_used)
         @total_tokens_used += tokens_used
-        remaining = @context_limit - @total_tokens_used
-        log_metric("📊 Tokens: +#{tokens_used} | Total: #{@total_tokens_used} | Remaining: #{remaining}")
+        @total_tokens_used
       end
     end
   end

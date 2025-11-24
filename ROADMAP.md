@@ -47,6 +47,11 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 - **Test coverage:** 97.47% (927 tests, 2,799 assertions)
 - **Cache::Schema module** - Centralized SQLite table schema definitions
 - **SmartSuite::Paths module** - Centralized path management for test isolation
+- **Unified Logging System** - Consolidated all logging into `SmartSuite::Logger`
+  - Single log file: `~/.smartsuite_mcp.log`
+  - Multiple log levels (DEBUG, INFO, WARN, ERROR)
+  - Log categories (API, DB, CACHE, S3, SERVER, METRIC)
+  - Removed QueryLogger (direct usage of unified logger)
 
 #### In Progress
 
@@ -57,10 +62,9 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 #### Remaining
 
-- [ ] Unify all logging systems (query + metrics + any other logging)
+- [ ] Convert UTC timestamps to local time
 - [ ] Smart field selection intelligence (analyze usage patterns)
 - [ ] Query optimization for complex filters
-- [ ] Convert UTC timestamps to local time
 
 ---
 

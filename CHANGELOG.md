@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Unified Logging System** - Consolidated all logging into `SmartSuite::Logger` class
+  - Single log file: `~/.smartsuite_mcp.log` (production), `~/.smartsuite_mcp_test.log` (test)
+  - Replaced multiple logging mechanisms (metrics log, query logger, stderr)
+  - Multiple log levels: DEBUG, INFO, WARN, ERROR
+  - Log categories: API, DB, CACHE, S3, SERVER, METRIC with color coding
+  - ANSI color support (configurable via `colors_enabled`)
+  - Daily log rotation
+  - Environment variable configuration:
+    - `SMARTSUITE_LOG_LEVEL`: Set log level (debug, info, warn, error)
+    - `SMARTSUITE_LOG_STDERR`: Set to 'true' to also output to stderr
+  - Removed `QueryLogger` class (all code now uses `SmartSuite::Logger` directly)
+  - `log_metric` method in HttpClient preserved for API module compatibility
+
+- **Aggressive Caching Strategy** - Consistent cache-first approach across all operations
+  - `list_solutions_by_owner`: Now uses cache-first strategy, caches full solution data including permissions
+  - `get_table`: Now caches table structure after API fetch for subsequent requests
+  - `get_record`: Uses aggressive caching - fetches ALL records on cache miss, then returns requested record
+  - `list_deleted_records`: New cache layer for deleted records (stored separately from active records)
+    - Returns only `id` and `title` by default for token efficiency
+    - New `full_data` parameter to get all fields when needed
+    - Replaced `preview` parameter with `full_data` (inverted logic)
+  - New `cached_deleted_records` table in SQLite cache schema
+  - New cache methods: `cache_deleted_records`, `get_cached_deleted_records`, `deleted_records_cache_valid?`, `invalidate_deleted_records_cache`
+  - New helper method `cache_single_table` for individual table caching
+  - Refactored `insert_table_row` helper to reduce code duplication
+
 - **TOON format is now default for all list tools** - Standardized token-optimized output across all listing operations
   - TOON (Token-Oriented Object Notation) is now the **default format** for ALL list operations
   - Provides ~50-60% token savings compared to JSON for structured data
@@ -46,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Profile references credentials in `~/.aws/credentials` file
   - Prevents other programs from accidentally using SmartSuite S3 bucket credentials
 
-- **S3 operation logging via QueryLogger** - All S3 actions now log to `~/.smartsuite_mcp_queries.log`
+- **S3 operation logging** - All S3 actions now log to `~/.smartsuite_mcp.log` via unified logger
   - Consistent logging alongside API and cache operations
   - Blue color coding for S3 operations in terminal
   - Actions logged: UPLOAD, UPLOAD_COMPLETE, PRESIGN, ATTACH, ATTACH_COMPLETE, WAIT, CLEANUP, DELETE
@@ -184,6 +210,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Migrations from v1.x to v2.x require updating code expecting full responses
 
 ### Changed
+
+- **Unified logging replaces separate log files** - Consolidated logging infrastructure
+  - `~/.smartsuite_mcp_metrics.log` → `~/.smartsuite_mcp.log` (production)
+  - `~/.smartsuite_mcp_queries.log` → `~/.smartsuite_mcp.log` (production)
+  - Single log file simplifies debugging and reduces disk I/O
+  - All logging categories (API, DB, CACHE, S3, SERVER, METRIC) now in one file
+  - Server no longer creates separate metrics_log file handle
 
 - **Updated design-decisions.md to reflect current architecture** - Updated two outdated sections
   - Section 3: Changed from "Plain Text Responses" to "TOON Format Responses" with implementation details
