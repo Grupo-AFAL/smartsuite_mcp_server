@@ -395,7 +395,7 @@ module SmartSuite
             "}\n  " \
             "]\n" \
             "}\n\n" \
-            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
+            'NOTE: With cache enabled (default), filtering is done locally on cached data using SQL queries, providing fast results without API calls.'
 
         when 'filter_by_date_range'
           date_field = arguments['date_field']
@@ -427,7 +427,7 @@ module SmartSuite
             "}\n  " \
             "]\n" \
             "}\n\n" \
-            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
+            'NOTE: With cache enabled (default), filtering is done locally on cached data using SQL queries, providing fast results without API calls.'
 
         when 'list_tables_by_solution'
           "Use the list_tables tool with this parameter:\n\n" \
@@ -452,7 +452,7 @@ module SmartSuite
             "}\n  " \
             "]\n" \
             "}\n\n" \
-            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
+            'NOTE: With cache enabled (default), filtering is done locally on cached data using SQL queries, providing fast results without API calls.'
 
         when 'filter_by_linked_record'
           linked_field = arguments['linked_field_slug']
@@ -473,7 +473,7 @@ module SmartSuite
             "]\n" \
             "}\n\n" \
             "Note: Linked record fields require 'has_any_of' comparison (not 'is') with an array of record IDs.\n\n" \
-            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
+            'NOTE: With cache enabled (default), filtering is done locally on cached data using SQL queries, providing fast results without API calls.'
 
         when 'filter_by_numeric_range'
           numeric_field = arguments['numeric_field_slug']
@@ -507,7 +507,7 @@ module SmartSuite
                                             "]\n" \
                                             "}\n\n" \
                                             "Note: Numeric fields support: is_equal_to, is_not_equal_to, is_greater_than, is_less_than, is_equal_or_greater_than, is_equal_or_less_than\n\n" \
-                                            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
+                                            'NOTE: With cache enabled (default), filtering is done locally on cached data using SQL queries, providing fast results without API calls.'
 
         when 'filter_by_multiple_select'
           multiselect_field = arguments['multiselect_field_slug']
@@ -536,7 +536,7 @@ module SmartSuite
             "]\n" \
             "}\n\n" \
             "Note: Multiple select fields support: has_any_of (matches any), has_all_of (matches all), is_exactly (exact match), has_none_of\n\n" \
-            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
+            'NOTE: With cache enabled (default), filtering is done locally on cached data using SQL queries, providing fast results without API calls.'
 
         when 'filter_by_assigned_user'
           user_field = arguments['user_field_slug']
@@ -557,7 +557,7 @@ module SmartSuite
             "]\n" \
             "}\n\n" \
             "Note: User fields require 'has_any_of' comparison with an array of user IDs. Use list_members to get user IDs.\n\n" \
-            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
+            'NOTE: With cache enabled (default), filtering is done locally on cached data using SQL queries, providing fast results without API calls.'
 
         when 'filter_by_empty_fields'
           field_slug = arguments['field_slug']
@@ -579,7 +579,7 @@ module SmartSuite
             "]\n" \
             "}\n\n" \
             "Note: Empty field checks use 'is_empty' or 'is_not_empty' operators with null value. Works for all field types.\n\n" \
-            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
+            'NOTE: With cache enabled (default), filtering is done locally on cached data using SQL queries, providing fast results without API calls.'
 
         when 'filter_by_recent_updates'
           days_ago = arguments['days_ago'] || '7'
@@ -603,7 +603,7 @@ module SmartSuite
             "]\n" \
             "}\n\n" \
             "Note: Uses the system 'Last Updated' field (slug: s5b629ed5f) with date comparison. For custom date fields, use their specific slugs.\n\n" \
-            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
+            'NOTE: With cache enabled (default), filtering is done locally on cached data using SQL queries, providing fast results without API calls.'
 
         when 'filter_complex_and_or'
           status_field = arguments['status_field_slug']
@@ -630,7 +630,7 @@ module SmartSuite
             "]\n" \
             "}\n\n" \
             "Note: Complex filters can combine multiple conditions with 'and' or 'or' operators. Each field condition supports different comparison operators based on field type.\n\n" \
-            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
+            'NOTE: With cache enabled (default), filtering is done locally on cached data using SQL queries, providing fast results without API calls.'
 
         when 'filter_overdue_tasks'
           due_date_field = arguments['due_date_field_slug']
@@ -650,7 +650,7 @@ module SmartSuite
             "]\n" \
             "}\n\n" \
             "Note: The 'is_overdue' comparison is specifically for Due Date fields. For regular date fields, use 'is_before' with today's date.\n\n" \
-            'NOTE: When cache is enabled (default), the filter parameter above is IGNORED and all filtering is done locally on cached data. The filter is only used if cache is disabled or bypass_cache=true is set.'
+            'NOTE: With cache enabled (default), filtering is done locally on cached data using SQL queries, providing fast results without API calls.'
 
         else
           "Unknown prompt: #{prompt_name}"

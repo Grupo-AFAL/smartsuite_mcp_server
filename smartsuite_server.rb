@@ -119,7 +119,7 @@ class SmartSuiteServer
         'protocolVersion' => '2024-11-05',
         'serverInfo' => {
           'name' => 'smartsuite-server',
-          'version' => '1.0.1'
+          'version' => '2.0.0'
         },
         'capabilities' => {
           'tools' => {},

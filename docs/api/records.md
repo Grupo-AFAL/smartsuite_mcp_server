@@ -216,7 +216,7 @@ priority: High
 ### Notes
 
 - **Cache not invalidated:** New record won't appear in cache until TTL expires
-- **Use bypass_cache** on next `list_records` if you need to see it immediately
+- **Use `refresh_cache` tool** if you need to see changes immediately: `refresh_cache('records', table_id: 'tbl_123')`
 - **Field slugs required:** Use field slugs, not labels
 
 ---
@@ -263,7 +263,7 @@ priority: Low
 ### Notes
 
 - **Partial updates:** Only include fields you want to change
-- **Cache not invalidated:** Use `bypass_cache` to see changes immediately
+- **Cache not invalidated:** Use `refresh_cache('records', table_id: 'tbl_123')` to see changes immediately
 - **Field validation:** SmartSuite validates field values
 
 ---

@@ -133,13 +133,10 @@ Rate limit exceeded
    list_records('tbl_123', 10, 0, fields: ['status'])
    ```
 
-2. **Avoid bypass_cache:**
+2. **Use cache (default behavior):**
    ```ruby
-   # ❌ Avoid - hits API every time
-   list_records('tbl_123', 10, 0,
-     fields: ['status'],
-     bypass_cache: true
-   )
+   # ✅ Good - uses cache, minimal API calls
+   list_records('tbl_123', 10, 0, fields: ['status'])
    ```
 
 3. **Check API usage:**
@@ -278,22 +275,12 @@ Error: Field 'xyz' not found in table
 
 2. **Refresh specific table cache:**
    ```ruby
-   # Invalidates cache for one table (faster than full clear)
-   refresh_cache(resource: 'records', table_id: 'tbl_123')
-
-   # Then fetch fresh data
-   list_records('tbl_123', 10, 0, fields: ['status'], bypass_cache: true)
+   # Invalidates cache for one table, then query fresh data
+   refresh_cache('records', table_id: 'tbl_123')
+   list_records('tbl_123', 10, 0, fields: ['status'])
    ```
 
-3. **Bypass cache for immediate fresh data:**
-   ```ruby
-   list_records('tbl_123', 10, 0,
-     fields: ['status'],
-     bypass_cache: true  # Forces fresh API call
-   )
-   ```
-
-4. **Wait for cache to expire** (default TTL: 12 hours for records, 7 days for solutions/tables)
+3. **Wait for cache to expire** (default TTL: 12 hours for records, 7 days for solutions/tables)
 
 5. **Clear cache manually (nuclear option):**
    ```bash
@@ -304,7 +291,7 @@ Error: Field 'xyz' not found in table
 **Understanding cache behavior:**
 - `create_record`, `update_record`, `delete_record` do **NOT** automatically invalidate cache
 - Cache expires naturally by TTL (default: 12 hours)
-- Use `bypass_cache: true` immediately after mutations to see changes
+- Use `refresh_cache('records', table_id: 'tbl_123')` after mutations to see changes immediately
 
 ### Cache Not Working
 
@@ -576,18 +563,25 @@ Config changes in `claude_desktop_config.json` also require a restart.
 
 ### Cache Questions
 
-#### Q: When should I use `bypass_cache: true`?
+#### Q: When should I use `refresh_cache`?
 
 **A:** Use it when:
 - You just created/updated records and need to see changes immediately
 - You're debugging and suspect stale data
 - You need guaranteed fresh data for critical operations
-- You're doing a one-time query that won't benefit from caching
 
 **Don't use it when:**
 - Reading data that doesn't change frequently
 - Querying the same data repeatedly
 - You're okay with data being up to 12 hours old
+
+**Example:**
+```ruby
+# After creating a record, refresh cache then query
+create_record('tbl_123', {status: 'Active'})
+refresh_cache('records', table_id: 'tbl_123')
+list_records('tbl_123', 10, 0, fields: ['status'])
+```
 
 #### Q: How much disk space does the cache use?
 
@@ -608,16 +602,27 @@ du -h ~/.smartsuite_mcp_cache.db
 - Survives computer reboots
 - Only cleared by TTL expiration or manual deletion
 
-#### Q: What's the difference between `refresh_cache` and `bypass_cache`?
+#### Q: How do I get fresh data after making changes?
 
-**A:**
-- **`refresh_cache`**: Invalidates cached data so next query fetches fresh
-  - Use for: Planned cache updates
-  - Example: `refresh_cache(resource: 'records', table_id: 'tbl_123')`
+**A:** Use the `refresh_cache` tool to invalidate the cache, then query:
 
-- **`bypass_cache: true`**: Forces immediate fresh query without affecting cache
-  - Use for: One-time fresh queries
-  - Example: `list_records('tbl_123', 10, 0, fields: ['status'], bypass_cache: true)`
+```ruby
+# 1. Make your changes
+create_record('tbl_123', {status: 'Active'})
+
+# 2. Invalidate the cache for that table
+refresh_cache('records', table_id: 'tbl_123')
+
+# 3. Query to get fresh data
+list_records('tbl_123', 10, 0, fields: ['status'])
+```
+
+**Resource types for `refresh_cache`:**
+- `'records'` - Invalidates records for a specific table (requires `table_id`)
+- `'tables'` - Invalidates tables (optionally for a specific `solution_id`)
+- `'solutions'` - Invalidates all solutions
+- `'members'` - Invalidates members cache
+- `'teams'` - Invalidates teams cache
 
 ### Performance Questions
 
@@ -702,14 +707,9 @@ The cache layer helps you stay well under these limits.
    # Look at by_endpoint to see what's being called
    ```
 
-3. **Avoid bypass_cache in loops:**
+3. **Use cache efficiently:**
    ```ruby
-   # ❌ Very bad - hits API 100 times
-   100.times do |i|
-     list_records('tbl_123', 1, i, bypass_cache: true)
-   end
-
-   # ✅ Good - hits API once, uses cache
+   # ✅ Good - hits API once, uses cache for subsequent queries
    list_records('tbl_123', 100, 0, fields: [...])
    ```
 
@@ -752,10 +752,7 @@ All required parameters are now validated with helpful error messages.
 
 #### Q: Why do my filters not work with cached data?
 
-**A:** Cache uses SQL queries, not SmartSuite API filters:
-- **With cache enabled:** Filters work via SQL (full feature support)
-- **With bypass_cache:** Filters sent to SmartSuite API
-- **Both work the same** - you shouldn't notice a difference
+**A:** Cache uses SQL queries, not SmartSuite API filters. Filters work via SQL on cached data (full feature support). You shouldn't notice a difference.
 
 If filters don't work as expected:
 1. Check operator syntax (use `is`, not `equals`)
@@ -771,15 +768,11 @@ If filters don't work as expected:
 - Design choice for simplicity and consistency
 - Cache expires by TTL (default: 12 hours)
 
-**Solutions:**
+**Solution:** Use `refresh_cache` tool after mutations:
 ```ruby
-# Option 1: Bypass cache immediately after mutation
+# Refresh cache then query
 create_record('tbl_123', {status: 'Active'})
-list_records('tbl_123', 10, 0, fields: ['status'], bypass_cache: true)
-
-# Option 2: Refresh cache then query
-create_record('tbl_123', {status: 'Active'})
-refresh_cache(resource: 'records', table_id: 'tbl_123')
+refresh_cache('records', table_id: 'tbl_123')
 list_records('tbl_123', 10, 0, fields: ['status'])
 ```
 

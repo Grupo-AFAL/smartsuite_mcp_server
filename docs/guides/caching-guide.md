@@ -83,25 +83,32 @@ Cache expires automatically after TTL period. Next request will refresh.
 
 **Important:** Mutations do NOT invalidate cache. Cache expires naturally by TTL.
 
-## Bypassing the Cache
+## Refreshing the Cache
 
-Force fresh data from API:
+To get fresh data after making changes, use the `refresh_cache` tool:
 
 ```ruby
-# Normal request (uses cache)
-list_records('tbl_123', 10, 0, fields: ['status'])
+# Make changes
+create_record('tbl_123', {status: 'Active'})
 
-# Bypass cache (always fresh)
-list_records('tbl_123', 10, 0,
-  fields: ['status'],
-  bypass_cache: true
-)
+# Invalidate cache for that table
+refresh_cache('records', table_id: 'tbl_123')
+
+# Query to get fresh data
+list_records('tbl_123', 10, 0, fields: ['status'])
 ```
 
-**When to bypass:**
+**When to refresh:**
 - Immediately after creating/updating records
 - When you need guaranteed fresh data
 - During development/debugging
+
+**Resource types:**
+- `'records'` - Refresh records for a specific table (requires `table_id`)
+- `'tables'` - Refresh tables (optionally for a specific `solution_id`)
+- `'solutions'` - Refresh all solutions
+- `'members'` - Refresh members cache
+- `'teams'` - Refresh teams cache
 
 ## Local Filtering
 
@@ -197,11 +204,9 @@ list_records('tbl_123', 20, 10, fields: ['status'])  # Uses cache!
 
 **❌ Avoid:**
 ```ruby
-# Don't bypass cache unnecessarily
-list_records('tbl_123', 10, 0,
-  fields: ['status'],
-  bypass_cache: true  # Wastes API calls
-)
+# Don't refresh cache unnecessarily
+refresh_cache('records', table_id: 'tbl_123')  # Every time before query
+list_records('tbl_123', 10, 0, fields: ['status'])  # Wastes API calls
 ```
 
 ### 2. Request Minimal Fields
@@ -242,17 +247,15 @@ list_records('tbl_123', 5000, 0, fields: ['status'])  // Slow, high tokens
 
 **✅ Good:**
 ```ruby
-# Accept 4-hour staleness for most queries
+# Accept 12-hour staleness for most queries
 list_records('tbl_123', 10, 0, fields: ['status'])
 ```
 
 **❌ Avoid:**
 ```ruby
-# Don't bypass for every request
-list_records('tbl_123', 10, 0,
-  fields: ['status'],
-  bypass_cache: true  // Only when truly needed!
-)
+# Don't refresh cache for every request
+refresh_cache('records', table_id: 'tbl_123')  # Only when truly needed!
+list_records('tbl_123', 10, 0, fields: ['status'])
 ```
 
 ## Advanced Topics
@@ -301,20 +304,21 @@ Check these:
 
 1. **Cache enabled?**
    ```ruby
-   # Check in logs
-   grep "Cache layer" ~/.smartsuite_mcp_metrics.log
+   # Check cache status
+   get_cache_status
    ```
 
 2. **TTL expired?**
    ```ruby
    # Cache expires after 12 hours (records)
    # Solutions/tables expire after 7 days
-   # Next request will refresh
+   # Next request will refresh automatically
    ```
 
-3. **Using bypass_cache?**
+3. **Need fresh data?**
    ```ruby
-   # Remove bypass_cache parameter
+   # Use refresh_cache tool, then query
+   refresh_cache('records', table_id: 'tbl_123')
    list_records('tbl_123', 10, 0, fields: ['status'])
    ```
 
@@ -323,11 +327,9 @@ Check these:
 If you need fresh data immediately:
 
 ```ruby
-# Force refresh
-list_records('tbl_123', 10, 0,
-  fields: ['status'],
-  bypass_cache: true
-)
+# Invalidate cache then query
+refresh_cache('records', table_id: 'tbl_123')
+list_records('tbl_123', 10, 0, fields: ['status'])
 ```
 
 ### Cache Too Large?

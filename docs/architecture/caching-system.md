@@ -248,7 +248,7 @@ api_create_record(table_id, data)
 
 # Cache NOT touched
 # Expires naturally after 4 hours
-# User can bypass: list_records(..., bypass_cache: true)
+# User can refresh: refresh_cache('records', table_id: 'tbl_123')
 ```
 
 ---
