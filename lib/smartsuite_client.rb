@@ -148,10 +148,10 @@ class SmartSuiteClient
     return nil unless members.is_a?(Hash) && members['members'].is_a?(Array)
 
     # Find a member with timezone set (first one found)
-    member_with_tz = members['members'].find { |m| m['time_zone'] }
+    member_with_tz = members['members'].find { |m| m['timezone'] }
 
-    if member_with_tz && member_with_tz['time_zone']
-      timezone = member_with_tz['time_zone']
+    if member_with_tz && member_with_tz['timezone']
+      timezone = member_with_tz['timezone']
       SmartSuite::DateFormatter.timezone = timezone
       SmartSuite::Logger.info("Configured timezone from user profile: #{timezone}")
       timezone

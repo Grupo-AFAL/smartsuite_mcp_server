@@ -17,7 +17,7 @@ class SmartSuiteServerTest < Minitest::Test
     stub_request(:post, %r{https://app\.smartsuite\.com/api/v1/members/list/})
       .to_return(
         status: 200,
-        body: { 'items' => [{ 'id' => 'user_1', 'time_zone' => 'America/Mexico_City' }] }.to_json,
+        body: { 'items' => [{ 'id' => 'user_1', 'timezone' => 'America/Mexico_City' }] }.to_json,
         headers: { 'Content-Type' => 'application/json' }
       )
 
