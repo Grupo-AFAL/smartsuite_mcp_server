@@ -138,7 +138,8 @@ module SmartSuite
         result = { 'items' => items, 'total_count' => response['total_count'], 'count' => items.size }
         tokens = estimate_tokens(JSON.generate(result))
         total_tokens = update_token_usage(tokens)
-        log_metric("✓ #{items.size} records | +#{tokens} tokens (Total: #{total_tokens})")
+        total_records = response['total_count'] || items.size
+        log_metric("✓ #{items.size} of #{total_records} records | +#{tokens} tokens (Total: #{total_tokens})")
         result
       end
 
@@ -147,9 +148,9 @@ module SmartSuite
         tokens = estimate_tokens(result)
         total_tokens = update_token_usage(tokens)
         record_msg = if filtered && filtered < total
-                       "#{count} records (#{filtered} filtered)"
+                       "#{count} of #{filtered} records (#{total} in table)"
                      else
-                       "#{count} records"
+                       "#{count} of #{total} records"
                      end
         log_metric("✓ #{record_msg} | +#{tokens} tokens (Total: #{total_tokens})")
       end
