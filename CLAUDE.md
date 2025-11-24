@@ -92,7 +92,7 @@ Branch naming conventions:
    - Run full test suite: `bundle exec rake test`
    - Ensure tests pass with 0 failures
    - Add tests for new functionality
-   - Maintain or improve code coverage (current baseline: 97.47%, target: 90% - exceeded!)
+   - Maintain or improve code coverage (current baseline: 93%, target: 90% - exceeded!)
    - Consider edge cases and error scenarios
 
 3. **Code Quality** ✅
