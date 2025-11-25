@@ -21,8 +21,8 @@ class SmartSuiteServer
     # Initialize SmartSuite API client (creates its own stats tracker with shared cache database)
     @client = SmartSuiteClient.new(@api_key, @account_id)
 
-    # Configure timezone from user's SmartSuite profile for consistent date display
-    @client.configure_user_timezone
+    # Timezone will be configured lazily on first API call to avoid blocking initialization
+    @timezone_configured = false
   end
 
   def run
@@ -147,6 +147,16 @@ class SmartSuiteServer
   end
 
   def handle_tool_call(request)
+    # Lazy timezone configuration - runs once on first tool call to avoid blocking initialization
+    unless @timezone_configured
+      @timezone_configured = true
+      begin
+        @client.configure_user_timezone
+      rescue StandardError => e
+        SmartSuite::Logger.warn("Failed to configure timezone: #{e.message}")
+      end
+    end
+
     tool_name = request.dig('params', 'name')
     arguments = request.dig('params', 'arguments') || {}
 
