@@ -102,6 +102,9 @@ function Install-Ruby {
     }
 }
 
+# Script-level variable to store verified Ruby path for consistency
+$script:VerifiedRubyPath = $null
+
 # Check for Ruby installation
 function Check-Ruby {
     Print-Header "Checking Ruby Installation"
@@ -110,7 +113,8 @@ function Check-Ruby {
     $rubyVersion = $null
 
     # Check if Ruby is installed
-    if (-not (Get-Command ruby -ErrorAction SilentlyContinue)) {
+    $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
+    if (-not $rubyCommand) {
         Print-Warning "Ruby is not installed."
         $needsInstall = $true
     } else {
@@ -132,7 +136,8 @@ function Check-Ruby {
             Install-Ruby
 
             # Verify installation succeeded
-            if (-not (Get-Command ruby -ErrorAction SilentlyContinue)) {
+            $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
+            if (-not $rubyCommand) {
                 Print-Error "Ruby installation failed. Please install manually from: https://rubyinstaller.org/"
                 exit 1
             }
@@ -154,7 +159,10 @@ function Check-Ruby {
         }
     }
 
-    Print-Success "Ruby $rubyVersion is installed"
+    # Store the verified Ruby path for consistent use throughout the script
+    $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
+    $script:VerifiedRubyPath = $rubyCommand.Source
+    Print-Success "Ruby $rubyVersion is installed at: $script:VerifiedRubyPath"
 }
 
 # Install dependencies
@@ -175,7 +183,11 @@ function Install-Dependencies {
         } else {
             # MSYS2 not installed, run ridk install (option 1 = base installation)
             Print-Info "MSYS2 not found, installing base system (this may take a few minutes)..."
-            ridk install 1 2>$null
+            ridk install 1
+            if ($LASTEXITCODE -ne 0) {
+                Print-Warning "MSYS2 installation may have had issues (exit code: $LASTEXITCODE)"
+                Print-Info "If gem installation fails later, try running: ridk install"
+            }
             ridk enable 2>$null
             Print-Success "MSYS2 base system installed and environment enabled"
         }
@@ -193,10 +205,16 @@ function Install-Dependencies {
     # Pre-install sqlite3 with platform=ruby to ensure native compilation
     # The pre-built Windows binaries often have compatibility issues
     Print-Info "Installing sqlite3 gem (this may take a few minutes)..."
-    gem install sqlite3 --platform=ruby 2>$null
+    $nativeOutput = gem install sqlite3 --platform=ruby 2>&1
     if ($LASTEXITCODE -ne 0) {
         Print-Warning "sqlite3 native build failed, trying pre-built binary..."
+        Print-Info "Native build error: $($nativeOutput | Select-String -Pattern 'error|failed' | Select-Object -First 1)"
         gem install sqlite3
+        if ($LASTEXITCODE -ne 0) {
+            Print-Error "sqlite3 gem installation failed. The server may not work correctly."
+            Print-Info "Try manually running: ridk install"
+            Print-Info "Then: gem install sqlite3 --platform=ruby"
+        }
     }
 
     Print-Info "Installing remaining gem dependencies..."
@@ -235,13 +253,19 @@ function Get-Credentials {
 
 # Get the full path to the Ruby executable
 function Get-RubyPath {
-    # First try to get Ruby from PATH
+    # First, use the verified Ruby path from Check-Ruby if available
+    # This ensures we use the same Ruby that was verified and used for bundle install
+    if ($script:VerifiedRubyPath -and (Test-Path $script:VerifiedRubyPath)) {
+        return $script:VerifiedRubyPath
+    }
+
+    # Fallback: try to get Ruby from PATH
     $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
     if ($rubyCommand) {
         return $rubyCommand.Source
     }
 
-    # Common Ruby installation paths on Windows
+    # Last resort: check common Ruby installation paths on Windows
     $commonPaths = @(
         "C:\Ruby34-x64\bin\ruby.exe",
         "C:\Ruby33-x64\bin\ruby.exe",
