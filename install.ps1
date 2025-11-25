@@ -229,7 +229,7 @@ function Configure-ClaudeDesktop {
 function Print-FinalInstructions {
     param([string]$ConfigFile)
 
-    Print-Header "Installation Complete! 🎉"
+    Print-Header "Installation Complete!"
 
     Write-Host "The SmartSuite MCP server has been successfully installed and configured."
     Write-Host ""
@@ -244,7 +244,7 @@ function Print-FinalInstructions {
     Print-Info "For troubleshooting, see:"
     Write-Host "  docs\getting-started\troubleshooting.md"
     Write-Host ""
-    Print-Success "Enjoy using SmartSuite with Claude! 🚀"
+    Print-Success "Enjoy using SmartSuite with Claude!"
 }
 
 # Main installation flow
