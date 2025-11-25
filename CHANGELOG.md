@@ -51,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tries multiple package IDs in order: 3.4 (latest stable), 3.3, 3.2, then generic
   - Shows clear error message if no Ruby package can be found
 
+- **Windows Claude Desktop config not written** - Fixed bug where `claude_desktop_config.json` was created but empty
+  - PowerShell's `Add-Member` on hashtables doesn't work well with `ConvertTo-Json`
+  - Simplified config building using native hashtable syntax
+  - Config now correctly contains the SmartSuite MCP server configuration
+
 ## [2.0.0] - 2025-11-24
 
 ### Added
