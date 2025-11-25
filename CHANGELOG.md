@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Verifies installation succeeded before continuing
   - Consolidated duplicate code into a single flow for both missing and outdated Ruby
 
+- **Windows bootstrap script improvements** - Fixed issues with bootstrap.ps1
+  - Added "Press any key to exit" on errors so users can read error messages (window was closing immediately when run via `irm | iex`)
+  - Added option to install Git automatically via WinGet when not found
+  - Improved error handling throughout the script
+
 ## [2.0.0] - 2025-11-24
 
 ### Added
