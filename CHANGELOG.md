@@ -68,6 +68,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Falls back to pre-built binary if compilation fails
   - Added comprehensive troubleshooting docs for Windows sqlite3 issues
 
+- **Server timeout on initialization fix** - Fixed MCP server timing out before responding to tool calls
+  - Moved timezone configuration from initialization to lazy loading on first tool call
+  - The `configure_user_timezone` method fetches all workspace members to find user's timezone
+  - On large workspaces (500+ members), this took ~9 seconds causing Claude Desktop to timeout
+  - Server now starts immediately and configures timezone in the background on first tool request
+  - Timezone configuration errors are logged but don't prevent server operation
+
 ## [2.0.0] - 2025-11-24
 
 ### Added
