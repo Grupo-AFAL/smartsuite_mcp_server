@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Correctly determines Homebrew path based on CPU architecture (Apple Silicon vs Intel)
   - Displays detected shell and profile path for transparency
 
+- **Windows installer Ruby version handling** - Fixed the same issue on Windows (install.ps1)
+  - Now offers to install the latest Ruby via WinGet when an outdated version is detected
+  - Verifies installation succeeded before continuing
+  - Consolidated duplicate code into a single flow for both missing and outdated Ruby
+
 ## [2.0.0] - 2025-11-24
 
 ### Added
