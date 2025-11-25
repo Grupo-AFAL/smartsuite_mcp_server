@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Install script Ruby version handling** - The installation script now automatically installs Ruby via Homebrew when an outdated version (e.g., macOS system Ruby 2.6) is detected, instead of just showing an error message and exiting
+  - Automatically adds Homebrew Ruby to PATH for the current session
+  - Persists PATH change to shell profile
+  - Verifies installation succeeded before continuing
+
+- **Install script shell detection** - Fixed shell profile detection to properly identify the user's shell and configure PATH correctly
+  - Now detects shell from `$SHELL` environment variable instead of checking if config files exist
+  - Supports zsh, bash, and fish shells with correct syntax for each
+  - Creates shell profile file (e.g., `~/.zshrc`) if it doesn't exist
+  - Correctly determines Homebrew path based on CPU architecture (Apple Silicon vs Intel)
+  - Displays detected shell and profile path for transparency
+
+- **Windows installer Ruby version handling** - Fixed the same issue on Windows (install.ps1)
+  - Now offers to install the latest Ruby via WinGet when an outdated version is detected
+  - Verifies installation succeeded before continuing
+  - Consolidated duplicate code into a single flow for both missing and outdated Ruby
+
+- **Windows bootstrap script improvements** - Fixed issues with bootstrap.ps1
+  - Added "Press any key to exit" on errors so users can read error messages (window was closing immediately when run via `irm | iex`)
+  - Added option to install Git automatically via WinGet when not found
+  - Improved error handling throughout the script
+
 ## [2.0.0] - 2025-11-24
 
 ### Added

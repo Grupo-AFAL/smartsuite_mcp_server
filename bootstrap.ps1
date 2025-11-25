@@ -15,6 +15,11 @@ function Print-Error {
     Write-Host "✗ $Message" -ForegroundColor Red
 }
 
+function Print-Warning {
+    param([string]$Message)
+    Write-Host "⚠ $Message" -ForegroundColor Yellow
+}
+
 function Print-Info {
     param([string]$Message)
     Write-Host "ℹ $Message" -ForegroundColor Cyan
@@ -27,6 +32,48 @@ function Print-Header {
     Write-Host $Message -ForegroundColor White
     Write-Host "========================================" -ForegroundColor White
     Write-Host ""
+}
+
+# Exit with pause so user can read error messages (needed for irm | iex)
+function Exit-WithPause {
+    param([int]$ExitCode = 1)
+    Write-Host ""
+    Write-Host "Press any key to exit..." -ForegroundColor Gray
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    exit $ExitCode
+}
+
+# Check for WinGet
+function Test-WinGet {
+    return (Get-Command winget -ErrorAction SilentlyContinue) -ne $null
+}
+
+# Install Git using WinGet
+function Install-Git {
+    Print-Header "Installing Git"
+
+    if (Test-WinGet) {
+        Print-Info "Installing Git using Windows Package Manager (WinGet)..."
+        Print-Info "This may take a few minutes..."
+
+        winget install --id Git.Git --silent --accept-package-agreements --accept-source-agreements
+
+        # Refresh environment variables to pick up Git
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+        if (Get-Command git -ErrorAction SilentlyContinue) {
+            Print-Success "Git installed successfully"
+            return $true
+        } else {
+            Print-Error "Git installation completed but git command not found."
+            Print-Info "Please restart PowerShell and run this script again."
+            return $false
+        }
+    } else {
+        Print-Error "Windows Package Manager (WinGet) is not available."
+        Print-Info "WinGet is built into Windows 10 (1809+) and Windows 11."
+        return $false
+    }
 }
 
 # Determine installation directory
@@ -47,12 +94,25 @@ Write-Host ""
 
 # Check for git
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Print-Error "Git is not installed."
+    Print-Warning "Git is not installed."
     Write-Host ""
-    Print-Info "Please install Git for Windows from:"
-    Write-Host "  https://git-scm.com/download/win"
-    Write-Host ""
-    exit 1
+
+    $response = Read-Host "Would you like to install Git automatically? (yes/no)"
+    if ($response -eq "yes" -or $response -eq "y") {
+        $installed = Install-Git
+        if (-not $installed) {
+            Print-Info "Please install Git manually from:"
+            Write-Host "  https://git-scm.com/download/win"
+            Write-Host ""
+            Exit-WithPause
+        }
+    } else {
+        Print-Info "Please install Git for Windows from:"
+        Write-Host "  https://git-scm.com/download/win"
+        Write-Host ""
+        Print-Info "After installing Git, run this script again."
+        Exit-WithPause
+    }
 }
 
 Print-Success "Git is installed"
@@ -84,5 +144,5 @@ try {
 }
 catch {
     Print-Error "Installation failed: $($_.Exception.Message)"
-    exit 1
+    Exit-WithPause
 }
