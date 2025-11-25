@@ -164,10 +164,21 @@ function Install-Dependencies {
     # Initialize MSYS2 build tools (required for native gem extensions like sqlite3)
     Print-Info "Initializing MSYS2 build environment..."
     if (Get-Command ridk -ErrorAction SilentlyContinue) {
-        # Run ridk install to ensure MSYS2 is set up (option 1 = base installation)
-        # This is needed for compiling native extensions
-        ridk enable 2>$null
-        Print-Success "MSYS2 build environment ready"
+        # Check if MSYS2 is already installed by looking for common Ruby install paths
+        $rubyDir = (Get-Command ruby -ErrorAction SilentlyContinue).Source | Split-Path -Parent | Split-Path -Parent
+        $msys2Path = Join-Path $rubyDir "msys64"
+
+        if (Test-Path $msys2Path) {
+            # MSYS2 exists, just enable the environment
+            ridk enable 2>$null
+            Print-Success "MSYS2 build environment ready"
+        } else {
+            # MSYS2 not installed, run ridk install (option 1 = base installation)
+            Print-Info "MSYS2 not found, installing base system (this may take a few minutes)..."
+            ridk install 1 2>$null
+            ridk enable 2>$null
+            Print-Success "MSYS2 base system installed and environment enabled"
+        }
     } else {
         Print-Warning "ridk not found - native gem compilation may fail"
         Print-Info "If gem installation fails, run: ridk install"
@@ -298,10 +309,50 @@ function Configure-ClaudeDesktop {
         }
     }
 
-    # Build the complete config object
-    $config = @{
-        mcpServers = @{
-            smartsuite = $smartsuiteConfig
+    # Merge with existing config to preserve other MCP servers
+    if (Test-Path $claudeConfigFile) {
+        try {
+            $existingContent = Get-Content $claudeConfigFile -Raw -ErrorAction Stop
+            if ($existingContent -and $existingContent.Trim()) {
+                $existingConfig = $existingContent | ConvertFrom-Json -ErrorAction Stop
+
+                # Ensure mcpServers exists
+                if (-not $existingConfig.mcpServers) {
+                    $existingConfig | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value ([PSCustomObject]@{}) -Force
+                }
+
+                # Add or update smartsuite server (preserving other servers)
+                if ($existingConfig.mcpServers.smartsuite) {
+                    $existingConfig.mcpServers.smartsuite = $smartsuiteConfig
+                } else {
+                    $existingConfig.mcpServers | Add-Member -MemberType NoteProperty -Name "smartsuite" -Value $smartsuiteConfig -Force
+                }
+
+                $config = $existingConfig
+                Print-Info "Merged with existing configuration (preserving other MCP servers)"
+            } else {
+                # File exists but is empty
+                $config = @{
+                    mcpServers = @{
+                        smartsuite = $smartsuiteConfig
+                    }
+                }
+            }
+        } catch {
+            # Failed to parse existing config, create new one
+            Print-Warning "Could not parse existing config, creating new configuration"
+            $config = @{
+                mcpServers = @{
+                    smartsuite = $smartsuiteConfig
+                }
+            }
+        }
+    } else {
+        # No existing config file
+        $config = @{
+            mcpServers = @{
+                smartsuite = $smartsuiteConfig
+            }
         }
     }
 
