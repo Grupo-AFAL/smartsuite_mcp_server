@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Install script Ruby version handling** - The installation script now automatically installs Ruby via Homebrew when an outdated version (e.g., macOS system Ruby 2.6) is detected, instead of just showing an error message and exiting
+  - Automatically adds Homebrew Ruby to PATH for the current session
+  - Persists PATH change to shell profile (~/.zshrc, ~/.bash_profile, or ~/.bashrc)
+  - Verifies installation succeeded before continuing
+
 ## [2.0.0] - 2025-11-24
 
 ### Added
