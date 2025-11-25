@@ -201,6 +201,38 @@ function Get-Credentials {
     }
 }
 
+# Get the full path to the Ruby executable
+function Get-RubyPath {
+    # First try to get Ruby from PATH
+    $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
+    if ($rubyCommand) {
+        return $rubyCommand.Source
+    }
+
+    # Common Ruby installation paths on Windows
+    $commonPaths = @(
+        "C:\Ruby34-x64\bin\ruby.exe",
+        "C:\Ruby33-x64\bin\ruby.exe",
+        "C:\Ruby32-x64\bin\ruby.exe",
+        "C:\Ruby31-x64\bin\ruby.exe",
+        "C:\Ruby30-x64\bin\ruby.exe",
+        "C:\Ruby34\bin\ruby.exe",
+        "C:\Ruby33\bin\ruby.exe",
+        "C:\Ruby32\bin\ruby.exe",
+        "C:\Ruby31\bin\ruby.exe",
+        "C:\Ruby30\bin\ruby.exe"
+    )
+
+    foreach ($path in $commonPaths) {
+        if (Test-Path $path) {
+            return $path
+        }
+    }
+
+    # Fallback to just "ruby" and hope it's in PATH when Claude Desktop runs
+    return "ruby"
+}
+
 # Configure Claude Desktop
 function Configure-ClaudeDesktop {
     param(
@@ -213,6 +245,10 @@ function Configure-ClaudeDesktop {
     $claudeConfigDir = Join-Path $env:APPDATA "Claude"
     $claudeConfigFile = Join-Path $claudeConfigDir "claude_desktop_config.json"
     $scriptDir = $PSScriptRoot
+
+    # Get the full path to Ruby
+    $rubyPath = Get-RubyPath
+    Print-Info "Using Ruby at: $rubyPath"
 
     # Create config directory if it doesn't exist
     if (-not (Test-Path $claudeConfigDir)) {
@@ -233,7 +269,7 @@ function Configure-ClaudeDesktop {
 
     # Build the SmartSuite server configuration
     $smartsuiteConfig = @{
-        command = "ruby"
+        command = $rubyPath
         args = @("$scriptDir\smartsuite_server.rb")
         env = @{
             SMARTSUITE_API_KEY = $ApiKey
