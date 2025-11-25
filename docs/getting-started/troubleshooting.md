@@ -5,6 +5,10 @@ Common issues and their solutions.
 ## Table of Contents
 
 - [Installation Issues](#installation-issues)
+  - [Network Access Requirements](#network-access-requirements)
+  - [DNS Resolution Errors](#dns-resolution-errors)
+  - [Windows: sqlite3 Native Extension Error](#windows-sqlite3-native-extension-error)
+  - [Windows: Server Shows "failed" in Claude Desktop](#windows-server-shows-failed-in-claude-desktop)
 - [Connection Issues](#connection-issues)
 - [API Errors](#api-errors)
 - [Cache Issues](#cache-issues)
@@ -13,6 +17,88 @@ Common issues and their solutions.
 ---
 
 ## Installation Issues
+
+### Network Access Requirements
+
+The installation script requires access to several external services. If you're behind a corporate firewall or proxy, ensure these domains are accessible:
+
+| Domain | Port | Purpose | Required For |
+|--------|------|---------|--------------|
+| `github.com` | 443 | Clone repository | Bootstrap script |
+| `raw.githubusercontent.com` | 443 | Download scripts | One-liner install |
+| `rubygems.org` | 443 | Ruby gem dependencies | `bundle install` |
+| `index.rubygems.org` | 443 | Gem index/specs | `bundle install` |
+| `app.smartsuite.com` | 443 | SmartSuite API | Runtime |
+
+**Windows-specific domains:**
+
+| Domain | Port | Purpose | Required For |
+|--------|------|---------|--------------|
+| `cdn.winget.microsoft.com` | 443 | WinGet packages | Ruby/Git install |
+| `winget.azureedge.net` | 443 | WinGet CDN | Ruby/Git install |
+| `github-releases.githubusercontent.com` | 443 | Git installer | Git install |
+
+**macOS-specific domains:**
+
+| Domain | Port | Purpose | Required For |
+|--------|------|---------|--------------|
+| `formulae.brew.sh` | 443 | Homebrew formulas | Ruby install |
+| `ghcr.io` | 443 | Homebrew bottles | Ruby install |
+
+### DNS Resolution Errors
+
+**Symptoms:**
+```
+Failed to open TCP connection to rubygems.org:443
+(getaddrinfo: No such host is known.)
+```
+
+**Cause:** Your network cannot resolve the domain name. Common in corporate environments with restricted DNS.
+
+**Solutions:**
+
+1. **Check if domain is blocked:**
+   ```bash
+   # macOS/Linux
+   nslookup rubygems.org
+
+   # Windows
+   nslookup rubygems.org
+   ```
+
+2. **Contact IT/Network admin:**
+   - Request access to domains listed above
+   - May need proxy configuration
+
+3. **Try using a different DNS:**
+   ```bash
+   # Temporarily test with Google DNS (if allowed)
+   # macOS
+   sudo networksetup -setdnsservers Wi-Fi 8.8.8.8 8.8.4.4
+
+   # Windows (PowerShell as Admin)
+   Set-DnsClientServerAddress -InterfaceAlias "Wi-Fi" -ServerAddresses ("8.8.8.8","8.8.4.4")
+   ```
+
+4. **Configure proxy (if required):**
+
+   macOS/Linux:
+   ```bash
+   export HTTP_PROXY=http://proxy.company.com:8080
+   export HTTPS_PROXY=http://proxy.company.com:8080
+   ```
+
+   Windows (CMD):
+   ```cmd
+   set HTTP_PROXY=http://proxy.company.com:8080
+   set HTTPS_PROXY=http://proxy.company.com:8080
+   ```
+
+   Windows (PowerShell):
+   ```powershell
+   $env:HTTP_PROXY="http://proxy.company.com:8080"
+   $env:HTTPS_PROXY="http://proxy.company.com:8080"
+   ```
 
 ### Server Not Showing in Claude Desktop
 
@@ -69,6 +155,95 @@ bundle install
 # If still fails, try system-wide
 gem install sqlite3
 ```
+
+### Windows: sqlite3 Native Extension Error
+
+**Symptoms:**
+```
+cannot load such file -- sqlite3/sqlite3_native (LoadError)
+The specified procedure could not be found - sqlite3_native.so
+```
+
+**Cause:** The pre-built sqlite3 gem binary is incompatible with your Ruby version. This commonly happens with Ruby 3.4 on Windows.
+
+**Solution:**
+
+1. **Uninstall the broken gem:**
+   ```powershell
+   gem uninstall sqlite3 --all
+   ```
+
+2. **Initialize MSYS2 build tools:**
+   ```powershell
+   ridk enable
+   ```
+
+3. **Reinstall with native compilation:**
+   ```powershell
+   gem install sqlite3 --platform=ruby
+   ```
+   This may take a few minutes as it compiles from source.
+
+4. **Verify it works:**
+   ```powershell
+   ruby -e "require 'sqlite3'; puts 'sqlite3 works!'"
+   ```
+
+**If compilation fails:**
+
+Try an older compatible version:
+```powershell
+gem install sqlite3 -v 1.7.3
+```
+
+Or run the MSYS2 installer:
+```powershell
+ridk install
+```
+Select option 1 (MSYS2 base installation), then retry the gem install.
+
+### Windows: Server Shows "failed" in Claude Desktop
+
+**Symptoms:**
+- Server appears in Claude Desktop but shows "failed" status
+- Error: "Server disconnected"
+
+**Solutions:**
+
+1. **Check the logs:**
+   Click "Open Logs Folder" in Claude Desktop settings, or:
+   ```powershell
+   Get-Content "$env:APPDATA\Claude\logs\mcp*.log" -Tail 50
+   ```
+
+2. **Test the server directly:**
+   ```powershell
+   cd C:\Users\YourName\.smartsuite_mcp
+   ruby smartsuite_server.rb
+   ```
+   This will show the actual error (usually missing gems).
+
+3. **Ensure full Ruby path in config:**
+   ```json
+   {
+     "mcpServers": {
+       "smartsuite": {
+         "command": "C:\\Ruby34-x64\\bin\\ruby.exe",
+         "args": ["C:\\Users\\YourName\\.smartsuite_mcp\\smartsuite_server.rb"],
+         "env": {
+           "SMARTSUITE_API_KEY": "your_key",
+           "SMARTSUITE_ACCOUNT_ID": "your_id"
+         }
+       }
+     }
+   }
+   ```
+
+4. **Fully quit Claude Desktop:**
+   - Right-click Claude in system tray (bottom-right, near clock)
+   - Select "Quit"
+   - Or run: `Get-Process -Name "*claude*" | Stop-Process -Force`
+   - Relaunch Claude Desktop
 
 ### Permission Denied
 

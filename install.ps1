@@ -102,6 +102,9 @@ function Install-Ruby {
     }
 }
 
+# Script-level variable to store verified Ruby path for consistency
+$script:VerifiedRubyPath = $null
+
 # Check for Ruby installation
 function Check-Ruby {
     Print-Header "Checking Ruby Installation"
@@ -110,7 +113,8 @@ function Check-Ruby {
     $rubyVersion = $null
 
     # Check if Ruby is installed
-    if (-not (Get-Command ruby -ErrorAction SilentlyContinue)) {
+    $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
+    if (-not $rubyCommand) {
         Print-Warning "Ruby is not installed."
         $needsInstall = $true
     } else {
@@ -132,7 +136,8 @@ function Check-Ruby {
             Install-Ruby
 
             # Verify installation succeeded
-            if (-not (Get-Command ruby -ErrorAction SilentlyContinue)) {
+            $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
+            if (-not $rubyCommand) {
                 Print-Error "Ruby installation failed. Please install manually from: https://rubyinstaller.org/"
                 exit 1
             }
@@ -154,12 +159,42 @@ function Check-Ruby {
         }
     }
 
-    Print-Success "Ruby $rubyVersion is installed"
+    # Store the verified Ruby path for consistent use throughout the script
+    $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
+    $script:VerifiedRubyPath = $rubyCommand.Source
+    Print-Success "Ruby $rubyVersion is installed at: $script:VerifiedRubyPath"
 }
 
 # Install dependencies
 function Install-Dependencies {
     Print-Header "Installing Dependencies"
+
+    # Initialize MSYS2 build tools (required for native gem extensions like sqlite3)
+    Print-Info "Initializing MSYS2 build environment..."
+    if (Get-Command ridk -ErrorAction SilentlyContinue) {
+        # Check if MSYS2 is already installed by looking for common Ruby install paths
+        $rubyDir = (Get-Command ruby -ErrorAction SilentlyContinue).Source | Split-Path -Parent | Split-Path -Parent
+        $msys2Path = Join-Path $rubyDir "msys64"
+
+        if (Test-Path $msys2Path) {
+            # MSYS2 exists, just enable the environment
+            ridk enable 2>$null
+            Print-Success "MSYS2 build environment ready"
+        } else {
+            # MSYS2 not installed, run ridk install (option 1 = base installation)
+            Print-Info "MSYS2 not found, installing base system (this may take a few minutes)..."
+            ridk install 1
+            if ($LASTEXITCODE -ne 0) {
+                Print-Warning "MSYS2 installation may have had issues (exit code: $LASTEXITCODE)"
+                Print-Info "If gem installation fails later, try running: ridk install"
+            }
+            ridk enable 2>$null
+            Print-Success "MSYS2 base system installed and environment enabled"
+        }
+    } else {
+        Print-Warning "ridk not found - native gem compilation may fail"
+        Print-Info "If gem installation fails, run: ridk install"
+    }
 
     # Install bundler if not present
     if (-not (Get-Command bundle -ErrorAction SilentlyContinue)) {
@@ -167,7 +202,22 @@ function Install-Dependencies {
         gem install bundler
     }
 
-    Print-Info "Installing gem dependencies..."
+    # Pre-install sqlite3 with platform=ruby to ensure native compilation
+    # The pre-built Windows binaries often have compatibility issues
+    Print-Info "Installing sqlite3 gem (this may take a few minutes)..."
+    $nativeOutput = gem install sqlite3 --platform=ruby 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Print-Warning "sqlite3 native build failed, trying pre-built binary..."
+        Print-Info "Native build error: $($nativeOutput | Select-String -Pattern 'error|failed' | Select-Object -First 1)"
+        gem install sqlite3
+        if ($LASTEXITCODE -ne 0) {
+            Print-Error "sqlite3 gem installation failed. The server may not work correctly."
+            Print-Info "Try manually running: ridk install"
+            Print-Info "Then: gem install sqlite3 --platform=ruby"
+        }
+    }
+
+    Print-Info "Installing remaining gem dependencies..."
     bundle install
 
     Print-Success "All dependencies installed"
@@ -201,6 +251,44 @@ function Get-Credentials {
     }
 }
 
+# Get the full path to the Ruby executable
+function Get-RubyPath {
+    # First, use the verified Ruby path from Check-Ruby if available
+    # This ensures we use the same Ruby that was verified and used for bundle install
+    if ($script:VerifiedRubyPath -and (Test-Path $script:VerifiedRubyPath)) {
+        return $script:VerifiedRubyPath
+    }
+
+    # Fallback: try to get Ruby from PATH
+    $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
+    if ($rubyCommand) {
+        return $rubyCommand.Source
+    }
+
+    # Last resort: check common Ruby installation paths on Windows
+    $commonPaths = @(
+        "C:\Ruby34-x64\bin\ruby.exe",
+        "C:\Ruby33-x64\bin\ruby.exe",
+        "C:\Ruby32-x64\bin\ruby.exe",
+        "C:\Ruby31-x64\bin\ruby.exe",
+        "C:\Ruby30-x64\bin\ruby.exe",
+        "C:\Ruby34\bin\ruby.exe",
+        "C:\Ruby33\bin\ruby.exe",
+        "C:\Ruby32\bin\ruby.exe",
+        "C:\Ruby31\bin\ruby.exe",
+        "C:\Ruby30\bin\ruby.exe"
+    )
+
+    foreach ($path in $commonPaths) {
+        if (Test-Path $path) {
+            return $path
+        }
+    }
+
+    # Fallback to just "ruby" and hope it's in PATH when Claude Desktop runs
+    return "ruby"
+}
+
 # Configure Claude Desktop
 function Configure-ClaudeDesktop {
     param(
@@ -214,6 +302,10 @@ function Configure-ClaudeDesktop {
     $claudeConfigFile = Join-Path $claudeConfigDir "claude_desktop_config.json"
     $scriptDir = $PSScriptRoot
 
+    # Get the full path to Ruby
+    $rubyPath = Get-RubyPath
+    Print-Info "Using Ruby at: $rubyPath"
+
     # Create config directory if it doesn't exist
     if (-not (Test-Path $claudeConfigDir)) {
         Print-Info "Creating Claude Desktop config directory..."
@@ -226,24 +318,14 @@ function Configure-ClaudeDesktop {
         $backupFile = "${claudeConfigFile}.backup.$timestamp"
         Print-Info "Backing up existing configuration to: $backupFile"
         Copy-Item $claudeConfigFile $backupFile
-
-        # Read existing config
-        $existingConfig = Get-Content $claudeConfigFile -Raw | ConvertFrom-Json
-    } else {
-        $existingConfig = @{}
     }
 
     # Create/update MCP server configuration
     Print-Info "Adding SmartSuite MCP server to Claude Desktop configuration..."
 
-    # Ensure mcpServers object exists
-    if (-not $existingConfig.mcpServers) {
-        $existingConfig | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value @{} -Force
-    }
-
-    # Add SmartSuite server configuration
+    # Build the SmartSuite server configuration
     $smartsuiteConfig = @{
-        command = "ruby"
+        command = $rubyPath
         args = @("$scriptDir\smartsuite_server.rb")
         env = @{
             SMARTSUITE_API_KEY = $ApiKey
@@ -251,10 +333,55 @@ function Configure-ClaudeDesktop {
         }
     }
 
-    $existingConfig.mcpServers | Add-Member -MemberType NoteProperty -Name "smartsuite" -Value $smartsuiteConfig -Force
+    # Merge with existing config to preserve other MCP servers
+    if (Test-Path $claudeConfigFile) {
+        try {
+            $existingContent = Get-Content $claudeConfigFile -Raw -ErrorAction Stop
+            if ($existingContent -and $existingContent.Trim()) {
+                $existingConfig = $existingContent | ConvertFrom-Json -ErrorAction Stop
 
-    # Write updated config
-    $existingConfig | ConvertTo-Json -Depth 10 | Set-Content $claudeConfigFile
+                # Ensure mcpServers exists
+                if (-not $existingConfig.mcpServers) {
+                    $existingConfig | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value ([PSCustomObject]@{}) -Force
+                }
+
+                # Add or update smartsuite server (preserving other servers)
+                if ($existingConfig.mcpServers.smartsuite) {
+                    $existingConfig.mcpServers.smartsuite = $smartsuiteConfig
+                } else {
+                    $existingConfig.mcpServers | Add-Member -MemberType NoteProperty -Name "smartsuite" -Value $smartsuiteConfig -Force
+                }
+
+                $config = $existingConfig
+                Print-Info "Merged with existing configuration (preserving other MCP servers)"
+            } else {
+                # File exists but is empty
+                $config = @{
+                    mcpServers = @{
+                        smartsuite = $smartsuiteConfig
+                    }
+                }
+            }
+        } catch {
+            # Failed to parse existing config, create new one
+            Print-Warning "Could not parse existing config, creating new configuration"
+            $config = @{
+                mcpServers = @{
+                    smartsuite = $smartsuiteConfig
+                }
+            }
+        }
+    } else {
+        # No existing config file
+        $config = @{
+            mcpServers = @{
+                smartsuite = $smartsuiteConfig
+            }
+        }
+    }
+
+    # Write config as JSON
+    $config | ConvertTo-Json -Depth 10 | Set-Content $claudeConfigFile -Encoding UTF8
 
     Print-Success "Claude Desktop configured"
     Print-Info "Configuration file: $claudeConfigFile"
