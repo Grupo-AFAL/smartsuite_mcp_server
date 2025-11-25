@@ -48,26 +48,33 @@ function Install-Ruby {
         Print-Info "Installing Ruby using Windows Package Manager (WinGet)..."
         Print-Info "This may take a few minutes..."
 
-        # Try to install Ruby+Devkit (try specific version first, then generic)
+        # Try to install Ruby+Devkit (try latest version first, then older versions)
         $installed = $false
 
-        # Try Ruby 3.3 with DevKit first
-        Print-Info "Trying RubyInstallerTeam.RubyWithDevKit.3.3..."
-        winget install --id RubyInstallerTeam.RubyWithDevKit.3.3 --silent --accept-package-agreements --accept-source-agreements 2>$null
+        # Try Ruby 3.4 with DevKit first (latest stable)
+        Print-Info "Trying RubyInstallerTeam.RubyWithDevKit.3.4..."
+        winget install --id RubyInstallerTeam.RubyWithDevKit.3.4 --silent --accept-package-agreements --accept-source-agreements 2>$null
         if ($LASTEXITCODE -eq 0) {
             $installed = $true
         } else {
-            # Try Ruby 3.2 with DevKit
-            Print-Info "Trying RubyInstallerTeam.RubyWithDevKit.3.2..."
-            winget install --id RubyInstallerTeam.RubyWithDevKit.3.2 --silent --accept-package-agreements --accept-source-agreements 2>$null
+            # Try Ruby 3.3 with DevKit
+            Print-Info "Trying RubyInstallerTeam.RubyWithDevKit.3.3..."
+            winget install --id RubyInstallerTeam.RubyWithDevKit.3.3 --silent --accept-package-agreements --accept-source-agreements 2>$null
             if ($LASTEXITCODE -eq 0) {
                 $installed = $true
             } else {
-                # Try generic Ruby with DevKit
-                Print-Info "Trying RubyInstallerTeam.RubyWithDevKit..."
-                winget install --id RubyInstallerTeam.RubyWithDevKit --silent --accept-package-agreements --accept-source-agreements 2>$null
+                # Try Ruby 3.2 with DevKit
+                Print-Info "Trying RubyInstallerTeam.RubyWithDevKit.3.2..."
+                winget install --id RubyInstallerTeam.RubyWithDevKit.3.2 --silent --accept-package-agreements --accept-source-agreements 2>$null
                 if ($LASTEXITCODE -eq 0) {
                     $installed = $true
+                } else {
+                    # Try generic Ruby with DevKit
+                    Print-Info "Trying RubyInstallerTeam.RubyWithDevKit..."
+                    winget install --id RubyInstallerTeam.RubyWithDevKit --silent --accept-package-agreements --accept-source-agreements 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        $installed = $true
+                    }
                 }
             }
         }
