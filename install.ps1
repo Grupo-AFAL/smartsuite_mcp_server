@@ -48,8 +48,43 @@ function Install-Ruby {
         Print-Info "Installing Ruby using Windows Package Manager (WinGet)..."
         Print-Info "This may take a few minutes..."
 
-        # Install latest Ruby+Devkit
-        winget install --id RubyInstallerTeam.RubyWithDevKit --silent --accept-package-agreements --accept-source-agreements
+        # Try to install Ruby+Devkit (try latest version first, then older versions)
+        $installed = $false
+
+        # Try Ruby 3.4 with DevKit first (latest stable)
+        Print-Info "Trying RubyInstallerTeam.RubyWithDevKit.3.4..."
+        winget install --id RubyInstallerTeam.RubyWithDevKit.3.4 --silent --accept-package-agreements --accept-source-agreements 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $installed = $true
+        } else {
+            # Try Ruby 3.3 with DevKit
+            Print-Info "Trying RubyInstallerTeam.RubyWithDevKit.3.3..."
+            winget install --id RubyInstallerTeam.RubyWithDevKit.3.3 --silent --accept-package-agreements --accept-source-agreements 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $installed = $true
+            } else {
+                # Try Ruby 3.2 with DevKit
+                Print-Info "Trying RubyInstallerTeam.RubyWithDevKit.3.2..."
+                winget install --id RubyInstallerTeam.RubyWithDevKit.3.2 --silent --accept-package-agreements --accept-source-agreements 2>$null
+                if ($LASTEXITCODE -eq 0) {
+                    $installed = $true
+                } else {
+                    # Try generic Ruby with DevKit
+                    Print-Info "Trying RubyInstallerTeam.RubyWithDevKit..."
+                    winget install --id RubyInstallerTeam.RubyWithDevKit --silent --accept-package-agreements --accept-source-agreements 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        $installed = $true
+                    }
+                }
+            }
+        }
+
+        if (-not $installed) {
+            Print-Error "WinGet could not find a Ruby package."
+            Print-Info "Please install Ruby manually from: https://rubyinstaller.org/"
+            Print-Info "Recommended: Ruby+Devkit 3.0 or higher"
+            exit 1
+        }
 
         # Refresh environment variables to pick up Ruby
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
