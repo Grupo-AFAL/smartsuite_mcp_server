@@ -80,47 +80,113 @@ install_homebrew() {
     fi
 }
 
+# Add Homebrew Ruby to PATH
+add_homebrew_ruby_to_path() {
+    # Add Ruby to PATH for current session
+    if [[ -d "/opt/homebrew/opt/ruby/bin" ]]; then
+        export PATH="/opt/homebrew/opt/ruby/bin:$PATH"
+    elif [[ -d "/usr/local/opt/ruby/bin" ]]; then
+        export PATH="/usr/local/opt/ruby/bin:$PATH"
+    fi
+}
+
+# Install Ruby via Homebrew on macOS
+install_ruby_macos() {
+    print_info "Installing Ruby using Homebrew..."
+    brew install ruby
+
+    add_homebrew_ruby_to_path
+
+    # Add to shell profile for future sessions
+    SHELL_PROFILE=""
+    if [[ -f "$HOME/.zshrc" ]]; then
+        SHELL_PROFILE="$HOME/.zshrc"
+    elif [[ -f "$HOME/.bash_profile" ]]; then
+        SHELL_PROFILE="$HOME/.bash_profile"
+    elif [[ -f "$HOME/.bashrc" ]]; then
+        SHELL_PROFILE="$HOME/.bashrc"
+    fi
+
+    if [[ -n "$SHELL_PROFILE" ]]; then
+        # Check if already added
+        if ! grep -q "/opt/homebrew/opt/ruby/bin" "$SHELL_PROFILE" 2>/dev/null; then
+            print_info "Adding Homebrew Ruby to PATH in $SHELL_PROFILE..."
+            if [[ -d "/opt/homebrew/opt/ruby/bin" ]]; then
+                echo 'export PATH="/opt/homebrew/opt/ruby/bin:$PATH"' >> "$SHELL_PROFILE"
+            elif [[ -d "/usr/local/opt/ruby/bin" ]]; then
+                echo 'export PATH="/usr/local/opt/ruby/bin:$PATH"' >> "$SHELL_PROFILE"
+            fi
+        fi
+    fi
+
+    print_success "Ruby installed via Homebrew"
+}
+
+# Check Ruby version meets requirements
+check_ruby_version() {
+    local ruby_path="$1"
+    local ruby_version
+    ruby_version=$("$ruby_path" -v | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    local required_version="3.0"
+
+    if awk -v ver="$ruby_version" -v req="$required_version" 'BEGIN { exit !(ver >= req) }'; then
+        echo "$ruby_version"
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Check for Ruby installation
 check_ruby() {
     print_header "Checking Ruby Installation"
 
-    if ! command -v ruby &> /dev/null; then
-        print_error "Ruby is not installed."
-
-        if [[ "$OS_TYPE" == "macos" ]]; then
-            print_info "Installing Ruby using Homebrew..."
-            brew install ruby
-
-            # Add Ruby to PATH for current session
-            if [[ -d "/opt/homebrew/opt/ruby/bin" ]]; then
-                export PATH="/opt/homebrew/opt/ruby/bin:$PATH"
-            elif [[ -d "/usr/local/opt/ruby/bin" ]]; then
-                export PATH="/usr/local/opt/ruby/bin:$PATH"
-            fi
-        elif [[ "$OS_TYPE" == "linux" ]]; then
-            print_info "Please install Ruby 3.0+ using your package manager:"
-            echo "  Ubuntu/Debian: sudo apt-get install ruby-full"
-            echo "  Fedora/RHEL: sudo dnf install ruby"
-            echo "  Or use rbenv/rvm for version management"
-            exit 1
-        fi
-    fi
-
-    RUBY_VERSION=$(ruby -v | grep -oE '[0-9]+\.[0-9]+' | head -1)
     REQUIRED_VERSION="3.0"
 
-    if ! awk -v ver="$RUBY_VERSION" -v req="$REQUIRED_VERSION" 'BEGIN { exit !(ver >= req) }'; then
-        print_error "Ruby version $RUBY_VERSION is installed, but version $REQUIRED_VERSION or higher is required."
-
-        if [[ "$OS_TYPE" == "macos" ]]; then
-            print_info "Please upgrade Ruby using: brew upgrade ruby"
-        elif [[ "$OS_TYPE" == "linux" ]]; then
-            print_info "Please upgrade Ruby using your package manager or rbenv/rvm"
-        fi
-        exit 1
+    # First, check if Homebrew Ruby is available (prefer it over system Ruby)
+    if [[ "$OS_TYPE" == "macos" ]]; then
+        add_homebrew_ruby_to_path
     fi
 
-    print_success "Ruby $RUBY_VERSION is installed"
+    # Check if Ruby is installed and meets version requirements
+    if command -v ruby &> /dev/null; then
+        RUBY_VERSION=$(ruby -v | grep -oE '[0-9]+\.[0-9]+' | head -1)
+
+        if awk -v ver="$RUBY_VERSION" -v req="$REQUIRED_VERSION" 'BEGIN { exit !(ver >= req) }'; then
+            print_success "Ruby $RUBY_VERSION is installed"
+            return
+        else
+            print_warning "Ruby version $RUBY_VERSION is installed, but version $REQUIRED_VERSION or higher is required."
+        fi
+    else
+        print_warning "Ruby is not installed."
+    fi
+
+    # Ruby not found or version too old - install on macOS, show instructions on Linux
+    if [[ "$OS_TYPE" == "macos" ]]; then
+        install_ruby_macos
+
+        # Verify installation
+        if command -v ruby &> /dev/null; then
+            RUBY_VERSION=$(ruby -v | grep -oE '[0-9]+\.[0-9]+' | head -1)
+            if awk -v ver="$RUBY_VERSION" -v req="$REQUIRED_VERSION" 'BEGIN { exit !(ver >= req) }'; then
+                print_success "Ruby $RUBY_VERSION is now installed"
+                return
+            fi
+        fi
+
+        print_error "Failed to install Ruby $REQUIRED_VERSION or higher."
+        print_info "Please try manually: brew install ruby"
+        print_info "Then add to your PATH: export PATH=\"/opt/homebrew/opt/ruby/bin:\$PATH\""
+        exit 1
+    elif [[ "$OS_TYPE" == "linux" ]]; then
+        print_error "Ruby $REQUIRED_VERSION or higher is required."
+        print_info "Please install Ruby using your package manager:"
+        echo "  Ubuntu/Debian: sudo apt-get install ruby-full"
+        echo "  Fedora/RHEL: sudo dnf install ruby"
+        echo "  Or use rbenv/rvm for version management"
+        exit 1
+    fi
 }
 
 # Install dependencies
