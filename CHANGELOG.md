@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Network access requirements documentation** - Added comprehensive documentation of all domains required for installation
+  - Lists all external services needed (GitHub, RubyGems, SmartSuite API)
+  - Windows-specific domains (WinGet CDN, Microsoft CDN)
+  - macOS-specific domains (Homebrew)
+  - DNS resolution error troubleshooting with solutions
+  - Proxy configuration instructions for corporate environments
+
 ### Fixed
 
 - **Install script Ruby version handling** - The installation script now automatically installs Ruby via Homebrew when an outdated version (e.g., macOS system Ruby 2.6) is detected, instead of just showing an error message and exiting
