@@ -56,6 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Simplified config building using native hashtable syntax
   - Config now correctly contains the SmartSuite MCP server configuration
 
+- **Windows Ruby path in config** - Config now uses full path to Ruby executable
+  - Detects Ruby location from PATH or common installation directories
+  - Prevents issues when Claude Desktop doesn't inherit the same PATH as the installer
+  - Checks common paths: `C:\Ruby34-x64\bin\ruby.exe`, etc.
+
 ## [2.0.0] - 2025-11-24
 
 ### Added
