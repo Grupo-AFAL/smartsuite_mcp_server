@@ -57,15 +57,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Config now correctly contains the SmartSuite MCP server configuration
 
 - **Windows Ruby path in config** - Config now uses full path to Ruby executable
-  - Detects Ruby location from PATH or common installation directories
-  - Prevents issues when Claude Desktop doesn't inherit the same PATH as the installer
-  - Checks common paths: `C:\Ruby34-x64\bin\ruby.exe`, etc.
+  - Stores verified Ruby path during Check-Ruby phase for consistent use throughout installation
+  - Ensures Claude Desktop uses the same Ruby that was verified and used for `bundle install`
+  - Prevents issues when multiple Ruby versions are installed or PATH differs at runtime
+  - Falls back to PATH detection and common paths: `C:\Ruby34-x64\bin\ruby.exe`, etc.
 
 - **Windows sqlite3 native extension fix** - Fixed sqlite3 gem compatibility issues on Windows
   - Pre-built sqlite3 binaries often fail with newer Ruby versions (3.4)
   - Installer now properly checks for MSYS2 and installs it if missing (`ridk install 1`)
+  - Shows MSYS2 installation errors instead of suppressing them
   - Installs sqlite3 with `--platform=ruby` flag to compile from source
+  - Captures and displays native compilation errors for better diagnostics
   - Falls back to pre-built binary if compilation fails
+  - Shows clear error if both native and pre-built installations fail
   - Added comprehensive troubleshooting docs for Windows sqlite3 issues
 
 - **Windows config preserves existing MCP servers** - Fixed installer overwriting entire Claude Desktop config
