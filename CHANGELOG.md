@@ -30,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added "Press any key to exit" on errors so users can read error messages (window was closing immediately when run via `irm | iex`)
   - Added option to install Git automatically via WinGet when not found
   - Improved error handling throughout the script
+  - Run install.ps1 with `-ExecutionPolicy Bypass` to avoid policy restrictions
+
+- **Windows install script encoding fix** - Fixed UTF-8 encoding issues in install.ps1
+  - Windows PowerShell has issues parsing UTF-8 Unicode characters, causing syntax errors
+  - Replaced all Unicode symbols with ASCII alternatives: `[OK]`, `[ERROR]`, `[WARN]`, `[INFO]`
+  - Replaced box-drawing characters in banner with ASCII `+`, `-`, `|`
 
 ## [2.0.0] - 2025-11-24
 

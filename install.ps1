@@ -8,22 +8,22 @@ $ErrorActionPreference = "Stop"
 # Function to print colored messages
 function Print-Success {
     param([string]$Message)
-    Write-Host "✓ $Message" -ForegroundColor Green
+    Write-Host "[OK] $Message" -ForegroundColor Green
 }
 
 function Print-Error {
     param([string]$Message)
-    Write-Host "✗ $Message" -ForegroundColor Red
+    Write-Host "[ERROR] $Message" -ForegroundColor Red
 }
 
 function Print-Warning {
     param([string]$Message)
-    Write-Host "⚠ $Message" -ForegroundColor Yellow
+    Write-Host "[WARN] $Message" -ForegroundColor Yellow
 }
 
 function Print-Info {
     param([string]$Message)
-    Write-Host "ℹ $Message" -ForegroundColor Cyan
+    Write-Host "[INFO] $Message" -ForegroundColor Cyan
 }
 
 function Print-Header {
@@ -251,15 +251,15 @@ function Print-FinalInstructions {
 function Main {
     Clear-Host
 
-    Write-Host "╔════════════════════════════════════════════════════════════╗"
-    Write-Host "║                                                            ║"
-    Write-Host "║        SmartSuite MCP Server Installation Script          ║"
-    Write-Host "║                     (Windows)                              ║"
-    Write-Host "║                                                            ║"
-    Write-Host "║  This script will help you set up the SmartSuite MCP      ║"
-    Write-Host "║  server for use with Claude Desktop.                      ║"
-    Write-Host "║                                                            ║"
-    Write-Host "╚════════════════════════════════════════════════════════════╝"
+    Write-Host "+------------------------------------------------------------+"
+    Write-Host "|                                                            |"
+    Write-Host "|        SmartSuite MCP Server Installation Script           |"
+    Write-Host "|                     (Windows)                              |"
+    Write-Host "|                                                            |"
+    Write-Host "|  This script will help you set up the SmartSuite MCP      |"
+    Write-Host "|  server for use with Claude Desktop.                       |"
+    Write-Host "|                                                            |"
+    Write-Host "+------------------------------------------------------------+"
     Write-Host ""
 
     Print-Info "Press Enter to begin installation, or Ctrl+C to cancel"
