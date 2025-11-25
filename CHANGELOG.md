@@ -61,6 +61,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prevents issues when Claude Desktop doesn't inherit the same PATH as the installer
   - Checks common paths: `C:\Ruby34-x64\bin\ruby.exe`, etc.
 
+- **Windows sqlite3 native extension fix** - Fixed sqlite3 gem compatibility issues on Windows
+  - Pre-built sqlite3 binaries often fail with newer Ruby versions (3.4)
+  - Installer now runs `ridk enable` to initialize MSYS2 build environment
+  - Installs sqlite3 with `--platform=ruby` flag to compile from source
+  - Falls back to pre-built binary if compilation fails
+  - Added comprehensive troubleshooting docs for Windows sqlite3 issues
+
 ## [2.0.0] - 2025-11-24
 
 ### Added

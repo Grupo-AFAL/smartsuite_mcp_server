@@ -7,6 +7,8 @@ Common issues and their solutions.
 - [Installation Issues](#installation-issues)
   - [Network Access Requirements](#network-access-requirements)
   - [DNS Resolution Errors](#dns-resolution-errors)
+  - [Windows: sqlite3 Native Extension Error](#windows-sqlite3-native-extension-error)
+  - [Windows: Server Shows "failed" in Claude Desktop](#windows-server-shows-failed-in-claude-desktop)
 - [Connection Issues](#connection-issues)
 - [API Errors](#api-errors)
 - [Cache Issues](#cache-issues)
@@ -144,6 +146,95 @@ bundle install
 # If still fails, try system-wide
 gem install sqlite3
 ```
+
+### Windows: sqlite3 Native Extension Error
+
+**Symptoms:**
+```
+cannot load such file -- sqlite3/sqlite3_native (LoadError)
+The specified procedure could not be found - sqlite3_native.so
+```
+
+**Cause:** The pre-built sqlite3 gem binary is incompatible with your Ruby version. This commonly happens with Ruby 3.4 on Windows.
+
+**Solution:**
+
+1. **Uninstall the broken gem:**
+   ```powershell
+   gem uninstall sqlite3 --all
+   ```
+
+2. **Initialize MSYS2 build tools:**
+   ```powershell
+   ridk enable
+   ```
+
+3. **Reinstall with native compilation:**
+   ```powershell
+   gem install sqlite3 --platform=ruby
+   ```
+   This may take a few minutes as it compiles from source.
+
+4. **Verify it works:**
+   ```powershell
+   ruby -e "require 'sqlite3'; puts 'sqlite3 works!'"
+   ```
+
+**If compilation fails:**
+
+Try an older compatible version:
+```powershell
+gem install sqlite3 -v 1.7.3
+```
+
+Or run the MSYS2 installer:
+```powershell
+ridk install
+```
+Select option 1 (MSYS2 base installation), then retry the gem install.
+
+### Windows: Server Shows "failed" in Claude Desktop
+
+**Symptoms:**
+- Server appears in Claude Desktop but shows "failed" status
+- Error: "Server disconnected"
+
+**Solutions:**
+
+1. **Check the logs:**
+   Click "Open Logs Folder" in Claude Desktop settings, or:
+   ```powershell
+   Get-Content "$env:APPDATA\Claude\logs\mcp*.log" -Tail 50
+   ```
+
+2. **Test the server directly:**
+   ```powershell
+   cd C:\Users\YourName\.smartsuite_mcp
+   ruby smartsuite_server.rb
+   ```
+   This will show the actual error (usually missing gems).
+
+3. **Ensure full Ruby path in config:**
+   ```json
+   {
+     "mcpServers": {
+       "smartsuite": {
+         "command": "C:\\Ruby34-x64\\bin\\ruby.exe",
+         "args": ["C:\\Users\\YourName\\.smartsuite_mcp\\smartsuite_server.rb"],
+         "env": {
+           "SMARTSUITE_API_KEY": "your_key",
+           "SMARTSUITE_ACCOUNT_ID": "your_id"
+         }
+       }
+     }
+   }
+   ```
+
+4. **Fully quit Claude Desktop:**
+   - Right-click Claude in system tray (bottom-right, near clock)
+   - Select "Quit"
+   - Or run: `Get-Process -Name "*claude*" | Stop-Process -Force`
+   - Relaunch Claude Desktop
 
 ### Permission Denied
 

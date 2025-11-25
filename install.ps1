@@ -161,13 +161,34 @@ function Check-Ruby {
 function Install-Dependencies {
     Print-Header "Installing Dependencies"
 
+    # Initialize MSYS2 build tools (required for native gem extensions like sqlite3)
+    Print-Info "Initializing MSYS2 build environment..."
+    if (Get-Command ridk -ErrorAction SilentlyContinue) {
+        # Run ridk install to ensure MSYS2 is set up (option 1 = base installation)
+        # This is needed for compiling native extensions
+        ridk enable 2>$null
+        Print-Success "MSYS2 build environment ready"
+    } else {
+        Print-Warning "ridk not found - native gem compilation may fail"
+        Print-Info "If gem installation fails, run: ridk install"
+    }
+
     # Install bundler if not present
     if (-not (Get-Command bundle -ErrorAction SilentlyContinue)) {
         Print-Info "Installing Bundler..."
         gem install bundler
     }
 
-    Print-Info "Installing gem dependencies..."
+    # Pre-install sqlite3 with platform=ruby to ensure native compilation
+    # The pre-built Windows binaries often have compatibility issues
+    Print-Info "Installing sqlite3 gem (this may take a few minutes)..."
+    gem install sqlite3 --platform=ruby 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Print-Warning "sqlite3 native build failed, trying pre-built binary..."
+        gem install sqlite3
+    }
+
+    Print-Info "Installing remaining gem dependencies..."
     bundle install
 
     Print-Success "All dependencies installed"
