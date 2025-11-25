@@ -145,7 +145,12 @@ function Main {
     Print-Header "Running Installation Script"
 
     Set-Location $InstallDir
-    & .\install.ps1
+
+    # Run install.ps1 with execution policy bypass (same as how bootstrap was run)
+    powershell.exe -ExecutionPolicy Bypass -File ".\install.ps1"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Installation script failed"
+    }
 
     Write-Host ""
     Print-Success "Installation complete!"
