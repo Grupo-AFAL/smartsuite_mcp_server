@@ -226,22 +226,12 @@ function Configure-ClaudeDesktop {
         $backupFile = "${claudeConfigFile}.backup.$timestamp"
         Print-Info "Backing up existing configuration to: $backupFile"
         Copy-Item $claudeConfigFile $backupFile
-
-        # Read existing config
-        $existingConfig = Get-Content $claudeConfigFile -Raw | ConvertFrom-Json
-    } else {
-        $existingConfig = @{}
     }
 
     # Create/update MCP server configuration
     Print-Info "Adding SmartSuite MCP server to Claude Desktop configuration..."
 
-    # Ensure mcpServers object exists
-    if (-not $existingConfig.mcpServers) {
-        $existingConfig | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value @{} -Force
-    }
-
-    # Add SmartSuite server configuration
+    # Build the SmartSuite server configuration
     $smartsuiteConfig = @{
         command = "ruby"
         args = @("$scriptDir\smartsuite_server.rb")
@@ -251,10 +241,15 @@ function Configure-ClaudeDesktop {
         }
     }
 
-    $existingConfig.mcpServers | Add-Member -MemberType NoteProperty -Name "smartsuite" -Value $smartsuiteConfig -Force
+    # Build the complete config object
+    $config = @{
+        mcpServers = @{
+            smartsuite = $smartsuiteConfig
+        }
+    }
 
-    # Write updated config
-    $existingConfig | ConvertTo-Json -Depth 10 | Set-Content $claudeConfigFile
+    # Write config as JSON
+    $config | ConvertTo-Json -Depth 10 | Set-Content $claudeConfigFile -Encoding UTF8
 
     Print-Success "Claude Desktop configured"
     Print-Info "Configuration file: $claudeConfigFile"
