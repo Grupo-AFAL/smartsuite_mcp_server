@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Network access requirements documentation** - Added comprehensive documentation of all domains required for installation
+  - Lists all external services needed (GitHub, RubyGems, SmartSuite API)
+  - Windows-specific domains (WinGet CDN, Microsoft CDN)
+  - macOS-specific domains (Homebrew)
+  - DNS resolution error troubleshooting with solutions
+  - Proxy configuration instructions for corporate environments
+
 ### Fixed
 
 - **Install script Ruby version handling** - The installation script now automatically installs Ruby via Homebrew when an outdated version (e.g., macOS system Ruby 2.6) is detected, instead of just showing an error message and exiting
@@ -41,6 +50,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Now checks `$LASTEXITCODE` to verify WinGet installation actually succeeded
   - Tries multiple package IDs in order: 3.4 (latest stable), 3.3, 3.2, then generic
   - Shows clear error message if no Ruby package can be found
+
+- **Windows Claude Desktop config not written** - Fixed bug where `claude_desktop_config.json` was created but empty
+  - PowerShell's `Add-Member` on hashtables doesn't work well with `ConvertTo-Json`
+  - Simplified config building using native hashtable syntax
+  - Config now correctly contains the SmartSuite MCP server configuration
+
+- **Windows Ruby path in config** - Config now uses full path to Ruby executable
+  - Stores verified Ruby path during Check-Ruby phase for consistent use throughout installation
+  - Ensures Claude Desktop uses the same Ruby that was verified and used for `bundle install`
+  - Prevents issues when multiple Ruby versions are installed or PATH differs at runtime
+  - Falls back to PATH detection and common paths: `C:\Ruby34-x64\bin\ruby.exe`, etc.
+
+- **Windows sqlite3 native extension fix** - Fixed sqlite3 gem compatibility issues on Windows
+  - Pre-built sqlite3 binaries often fail with newer Ruby versions (3.4)
+  - Installer now properly checks for MSYS2 and installs it if missing (`ridk install 1`)
+  - Shows MSYS2 installation errors instead of suppressing them
+  - Installs sqlite3 with `--platform=ruby` flag to compile from source
+  - Captures and displays native compilation errors for better diagnostics
+  - Falls back to pre-built binary if compilation fails
+  - Shows clear error if both native and pre-built installations fail
+  - Added comprehensive troubleshooting docs for Windows sqlite3 issues
+
+- **Windows config preserves existing MCP servers** - Fixed installer overwriting entire Claude Desktop config
+  - Now merges with existing `claude_desktop_config.json` instead of replacing it
+  - Preserves other MCP servers that user may have configured
+  - Handles empty files and parse errors gracefully with fallback to new config
+
+- **Server timeout on initialization fix** - Fixed MCP server timing out before responding to tool calls
+  - Moved timezone configuration from initialization to lazy loading on first tool call
+  - The `configure_user_timezone` method fetches all workspace members to find user's timezone
+  - On large workspaces (500+ members), this took ~9 seconds causing Claude Desktop to timeout
+  - Server now starts immediately and configures timezone in the background on first tool request
+  - Timezone configuration errors are logged but don't prevent server operation
 
 ## [2.0.0] - 2025-11-24
 
