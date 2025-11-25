@@ -2,8 +2,6 @@
 # This script enables one-liner installation:
 # irm https://raw.githubusercontent.com/Grupo-AFAL/smartsuite_mcp_server/main/bootstrap.ps1 | iex
 
-$ErrorActionPreference = "Stop"
-
 # Color output functions
 function Print-Success {
     param([string]$Message)
@@ -39,7 +37,12 @@ function Exit-WithPause {
     param([int]$ExitCode = 1)
     Write-Host ""
     Write-Host "Press any key to exit..." -ForegroundColor Gray
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    try {
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    } catch {
+        # If ReadKey fails (e.g., in non-interactive mode), just pause
+        Start-Sleep -Seconds 10
+    }
     exit $ExitCode
 }
 
@@ -76,59 +79,65 @@ function Install-Git {
     }
 }
 
-# Determine installation directory
-$InstallDir = Join-Path $env:USERPROFILE ".smartsuite_mcp"
+# Main installation function
+function Main {
+    $InstallDir = Join-Path $env:USERPROFILE ".smartsuite_mcp"
 
-Clear-Host
+    Clear-Host
 
-Write-Host "╔════════════════════════════════════════════════════════════╗"
-Write-Host "║                                                            ║"
-Write-Host "║   SmartSuite MCP Server - One-Liner Installation          ║"
-Write-Host "║                                                            ║"
-Write-Host "╚════════════════════════════════════════════════════════════╝"
-Write-Host ""
-
-Print-Info "This script will install the SmartSuite MCP server to:"
-Write-Host "  $InstallDir"
-Write-Host ""
-
-# Check for git
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Print-Warning "Git is not installed."
+    Write-Host "╔════════════════════════════════════════════════════════════╗"
+    Write-Host "║                                                            ║"
+    Write-Host "║   SmartSuite MCP Server - One-Liner Installation          ║"
+    Write-Host "║                                                            ║"
+    Write-Host "╚════════════════════════════════════════════════════════════╝"
     Write-Host ""
 
-    $response = Read-Host "Would you like to install Git automatically? (yes/no)"
-    if ($response -eq "yes" -or $response -eq "y") {
-        $installed = Install-Git
-        if (-not $installed) {
-            Print-Info "Please install Git manually from:"
+    Print-Info "This script will install the SmartSuite MCP server to:"
+    Write-Host "  $InstallDir"
+    Write-Host ""
+
+    # Check for git
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        Print-Warning "Git is not installed."
+        Write-Host ""
+
+        $response = Read-Host "Would you like to install Git automatically? (yes/no)"
+        if ($response -eq "yes" -or $response -eq "y") {
+            $installed = Install-Git
+            if (-not $installed) {
+                Print-Info "Please install Git manually from:"
+                Write-Host "  https://git-scm.com/download/win"
+                Write-Host ""
+                Exit-WithPause
+            }
+        } else {
+            Print-Info "Please install Git for Windows from:"
             Write-Host "  https://git-scm.com/download/win"
             Write-Host ""
+            Print-Info "After installing Git, run this script again."
             Exit-WithPause
         }
-    } else {
-        Print-Info "Please install Git for Windows from:"
-        Write-Host "  https://git-scm.com/download/win"
-        Write-Host ""
-        Print-Info "After installing Git, run this script again."
-        Exit-WithPause
     }
-}
 
-Print-Success "Git is installed"
+    Print-Success "Git is installed"
 
-# Clone or update repository
-Print-Header "Downloading SmartSuite MCP Server"
+    # Clone or update repository
+    Print-Header "Downloading SmartSuite MCP Server"
 
-try {
     if (Test-Path $InstallDir) {
         Print-Info "Existing installation found. Updating..."
         Set-Location $InstallDir
         git pull origin main
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to update repository"
+        }
         Print-Success "Repository updated"
     } else {
         Print-Info "Cloning repository..."
         git clone https://github.com/Grupo-AFAL/smartsuite_mcp_server.git $InstallDir
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to clone repository"
+        }
         Print-Success "Repository cloned"
     }
 
@@ -141,6 +150,11 @@ try {
     Write-Host ""
     Print-Success "Installation complete!"
     Print-Info "The SmartSuite MCP server has been installed to: $InstallDir"
+}
+
+# Run main function with error handling
+try {
+    Main
 }
 catch {
     Print-Error "Installation failed: $($_.Exception.Message)"
