@@ -81,14 +81,23 @@ Failed to open TCP connection to rubygems.org:443
    ```
 
 4. **Configure proxy (if required):**
+
+   macOS/Linux:
    ```bash
-   # For bundle install
    export HTTP_PROXY=http://proxy.company.com:8080
    export HTTPS_PROXY=http://proxy.company.com:8080
+   ```
 
-   # Windows
+   Windows (CMD):
+   ```cmd
    set HTTP_PROXY=http://proxy.company.com:8080
    set HTTPS_PROXY=http://proxy.company.com:8080
+   ```
+
+   Windows (PowerShell):
+   ```powershell
+   $env:HTTP_PROXY="http://proxy.company.com:8080"
+   $env:HTTPS_PROXY="http://proxy.company.com:8080"
    ```
 
 ### Server Not Showing in Claude Desktop
