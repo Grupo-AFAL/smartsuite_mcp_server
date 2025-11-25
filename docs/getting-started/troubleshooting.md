@@ -5,6 +5,8 @@ Common issues and their solutions.
 ## Table of Contents
 
 - [Installation Issues](#installation-issues)
+  - [Network Access Requirements](#network-access-requirements)
+  - [DNS Resolution Errors](#dns-resolution-errors)
 - [Connection Issues](#connection-issues)
 - [API Errors](#api-errors)
 - [Cache Issues](#cache-issues)
@@ -13,6 +15,79 @@ Common issues and their solutions.
 ---
 
 ## Installation Issues
+
+### Network Access Requirements
+
+The installation script requires access to several external services. If you're behind a corporate firewall or proxy, ensure these domains are accessible:
+
+| Domain | Port | Purpose | Required For |
+|--------|------|---------|--------------|
+| `github.com` | 443 | Clone repository | Bootstrap script |
+| `raw.githubusercontent.com` | 443 | Download scripts | One-liner install |
+| `rubygems.org` | 443 | Ruby gem dependencies | `bundle install` |
+| `index.rubygems.org` | 443 | Gem index/specs | `bundle install` |
+| `app.smartsuite.com` | 443 | SmartSuite API | Runtime |
+
+**Windows-specific domains:**
+
+| Domain | Port | Purpose | Required For |
+|--------|------|---------|--------------|
+| `cdn.winget.microsoft.com` | 443 | WinGet packages | Ruby/Git install |
+| `winget.azureedge.net` | 443 | WinGet CDN | Ruby/Git install |
+| `github-releases.githubusercontent.com` | 443 | Git installer | Git install |
+
+**macOS-specific domains:**
+
+| Domain | Port | Purpose | Required For |
+|--------|------|---------|--------------|
+| `formulae.brew.sh` | 443 | Homebrew formulas | Ruby install |
+| `ghcr.io` | 443 | Homebrew bottles | Ruby install |
+
+### DNS Resolution Errors
+
+**Symptoms:**
+```
+Failed to open TCP connection to rubygems.org:443
+(getaddrinfo: No such host is known.)
+```
+
+**Cause:** Your network cannot resolve the domain name. Common in corporate environments with restricted DNS.
+
+**Solutions:**
+
+1. **Check if domain is blocked:**
+   ```bash
+   # macOS/Linux
+   nslookup rubygems.org
+
+   # Windows
+   nslookup rubygems.org
+   ```
+
+2. **Contact IT/Network admin:**
+   - Request access to domains listed above
+   - May need proxy configuration
+
+3. **Try using a different DNS:**
+   ```bash
+   # Temporarily test with Google DNS (if allowed)
+   # macOS
+   sudo networksetup -setdnsservers Wi-Fi 8.8.8.8 8.8.4.4
+
+   # Windows (PowerShell as Admin)
+   Set-DnsClientServerAddress -InterfaceAlias "Wi-Fi" -ServerAddresses ("8.8.8.8","8.8.4.4")
+   ```
+
+4. **Configure proxy (if required):**
+   ```bash
+   # For bundle install
+   export HTTP_PROXY=http://proxy.company.com:8080
+   export HTTPS_PROXY=http://proxy.company.com:8080
+
+   # Windows
+   set HTTP_PROXY=http://proxy.company.com:8080
+   set HTTPS_PROXY=http://proxy.company.com:8080
+   ```
 
 ### Server Not Showing in Claude Desktop
 
