@@ -80,14 +80,109 @@ install_homebrew() {
     fi
 }
 
+# Detect user's shell and return the appropriate config file
+detect_shell_profile() {
+    local user_shell
+    user_shell=$(basename "$SHELL")
+
+    case "$user_shell" in
+        zsh)
+            echo "$HOME/.zshrc"
+            ;;
+        bash)
+            # On macOS, .bash_profile is preferred; on Linux, .bashrc
+            if [[ "$OS_TYPE" == "macos" ]]; then
+                echo "$HOME/.bash_profile"
+            else
+                echo "$HOME/.bashrc"
+            fi
+            ;;
+        fish)
+            echo "$HOME/.config/fish/config.fish"
+            ;;
+        *)
+            # Fallback: try to detect from existing files
+            if [[ -f "$HOME/.zshrc" ]]; then
+                echo "$HOME/.zshrc"
+            elif [[ -f "$HOME/.bash_profile" ]]; then
+                echo "$HOME/.bash_profile"
+            elif [[ -f "$HOME/.bashrc" ]]; then
+                echo "$HOME/.bashrc"
+            else
+                # Default to zsh on macOS (default since Catalina), bash on Linux
+                if [[ "$OS_TYPE" == "macos" ]]; then
+                    echo "$HOME/.zshrc"
+                else
+                    echo "$HOME/.bashrc"
+                fi
+            fi
+            ;;
+    esac
+}
+
+# Get the Homebrew Ruby path for the current system
+get_homebrew_ruby_path() {
+    if [[ -d "/opt/homebrew/opt/ruby/bin" ]]; then
+        echo "/opt/homebrew/opt/ruby/bin"
+    elif [[ -d "/usr/local/opt/ruby/bin" ]]; then
+        echo "/usr/local/opt/ruby/bin"
+    else
+        # Ruby not yet installed, return expected path based on architecture
+        if [[ "$(uname -m)" == "arm64" ]]; then
+            echo "/opt/homebrew/opt/ruby/bin"
+        else
+            echo "/usr/local/opt/ruby/bin"
+        fi
+    fi
+}
+
 # Add Homebrew Ruby to PATH
 add_homebrew_ruby_to_path() {
+    local ruby_path
+    ruby_path=$(get_homebrew_ruby_path)
+
     # Add Ruby to PATH for current session
-    if [[ -d "/opt/homebrew/opt/ruby/bin" ]]; then
-        export PATH="/opt/homebrew/opt/ruby/bin:$PATH"
-    elif [[ -d "/usr/local/opt/ruby/bin" ]]; then
-        export PATH="/usr/local/opt/ruby/bin:$PATH"
+    if [[ -d "$ruby_path" ]]; then
+        export PATH="$ruby_path:$PATH"
     fi
+}
+
+# Add PATH configuration to shell profile
+add_path_to_shell_profile() {
+    local ruby_path="$1"
+    local shell_profile
+    shell_profile=$(detect_shell_profile)
+
+    print_info "Detected shell: $(basename "$SHELL")"
+    print_info "Shell profile: $shell_profile"
+
+    # Create the shell profile if it doesn't exist
+    if [[ ! -f "$shell_profile" ]]; then
+        print_info "Creating $shell_profile..."
+        touch "$shell_profile"
+    fi
+
+    # Create parent directory for fish config if needed
+    if [[ "$shell_profile" == *"fish"* ]] && [[ ! -d "$(dirname "$shell_profile")" ]]; then
+        mkdir -p "$(dirname "$shell_profile")"
+    fi
+
+    # Check if already added (check for both possible paths)
+    if grep -q "homebrew/opt/ruby/bin" "$shell_profile" 2>/dev/null; then
+        print_info "Homebrew Ruby PATH already configured in $shell_profile"
+        return
+    fi
+
+    print_info "Adding Homebrew Ruby to PATH in $shell_profile..."
+
+    # Add appropriate syntax based on shell type
+    if [[ "$shell_profile" == *"fish"* ]]; then
+        echo "set -gx PATH $ruby_path \$PATH" >> "$shell_profile"
+    else
+        echo "export PATH=\"$ruby_path:\$PATH\"" >> "$shell_profile"
+    fi
+
+    print_success "PATH configured in $shell_profile"
 }
 
 # Install Ruby via Homebrew on macOS
@@ -95,29 +190,14 @@ install_ruby_macos() {
     print_info "Installing Ruby using Homebrew..."
     brew install ruby
 
-    add_homebrew_ruby_to_path
+    local ruby_path
+    ruby_path=$(get_homebrew_ruby_path)
+
+    # Add to PATH for current session
+    export PATH="$ruby_path:$PATH"
 
     # Add to shell profile for future sessions
-    SHELL_PROFILE=""
-    if [[ -f "$HOME/.zshrc" ]]; then
-        SHELL_PROFILE="$HOME/.zshrc"
-    elif [[ -f "$HOME/.bash_profile" ]]; then
-        SHELL_PROFILE="$HOME/.bash_profile"
-    elif [[ -f "$HOME/.bashrc" ]]; then
-        SHELL_PROFILE="$HOME/.bashrc"
-    fi
-
-    if [[ -n "$SHELL_PROFILE" ]]; then
-        # Check if already added
-        if ! grep -q "/opt/homebrew/opt/ruby/bin" "$SHELL_PROFILE" 2>/dev/null; then
-            print_info "Adding Homebrew Ruby to PATH in $SHELL_PROFILE..."
-            if [[ -d "/opt/homebrew/opt/ruby/bin" ]]; then
-                echo 'export PATH="/opt/homebrew/opt/ruby/bin:$PATH"' >> "$SHELL_PROFILE"
-            elif [[ -d "/usr/local/opt/ruby/bin" ]]; then
-                echo 'export PATH="/usr/local/opt/ruby/bin:$PATH"' >> "$SHELL_PROFILE"
-            fi
-        fi
-    fi
+    add_path_to_shell_profile "$ruby_path"
 
     print_success "Ruby installed via Homebrew"
 }
