@@ -11,8 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Install script Ruby version handling** - The installation script now automatically installs Ruby via Homebrew when an outdated version (e.g., macOS system Ruby 2.6) is detected, instead of just showing an error message and exiting
   - Automatically adds Homebrew Ruby to PATH for the current session
-  - Persists PATH change to shell profile (~/.zshrc, ~/.bash_profile, or ~/.bashrc)
+  - Persists PATH change to shell profile
   - Verifies installation succeeded before continuing
+
+- **Install script shell detection** - Fixed shell profile detection to properly identify the user's shell and configure PATH correctly
+  - Now detects shell from `$SHELL` environment variable instead of checking if config files exist
+  - Supports zsh, bash, and fish shells with correct syntax for each
+  - Creates shell profile file (e.g., `~/.zshrc`) if it doesn't exist
+  - Correctly determines Homebrew path based on CPU architecture (Apple Silicon vs Intel)
+  - Displays detected shell and profile path for transparency
 
 ## [2.0.0] - 2025-11-24
 
