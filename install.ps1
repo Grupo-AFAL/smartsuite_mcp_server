@@ -48,8 +48,8 @@ function Install-Ruby {
         Print-Info "Installing Ruby using Windows Package Manager (WinGet)..."
         Print-Info "This may take a few minutes..."
 
-        # Install Ruby+Devkit 3.3 (latest stable with DevKit)
-        winget install --id RubyInstallerTeam.RubyWithDevKit.3.3 --silent --accept-package-agreements --accept-source-agreements
+        # Install latest Ruby+Devkit
+        winget install --id RubyInstallerTeam.RubyWithDevKit --silent --accept-package-agreements --accept-source-agreements
 
         # Refresh environment variables to pick up Ruby
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
@@ -71,28 +71,52 @@ function Install-Ruby {
 function Check-Ruby {
     Print-Header "Checking Ruby Installation"
 
+    $needsInstall = $false
+    $rubyVersion = $null
+
+    # Check if Ruby is installed
     if (-not (Get-Command ruby -ErrorAction SilentlyContinue)) {
         Print-Warning "Ruby is not installed."
+        $needsInstall = $true
+    } else {
+        # Ruby exists, check version
+        $rubyVersion = (ruby -v | Select-String -Pattern '\d+\.\d+').Matches.Value
+        $requiredVersion = [version]"3.0"
+        $currentVersion = [version]$rubyVersion
 
+        if ($currentVersion -lt $requiredVersion) {
+            Print-Warning "Ruby version $rubyVersion is installed, but version 3.0 or higher is required."
+            $needsInstall = $true
+        }
+    }
+
+    # Offer to install Ruby if needed
+    if ($needsInstall) {
         $response = Read-Host "Would you like to install Ruby automatically? (yes/no)"
         if ($response -eq "yes" -or $response -eq "y") {
             Install-Ruby
+
+            # Verify installation succeeded
+            if (-not (Get-Command ruby -ErrorAction SilentlyContinue)) {
+                Print-Error "Ruby installation failed. Please install manually from: https://rubyinstaller.org/"
+                exit 1
+            }
+
+            $rubyVersion = (ruby -v | Select-String -Pattern '\d+\.\d+').Matches.Value
+            $requiredVersion = [version]"3.0"
+            $currentVersion = [version]$rubyVersion
+
+            if ($currentVersion -lt $requiredVersion) {
+                Print-Error "Ruby version $rubyVersion was installed, but version 3.0 or higher is required."
+                Print-Info "Please install Ruby manually from: https://rubyinstaller.org/"
+                exit 1
+            }
         } else {
             Print-Info "Please install Ruby from: https://rubyinstaller.org/"
             Print-Info "Recommended: Ruby+Devkit 3.0 or higher"
             Print-Info "After installing Ruby, run this script again."
             exit 1
         }
-    }
-
-    $rubyVersion = (ruby -v | Select-String -Pattern '\d+\.\d+').Matches.Value
-    $requiredVersion = [version]"3.0"
-    $currentVersion = [version]$rubyVersion
-
-    if ($currentVersion -lt $requiredVersion) {
-        Print-Error "Ruby version $rubyVersion is installed, but version 3.0 or higher is required."
-        Print-Info "Please upgrade Ruby from: https://rubyinstaller.org/"
-        exit 1
     }
 
     Print-Success "Ruby $rubyVersion is installed"
