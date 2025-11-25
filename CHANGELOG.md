@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Windows Ruby WinGet installation fix** - Fixed Ruby installation via WinGet
   - Now checks `$LASTEXITCODE` to verify WinGet installation actually succeeded
-  - Tries multiple package IDs in order: `RubyInstallerTeam.RubyWithDevKit.3.3`, `.3.2`, then generic
+  - Tries multiple package IDs in order: 3.4 (latest stable), 3.3, 3.2, then generic
   - Shows clear error message if no Ruby package can be found
 
 ## [2.0.0] - 2025-11-24
