@@ -12,10 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Markdown to SmartDoc Converter** - New formatter module and MCP tool for converting markdown text to SmartSuite's SmartDoc format
   - New `SmartSuite::Formatters::MarkdownToSmartdoc` class (`lib/smartsuite/formatters/markdown_to_smartdoc.rb`)
   - New `convert_markdown_to_smartdoc` MCP tool for AI-accessible conversion
-  - Supports headings (`#`, `##`, `###`), bullet lists (`-`, `*`), markdown tables, and inline formatting (`**bold**`, `*italic*`)
+  - Supports headings (`#`, `##`, `###`), bullet lists (`-`, `*`), ordered lists (`1.`, `2.`), markdown tables, code blocks, links, horizontal rules, and inline formatting (`**bold**`, `*italic*`, combined)
   - Uses correct snake_case type names required by SmartSuite (e.g., `bullet_list`, `list_item`, `table_row`)
-  - Batch conversion script for processing multiple records (`scripts/convert_sessions_minuta.rb`)
-  - Comprehensive test suite: `test/smartsuite/formatters/test_markdown_to_smartdoc.rb` (18 tests)
+  - Comprehensive test suite: `test/smartsuite/formatters/test_markdown_to_smartdoc.rb`
+- **Batch Markdown Conversion Utility** - CLI script for batch converting multiple records
+  - New `bin/convert_markdown_sessions` script for bulk Markdown→SmartDoc conversion
+  - Supports external configuration via `.conversion_config` file (gitignored for privacy)
+  - Configuration template provided in `.conversion_config.example`
+  - Efficient single-API-call fetch with bulk updates in configurable batches
+  - Dry-run mode, progress indicators, smart skipping (already converted, empty, etc.)
+  - Comprehensive guide: `docs/guides/markdown-batch-conversion.md`
+  - Use case: Automated webhook data (e.g., Read.ai meeting transcripts) → formatted SmartDoc
 
 ### Changed
 

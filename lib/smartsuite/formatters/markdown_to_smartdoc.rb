@@ -41,7 +41,15 @@ module SmartSuite
           while i < lines.length
             line = lines[i]
 
-            if line.start_with?('## ')
+            if line.match?(/^---+\s*$/)
+              # Horizontal rule
+              content << { 'type' => 'horizontal_rule' }
+              i += 1
+            elsif line.start_with?('```')
+              # Code block
+              code_block, i = parse_code_block(lines, i)
+              content << code_block if code_block
+            elsif line.start_with?('## ')
               # Heading level 2
               content << create_heading(line[3..].strip, 2)
               i += 1
@@ -53,6 +61,10 @@ module SmartSuite
               # Heading level 3
               content << create_heading(line[4..].strip, 3)
               i += 1
+            elsif line.match?(/^\d+\.\s/)
+              # Ordered list
+              list_items, i = parse_ordered_list(lines, i)
+              content << create_ordered_list(list_items)
             elsif line.start_with?('- ') || line.start_with?('* ')
               # Bullet list
               list_items, i = parse_list(lines, i)
@@ -96,6 +108,14 @@ module SmartSuite
           }
         end
 
+        def create_ordered_list(items)
+          {
+            'type' => 'ordered_list',
+            'attrs' => { 'order' => 1 },
+            'content' => items.map { |item| create_list_item(item) }
+          }
+        end
+
         def create_list_item(text)
           {
             'type' => 'list_item',
@@ -127,6 +147,69 @@ module SmartSuite
           end
 
           [items, i]
+        end
+
+        def parse_ordered_list(lines, start_index)
+          items = []
+          i = start_index
+
+          while i < lines.length
+            line = lines[i]
+            if line.match?(/^\d+\.\s/)
+              # Remove number and period
+              items << line.sub(/^\d+\.\s/, '').strip
+              i += 1
+            elsif line.strip.empty?
+              i += 1
+              # Check if next line continues the list
+              break if i >= lines.length || !lines[i].match?(/^\d+\.\s/)
+            else
+              break
+            end
+          end
+
+          [items, i]
+        end
+
+        def parse_code_block(lines, start_index)
+          i = start_index
+          opening_line = lines[i]
+
+          # Extract language if present (```language)
+          language = opening_line[3..].strip
+          language = nil if language.empty?
+
+          i += 1
+          code_lines = []
+
+          # Collect lines until closing ```
+          while i < lines.length
+            line = lines[i]
+            if line.start_with?('```')
+              i += 1
+              break
+            end
+            code_lines << line
+            i += 1
+          end
+
+          # Create code block with hard_break nodes for line breaks
+          content = []
+          code_lines.each_with_index do |line, index|
+            content << { 'type' => 'text', 'text' => line }
+            content << { 'type' => 'hard_break' } if index < code_lines.length - 1
+          end
+
+          code_block = {
+            'type' => 'code_block',
+            'attrs' => {
+              'language' => language || 'plaintext',
+              'lineWrapping' => true
+            },
+            'content' => content
+          }
+
+          [code_block, i]
         end
 
         def parse_table(lines, start_index)
@@ -186,8 +269,39 @@ module SmartSuite
           remaining = text
 
           while remaining && !remaining.empty?
+            # Try to match links first [text](url)
+            if (match = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/))
+              # Add text before match
+              result << { 'type' => 'text', 'text' => remaining[0...match.begin(0)] } if match.begin(0).positive?
+
+              # Parse formatting inside link text
+              link_text_parts = parse_inline_formatting_recursive(match[1])
+
+              # Add marks to each part
+              link_text_parts.each do |part|
+                marks = part['marks'] || []
+                marks << { 'type' => 'link', 'attrs' => { 'href' => match[2] } }
+                result << {
+                  'type' => 'text',
+                  'marks' => marks,
+                  'text' => part['text']
+                }
+              end
+
+              remaining = remaining[match.end(0)..]
+            # Try to match bold+italic (***text*** or ___text___)
+            elsif (match = remaining.match(/\*\*\*(.+?)\*\*\*/) || remaining.match(/___(.+?)___/))
+              # Add text before match
+              result << { 'type' => 'text', 'text' => remaining[0...match.begin(0)] } if match.begin(0).positive?
+              # Add bold+italic text
+              result << {
+                'type' => 'text',
+                'marks' => [{ 'type' => 'strong' }, { 'type' => 'em' }],
+                'text' => match[1]
+              }
+              remaining = remaining[match.end(0)..]
             # Try to match bold (**text** or __text__)
-            if (match = remaining.match(/\*\*(.+?)\*\*/) || remaining.match(/__(.+?)__/))
+            elsif (match = remaining.match(/\*\*(.+?)\*\*/) || remaining.match(/__(.+?)__/))
               # Add text before match
               result << { 'type' => 'text', 'text' => remaining[0...match.begin(0)] } if match.begin(0).positive?
               # Add bold text
@@ -210,6 +324,50 @@ module SmartSuite
               remaining = remaining[match.end(0)..]
             else
               # No more formatting, add remaining text
+              result << { 'type' => 'text', 'text' => remaining }
+              remaining = nil
+            end
+          end
+
+          result.empty? ? [{ 'type' => 'text', 'text' => text }] : result
+        end
+
+        # Helper method to parse formatting recursively (for link text)
+        def parse_inline_formatting_recursive(text)
+          return [{ 'type' => 'text', 'text' => text }] if text.nil? || text.empty?
+
+          result = []
+          remaining = text
+
+          while remaining && !remaining.empty?
+            # Try to match bold+italic
+            if (match = remaining.match(/\*\*\*(.+?)\*\*\*/) || remaining.match(/___(.+?)___/))
+              result << { 'type' => 'text', 'text' => remaining[0...match.begin(0)] } if match.begin(0).positive?
+              result << {
+                'type' => 'text',
+                'marks' => [{ 'type' => 'strong' }, { 'type' => 'em' }],
+                'text' => match[1]
+              }
+              remaining = remaining[match.end(0)..]
+            # Try to match bold
+            elsif (match = remaining.match(/\*\*(.+?)\*\*/) || remaining.match(/__(.+?)__/))
+              result << { 'type' => 'text', 'text' => remaining[0...match.begin(0)] } if match.begin(0).positive?
+              result << {
+                'type' => 'text',
+                'marks' => [{ 'type' => 'strong' }],
+                'text' => match[1]
+              }
+              remaining = remaining[match.end(0)..]
+            # Try to match italic
+            elsif (match = remaining.match(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/) || remaining.match(/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/))
+              result << { 'type' => 'text', 'text' => remaining[0...match.begin(0)] } if match.begin(0).positive?
+              result << {
+                'type' => 'text',
+                'marks' => [{ 'type' => 'em' }],
+                'text' => match[1]
+              }
+              remaining = remaining[match.end(0)..]
+            else
               result << { 'type' => 'text', 'text' => remaining }
               remaining = nil
             end

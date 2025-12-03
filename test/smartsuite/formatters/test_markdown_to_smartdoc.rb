@@ -223,4 +223,137 @@ class TestMarkdownToSmartdoc < Minitest::Test
     assert record_data['description'].is_a?(Hash)
     assert record_data['description'].key?('data')
   end
+
+  def test_convert_ordered_list
+    markdown = "1. First step\n2. Second step\n3. Third step"
+    result = SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown)
+
+    list = result['data']['content'][0]
+    assert_equal 'ordered_list', list['type']
+    assert_equal 1, list['attrs']['order']
+    assert_equal 3, list['content'].size
+
+    list['content'].each_with_index do |item, index|
+      assert_equal 'list_item', item['type']
+      assert_equal 'paragraph', item['content'][0]['type']
+      assert_equal "#{%w[First Second Third][index]} step", item['content'][0]['content'][0]['text']
+    end
+  end
+
+  def test_convert_code_block
+    markdown = "```ruby\ndef hello\n  puts 'world'\nend\n```"
+    result = SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown)
+
+    code_block = result['data']['content'][0]
+    assert_equal 'code_block', code_block['type']
+    assert_equal 'ruby', code_block['attrs']['language']
+    assert_equal true, code_block['attrs']['lineWrapping']
+
+    # Check content has text + hard_break nodes
+    assert code_block['content'].length.positive?
+    assert(code_block['content'].any? { |node| node['type'] == 'text' })
+    assert(code_block['content'].any? { |node| node['type'] == 'hard_break' })
+  end
+
+  def test_convert_code_block_without_language
+    markdown = "```\ncode here\n```"
+    result = SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown)
+
+    code_block = result['data']['content'][0]
+    assert_equal 'code_block', code_block['type']
+    assert_equal 'plaintext', code_block['attrs']['language']
+  end
+
+  def test_convert_link
+    markdown = 'Visit [our website](https://example.com) for more info.'
+    result = SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown)
+
+    para = result['data']['content'][0]
+    content = para['content']
+
+    # Should have: "Visit ", link "our website", " for more info."
+    assert_equal 3, content.size
+    assert_equal 'Visit ', content[0]['text']
+
+    # Check link
+    link_node = content[1]
+    assert_equal 'our website', link_node['text']
+    assert(link_node['marks'].any? { |m| m['type'] == 'link' && m['attrs']['href'] == 'https://example.com' })
+
+    assert_equal ' for more info.', content[2]['text']
+  end
+
+  def test_convert_bold_italic_combined
+    markdown = 'This is ***bold and italic*** text.'
+    result = SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown)
+
+    para = result['data']['content'][0]
+    content = para['content']
+
+    # Find the bold+italic node
+    combined_node = content.find { |n| n['text'] == 'bold and italic' }
+    assert combined_node
+    assert_equal 2, combined_node['marks'].length
+    assert(combined_node['marks'].any? { |m| m['type'] == 'strong' })
+    assert(combined_node['marks'].any? { |m| m['type'] == 'em' })
+  end
+
+  def test_convert_horizontal_rule
+    markdown = "Before\n\n---\n\nAfter"
+    result = SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown)
+
+    content = result['data']['content']
+    # Should have: paragraph, horizontal_rule, paragraph
+    assert_equal 3, content.size
+    assert_equal 'paragraph', content[0]['type']
+    assert_equal 'horizontal_rule', content[1]['type']
+    assert_equal 'paragraph', content[2]['type']
+  end
+
+  def test_convert_link_with_bold_text
+    markdown = 'Check [**bold link**](https://example.com) here.'
+    result = SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown)
+
+    para = result['data']['content'][0]
+    link_node = para['content'][1]
+
+    # Link node should have both link and strong marks
+    assert_equal 'bold link', link_node['text']
+    assert(link_node['marks'].any? { |m| m['type'] == 'link' })
+    assert(link_node['marks'].any? { |m| m['type'] == 'strong' })
+  end
+
+  def test_convert_complex_mixed_content
+    markdown = <<~MARKDOWN
+      # Main Title
+
+      This is a paragraph with **bold** and *italic* text.
+
+      ## Ordered List
+
+      1. First item
+      2. Second item
+
+      ## Code Example
+
+      ```javascript
+      console.log('Hello');
+      ```
+
+      ---
+
+      Visit [SmartSuite](https://smartsuite.com) for more.
+    MARKDOWN
+
+    result = SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown)
+    content = result['data']['content']
+
+    # Verify we have the expected types
+    types = content.map { |node| node['type'] }
+    assert types.include?('heading')
+    assert types.include?('paragraph')
+    assert types.include?('ordered_list')
+    assert types.include?('code_block')
+    assert types.include?('horizontal_rule')
+  end
 end

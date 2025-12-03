@@ -1,0 +1,25 @@
+# SmartSuite Markdown Conversion Configuration Example
+#
+# Copy this file to .conversion_config and customize with your values
+# .conversion_config is gitignored and will not be committed
+#
+# Usage:
+#   bin/convert_markdown_sessions --config .conversion_config
+
+# Table ID to process
+TABLE_ID=your_table_id_here
+
+# Status field slug
+STATUS_FIELD=your_status_field_slug_here
+
+# Content field slug to convert
+CONTENT_FIELD=your_content_field_slug_here
+
+# Source status value (records to convert FROM)
+FROM_STATUS=in_progress
+
+# Target status value (records to convert TO)
+TO_STATUS=complete
+
+# Batch size for bulk updates (default: 25)
+BATCH_SIZE=25
