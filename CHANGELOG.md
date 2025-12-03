@@ -23,12 +23,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New section in CLAUDE.md documenting snake_case type name requirements
   - Type conversion table: `bulletList` → `bullet_list`, `listItem` → `list_item`, etc.
   - Updated `create_record` and `update_record` tool descriptions with SmartDoc format guidance
+- **Network access requirements documentation** - Added comprehensive documentation of all domains required for installation
+  - Lists all external services needed (GitHub, RubyGems, SmartSuite API)
+  - Windows-specific domains (WinGet CDN, Microsoft CDN)
+  - macOS-specific domains (Homebrew)
+  - DNS resolution error troubleshooting with solutions
+  - Proxy configuration instructions for corporate environments
+
+### Fixed
+
+- **Install script Ruby version handling** - The installation script now automatically installs Ruby via Homebrew when an outdated version (e.g., macOS system Ruby 2.6) is detected, instead of just showing an error message and exiting
+
+  - Automatically adds Homebrew Ruby to PATH for the current session
+  - Persists PATH change to shell profile
+  - Verifies installation succeeded before continuing
+
+- **Install script shell detection** - Fixed shell profile detection to properly identify the user's shell and configure PATH correctly
+
+  - Now detects shell from `$SHELL` environment variable instead of checking if config files exist
+  - Supports zsh, bash, and fish shells with correct syntax for each
+  - Creates shell profile file (e.g., `~/.zshrc`) if it doesn't exist
+  - Correctly determines Homebrew path based on CPU architecture (Apple Silicon vs Intel)
+  - Displays detected shell and profile path for transparency
+
+- **Windows installer Ruby version handling** - Fixed the same issue on Windows (install.ps1)
+
+  - Now offers to install the latest Ruby via WinGet when an outdated version is detected
+  - Verifies installation succeeded before continuing
+  - Consolidated duplicate code into a single flow for both missing and outdated Ruby
+
+- **Windows bootstrap script improvements** - Fixed issues with bootstrap.ps1
+
+  - Added "Press any key to exit" on errors so users can read error messages (window was closing immediately when run via `irm | iex`)
+  - Added option to install Git automatically via WinGet when not found
+  - Improved error handling throughout the script
+  - Run install.ps1 with `-ExecutionPolicy Bypass` to avoid policy restrictions
+
+- **Windows install script encoding fix** - Fixed UTF-8 encoding issues in install.ps1
+
+  - Windows PowerShell has issues parsing UTF-8 Unicode characters, causing syntax errors
+  - Replaced all Unicode symbols with ASCII alternatives: `[OK]`, `[ERROR]`, `[WARN]`, `[INFO]`
+  - Replaced box-drawing characters in banner with ASCII `+`, `-`, `|`
+
+- **Windows Ruby WinGet installation fix** - Fixed Ruby installation via WinGet
+
+  - Now checks `$LASTEXITCODE` to verify WinGet installation actually succeeded
+  - Tries multiple package IDs in order: 3.4 (latest stable), 3.3, 3.2, then generic
+  - Shows clear error message if no Ruby package can be found
+
+- **Windows Claude Desktop config not written** - Fixed bug where `claude_desktop_config.json` was created but empty
+
+  - PowerShell's `Add-Member` on hashtables doesn't work well with `ConvertTo-Json`
+  - Simplified config building using native hashtable syntax
+  - Config now correctly contains the SmartSuite MCP server configuration
+
+- **Windows Ruby path in config** - Config now uses full path to Ruby executable
+
+  - Stores verified Ruby path during Check-Ruby phase for consistent use throughout installation
+  - Ensures Claude Desktop uses the same Ruby that was verified and used for `bundle install`
+  - Prevents issues when multiple Ruby versions are installed or PATH differs at runtime
+  - Falls back to PATH detection and common paths: `C:\Ruby34-x64\bin\ruby.exe`, etc.
+
+- **Windows sqlite3 native extension fix** - Fixed sqlite3 gem compatibility issues on Windows
+
+  - Pre-built sqlite3 binaries often fail with newer Ruby versions (3.4)
+  - Installer now properly checks for MSYS2 and installs it if missing (`ridk install 1`)
+  - Shows MSYS2 installation errors instead of suppressing them
+  - Installs sqlite3 with `--platform=ruby` flag to compile from source
+  - Captures and displays native compilation errors for better diagnostics
+  - Falls back to pre-built binary if compilation fails
+  - Shows clear error if both native and pre-built installations fail
+  - Added comprehensive troubleshooting docs for Windows sqlite3 issues
+
+- **Windows config preserves existing MCP servers** - Fixed installer overwriting entire Claude Desktop config
+
+  - Now merges with existing `claude_desktop_config.json` instead of replacing it
+  - Preserves other MCP servers that user may have configured
+  - Handles empty files and parse errors gracefully with fallback to new config
+
+- **Server timeout on initialization fix** - Fixed MCP server timing out before responding to tool calls
+  - Moved timezone configuration from initialization to lazy loading on first tool call
+  - The `configure_user_timezone` method fetches all workspace members to find user's timezone
+  - On large workspaces (500+ members), this took ~9 seconds causing Claude Desktop to timeout
+  - Server now starts immediately and configures timezone in the background on first tool request
+  - Timezone configuration errors are logged but don't prevent server operation
 
 ## [2.0.0] - 2025-11-24
 
 ### Added
 
 - **Transparent Date Input Interface** - AI can now use simple date strings without worrying about SmartSuite's internal format
+
   - New `SmartSuite::DateTransformer` module for automatic date format conversion
   - Supported input formats:
     - Date only: `"2025-06-20"` → stored without time component
@@ -42,6 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New test suite: `test/smartsuite/test_date_transformer.rb` with 30 tests
 
 - **UTC to Local Time Conversion** - Automatic conversion of timestamps for user-friendly display
+
   - New `SmartSuite::DateFormatter` module for timestamp conversion
   - **Automatic timezone detection from SmartSuite user profile** on server startup
     - `SmartSuiteClient.configure_user_timezone` fetches the logged-in user's timezone
@@ -81,6 +167,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New test suite: `test/smartsuite/test_date_formatter.rb` with 50 tests
 
 - **Unified Logging System** - Consolidated all logging into `SmartSuite::Logger` class
+
   - Single log file: `~/.smartsuite_mcp.log` (production), `~/.smartsuite_mcp_test.log` (test)
   - Replaced multiple logging mechanisms (metrics log, query logger, stderr)
   - Multiple log levels: DEBUG, INFO, WARN, ERROR
@@ -94,6 +181,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `log_metric` method in HttpClient preserved for API module compatibility
 
 - **Aggressive Caching Strategy** - Consistent cache-first approach across all operations
+
   - `list_solutions_by_owner`: Now uses cache-first strategy, caches full solution data including permissions
   - `get_table`: Now caches table structure after API fetch for subsequent requests
   - `get_record`: Uses aggressive caching - fetches ALL records on cache miss, then returns requested record
@@ -107,6 +195,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Refactored `insert_table_row` helper to reduce code duplication
 
 - **TOON format is now default for all list tools** - Standardized token-optimized output across all listing operations
+
   - TOON (Token-Oriented Object Notation) is now the **default format** for ALL list operations
   - Provides ~50-60% token savings compared to JSON for structured data
   - Uses tabular format for uniform arrays, reducing repetitive field names
@@ -139,16 +228,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Server properly handles string responses (TOON) without re-encoding as JSON
 
 - **AWS profile support for S3 credentials** - `SMARTSUITE_AWS_PROFILE` environment variable for credential isolation
+
   - Recommended approach for security: use dedicated AWS profile instead of shared environment variables
   - Profile references credentials in `~/.aws/credentials` file
   - Prevents other programs from accidentally using SmartSuite S3 bucket credentials
 
 - **S3 operation logging** - All S3 actions now log to `~/.smartsuite_mcp.log` via unified logger
+
   - Consistent logging alongside API and cache operations
   - Blue color coding for S3 operations in terminal
   - Actions logged: UPLOAD, UPLOAD_COMPLETE, PRESIGN, ATTACH, ATTACH_COMPLETE, WAIT, CLEANUP, DELETE
 
 - **Transparent local file attachment support** - `attach_file` tool now automatically handles local file paths
+
   - Detects whether inputs are URLs or local file paths
   - URLs are passed directly to SmartSuite API (existing behavior)
   - Local files are automatically uploaded to S3 via `SecureFileAttacher`, then attached via temporary URLs
@@ -158,31 +250,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Lazy-loads `aws-sdk-s3` dependency only when local files are used
 
 - **Test coverage for field_operations.rb** - 24 new tests covering all field CRUD operations
+
   - Tests for `add_field`, `bulk_add_fields`, `update_field`, `delete_field`
   - Parameter validation tests
   - Cache invalidation verification tests
 
 - **Test coverage for view_operations.rb** - 15 new tests covering view/report operations
+
   - Tests for `get_view_records` and `create_view`
   - All view modes tested (grid, map, calendar, kanban, gallery, timeline, gantt)
   - Optional parameter handling tests
 
 - **SmartSuite::Paths module** - Centralized path management for database and log files
+
   - Single source of truth for test mode detection (`SMARTSUITE_TEST_MODE` environment variable)
   - Provides `database_path` and `metrics_log_path` methods with automatic test isolation
   - Ensures tests never write to production database or log files
 
 - **SmartSuite::Cache::Schema module** - Centralized SQLite table schema definitions
+
   - Single source of truth for all table CREATE statements
   - Eliminates duplication between `Cache::Layer` and `ApiStatsTracker`
   - Methods: `api_stats_tables_sql`, `cache_registry_tables_sql`, `cached_data_tables_sql`, `all_metadata_tables_sql`
   - Both modules now use Schema for consistent table definitions
 
 - **aws-sdk-s3 test dependency** - Added optional dependency for testing SecureFileAttacher
+
   - Uses AWS SDK's built-in stubbing (`stub_responses: true`) for mocking without real credentials
   - Enables comprehensive testing of S3-based file attachment functionality
 
 - **Teams caching with SQLite** - Implemented cache-first strategy for team operations, consistent with members, tables and solutions caching
+
   - Added `cached_teams` SQLite table for persistent team caching (7-day TTL)
   - Added `cache_teams`, `get_cached_teams`, `get_cached_team`, `teams_cache_valid?`, and `invalidate_teams_cache` methods to cache layer
   - Updated `list_teams` and `get_team` to use cache-first strategy with automatic fallback to API
@@ -192,6 +290,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Enriched get_team response**: `get_team` now returns member details (id, email, full_name) instead of just member IDs
 
 - **Deleted member filtering** - By default, soft-deleted members (those with `deleted_date` set) are filtered out from list_members and search_member results
+
   - Added `include_inactive` parameter to `list_members` tool to optionally include deleted members
   - Added `include_inactive` parameter to `search_member` tool to optionally include deleted members
   - Added `deleted_date` column to `cached_members` table with migration for existing databases
@@ -200,16 +299,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Members with `deleted_date` set are hidden from UI and filtered by default
 
 - **Search results sorted by match quality** - `search_member` now returns results sorted by match score (best matches first)
+
   - Added `match_score` method to FuzzyMatcher for calculating match quality
   - Exact matches rank highest, followed by substring matches, then fuzzy matches
   - Improves usability by showing most relevant results at the top
 
 - **Consistent fuzzy matching across cache/API paths** - `search_member` now uses FuzzyMatcher consistently
+
   - Both cached and non-cached search paths use `FuzzyMatcher.match?` for name matching
   - Previously, cache path used fuzzy matching while API path used substring matching
   - Users will get identical search results regardless of cache hit/miss state
 
 - **Member caching with SQLite** - Implemented cache-first strategy for member operations, consistent with tables and solutions caching
+
   - Added `cached_members` SQLite table for persistent member caching (7-day TTL)
   - Added `cache_members`, `get_cached_members`, `members_cache_valid?`, and `invalidate_members_cache` methods to cache layer
   - Updated `list_members` and `search_member` to use cache-first strategy with automatic fallback to API
@@ -221,18 +323,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Documentation: Local Verification** - Updated Git Workflow in `GEMINI.md` to explicitly require local RuboCop, Changelog, and Markdown Lint checks before creating PRs.
 
 - **Refactor: Simplify MemberOperations** - Extracted private helper methods to reduce complexity and duplication
+
   - `format_member_list`: Centralized logic for formatting member API responses
   - `fetch_solution_member_ids`: Encapsulated complex permission traversal for solution filtering
   - `match_member?`: Isolated search logic for member queries
   - Reduced method complexity and improved readability in `list_members` and `search_member`
 
 - **Documentation: Git Workflow** - Added comprehensive Git workflow guidelines to `GEMINI.md`
+
   - Explicitly prohibits agent from merging Pull Requests
   - mandates CI checks verification before requesting review
   - Defines clear steps for branching, committing, and verifying changes
   - Establishes standard branch naming conventions (`feature/`, `fix/`, `refactor/`, etc.)
 
 - **SmartDoc format documentation and examples** - Added comprehensive documentation for rich text field formatting with validated examples
+
   - Added `docs/smartdoc_examples.md` - Complete SmartDoc format reference with all 13 validated content types
   - Added `docs/smartdoc_complete_reference.json` - Complete validated structure from actual SmartSuite record
   - Added `docs/smartdoc_data_only.json` - Data-only structure for easier analysis
@@ -283,6 +388,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Unified logging replaces separate log files** - Consolidated logging infrastructure
+
   - `~/.smartsuite_mcp_metrics.log` → `~/.smartsuite_mcp.log` (production)
   - `~/.smartsuite_mcp_queries.log` → `~/.smartsuite_mcp.log` (production)
   - Single log file simplifies debugging and reduces disk I/O
@@ -290,31 +396,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Server no longer creates separate metrics_log file handle
 
 - **Updated design-decisions.md to reflect current architecture** - Updated two outdated sections
+
   - Section 3: Changed from "Plain Text Responses" to "TOON Format Responses" with implementation details
   - Section 11: Changed from "Ruby Standard Library Only (No Gems)" to "Minimal Dependencies (Essential Gems Only)"
   - Updated summary principles to reflect TOON format and minimal gems (sqlite3, toon-ruby)
 
 - **Updated all documentation to show TOON format** - Replaced plain text references with TOON format
+
   - API docs: README.md, records.md, workspace.md, tables.md, members.md, comments.md, views.md
   - Architecture docs: overview.md, mcp-protocol.md, data-flow.md
   - Guides: user-guide.md, caching-guide.md, performance-guide.md
 
 - **Consolidated format parameter definitions in ToolRegistry** - All 16 format parameters now use SCHEMA_FORMAT constant
+
   - Eliminates duplication and ensures consistent description across all tools
   - Affected tools: list_solutions, list_solutions_by_owner, list_tables, list_records, list_deleted_records, list_members, list_teams, search_member, list_comments, get_view_records, and 6 mutation operations
 
 - **Condensed ROADMAP.md** - Reduced from 497 lines to 141 lines (72% reduction)
+
   - Collapsed completed milestones (v1.0-v1.9) into a compact summary table
   - Updated v2.0 section to show TOON format as "In Progress" (was incorrectly listed as deferred)
   - Removed verbose Community/Ecosystem phases
   - Simplified Feature Backlog and Technical Debt sections
 
 - **`attach_file` returns structured status object** - Now returns detailed response instead of raw API response
+
   - Returns: `{success, record_id, attached_count, local_files, url_files, details}`
   - `details` array contains type (local/url), files list, and API result for each batch
   - Previously returned `nil` for local file attachments, raw API response for URLs
 
 - **Extracted cache-first pattern to Base module** - DRY refactoring reducing ~50 lines of duplicate code across API modules
+
   - Added `with_cache_check` helper method for centralized cache checking with automatic logging
   - Added `extract_items_safely` helper for consistent response normalization (Array vs Hash with items)
   - Added `filter_members_by_status` helper in MemberOperations for consistent active/inactive filtering
@@ -322,11 +434,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Includes 16 new tests covering the helper methods
 
 - **Refactored cache status methods** - Extracted `get_metadata_cache_status` helper to eliminate code duplication
+
   - Consolidated 4 nearly-identical methods (`get_solutions_cache_status`, `get_tables_cache_status`, `get_members_cache_status`, `get_teams_cache_status`)
   - Reduced ~80 lines of duplicate code to single 24-line helper method
   - Original methods now delegate to helper with table name parameter
 
 - **Refactored cache invalidation methods** - Extracted `invalidate_simple_cache` helper
+
   - Consolidated duplicate logic in `invalidate_members_cache` and `invalidate_teams_cache`
   - Single helper method handles DB update, stat recording, and logging
 
@@ -339,11 +453,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **`warm_cache` tool** - Removed unused cache warming functionality
+
   - Tool, server handler, client method, and tests all removed
   - Cache is automatically populated on first table access
   - Use `list_records` with minimal fields to manually pre-populate cache if needed
 
 - **Obsolete documentation files**
+
   - `RELEASE_CHECKLIST_v1.9.0.md` - Version 1.9 already released
   - `REFACTORING_REPORT.md` - Recommendations already implemented
   - `docs/ROADMAP_RECOMMENDATIONS.md` - Duplicated and outdated content
@@ -360,6 +476,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Timezone field name mismatch** - Fixed `configure_user_timezone` to use correct API field name
+
   - SmartSuite API returns `timezone` (no underscore), not `time_zone`
   - Updated MemberOperations, SmartSuiteClient, and Cache layer to use `timezone`
   - Added `timezone` column to `cached_members` table schema with migration for existing databases
@@ -369,6 +486,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Falls back to first member with timezone if not set or user not found
 
 - **Daterangefield sub-field filtering (.to_date/.from_date)** - Fixed filtering by daterangefield sub-fields like `field_slug.to_date` or `field_slug.from_date`
+
   - **Root cause**: `Cache::Query.where()` looked for field info using the full slug including `.to_date`/`.from_date` suffix, but field_mapping uses base slugs
   - **Example**: Filtering by `s31437fa81.to_date` would skip the filter because no field with slug `s31437fa81.to_date` exists
   - **Fix**: Extract base field slug for field lookup, but pass full slug to `build_condition` for column selection
@@ -376,6 +494,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added regression tests for `.to_date` and `.from_date` sub-field filtering
 
 - **Date-only filter values now convert to UTC range with DST support** - Fixed date filtering to account for timezone differences and daylight saving time
+
   - **Root cause**: Date-only filters like `"2026-06-15"` were compared directly against UTC timestamps in cache
   - **Example**: Filtering for June 15 in -0700 timezone missed records at 23:30 local time (06:30 UTC next day)
   - **Fix**: `FilterBuilder.convert_to_utc_for_filter` converts date-only strings to UTC start-of-day timestamps
@@ -386,24 +505,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Fixes issue where filtering July dates in November would use wrong offset
 
 - **Date-only strings preserved in DateFormatter** - Fixed date-only values being incorrectly converted with timezone offset
+
   - **Root cause**: `DateFormatter.to_local` was attempting timezone conversion on date-only strings
   - **Example**: `2025-01-15` was becoming `2025-01-14` on servers in UTC+ timezones
   - **Fix**: Date-only strings now pass through unchanged (they represent calendar days, not instants)
 
 - **Cache layer `include_time` column matching bug** - Fixed issue where date values were incorrectly stored in `_include_time` columns instead of 0/1 values
+
   - The `find_matching_value` method now matches `_from_include_time` and `_to_include_time` columns before `_from` and `_to` columns
   - This ensures proper date-only vs datetime display in responses
 
 - **`list_comments` returning null count** - Now correctly calculates count from results array
+
   - SmartSuite API returns `count: null` in the response
   - Fixed by calculating count from `results.length` before returning
 
 - **update_field API error when params not provided** - `update_field` now automatically adds empty `params: {}` if not provided
+
   - SmartSuite API requires the `params` object even for simple field renames
   - Previously failed with `400 - {"params":["This field is required."]}`
   - Now users can simply call `update_field(table_id, slug, {"label": "New Name", "field_type": "textareafield"})` without worrying about params
 
 - **Test isolation from production database** - Fixed tests writing to production database instead of test-specific paths
+
   - Created `SmartSuite::Paths` module (`lib/smartsuite/paths.rb`) as single source of truth for file paths
   - All components now use `SmartSuite::Paths.database_path` and `SmartSuite::Paths.metrics_log_path`
   - In test mode (`SMARTSUITE_TEST_MODE=true`), uses temporary directory with process-specific filenames
@@ -411,12 +535,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This prevents test data from polluting production cache and statistics at `~/.smartsuite_mcp_cache.db`
 
 - **SQLite custom function return values** - Fixed `fuzzy_match` function not returning values correctly
+
   - SQLite3 gem requires using `func.result=` to return values from custom functions
   - Block return values were being ignored, causing fuzzy search to always return 0 results
   - This affected `search_member` and `list_solutions` (with name filter) when using cached data
 
 - **Merge conflict resolution** - Resolved merge conflicts between main and feature branches
 - **CRITICAL: firstcreated and lastupdated fields not split into separate columns** - Fixed cache schema to properly split timestamp fields into `_on` and `_by` columns
+
   - **Root cause**: Field types checked for `'firstcreated'` and `'lastupdated'` but actual types are `'firstcreatedfield'` and `'lastupdatedfield'`
   - **Impact**: These fields were stored as JSON text instead of separate queryable columns
   - **Problem**: Couldn't filter by creation/update date or user - filters returned incorrect results
@@ -431,6 +557,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All 513 tests passing
 
 - **CRITICAL: Default minimal_response parameter not applied** - Fixed server handlers not properly defaulting to `minimal_response: true`
+
   - **Root cause**: When MCP tools didn't pass `minimal_response` parameter, `arguments['minimal_response']` was `nil`
   - Server passed `minimal_response: nil` to methods, which Ruby treats as falsy, so methods defaulted to full response
   - **Impact**: v2.0 mutations returned full responses (defeating the purpose) when parameter not explicitly provided
@@ -441,6 +568,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All 513 tests passing with proper default behavior
 
 - **CRITICAL: get_record returns wrong record when filtering by ID** - Fixed cache query builder not handling built-in 'id' field
+
   - **Root cause**: `Cache::Query.where()` only processed fields in table structure, but 'id' is a built-in field not in structure
   - **Impact**: WHERE clause never added to SQL query for 'id' field, causing query to return first record with LIMIT 1
   - **Example**:
@@ -506,6 +634,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Bulk record operations** - Added 3 new bulk operations for efficient batch processing
+
   - `bulk_add_records`: Create multiple records in a single API call
   - `bulk_update_records`: Update multiple records in a single API call (each record must include 'id' field)
   - `bulk_delete_records`: Soft delete multiple records in a single API call
@@ -515,6 +644,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added server handlers in `SmartSuiteServer` (lines 209-214)
 
 - **File URL retrieval** - Added operation to get public URLs for attached files
+
   - `get_file_url`: Returns a public URL for a file attachment (20-year lifetime)
   - Accepts file handle from file/image field values
   - Implemented in `RecordOperations` module (lines 434-449)
@@ -522,6 +652,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added server handler in `SmartSuiteServer` (line 215-216)
 
 - **File attachment** - Added operation to attach files to records by URL
+
   - `attach_file`: Attach files by providing publicly accessible URLs
   - SmartSuite downloads files from provided URLs and attaches them to specified field
   - Supports single or multiple files in one operation
@@ -531,6 +662,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added 6 comprehensive tests (success, parameter validation, API error)
 
 - **Secure file attachment helper** - Added `SecureFileAttacher` class for secure local file uploads
+
   - Addresses security limitation of `attach_file` requiring public URLs
   - Uses AWS S3 with short-lived pre-signed URLs (default: 2 minutes)
   - Automatic file cleanup after SmartSuite fetches files
@@ -548,6 +680,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Debug logging support
 
 - **Deleted records management** - Added operations for working with soft-deleted records
+
   - `list_deleted_records`: List all soft-deleted records from a solution
     - Accepts `preview` parameter to limit returned fields (default: true)
     - Returns records with deletion metadata
@@ -558,6 +691,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added server handlers in `SmartSuiteServer` (lines 217-220)
 
 - **is_exactly operator for JSON array fields** - New operator to check if array contains exactly specified values (no more, no less)
+
   - **Implementation**: Combines JSON array length check with value presence checks
   - **SQL generation**: `json_array_length(field) = ? AND json_extract(field, '$') LIKE ? AND ...`
   - **Affected field types**: userfield, multipleselectfield, linkedrecordfield
@@ -579,6 +713,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Test helper methods** - Extracted common test patterns to reduce duplication
+
   - Added `create_client`: Eliminates repeated client instantiation in tests
   - Added `assert_requires_parameter`: DRY pattern for parameter validation tests
   - Added `assert_api_error`: DRY pattern for API error handling tests
@@ -587,6 +722,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved test readability and maintainability
 
 - **Schema constants in ToolRegistry** - Extracted common parameter schemas
+
   - Added 10 reusable schema constants (SCHEMA_TABLE_ID, SCHEMA_FILE_URLS, etc.)
   - Applied to 7 new record operation tools
   - Eliminates 40 lines of schema duplication
@@ -594,6 +730,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Frozen constants prevent accidental mutation
 
 - **Verified numeric field operators work correctly** - Comprehensive testing confirms all comparison operators match SmartSuite API
+
   - **Operators tested**: gt, gte, lt, lte, eq (5 operators)
   - **Field types tested**: numberfield, currencyfield, percentfield, ratingfield (4 field types)
   - **Test coverage**: 11 test cases covering all operators across all numeric field types
@@ -606,6 +743,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `:eq` → `is_equal_to` → `field = value`
 
 - **Missing documentation files** - Created comprehensive documentation to fix broken links:
+
   - `docs/getting-started/configuration.md` - Complete environment variable and cache configuration guide
   - `docs/reference/filter-operators.md` - Comprehensive filter operator reference organized by field type
   - `docs/contributing/code-style.md` - Ruby coding standards and style guidelines
@@ -613,6 +751,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `docs/contributing/documentation.md` - Documentation standards and writing guidelines
 
 - **One-liner installation** - Zero-friction installation with a single command:
+
   - **macOS/Linux**: `curl -fsSL https://raw.githubusercontent.com/.../bootstrap.sh | bash`
   - **Windows**: `irm https://raw.githubusercontent.com/.../bootstrap.ps1 | iex`
   - Bootstrap scripts automatically:
@@ -624,6 +763,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Easiest possible installation experience
 
 - **Automated installation scripts** for non-technical users:
+
   - **macOS/Linux**: `./install.sh` - Bash-based installer with Homebrew integration
     - Automatic Homebrew installation on macOS (if not present)
     - Automatic Ruby installation via Homebrew on macOS
@@ -645,6 +785,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - True cross-platform auto-installation: macOS, Linux, and Windows
 
 - **Development workflow guidelines** in CLAUDE.md:
+
   - Feature branch workflow (always create branches before starting work)
   - Branch naming conventions (feature/, fix/, refactor/, docs/)
   - Completion checklist: Documentation, Tests, Code Quality, Linting, Refactoring, GitHub Actions
@@ -652,20 +793,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ensures consistent quality and completeness for all future features
 
 - **Cache query sorting** - Added `order(field_slug, direction)` method to Cache::Query
+
   - Supports ASC/DESC sorting on cached records
   - Enables local sorting without API calls
   - Applied via `apply_sorting_to_query` in RecordOperations
 
 - **get_record cache support** - `get_record` now uses cache-first strategy
+
   - Only makes API call if record not cached
   - Significant performance improvement for individual record lookups (~100ms → <10ms)
   - Applies SmartDoc HTML extraction to both cached and API responses
 
 - **get_table caching** - Added caching support to `get_table` method
+
   - Caches table structure with 12-hour TTL
   - Reduces API calls for frequently accessed table metadata
 
 - **SmartDoc HTML extraction** - 60-70% token savings for rich text fields
+
   - Extract only HTML content from SmartDoc/richtextarea fields
   - SmartDoc fields contain `{data, html, preview, yjsData}` but AI only needs HTML
   - Cache stores complete JSON, but `get_record` and `list_records` return only HTML
@@ -673,6 +818,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reduces token usage by 60-70% for rich text fields (e.g., 100KB JSON → 3-4KB HTML)
 
 - **Color-coded logging** - ANSI color codes for different log types
+
   - API operations: Cyan
   - Database queries: Green
   - Cache operations: Magenta
@@ -680,12 +826,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Easier visual scanning of logs during development
 
 - **Separate test/production logs** - Environment-based log file separation
+
   - Test logs: `~/.smartsuite_mcp_queries_test.log`
   - Production logs: `~/.smartsuite_mcp_queries.log`
   - Auto-detection based on environment
   - Prevents test noise in production logs
 
 - **README.md** - Completely restructured Quick Start section:
+
   - **One-liner installation** now featured as primary method (easiest!)
   - Manual clone + script moved to "Alternative" section
   - Removed verbose prerequisites (bootstrap scripts handle git checks)
@@ -706,6 +854,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Sort behavior now consistent across cache states** - All sort criteria applied regardless of cache enabled/disabled
+
   - **Breaking**: Previously, only first sort criterion was applied when cache enabled; now all criteria applied
   - Updated `Cache::Query.order()` to support multiple ORDER BY clauses (appends instead of replacing)
   - Updated `apply_sorting_to_query()` to iterate through all sort criteria, not just first
@@ -713,6 +862,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Behavior now consistent: sort parameter works identically whether cache is enabled or disabled
 
 - **Simplified tool descriptions** - Removed cache implementation details from tool registry
+
   - Tool descriptions now focus on WHAT tools do, not HOW they implement it
   - Removed "cache-first strategy", "SQL WHERE clauses", "zero API cost" from descriptions
   - Removed cache notes from CRUD operations (create/update/delete records, add/update/delete fields)
@@ -720,6 +870,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cache management tools (get_cache_status, refresh_cache, warm_cache) appropriately keep cache mentions
 
 - **CRITICAL: Fixed cache index creation bug for label-based column names** - Daterangefield and statusfield indexes now use correct column names
+
   - **Root cause**: Column names are generated from field labels, but index creation was using field slugs
   - **Example**: Field with slug `sf_daterange` and label "Date Range" creates columns `date_range_from` and `date_range_to`, but indexes tried to use `sf_daterange_from` (column doesn't exist → SQL error)
   - **Affected field types**: daterangefield, duedatefield, statusfield, and all other fields with labels different from slugs
@@ -732,6 +883,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Migration**: Restart MCP server and delete `~/.smartsuite_mcp_cache.db` to recreate tables with correct indexes
 
 - **CRITICAL: Fixed duedatefield and daterangefield filtering to match SmartSuite API behavior** - Cache now uses correct column for date comparisons
+
   - **Root cause**: Cache was using `from_date` column for all comparisons, but SmartSuite API uses `to_date`
   - **Discovery**: Created test record with date range (from: 2025-03-01, to: 2025-03-31) and compared cache vs API filtering results
   - **SmartSuite API behavior** (verified via direct API testing):
@@ -757,6 +909,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Migration**: Delete `~/.smartsuite_mcp_cache.db` and restart to rebuild cache with correct filtering and sorting
 
 - **CRITICAL: Fixed is_empty/is_not_empty filtering for JSON array fields** - Cache now correctly handles empty arrays for userfield, multipleselectfield, and linkedrecordfield
+
   - **Root cause**: Cache was using `IS NULL` / `IS NOT NULL` checks, but SmartSuite API checks if array is empty `[]`
   - **Discovery**: Direct API testing revealed cache returned different results for `assigned_to is_not_empty` filter
   - **SmartSuite API behavior** (verified via direct API testing):
@@ -781,6 +934,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Verified all linkedrecordfield operators: has_any_of, has_all_of, has_none_of, is_empty, is_not_empty (8/8 tests pass)
 
 - **CRITICAL: Refactored field type detection to prevent regex pattern matching bugs** - Replaced fragile regex patterns with exact type checking
+
   - **Root cause**: Field type `linkedrecordfield` contains substrings "text" and "link" which incorrectly matched text field regex `/text|email|phone|link/` BEFORE matching array field pattern
   - **Discovery**: is_empty/is_not_empty tests for linkedrecordfield failed because it was being treated as text field (checking `= ''` instead of `= '[]'`)
   - **Previous behavior**: Used regex patterns to categorize fields → substring matches caused incorrect behavior
@@ -900,6 +1054,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING: Standardized response formats** (v1.8 - Developer Experience):
+
   - **refresh_cache**: Changed from `{"refreshed": "...", "message": "...", "timestamp": "..."}` to `{"status": "success", "operation": "refresh", "message": "...", "timestamp": "...", "resource": "..."}`
   - **warm_cache**: Added `"operation": "warm"` field, changed no-tables response to use `status: "no_action"`
   - **Error responses**: Changed from `{"error": "message"}` to `{"status": "error", "error": "code", "message": "...", "timestamp": "..."}`
@@ -972,6 +1127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.7.0] - 2025-01-15
 
 ### Changed
+
 - **Modular cache layer architecture** (v1.7):
   - Split `cache_layer.rb` (1646 lines) into focused modules
   - Organized in dedicated `lib/smartsuite/cache/` directory following Ruby conventions:
@@ -993,11 +1149,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integration tests → v1.8
 
 ### Developer Experience
+
 - Improved code organization for cache layer
 - Clear module responsibilities reduce cognitive load
 - Foundation for future enhancements
 
 ### Notes
+
 - This is a refactoring and polish release with no user-facing changes
 - All existing tests pass (84 runs, 401 assertions)
 - Cache database format remains unchanged
@@ -1006,6 +1164,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.6.0] - 2025-11-15
 
 ### Added
+
 - **Cache performance tracking** (v1.6):
   - New `cache_performance` table tracks hit/miss counts per table
   - In-memory counters with periodic flush (every 100 ops or 5 minutes)
@@ -1080,6 +1239,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Useful for pre-loading frequently accessed data during off-peak hours
 
 ### Changed
+
 - **Phase 4 refactoring decisions** (v1.6):
   - **Extract common API patterns:** Reviewed and decided to keep current explicit implementations
     - Analysis showed each operation has enough unique logic to justify separate code
@@ -1122,6 +1282,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Both formats supported by Ruby's `Time.parse()`
 
 ### Removed
+
 - **BREAKING**: Removed old cache format migration code (~79 lines)
   - `migrate_cache_tables_schema` method (migrated cached_solutions/cached_tables from pre-v1.5 format)
   - `migrate_api_call_log_schema` method (added session_id column migration)
@@ -1129,11 +1290,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Rationale: Solo developer project, simplifies codebase maintenance
 
 ### Fixed
+
 - Stats tracker initialization: Server now uses client's shared stats tracker instance instead of creating separate instance
 - `get_api_stats` no longer attempts to convert TEXT timestamps with `Time.at()` (caused TypeError)
 - Added `session_id` column to `api_call_log` CREATE TABLE statement (previously added by migration)
 
 ### Internal
+
 - All `Time.now.to_i` calls replaced with `Time.now.utc.iso8601` throughout codebase
 - Migration detection logic ensures INTEGER timestamps only migrated once
 - Test suite updated to access stats tracker through client instance
@@ -1141,6 +1304,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.5.0] - 2025-11-15
 
 ### Added
+
 - SQLite-based caching layer with dynamic table creation per SmartSuite table
 - Cache-first record fetching strategy with TTL-based expiration (4 hour default)
 - Chainable query builder (CacheQuery) for local SQL filtering
@@ -1149,6 +1313,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Consolidated database: cache + API stats in single `~/.smartsuite_mcp_cache.db` file
 
 ### Changed
+
 - `list_records` now requires `fields` parameter (no default "all fields")
 - Response format shows "X of Y total records" to help AI make informed pagination decisions
 - SmartSuite filters ignored when using cache (all filtering done locally via SQL)
@@ -1156,6 +1321,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2025-11-10
 
 ### Added
+
 - Initial release
 - Core MCP protocol implementation
 - SmartSuite API operations: solutions, tables, records, fields, members, comments, views
@@ -1165,7 +1331,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite
 - Solution usage analysis tools
 
-[Unreleased]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v2.0.0...HEAD
+[unreleased]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v2.0.0...HEAD
 [2.0.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.9.0...v2.0.0
 [1.9.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/Grupo-AFAL/smartsuite_mcp_server/compare/v1.7.0...v1.8.0
