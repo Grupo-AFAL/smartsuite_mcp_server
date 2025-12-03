@@ -8,22 +8,22 @@ $ErrorActionPreference = "Stop"
 # Function to print colored messages
 function Print-Success {
     param([string]$Message)
-    Write-Host "✓ $Message" -ForegroundColor Green
+    Write-Host "[OK] $Message" -ForegroundColor Green
 }
 
 function Print-Error {
     param([string]$Message)
-    Write-Host "✗ $Message" -ForegroundColor Red
+    Write-Host "[ERROR] $Message" -ForegroundColor Red
 }
 
 function Print-Warning {
     param([string]$Message)
-    Write-Host "⚠ $Message" -ForegroundColor Yellow
+    Write-Host "[WARN] $Message" -ForegroundColor Yellow
 }
 
 function Print-Info {
     param([string]$Message)
-    Write-Host "ℹ $Message" -ForegroundColor Cyan
+    Write-Host "[INFO] $Message" -ForegroundColor Cyan
 }
 
 function Print-Header {
@@ -48,8 +48,43 @@ function Install-Ruby {
         Print-Info "Installing Ruby using Windows Package Manager (WinGet)..."
         Print-Info "This may take a few minutes..."
 
-        # Install Ruby+Devkit 3.3 (latest stable with DevKit)
-        winget install --id RubyInstallerTeam.RubyWithDevKit.3.3 --silent --accept-package-agreements --accept-source-agreements
+        # Try to install Ruby+Devkit (try latest version first, then older versions)
+        $installed = $false
+
+        # Try Ruby 3.4 with DevKit first (latest stable)
+        Print-Info "Trying RubyInstallerTeam.RubyWithDevKit.3.4..."
+        winget install --id RubyInstallerTeam.RubyWithDevKit.3.4 --silent --accept-package-agreements --accept-source-agreements 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $installed = $true
+        } else {
+            # Try Ruby 3.3 with DevKit
+            Print-Info "Trying RubyInstallerTeam.RubyWithDevKit.3.3..."
+            winget install --id RubyInstallerTeam.RubyWithDevKit.3.3 --silent --accept-package-agreements --accept-source-agreements 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $installed = $true
+            } else {
+                # Try Ruby 3.2 with DevKit
+                Print-Info "Trying RubyInstallerTeam.RubyWithDevKit.3.2..."
+                winget install --id RubyInstallerTeam.RubyWithDevKit.3.2 --silent --accept-package-agreements --accept-source-agreements 2>$null
+                if ($LASTEXITCODE -eq 0) {
+                    $installed = $true
+                } else {
+                    # Try generic Ruby with DevKit
+                    Print-Info "Trying RubyInstallerTeam.RubyWithDevKit..."
+                    winget install --id RubyInstallerTeam.RubyWithDevKit --silent --accept-package-agreements --accept-source-agreements 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        $installed = $true
+                    }
+                }
+            }
+        }
+
+        if (-not $installed) {
+            Print-Error "WinGet could not find a Ruby package."
+            Print-Info "Please install Ruby manually from: https://rubyinstaller.org/"
+            Print-Info "Recommended: Ruby+Devkit 3.0 or higher"
+            exit 1
+        }
 
         # Refresh environment variables to pick up Ruby
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
@@ -67,16 +102,55 @@ function Install-Ruby {
     }
 }
 
+# Script-level variable to store verified Ruby path for consistency
+$script:VerifiedRubyPath = $null
+
 # Check for Ruby installation
 function Check-Ruby {
     Print-Header "Checking Ruby Installation"
 
-    if (-not (Get-Command ruby -ErrorAction SilentlyContinue)) {
-        Print-Warning "Ruby is not installed."
+    $needsInstall = $false
+    $rubyVersion = $null
 
+    # Check if Ruby is installed
+    $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
+    if (-not $rubyCommand) {
+        Print-Warning "Ruby is not installed."
+        $needsInstall = $true
+    } else {
+        # Ruby exists, check version
+        $rubyVersion = (ruby -v | Select-String -Pattern '\d+\.\d+').Matches.Value
+        $requiredVersion = [version]"3.0"
+        $currentVersion = [version]$rubyVersion
+
+        if ($currentVersion -lt $requiredVersion) {
+            Print-Warning "Ruby version $rubyVersion is installed, but version 3.0 or higher is required."
+            $needsInstall = $true
+        }
+    }
+
+    # Offer to install Ruby if needed
+    if ($needsInstall) {
         $response = Read-Host "Would you like to install Ruby automatically? (yes/no)"
         if ($response -eq "yes" -or $response -eq "y") {
             Install-Ruby
+
+            # Verify installation succeeded
+            $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
+            if (-not $rubyCommand) {
+                Print-Error "Ruby installation failed. Please install manually from: https://rubyinstaller.org/"
+                exit 1
+            }
+
+            $rubyVersion = (ruby -v | Select-String -Pattern '\d+\.\d+').Matches.Value
+            $requiredVersion = [version]"3.0"
+            $currentVersion = [version]$rubyVersion
+
+            if ($currentVersion -lt $requiredVersion) {
+                Print-Error "Ruby version $rubyVersion was installed, but version 3.0 or higher is required."
+                Print-Info "Please install Ruby manually from: https://rubyinstaller.org/"
+                exit 1
+            }
         } else {
             Print-Info "Please install Ruby from: https://rubyinstaller.org/"
             Print-Info "Recommended: Ruby+Devkit 3.0 or higher"
@@ -85,22 +159,42 @@ function Check-Ruby {
         }
     }
 
-    $rubyVersion = (ruby -v | Select-String -Pattern '\d+\.\d+').Matches.Value
-    $requiredVersion = [version]"3.0"
-    $currentVersion = [version]$rubyVersion
-
-    if ($currentVersion -lt $requiredVersion) {
-        Print-Error "Ruby version $rubyVersion is installed, but version 3.0 or higher is required."
-        Print-Info "Please upgrade Ruby from: https://rubyinstaller.org/"
-        exit 1
-    }
-
-    Print-Success "Ruby $rubyVersion is installed"
+    # Store the verified Ruby path for consistent use throughout the script
+    $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
+    $script:VerifiedRubyPath = $rubyCommand.Source
+    Print-Success "Ruby $rubyVersion is installed at: $script:VerifiedRubyPath"
 }
 
 # Install dependencies
 function Install-Dependencies {
     Print-Header "Installing Dependencies"
+
+    # Initialize MSYS2 build tools (required for native gem extensions like sqlite3)
+    Print-Info "Initializing MSYS2 build environment..."
+    if (Get-Command ridk -ErrorAction SilentlyContinue) {
+        # Check if MSYS2 is already installed by looking for common Ruby install paths
+        $rubyDir = (Get-Command ruby -ErrorAction SilentlyContinue).Source | Split-Path -Parent | Split-Path -Parent
+        $msys2Path = Join-Path $rubyDir "msys64"
+
+        if (Test-Path $msys2Path) {
+            # MSYS2 exists, just enable the environment
+            ridk enable 2>$null
+            Print-Success "MSYS2 build environment ready"
+        } else {
+            # MSYS2 not installed, run ridk install (option 1 = base installation)
+            Print-Info "MSYS2 not found, installing base system (this may take a few minutes)..."
+            ridk install 1
+            if ($LASTEXITCODE -ne 0) {
+                Print-Warning "MSYS2 installation may have had issues (exit code: $LASTEXITCODE)"
+                Print-Info "If gem installation fails later, try running: ridk install"
+            }
+            ridk enable 2>$null
+            Print-Success "MSYS2 base system installed and environment enabled"
+        }
+    } else {
+        Print-Warning "ridk not found - native gem compilation may fail"
+        Print-Info "If gem installation fails, run: ridk install"
+    }
 
     # Install bundler if not present
     if (-not (Get-Command bundle -ErrorAction SilentlyContinue)) {
@@ -108,7 +202,22 @@ function Install-Dependencies {
         gem install bundler
     }
 
-    Print-Info "Installing gem dependencies..."
+    # Pre-install sqlite3 with platform=ruby to ensure native compilation
+    # The pre-built Windows binaries often have compatibility issues
+    Print-Info "Installing sqlite3 gem (this may take a few minutes)..."
+    $nativeOutput = gem install sqlite3 --platform=ruby 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Print-Warning "sqlite3 native build failed, trying pre-built binary..."
+        Print-Info "Native build error: $($nativeOutput | Select-String -Pattern 'error|failed' | Select-Object -First 1)"
+        gem install sqlite3
+        if ($LASTEXITCODE -ne 0) {
+            Print-Error "sqlite3 gem installation failed. The server may not work correctly."
+            Print-Info "Try manually running: ridk install"
+            Print-Info "Then: gem install sqlite3 --platform=ruby"
+        }
+    }
+
+    Print-Info "Installing remaining gem dependencies..."
     bundle install
 
     Print-Success "All dependencies installed"
@@ -142,6 +251,44 @@ function Get-Credentials {
     }
 }
 
+# Get the full path to the Ruby executable
+function Get-RubyPath {
+    # First, use the verified Ruby path from Check-Ruby if available
+    # This ensures we use the same Ruby that was verified and used for bundle install
+    if ($script:VerifiedRubyPath -and (Test-Path $script:VerifiedRubyPath)) {
+        return $script:VerifiedRubyPath
+    }
+
+    # Fallback: try to get Ruby from PATH
+    $rubyCommand = Get-Command ruby -ErrorAction SilentlyContinue
+    if ($rubyCommand) {
+        return $rubyCommand.Source
+    }
+
+    # Last resort: check common Ruby installation paths on Windows
+    $commonPaths = @(
+        "C:\Ruby34-x64\bin\ruby.exe",
+        "C:\Ruby33-x64\bin\ruby.exe",
+        "C:\Ruby32-x64\bin\ruby.exe",
+        "C:\Ruby31-x64\bin\ruby.exe",
+        "C:\Ruby30-x64\bin\ruby.exe",
+        "C:\Ruby34\bin\ruby.exe",
+        "C:\Ruby33\bin\ruby.exe",
+        "C:\Ruby32\bin\ruby.exe",
+        "C:\Ruby31\bin\ruby.exe",
+        "C:\Ruby30\bin\ruby.exe"
+    )
+
+    foreach ($path in $commonPaths) {
+        if (Test-Path $path) {
+            return $path
+        }
+    }
+
+    # Fallback to just "ruby" and hope it's in PATH when Claude Desktop runs
+    return "ruby"
+}
+
 # Configure Claude Desktop
 function Configure-ClaudeDesktop {
     param(
@@ -155,6 +302,10 @@ function Configure-ClaudeDesktop {
     $claudeConfigFile = Join-Path $claudeConfigDir "claude_desktop_config.json"
     $scriptDir = $PSScriptRoot
 
+    # Get the full path to Ruby
+    $rubyPath = Get-RubyPath
+    Print-Info "Using Ruby at: $rubyPath"
+
     # Create config directory if it doesn't exist
     if (-not (Test-Path $claudeConfigDir)) {
         Print-Info "Creating Claude Desktop config directory..."
@@ -167,24 +318,14 @@ function Configure-ClaudeDesktop {
         $backupFile = "${claudeConfigFile}.backup.$timestamp"
         Print-Info "Backing up existing configuration to: $backupFile"
         Copy-Item $claudeConfigFile $backupFile
-
-        # Read existing config
-        $existingConfig = Get-Content $claudeConfigFile -Raw | ConvertFrom-Json
-    } else {
-        $existingConfig = @{}
     }
 
     # Create/update MCP server configuration
     Print-Info "Adding SmartSuite MCP server to Claude Desktop configuration..."
 
-    # Ensure mcpServers object exists
-    if (-not $existingConfig.mcpServers) {
-        $existingConfig | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value @{} -Force
-    }
-
-    # Add SmartSuite server configuration
+    # Build the SmartSuite server configuration
     $smartsuiteConfig = @{
-        command = "ruby"
+        command = $rubyPath
         args = @("$scriptDir\smartsuite_server.rb")
         env = @{
             SMARTSUITE_API_KEY = $ApiKey
@@ -192,10 +333,55 @@ function Configure-ClaudeDesktop {
         }
     }
 
-    $existingConfig.mcpServers | Add-Member -MemberType NoteProperty -Name "smartsuite" -Value $smartsuiteConfig -Force
+    # Merge with existing config to preserve other MCP servers
+    if (Test-Path $claudeConfigFile) {
+        try {
+            $existingContent = Get-Content $claudeConfigFile -Raw -ErrorAction Stop
+            if ($existingContent -and $existingContent.Trim()) {
+                $existingConfig = $existingContent | ConvertFrom-Json -ErrorAction Stop
 
-    # Write updated config
-    $existingConfig | ConvertTo-Json -Depth 10 | Set-Content $claudeConfigFile
+                # Ensure mcpServers exists
+                if (-not $existingConfig.mcpServers) {
+                    $existingConfig | Add-Member -MemberType NoteProperty -Name "mcpServers" -Value ([PSCustomObject]@{}) -Force
+                }
+
+                # Add or update smartsuite server (preserving other servers)
+                if ($existingConfig.mcpServers.smartsuite) {
+                    $existingConfig.mcpServers.smartsuite = $smartsuiteConfig
+                } else {
+                    $existingConfig.mcpServers | Add-Member -MemberType NoteProperty -Name "smartsuite" -Value $smartsuiteConfig -Force
+                }
+
+                $config = $existingConfig
+                Print-Info "Merged with existing configuration (preserving other MCP servers)"
+            } else {
+                # File exists but is empty
+                $config = @{
+                    mcpServers = @{
+                        smartsuite = $smartsuiteConfig
+                    }
+                }
+            }
+        } catch {
+            # Failed to parse existing config, create new one
+            Print-Warning "Could not parse existing config, creating new configuration"
+            $config = @{
+                mcpServers = @{
+                    smartsuite = $smartsuiteConfig
+                }
+            }
+        }
+    } else {
+        # No existing config file
+        $config = @{
+            mcpServers = @{
+                smartsuite = $smartsuiteConfig
+            }
+        }
+    }
+
+    # Write config as JSON
+    $config | ConvertTo-Json -Depth 10 | Set-Content $claudeConfigFile -Encoding UTF8
 
     Print-Success "Claude Desktop configured"
     Print-Info "Configuration file: $claudeConfigFile"
@@ -205,7 +391,7 @@ function Configure-ClaudeDesktop {
 function Print-FinalInstructions {
     param([string]$ConfigFile)
 
-    Print-Header "Installation Complete! 🎉"
+    Print-Header "Installation Complete!"
 
     Write-Host "The SmartSuite MCP server has been successfully installed and configured."
     Write-Host ""
@@ -220,22 +406,22 @@ function Print-FinalInstructions {
     Print-Info "For troubleshooting, see:"
     Write-Host "  docs\getting-started\troubleshooting.md"
     Write-Host ""
-    Print-Success "Enjoy using SmartSuite with Claude! 🚀"
+    Print-Success "Enjoy using SmartSuite with Claude!"
 }
 
 # Main installation flow
 function Main {
     Clear-Host
 
-    Write-Host "╔════════════════════════════════════════════════════════════╗"
-    Write-Host "║                                                            ║"
-    Write-Host "║        SmartSuite MCP Server Installation Script          ║"
-    Write-Host "║                     (Windows)                              ║"
-    Write-Host "║                                                            ║"
-    Write-Host "║  This script will help you set up the SmartSuite MCP      ║"
-    Write-Host "║  server for use with Claude Desktop.                      ║"
-    Write-Host "║                                                            ║"
-    Write-Host "╚════════════════════════════════════════════════════════════╝"
+    Write-Host "+------------------------------------------------------------+"
+    Write-Host "|                                                            |"
+    Write-Host "|        SmartSuite MCP Server Installation Script           |"
+    Write-Host "|                     (Windows)                              |"
+    Write-Host "|                                                            |"
+    Write-Host "|  This script will help you set up the SmartSuite MCP      |"
+    Write-Host "|  server for use with Claude Desktop.                       |"
+    Write-Host "|                                                            |"
+    Write-Host "+------------------------------------------------------------+"
     Write-Host ""
 
     Print-Info "Press Enter to begin installation, or Ctrl+C to cancel"
