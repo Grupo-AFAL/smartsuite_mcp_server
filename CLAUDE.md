@@ -55,6 +55,59 @@ The server communicates via stdin/stdout using JSON-RPC protocol. Test by sendin
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ruby smartsuite_server.rb
 ```
 
+## Utility Scripts
+
+The project includes utility scripts in `bin/` for administrative and batch operations. These are **separate from the MCP server** and run directly via CLI.
+
+### Batch Markdown Converter (`bin/convert_markdown_sessions`)
+
+**Purpose:** Bulk convert multiple SmartSuite records from Markdown to SmartDoc format
+
+**Use Case:** Automated webhook data (e.g., Read.ai meeting transcripts) that arrives as Markdown but needs to be formatted as rich text in SmartSuite.
+
+**Key Features:**
+- Single API call to fetch filtered records (not n+1)
+- Local conversion (0 AI tokens)
+- Bulk updates in configurable batches
+- Dry-run mode for safety
+- Smart skipping (already converted, empty content, etc.)
+- External configuration via `.conversion_config` (gitignored for privacy)
+
+**Usage:**
+```bash
+# Basic usage (uses .conversion_config)
+bin/convert_markdown_sessions
+
+# Dry-run to preview changes
+bin/convert_markdown_sessions --dry-run
+
+# Test with limited records
+bin/convert_markdown_sessions --limit 10
+
+# Override config values
+bin/convert_markdown_sessions --from-status pending --to-status complete
+```
+
+**Configuration:**
+Create `.conversion_config` from `.conversion_config.example`:
+```bash
+cp .conversion_config.example .conversion_config
+# Edit with your table IDs, field slugs, and status values
+```
+
+**Documentation:** See `docs/guides/markdown-batch-conversion.md`
+
+### When to Use Utility Scripts vs MCP Tools
+
+| Scenario | Use |
+|----------|-----|
+| Bulk operation (50+ records) | Utility script |
+| Automated/scheduled task | Utility script |
+| Data migration/transformation | Utility script |
+| Single record operation | MCP tool (via AI) |
+| Exploratory analysis | MCP tool (via AI) |
+| AI-guided workflow | MCP tool (via AI) |
+
 ## Development Workflow
 
 ### Starting a New Feature

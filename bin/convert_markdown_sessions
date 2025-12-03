@@ -1,0 +1,274 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Batch converter for SmartSuite sessions from Markdown to SmartDoc format
+#
+# This script efficiently converts multiple session records with minimal token usage:
+# 1. Fetches records with content in ONE API call (filtered by status)
+# 2. Converts markdown to SmartDoc format locally (no AI tokens)
+# 3. Bulk updates records with converted content + status change
+#
+# Usage:
+#   bin/convert_markdown_sessions [options]
+#
+# Options:
+#   --table-id ID          Table ID (default: 66983fdf0b865a9ad2b02a8d - Sesiones)
+#   --status-field SLUG    Status field slug (default: s53394fc66)
+#   --content-field SLUG   Content field slug (default: description)
+#   --from-status VALUE    Source status value (default: ready_for_review)
+#   --to-status VALUE      Target status value (default: fEECB)
+#   --dry-run             Show what would be converted without updating
+#   --limit N             Limit number of records to process (for testing)
+#   --batch-size N        Bulk update batch size (default: 25 - SmartSuite limit)
+#   --help                Show this help
+
+require 'bundler/setup'
+require 'json'
+require 'optparse'
+require_relative '../lib/smartsuite_client'
+require_relative '../lib/smartsuite/formatters/markdown_to_smartdoc'
+
+# Default configuration
+DEFAULT_CONFIG = {
+  table_id: nil, # REQUIRED: Specify via --table-id or config file
+  status_field: nil, # REQUIRED: Specify via --status-field or config file
+  content_field: 'description', # Default field name
+  from_status: nil, # REQUIRED: Source status value
+  to_status: nil, # REQUIRED: Target status value
+  batch_size: 25
+}.freeze
+
+# Load configuration from file if it exists
+def load_config_file(path)
+  return {} unless File.exist?(path)
+
+  config = {}
+  File.readlines(path).each do |line|
+    line = line.strip
+    next if line.empty? || line.start_with?('#')
+
+    key, value = line.split('=', 2)
+    next unless key && value
+
+    case key.strip
+    when 'TABLE_ID' then config[:table_id] = value.strip
+    when 'STATUS_FIELD' then config[:status_field] = value.strip
+    when 'CONTENT_FIELD' then config[:content_field] = value.strip
+    when 'FROM_STATUS' then config[:from_status] = value.strip
+    when 'TO_STATUS' then config[:to_status] = value.strip
+    when 'BATCH_SIZE' then config[:batch_size] = value.strip.to_i
+    end
+  end
+  config
+end
+
+# Parse command line options
+options = DEFAULT_CONFIG.dup
+config_file = nil
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{$PROGRAM_NAME} [options]"
+
+  opts.on('--config FILE', 'Load configuration from file') { |v| config_file = v }
+  opts.on('--table-id ID', 'Table ID (required)') { |v| options[:table_id] = v }
+  opts.on('--status-field SLUG', 'Status field slug (required)') { |v| options[:status_field] = v }
+  opts.on('--content-field SLUG', 'Content field slug') { |v| options[:content_field] = v }
+  opts.on('--from-status VALUE', 'Source status value (required)') { |v| options[:from_status] = v }
+  opts.on('--to-status VALUE', 'Target status value (required)') { |v| options[:to_status] = v }
+  opts.on('--dry-run', 'Show what would be converted') { options[:dry_run] = true }
+  opts.on('--limit N', Integer, 'Limit records to process') { |v| options[:limit] = v }
+  opts.on('--batch-size N', Integer, 'Bulk update batch size') { |v| options[:batch_size] = v }
+  opts.on('--help', 'Show this help') do
+    puts opts
+    puts
+    puts 'Configuration file format (.conversion_config):'
+    puts '  TABLE_ID=your_table_id'
+    puts '  STATUS_FIELD=your_status_field_slug'
+    puts '  CONTENT_FIELD=description'
+    puts '  FROM_STATUS=ready_for_review'
+    puts '  TO_STATUS=complete'
+    puts '  BATCH_SIZE=25'
+    puts
+    puts 'See .conversion_config.example for a template'
+    exit
+  end
+end.parse!
+
+# Load config file if specified (or default location)
+config_file ||= '.conversion_config' if File.exist?('.conversion_config')
+if config_file
+  file_config = load_config_file(config_file)
+  # Config file values are defaults, CLI args override
+  options = file_config.merge(options.compact)
+  puts "Loaded configuration from: #{config_file}"
+end
+
+# Validate required environment variables
+unless ENV['SMARTSUITE_API_KEY'] && ENV['SMARTSUITE_ACCOUNT_ID']
+  warn 'Error: SMARTSUITE_API_KEY and SMARTSUITE_ACCOUNT_ID must be set'
+  exit 1
+end
+
+# Validate required options
+missing_params = []
+missing_params << 'table_id' unless options[:table_id]
+missing_params << 'status_field' unless options[:status_field]
+missing_params << 'from_status' unless options[:from_status]
+missing_params << 'to_status' unless options[:to_status]
+
+unless missing_params.empty?
+  warn "Error: Missing required parameters: #{missing_params.join(', ')}"
+  warn 'Use --help for usage information or create .conversion_config file'
+  warn 'See .conversion_config.example for template'
+  exit 1
+end
+
+# Initialize client
+client = SmartSuiteClient.new(
+  ENV.fetch('SMARTSUITE_API_KEY'),
+  ENV.fetch('SMARTSUITE_ACCOUNT_ID')
+)
+
+puts '=== SmartSuite Markdown to SmartDoc Batch Converter ==='
+puts "Table: #{options[:table_id]}"
+puts "Status: #{options[:from_status]} → #{options[:to_status]}"
+puts "Content field: #{options[:content_field]}"
+puts "Mode: #{options[:dry_run] ? 'DRY RUN' : 'LIVE'}"
+puts
+
+# Step 1: Get full records with content in single API call (efficient!)
+print "Fetching records with status '#{options[:from_status]}'... "
+filter = {
+  'operator' => 'and',
+  'fields' => [
+    {
+      'field' => options[:status_field],
+      'comparison' => 'is',
+      'value' => options[:from_status]
+    }
+  ]
+}
+
+# Fetch records with title + content field in ONE API call
+result = client.list_records(
+  options[:table_id],
+  options[:limit] || 1000, # High limit, will be capped by actual count
+  0,
+  filter: filter,
+  fields: ['title', options[:content_field]], # ID always included automatically
+  format: :json
+)
+
+records = result['items']
+total_count = result['total_count']
+filtered_count = result['count']
+
+puts "found #{filtered_count} records (#{total_count} total in table)"
+
+if records.empty?
+  puts 'No records to convert. Exiting.'
+  exit 0
+end
+
+# Apply limit if specified
+if options[:limit] && records.length > options[:limit]
+  puts "Limiting to first #{options[:limit]} records"
+  records = records.first(options[:limit])
+end
+
+# Show sample records
+puts "\nSample records to convert:"
+records.first(5).each do |record|
+  puts "  - #{record['id']}: #{record['title']}"
+end
+puts "  ... and #{records.length - 5} more" if records.length > 5
+puts
+
+# Step 2: Convert markdown to SmartDoc
+puts "\nConverting markdown to SmartDoc format..."
+converted_count = 0
+skipped_count = 0
+updates = []
+
+records.each_with_index do |record, index|
+  record_id = record['id']
+  title = record['title']
+  content = record[options[:content_field]]
+
+  # Skip if content is nil or already in SmartDoc format
+  if content.nil?
+    puts "  [#{index + 1}/#{records.length}] SKIP #{record_id}: No content"
+    skipped_count += 1
+    next
+  end
+
+  # Check if already SmartDoc format (has 'data' key)
+  if content.is_a?(Hash) && content.key?('data')
+    puts "  [#{index + 1}/#{records.length}] SKIP #{record_id}: Already SmartDoc format"
+    skipped_count += 1
+    next
+  end
+
+  # Extract markdown text
+  markdown_text = if content.is_a?(Hash)
+                    content['html'] || content['preview'] || ''
+                  else
+                    content.to_s
+                  end
+
+  if markdown_text.strip.empty?
+    puts "  [#{index + 1}/#{records.length}] SKIP #{record_id}: Empty content"
+    skipped_count += 1
+    next
+  end
+
+  # Convert to SmartDoc
+  begin
+    smartdoc = SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown_text)
+
+    updates << {
+      'id' => record_id,
+      options[:content_field] => smartdoc,
+      options[:status_field] => options[:to_status]
+    }
+
+    converted_count += 1
+    puts "  [#{index + 1}/#{records.length}] ✓ #{record_id}: #{title[0..60]}..."
+  rescue StandardError => e
+    warn "  [#{index + 1}/#{records.length}] ERROR #{record_id}: #{e.message}"
+    skipped_count += 1
+  end
+end
+
+puts "\nConversion summary:"
+puts "  Converted: #{converted_count}"
+puts "  Skipped: #{skipped_count}"
+puts "  Total: #{records.length}"
+
+# Step 4: Bulk update (in batches)
+if options[:dry_run]
+  puts "\nDRY RUN - No updates performed"
+  puts "\nSample update payload (first record):"
+  puts JSON.pretty_generate(updates.first) if updates.any?
+  exit 0
+end
+
+if updates.empty?
+  puts "\nNo records to update. Exiting."
+  exit 0
+end
+
+puts "\nUpdating #{updates.length} records in batches of #{options[:batch_size]}..."
+updates.each_slice(options[:batch_size]).with_index do |batch, batch_index|
+  print "  Batch #{batch_index + 1}/#{(updates.length.to_f / options[:batch_size]).ceil}... "
+  begin
+    client.bulk_update_records(options[:table_id], batch)
+    puts "✓ updated #{batch.length} records"
+  rescue StandardError => e
+    warn "ERROR: #{e.message}"
+  end
+end
+
+puts "\n✓ Conversion complete!"
+puts "  Updated #{updates.length} records"
+puts "  Status changed: #{options[:from_status]} → #{options[:to_status]}"
