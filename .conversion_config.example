@@ -21,5 +21,5 @@ FROM_STATUS=in_progress
 # Target status value (records to convert TO)
 TO_STATUS=complete
 
-# Batch size for bulk updates (default: 25)
+# Batch size for bulk updates (default: 25, max: 25 per SmartSuite API limit)
 BATCH_SIZE=25
