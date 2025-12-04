@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative '../filter_builder'
-require_relative '../date_transformer'
-require_relative 'base'
+require_relative "../filter_builder"
+require_relative "../date_transformer"
+require_relative "base"
 
 module SmartSuite
   module API
@@ -48,7 +48,7 @@ module SmartSuite
       #   list_records('tbl_123', 10, 0, fields: ['status'], format: :json)
       def list_records(table_id, limit = nil, offset = 0, filter: nil, sort: nil, fields: nil, hydrated: true,
                        format: :toon)
-        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!("table_id", table_id)
 
         # Handle nil values (when called via MCP with missing parameters)
         limit = 10 if limit.nil?
@@ -59,7 +59,7 @@ module SmartSuite
           error_msg = "ERROR: You must specify 'fields' parameter to control token usage.\n\n" \
                       "Example:\n  " \
                       "list_records(table_id, limit, offset, fields: ['status', 'priority'])\n\n" \
-                      'This ensures you only fetch the data you need.'
+                      "This ensures you only fetch the data you need."
           return error_msg
         end
 
@@ -84,7 +84,7 @@ module SmartSuite
         query = @cache.query(table_id)
 
         # Apply filters if provided
-        query = apply_filters_to_query(query, filter) if filter && filter['fields']&.any?
+        query = apply_filters_to_query(query, filter) if filter && filter["fields"]&.any?
 
         # Apply sorting if provided
         query = apply_sorting_to_query(query, sort) if sort.is_a?(Array) && sort.any?
@@ -102,9 +102,9 @@ module SmartSuite
 
         # Format results similar to API response
         response = {
-          'items' => results,
-          'total_count' => grand_total,
-          'filtered_count' => total_count
+          "items" => results,
+          "total_count" => grand_total,
+          "filtered_count" => total_count
         }
 
         # Apply filtering and formatting with counts
@@ -137,8 +137,8 @@ module SmartSuite
 
         # Apply all sort criteria in order
         sort.each do |sort_criterion|
-          field_slug = sort_criterion['field'] || sort_criterion[:field]
-          direction = sort_criterion['direction'] || sort_criterion[:direction] || 'ASC'
+          field_slug = sort_criterion["field"] || sort_criterion[:field]
+          direction = sort_criterion["direction"] || sort_criterion[:direction] || "ASC"
           query.order(field_slug, direction.upcase)
         end
 
@@ -185,15 +185,15 @@ module SmartSuite
       # @param filter [Hash] Filter criteria
       # @return [Hash] Sanitized filter
       def sanitize_filter_for_api(filter)
-        return filter unless filter.is_a?(Hash) && filter['fields']
+        return filter unless filter.is_a?(Hash) && filter["fields"]
 
         sanitized_filter = filter.dup
-        sanitized_filter['fields'] = filter['fields'].map do |field_filter|
+        sanitized_filter["fields"] = filter["fields"].map do |field_filter|
           sanitized_field = field_filter.dup
-          comparison = sanitized_field['comparison']
+          comparison = sanitized_field["comparison"]
 
           # For empty check operators, ensure value is null
-          sanitized_field['value'] = nil if %w[is_empty is_not_empty].include?(comparison)
+          sanitized_field["value"] = nil if %w[is_empty is_not_empty].include?(comparison)
 
           sanitized_field
         end
@@ -220,8 +220,8 @@ module SmartSuite
       #   get_record('tbl_123', 'rec_abc')
       #   get_record('tbl_123', 'rec_abc', format: :json)
       def get_record(table_id, record_id, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('record_id', record_id)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("record_id", record_id)
 
         record = nil
 
@@ -273,7 +273,7 @@ module SmartSuite
           # Check if parsed value is a SmartDoc structure
           if smartdoc_value?(parsed_value)
             # Extract only HTML content
-            parsed_value['html'] || parsed_value[:html] || ''
+            parsed_value["html"] || parsed_value[:html] || ""
           else
             value # Return original value if not SmartDoc
           end
@@ -298,8 +298,8 @@ module SmartSuite
         return false unless value.is_a?(Hash)
 
         # SmartDoc has both 'data' and 'html' keys
-        has_data = value.key?('data') || value.key?(:data)
-        has_html = value.key?('html') || value.key?(:html)
+        has_data = value.key?("data") || value.key?(:data)
+        has_html = value.key?("html") || value.key?(:html)
 
         has_data && has_html
       end
@@ -322,8 +322,8 @@ module SmartSuite
       #   create_record('tbl_123', {'title' => 'New Task'}, minimal_response: false)
       #   # => { id: "rec_123", title: "New Task", status: "Active", ... 50+ fields }
       def create_record(table_id, data, minimal_response: true, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('data', data, Hash)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("data", data, Hash)
 
         # Transform date fields to SmartSuite format (transparent date handling)
         transformed_data = DateTransformer.transform_dates(data)
@@ -336,9 +336,9 @@ module SmartSuite
 
           # Return minimal response (95% token reduction)
           build_minimal_response(
-            operation: 'create',
-            record_id: response['id'],
-            title: response['title'],
+            operation: "create",
+            record_id: response["id"],
+            title: response["title"],
             cached: @cache ? true : false
           )
         else
@@ -365,9 +365,9 @@ module SmartSuite
       #   update_record('tbl_123', 'rec_abc', {'status' => 'Completed'}, minimal_response: false)
       #   # => { id: "rec_abc", title: "Task", status: "Completed", ... 50+ fields }
       def update_record(table_id, record_id, data, minimal_response: true, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('record_id', record_id)
-        validate_required_parameter!('data', data, Hash)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("record_id", record_id)
+        validate_required_parameter!("data", data, Hash)
 
         # Transform date fields to SmartSuite format (transparent date handling)
         transformed_data = DateTransformer.transform_dates(data)
@@ -380,9 +380,9 @@ module SmartSuite
 
           # Return minimal response (95% token reduction)
           build_minimal_response(
-            operation: 'update',
-            record_id: response['id'],
-            title: response['title'],
+            operation: "update",
+            record_id: response["id"],
+            title: response["title"],
             cached: @cache ? true : false
           )
         else
@@ -408,8 +408,8 @@ module SmartSuite
       #   delete_record('tbl_123', 'rec_abc', minimal_response: false)
       #   # => { success: true, message: "Record deleted", ... }
       def delete_record(table_id, record_id, minimal_response: true, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('record_id', record_id)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("record_id", record_id)
 
         response = api_request(:delete, "/applications/#{table_id}/records/#{record_id}/")
 
@@ -419,7 +419,7 @@ module SmartSuite
 
           # Return minimal response (80% token reduction)
           build_minimal_response(
-            operation: 'delete',
+            operation: "delete",
             record_id: record_id,
             cached: false
           )
@@ -453,13 +453,13 @@ module SmartSuite
       # @example Full response (for backward compatibility)
       #   bulk_add_records('tbl_123', [...], minimal_response: false)
       def bulk_add_records(table_id, records, minimal_response: true, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('records', records, Array)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("records", records, Array)
 
         # Transform date fields in all records (transparent date handling)
         transformed_records = records.map { |record| DateTransformer.transform_dates(record) }
 
-        response = api_request(:post, "/applications/#{table_id}/records/bulk/", { 'items' => transformed_records })
+        response = api_request(:post, "/applications/#{table_id}/records/bulk/", { "items" => transformed_records })
 
         if minimal_response
           # Smart cache coordination: Cache all created records
@@ -469,9 +469,9 @@ module SmartSuite
           if response.is_a?(Array)
             response.map do |record|
               build_minimal_response(
-                operation: 'bulk_create',
-                record_id: record['id'],
-                title: record['title'],
+                operation: "bulk_create",
+                record_id: record["id"],
+                title: record["title"],
                 cached: @cache ? true : false
               )
             end
@@ -479,7 +479,7 @@ module SmartSuite
             response # Fallback if response format unexpected
           end
         else
-          format_array_response(response, format, 'records')
+          format_array_response(response, format, "records")
         end
       end
 
@@ -508,13 +508,13 @@ module SmartSuite
       # @example Full response (for backward compatibility)
       #   bulk_update_records('tbl_123', [...], minimal_response: false)
       def bulk_update_records(table_id, records, minimal_response: true, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('records', records, Array)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("records", records, Array)
 
         # Transform date fields in all records (transparent date handling)
         transformed_records = records.map { |record| DateTransformer.transform_dates(record) }
 
-        response = api_request(:patch, "/applications/#{table_id}/records/bulk/", { 'items' => transformed_records })
+        response = api_request(:patch, "/applications/#{table_id}/records/bulk/", { "items" => transformed_records })
 
         if minimal_response
           # Smart cache coordination: Update all records in cache
@@ -524,9 +524,9 @@ module SmartSuite
           if response.is_a?(Array)
             response.map do |record|
               build_minimal_response(
-                operation: 'bulk_update',
-                record_id: record['id'],
-                title: record['title'],
+                operation: "bulk_update",
+                record_id: record["id"],
+                title: record["title"],
                 cached: @cache ? true : false
               )
             end
@@ -534,7 +534,7 @@ module SmartSuite
             response # Fallback if response format unexpected
           end
         else
-          format_array_response(response, format, 'records')
+          format_array_response(response, format, "records")
         end
       end
 
@@ -558,10 +558,10 @@ module SmartSuite
       # @example Full response (for backward compatibility)
       #   bulk_delete_records('tbl_123', [...], minimal_response: false)
       def bulk_delete_records(table_id, record_ids, minimal_response: true, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('record_ids', record_ids, Array)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("record_ids", record_ids, Array)
 
-        response = api_request(:patch, "/applications/#{table_id}/records/bulk_delete/", { 'items' => record_ids })
+        response = api_request(:patch, "/applications/#{table_id}/records/bulk_delete/", { "items" => record_ids })
 
         if minimal_response
           # Smart cache coordination: Remove all deleted records from cache
@@ -569,11 +569,11 @@ module SmartSuite
 
           # Return minimal response (80% token reduction)
           {
-            'success' => true,
-            'deleted_count' => record_ids.length,
-            'operation' => 'bulk_delete',
-            'timestamp' => Time.now.utc.iso8601,
-            'cached' => false # Records removed from cache
+            "success" => true,
+            "deleted_count" => record_ids.length,
+            "operation" => "bulk_delete",
+            "timestamp" => Time.now.utc.iso8601,
+            "cached" => false # Records removed from cache
           }
         else
           format_single_response(response, format)
@@ -592,7 +592,7 @@ module SmartSuite
       #   get_file_url('handle_xyz')
       #   # => {"url" => "https://..."}
       def get_file_url(file_handle)
-        validate_required_parameter!('file_handle', file_handle)
+        validate_required_parameter!("file_handle", file_handle)
 
         api_request(:get, "/shared-files/#{file_handle}/url/")
       end
@@ -612,7 +612,7 @@ module SmartSuite
       #   list_deleted_records('sol_123', full_data: true)  # Returns all fields
       #   list_deleted_records('sol_123', format: :json)
       def list_deleted_records(solution_id, full_data: false, format: :toon)
-        validate_required_parameter!('solution_id', solution_id)
+        validate_required_parameter!("solution_id", solution_id)
 
         # Cache-first strategy
         if cache_enabled? && @cache
@@ -625,7 +625,7 @@ module SmartSuite
           end
 
           # Cache miss - fetch from API and cache everything
-          log_metric('→ Cache miss for deleted records, fetching from API')
+          log_metric("→ Cache miss for deleted records, fetching from API")
           response = fetch_deleted_records_from_api(solution_id)
 
           if response.is_a?(Array) && response.any?
@@ -647,7 +647,7 @@ module SmartSuite
         return response unless response.is_a?(Array)
 
         # Filter to just id and title if full_data is false
-        records = full_data ? response : response.map { |r| { 'id' => r['id'], 'title' => r['title'] } }
+        records = full_data ? response : response.map { |r| { "id" => r["id"], "title" => r["title"] } }
         format_deleted_records_output(records, format)
       end
 
@@ -659,7 +659,7 @@ module SmartSuite
       # @return [Array<Hash>, Hash] Array of deleted records or error response
       def fetch_deleted_records_from_api(solution_id)
         # Build endpoint with preview: false to get all data for caching
-        endpoint = build_endpoint('/deleted-records/', preview: false)
+        endpoint = build_endpoint("/deleted-records/", preview: false)
         body = { solution_id: solution_id }
         api_request(:post, endpoint, body)
       end
@@ -692,8 +692,8 @@ module SmartSuite
       # @example
       #   restore_deleted_record('tbl_123', 'rec_abc')
       def restore_deleted_record(table_id, record_id, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('record_id', record_id)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("record_id", record_id)
 
         response = api_request(:post, "/applications/#{table_id}/records/#{record_id}/restore/", {})
         format_single_response(response, format)
@@ -730,39 +730,39 @@ module SmartSuite
       #   - AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY (or IAM role)
       #   - AWS_REGION (optional, defaults to us-east-1)
       def attach_file(table_id, record_id, file_field_slug, file_urls)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('record_id', record_id)
-        validate_required_parameter!('file_field_slug', file_field_slug)
-        validate_required_parameter!('file_urls', file_urls, Array)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("record_id", record_id)
+        validate_required_parameter!("file_field_slug", file_field_slug)
+        validate_required_parameter!("file_urls", file_urls, Array)
 
         # Separate local files from URLs
         local_files, urls = partition_files_and_urls(file_urls)
 
         # Validate we have something to attach
-        raise ArgumentError, 'file_urls array is empty or contains no valid files/URLs' if local_files.empty? && urls.empty?
+        raise ArgumentError, "file_urls array is empty or contains no valid files/URLs" if local_files.empty? && urls.empty?
 
         results = []
 
         # Handle local files via SecureFileAttacher
         if local_files.any?
           result = attach_local_files(table_id, record_id, file_field_slug, local_files)
-          results << { 'type' => 'local', 'files' => local_files.map { |f| File.basename(f) }, 'result' => result }
+          results << { "type" => "local", "files" => local_files.map { |f| File.basename(f) }, "result" => result }
         end
 
         # Handle URLs directly via API
         if urls.any?
           result = attach_urls(table_id, record_id, file_field_slug, urls)
-          results << { 'type' => 'url', 'files' => urls, 'result' => result }
+          results << { "type" => "url", "files" => urls, "result" => result }
         end
 
         # Return combined status
         {
-          'success' => true,
-          'record_id' => record_id,
-          'attached_count' => local_files.length + urls.length,
-          'local_files' => local_files.length,
-          'url_files' => urls.length,
-          'details' => results
+          "success" => true,
+          "record_id" => record_id,
+          "attached_count" => local_files.length + urls.length,
+          "local_files" => local_files.length,
+          "url_files" => urls.length,
+          "details" => results
         }
       end
 
@@ -784,7 +784,7 @@ module SmartSuite
           end
         end
 
-        [local_files, urls]
+        [ local_files, urls ]
       end
 
       # Check if a string is a URL
@@ -792,7 +792,7 @@ module SmartSuite
       # @param str [String] string to check
       # @return [Boolean] true if string looks like a URL
       def url?(str)
-        str.start_with?('http://', 'https://')
+        str.start_with?("http://", "https://")
       end
 
       # Attach local files using SecureFileAttacher
@@ -803,9 +803,9 @@ module SmartSuite
       # @param local_files [Array<String>] local file paths
       # @return [Hash] API response
       def attach_local_files(table_id, record_id, field_slug, local_files)
-        bucket_name = ENV.fetch('SMARTSUITE_S3_BUCKET', nil)
-        aws_profile = ENV.fetch('SMARTSUITE_AWS_PROFILE', nil)
-        has_aws_env_creds = ENV.fetch('AWS_ACCESS_KEY_ID', nil) && ENV.fetch('AWS_SECRET_ACCESS_KEY', nil)
+        bucket_name = ENV.fetch("SMARTSUITE_S3_BUCKET", nil)
+        aws_profile = ENV.fetch("SMARTSUITE_AWS_PROFILE", nil)
+        has_aws_env_creds = ENV.fetch("AWS_ACCESS_KEY_ID", nil) && ENV.fetch("AWS_SECRET_ACCESS_KEY", nil)
 
         # Check for missing S3 bucket
         unless bucket_name
@@ -856,10 +856,10 @@ module SmartSuite
         end
 
         # Lazy-load SecureFileAttacher to avoid aws-sdk-s3 dependency when not needed
-        require_relative '../../secure_file_attacher'
+        require_relative "../../secure_file_attacher"
 
         # Build S3 options - use dedicated profile if specified
-        s3_options = { region: ENV.fetch('AWS_REGION', 'us-east-1') }
+        s3_options = { region: ENV.fetch("AWS_REGION", "us-east-1") }
         s3_options[:profile] = aws_profile if aws_profile
 
         attacher = SecureFileAttacher.new(
@@ -880,7 +880,7 @@ module SmartSuite
       # @return [Hash] API response
       def attach_urls(table_id, record_id, field_slug, urls)
         body = {
-          'id' => record_id,
+          "id" => record_id,
           field_slug => urls
         }
 
@@ -900,12 +900,12 @@ module SmartSuite
       # @api private
       def build_minimal_response(operation:, record_id:, title: nil, cached: true)
         {
-          'success' => true,
-          'id' => record_id,
-          'title' => title || record_id,
-          'operation' => operation,
-          'timestamp' => Time.now.utc.iso8601,
-          'cached' => cached
+          "success" => true,
+          "id" => record_id,
+          "title" => title || record_id,
+          "operation" => operation,
+          "timestamp" => Time.now.utc.iso8601,
+          "cached" => cached
         }
       end
     end

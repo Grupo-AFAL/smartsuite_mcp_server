@@ -5,8 +5,8 @@ class ApiCall < ApplicationRecord
 
   validates :tool_name, presence: true
 
-  scope :today, -> { where('created_at > ?', Time.current.beginning_of_day) }
-  scope :this_month, -> { where('created_at > ?', Time.current.beginning_of_month) }
+  scope :today, -> { where("created_at > ?", Time.current.beginning_of_day) }
+  scope :this_month, -> { where("created_at > ?", Time.current.beginning_of_month) }
   scope :cache_hits, -> { where(cache_hit: true) }
   scope :cache_misses, -> { where(cache_hit: false) }
 end

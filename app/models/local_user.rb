@@ -19,9 +19,9 @@ class LocalUser
   attr_reader :id, :name, :email, :smartsuite_api_key, :smartsuite_account_id
 
   def initialize(api_key:, account_id:, name: nil, email: nil)
-    @id = 'local'
-    @name = name || 'Local User'
-    @email = email || ENV.fetch('SMARTSUITE_USER_EMAIL', 'local@localhost')
+    @id = "local"
+    @name = name || "Local User"
+    @email = email || ENV.fetch("SMARTSUITE_USER_EMAIL", "local@localhost")
     @smartsuite_api_key = api_key
     @smartsuite_account_id = account_id
   end
@@ -31,19 +31,19 @@ class LocalUser
   # @return [LocalUser] configured from environment
   # @raise [RuntimeError] if required environment variables are missing
   def self.from_env
-    api_key = ENV.fetch('SMARTSUITE_API_KEY') do
-      raise 'SMARTSUITE_API_KEY environment variable is required in local mode'
+    api_key = ENV.fetch("SMARTSUITE_API_KEY") do
+      raise "SMARTSUITE_API_KEY environment variable is required in local mode"
     end
 
-    account_id = ENV.fetch('SMARTSUITE_ACCOUNT_ID') do
-      raise 'SMARTSUITE_ACCOUNT_ID environment variable is required in local mode'
+    account_id = ENV.fetch("SMARTSUITE_ACCOUNT_ID") do
+      raise "SMARTSUITE_ACCOUNT_ID environment variable is required in local mode"
     end
 
     new(
       api_key: api_key,
       account_id: account_id,
-      name: ENV.fetch('SMARTSUITE_USER_NAME', 'Local User'),
-      email: ENV.fetch('SMARTSUITE_USER_EMAIL', nil)
+      name: ENV.fetch("SMARTSUITE_USER_NAME", "Local User"),
+      email: ENV.fetch("SMARTSUITE_USER_EMAIL", nil)
     )
   end
 
@@ -51,6 +51,6 @@ class LocalUser
   #
   # @return [Boolean] true if required env vars are present
   def self.env_configured?
-    ENV['SMARTSUITE_API_KEY'] && ENV['SMARTSUITE_ACCOUNT_ID']
+    ENV["SMARTSUITE_API_KEY"] && ENV["SMARTSUITE_ACCOUNT_ID"]
   end
 end

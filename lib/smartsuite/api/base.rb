@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'uri'
+require "uri"
 
 module SmartSuite
   module API
@@ -116,7 +116,7 @@ module SmartSuite
             # Repeat key for each array element (e.g., fields=id&fields=name)
             value.map { |val| "#{key}=#{URI.encode_www_form_component(val.to_s)}" }
           else
-            ["#{key}=#{URI.encode_www_form_component(value.to_s)}"]
+            [ "#{key}=#{URI.encode_www_form_component(value.to_s)}" ]
           end
         end
 
@@ -172,7 +172,7 @@ module SmartSuite
       def build_collection_response(items, collection_name, **metadata)
         result = {
           collection_name.to_s => items,
-          'count' => items.size
+          "count" => items.size
         }
 
         # Merge metadata with string keys
@@ -194,7 +194,7 @@ module SmartSuite
       # @example
       #   response = api_request(:get, '/solutions/')
       #   items = extract_items_from_response(response)
-      def extract_items_from_response(response, items_key = 'items')
+      def extract_items_from_response(response, items_key = "items")
         return [] unless response.is_a?(Hash)
         return [] unless response[items_key].is_a?(Array)
 
@@ -208,7 +208,7 @@ module SmartSuite
       # @example
       #   format_timestamp(Time.now) #=> "2025-01-16 10:30:45.123"
       def format_timestamp(time = Time.now)
-        time.strftime('%Y-%m-%d %H:%M:%S.%L')
+        time.strftime("%Y-%m-%d %H:%M:%S.%L")
       end
 
       # Log cache hit with standardized format.
@@ -223,7 +223,7 @@ module SmartSuite
       def log_cache_hit(resource_type, count, cache_key = nil)
         details = { count: count }
         details[:key] = cache_key if cache_key
-        SmartSuite::Logger.cache('hit', resource_type, details)
+        SmartSuite::Logger.cache("hit", resource_type, details)
       end
 
       # Log cache miss with standardized format.
@@ -235,9 +235,9 @@ module SmartSuite
       #   log_cache_miss('solutions')
       #   log_cache_miss('tables', 'sol_abc123')
       def log_cache_miss(resource_type, cache_key = nil)
-        details = { status: 'fetching from API' }
+        details = { status: "fetching from API" }
         details[:key] = cache_key if cache_key
-        SmartSuite::Logger.cache('miss', resource_type, details)
+        SmartSuite::Logger.cache("miss", resource_type, details)
       end
 
       # Check cache and return cached data if available.
@@ -281,7 +281,7 @@ module SmartSuite
       # @return [Array] Items array
       # @example
       #   items = extract_items_safely(response)
-      def extract_items_safely(response, items_key = 'items')
+      def extract_items_safely(response, items_key = "items")
         response.is_a?(Array) ? response : extract_items_from_response(response, items_key)
       end
 
@@ -327,7 +327,7 @@ module SmartSuite
       def format_single_response(data, format)
         case format
         when :toon
-          require_relative '../formatters/toon_formatter'
+          require_relative "../formatters/toon_formatter"
           SmartSuite::Formatters::ToonFormatter.format(data)
         else # :json
           data
@@ -349,7 +349,7 @@ module SmartSuite
       def format_array_response(data, format, collection_name)
         case format
         when :toon
-          require_relative '../formatters/toon_formatter'
+          require_relative "../formatters/toon_formatter"
           wrapped = { collection_name.to_s => data }
           SmartSuite::Formatters::ToonFormatter.format(wrapped)
         else # :json - return raw array for backward compatibility
@@ -378,7 +378,7 @@ module SmartSuite
           endpoint = build_endpoint(base_path, limit: limit, offset: offset, hydrated: true)
           response = api_request(:post, endpoint, nil)
 
-          records = response['items'] || []
+          records = response["items"] || []
           break if records.empty?
 
           all_records.concat(records)

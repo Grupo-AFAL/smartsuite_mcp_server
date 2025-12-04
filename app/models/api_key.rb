@@ -7,7 +7,7 @@ class ApiKey < ApplicationRecord
 
   validates :token, uniqueness: true
 
-  scope :active, -> { where('expires_at IS NULL OR expires_at > ?', Time.current) }
+  scope :active, -> { where("expires_at IS NULL OR expires_at > ?", Time.current) }
 
   # Authenticate and update last_used_at
   def self.authenticate(token)

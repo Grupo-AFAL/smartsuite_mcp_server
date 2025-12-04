@@ -11,19 +11,19 @@ class User < ApplicationRecord
 
   # Usage statistics
   def api_calls_today
-    api_calls.where('created_at > ?', Time.current.beginning_of_day).count
+    api_calls.where("created_at > ?", Time.current.beginning_of_day).count
   end
 
   def api_calls_this_month
-    api_calls.where('created_at > ?', Time.current.beginning_of_month).count
+    api_calls.where("created_at > ?", Time.current.beginning_of_month).count
   end
 
   def api_calls_by_tool(since: 30.days.ago)
-    api_calls.where('created_at > ?', since).group(:tool_name).count
+    api_calls.where("created_at > ?", since).group(:tool_name).count
   end
 
   def cache_hit_rate(since: 30.days.ago)
-    calls = api_calls.where('created_at > ?', since)
+    calls = api_calls.where("created_at > ?", since)
     total = calls.count
     return 0.0 if total.zero?
 

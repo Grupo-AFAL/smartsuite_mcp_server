@@ -9,8 +9,8 @@ class CreateCacheRecords < ActiveRecord::Migration[8.0]
       t.datetime :expires_at, null: false
     end
 
-    add_index :cache_records, [:table_id, :record_id], unique: true
-    add_index :cache_records, [:table_id, :expires_at]
+    add_index :cache_records, [ :table_id, :record_id ], unique: true
+    add_index :cache_records, [ :table_id, :expires_at ]
     add_index :cache_records, :expires_at
 
     # GIN index for JSONB queries
