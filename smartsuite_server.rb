@@ -8,6 +8,7 @@ require_relative 'lib/smartsuite/logger'
 require_relative 'lib/smartsuite/mcp/tool_registry'
 require_relative 'lib/smartsuite/mcp/prompt_registry'
 require_relative 'lib/smartsuite/mcp/resource_registry'
+require_relative 'lib/smartsuite/formatters/markdown_to_smartdoc'
 
 # rubocop:disable Metrics/ClassLength
 class SmartSuiteServer
@@ -353,6 +354,8 @@ class SmartSuiteServer
                else
                  { 'error' => 'Cache is disabled' }
                end
+             when 'convert_markdown_to_smartdoc'
+               SmartSuite::Formatters::MarkdownToSmartdoc.convert(arguments['markdown'])
              else
                return {
                  'jsonrpc' => '2.0',

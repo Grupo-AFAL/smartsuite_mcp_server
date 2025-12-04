@@ -55,6 +55,59 @@ The server communicates via stdin/stdout using JSON-RPC protocol. Test by sendin
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ruby smartsuite_server.rb
 ```
 
+## Utility Scripts
+
+The project includes utility scripts in `bin/` for administrative and batch operations. These are **separate from the MCP server** and run directly via CLI.
+
+### Batch Markdown Converter (`bin/convert_markdown_sessions`)
+
+**Purpose:** Bulk convert multiple SmartSuite records from Markdown to SmartDoc format
+
+**Use Case:** Automated webhook data (e.g., Read.ai meeting transcripts) that arrives as Markdown but needs to be formatted as rich text in SmartSuite.
+
+**Key Features:**
+- Single API call to fetch filtered records (not n+1)
+- Local conversion (0 AI tokens)
+- Bulk updates in configurable batches
+- Dry-run mode for safety
+- Smart skipping (already converted, empty content, etc.)
+- External configuration via `.conversion_config` (gitignored for privacy)
+
+**Usage:**
+```bash
+# Basic usage (uses .conversion_config)
+bin/convert_markdown_sessions
+
+# Dry-run to preview changes
+bin/convert_markdown_sessions --dry-run
+
+# Test with limited records
+bin/convert_markdown_sessions --limit 10
+
+# Override config values
+bin/convert_markdown_sessions --from-status pending --to-status complete
+```
+
+**Configuration:**
+Create `.conversion_config` from `.conversion_config.example`:
+```bash
+cp .conversion_config.example .conversion_config
+# Edit with your table IDs, field slugs, and status values
+```
+
+**Documentation:** See `docs/guides/markdown-batch-conversion.md`
+
+### When to Use Utility Scripts vs MCP Tools
+
+| Scenario | Use |
+|----------|-----|
+| Bulk operation (50+ records) | Utility script |
+| Automated/scheduled task | Utility script |
+| Data migration/transformation | Utility script |
+| Single record operation | MCP tool (via AI) |
+| Exploratory analysis | MCP tool (via AI) |
+| AI-guided workflow | MCP tool (via AI) |
+
 ## Development Workflow
 
 ### Starting a New Feature
@@ -160,7 +213,7 @@ The codebase follows a modular architecture with clear separation of concerns ac
 ### 2. MCP Protocol Layer (`lib/smartsuite/mcp/`)
 Handles MCP protocol responses and schemas:
 
-- **ToolRegistry** (`tool_registry.rb`, 633 lines): All 26 tool schemas organized by category
+- **ToolRegistry** (`tool_registry.rb`): All 35 tool schemas organized by category
 - **PromptRegistry** (`prompt_registry.rb`, 447 lines): 8 prompt templates covering all major filter patterns
 - **ResourceRegistry** (`resource_registry.rb`, 15 lines): Resource listing (currently empty)
 
@@ -181,10 +234,11 @@ Handles SmartSuite API communication:
 - 30 lines vs original 708 lines (96% reduction)
 
 ### 4. Formatters Layer (`lib/smartsuite/formatters/`)
-Implements token optimization:
+Implements token optimization and format conversion:
 
 - **ResponseFormatter** (`response_formatter.rb`): Response filtering, supports multiple output formats (no value truncation per user request)
 - **ToonFormatter** (`toon_formatter.rb`): TOON (Token-Oriented Object Notation) encoding for maximum token savings (~50-60% vs JSON)
+- **MarkdownToSmartdoc** (`markdown_to_smartdoc.rb`): Converts Markdown text to SmartSuite's SmartDoc format (rich text fields)
 
 ### 5. Cache Layer (`lib/smartsuite/cache/`)
 SQLite-based persistent caching for SmartSuite data (v1.7+: modular architecture):
@@ -323,7 +377,7 @@ The SmartSuite API requires specific parameter placement:
 The server implements:
 - `initialize`: MCP handshake and capability negotiation
 - `tools/list`: List all available SmartSuite tools
-- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_solutions_by_owner, list_tables, get_table, create_table, list_records, get_record, create_record, update_record, delete_record, bulk_add_records, bulk_update_records, bulk_delete_records, attach_file, get_file_url, list_deleted_records, restore_deleted_record, add_field, bulk_add_fields, update_field, delete_field, list_members, search_member, list_teams, get_team, list_comments, add_comment, get_view_records, create_view, get_api_stats, reset_api_stats, get_cache_status, refresh_cache)
+- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_solutions_by_owner, list_tables, get_table, create_table, list_records, get_record, create_record, update_record, delete_record, bulk_add_records, bulk_update_records, bulk_delete_records, attach_file, get_file_url, list_deleted_records, restore_deleted_record, add_field, bulk_add_fields, update_field, delete_field, list_members, search_member, list_teams, get_team, list_comments, add_comment, get_view_records, create_view, get_api_stats, reset_api_stats, get_cache_status, refresh_cache, convert_markdown_to_smartdoc)
 - `prompts/list`: List example prompts for filters
 - `prompts/get`: Get specific prompt templates
 - `resources/list`: List available resources (empty)
@@ -655,6 +709,101 @@ Comments use SmartSuite's rich text format (TipTap/ProseMirror). Plain text is a
 **Important Notes:**
 - Endpoint paths must NOT include `/api/v1/` prefix as HttpClient already prepends the base URL
 - The API expects query parameter named `record`, not `record_id` (though the MCP tool parameter can use any name)
+
+### SmartDoc Format (Rich Text Fields)
+
+SmartSuite rich text fields (`richtextareafield`) use **TipTap/ProseMirror format but with snake_case type names** instead of the standard camelCase.
+
+**CRITICAL: Use snake_case for all type names:**
+
+| Standard TipTap (camelCase) | SmartSuite (snake_case) |
+|-----------------------------|-------------------------|
+| `bulletList`                | `bullet_list`           |
+| `orderedList`               | `ordered_list`          |
+| `listItem`                  | `list_item`             |
+| `checkList`                 | `check_list`            |
+| `checkListItem`             | `check_list_item`       |
+| `tableRow`                  | `table_row`             |
+| `tableCell`                 | `table_cell`            |
+| `tableHeader`               | `table_header`          |
+| `codeBlock`                 | `code_block`            |
+| `hardBreak`                 | `hard_break`            |
+| `horizontalRule`            | `horizontal_rule`       |
+
+**Types that remain the same:** `doc`, `paragraph`, `heading`, `text`, `table`, `image`, `mention`, `callout`, `attachment`
+
+**Marks (inline formatting):** `strong` (bold), `em` (italic), `underline`, `strikethrough`, `link`, `color`, `highlight`
+
+**Basic structure:**
+```json
+{
+  "data": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {"level": 2},
+        "content": [{"type": "text", "text": "Title"}]
+      },
+      {
+        "type": "bullet_list",
+        "content": [
+          {
+            "type": "list_item",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [{"type": "text", "text": "Item 1"}]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+For complete examples including tables, code blocks, callouts, mentions, and more, see `docs/smartdoc_examples.md`.
+
+### Markdown to SmartDoc Conversion
+
+The server provides a `convert_markdown_to_smartdoc` tool that converts Markdown text to SmartDoc format.
+
+**Supported Markdown Features:**
+- Headings: `# H1`, `## H2`, `### H3`
+- Bold: `**text**` or `__text__`
+- Italic: `*text*` or `_text_`
+- Bullet lists: `- item` or `* item`
+- Tables: `| col1 | col2 |`
+
+**Usage Pattern for Batch Updates (optimized for API efficiency):**
+
+1. Fetch records with markdown content:
+
+    ```ruby
+    records = list_records(table_id, 100, 0,
+      filter: { operator: 'and', fields: [{ field: 'status', comparison: 'is', value: 'pending' }] },
+      fields: ['id', 'description']
+    )
+    ```
+
+1. Convert markdown fields and prepare update batch:
+
+    ```ruby
+    updates = records.map do |record|
+      smartdoc = convert_markdown_to_smartdoc(record['description'])
+      { 'id' => record['id'], 'description' => smartdoc }
+    end
+    ```
+
+1. Bulk update with converted SmartDoc (single API call):
+
+    ```ruby
+    bulk_update_records(table_id, updates)
+    ```
+
+**Implementation:** `SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown_string)`
 
 ## Logging and Metrics
 

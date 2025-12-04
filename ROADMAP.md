@@ -21,6 +21,7 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 | v1.8    | Developer Experience | FilterBuilder, API::Base, 97.47% test coverage, comprehensive YARD docs                                 |
 | v1.9    | Extended Operations  | Bulk ops, file attachment/URLs, deleted records, SecureFileAttacher helper                              |
 | v2.0    | Token Optimization   | TOON format (50-60% savings), unified logging, UTC→local time, transparent date input, minimal responses |
+| v2.0.1  | Utility Scripts      | Batch Markdown→SmartDoc converter, external config pattern, comprehensive Markdown support               |
 
 ---
 

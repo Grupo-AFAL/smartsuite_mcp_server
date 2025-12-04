@@ -330,7 +330,8 @@ Date fields are automatically formatted. Just use simple strings:
 ```
 
 **Rich Text Fields (SmartDoc):**
-For rich text fields (richtextareafield), use SmartDoc format. See docs/smartdoc_examples.md.
+For rich text fields (richtextareafield), use SmartDoc format (TipTap/ProseMirror with **snake_case** type names).
+- **CRITICAL:** Use snake_case: `bullet_list`, `list_item`, `table_row`, `table_cell`, `table_header`, `ordered_list`, `check_list`, `code_block`, `hard_break`
 - Bold: `{"type": "strong"}` mark
 - Italic: `{"type": "em"}` mark
 - Structure: `{"data": {"type": "doc", "content": [...]}}`',
@@ -340,7 +341,7 @@ For rich text fields (richtextareafield), use SmartDoc format. See docs/smartdoc
               'table_id' => SCHEMA_TABLE_ID,
               'data' => {
                 'type' => 'object',
-                'description' => 'The record data as key-value pairs (field_slug: value). Date fields accept simple strings like "2025-06-20" (date only) or "2025-06-20T14:30:00Z" (with time). For rich text fields, use SmartDoc format.'
+                'description' => 'The record data as key-value pairs (field_slug: value). Date fields accept simple strings like "2025-06-20" (date only) or "2025-06-20T14:30:00Z" (with time). For rich text fields, use SmartDoc format (TipTap/ProseMirror with snake_case types).'
               },
               'minimal_response' => {
                 'type' => 'boolean',
@@ -370,7 +371,8 @@ Date fields are automatically formatted. Just use simple strings:
 ```
 
 **Rich Text Fields (SmartDoc):**
-For rich text fields (richtextareafield), use SmartDoc format. See docs/smartdoc_examples.md.
+For rich text fields (richtextareafield), use SmartDoc format (TipTap/ProseMirror with **snake_case** type names).
+- **CRITICAL:** Use snake_case: `bullet_list`, `list_item`, `table_row`, `table_cell`, `table_header`, `ordered_list`, `check_list`, `code_block`, `hard_break`
 - Bold: `{"type": "strong"}` mark
 - Italic: `{"type": "em"}` mark
 - Structure: `{"data": {"type": "doc", "content": [...]}}`',
@@ -381,7 +383,7 @@ For rich text fields (richtextareafield), use SmartDoc format. See docs/smartdoc
               'record_id' => SCHEMA_RECORD_ID,
               'data' => {
                 'type' => 'object',
-                'description' => 'The record data to update as key-value pairs (field_slug: value). Date fields accept simple strings like "2025-06-20" (date only) or "2025-06-20T14:30:00Z" (with time). For rich text fields, use SmartDoc format.'
+                'description' => 'The record data to update as key-value pairs (field_slug: value). Date fields accept simple strings like "2025-06-20" (date only) or "2025-06-20T14:30:00Z" (with time). For rich text fields, use SmartDoc format (TipTap/ProseMirror with snake_case types).'
               },
               'minimal_response' => {
                 'type' => 'boolean',
@@ -919,9 +921,46 @@ See `add_field` tool description for complete example.',
         }
       ].freeze
 
+      # Utility tools for data transformation
+      # Includes: convert_markdown_to_smartdoc
+      UTILITY_TOOLS = [
+        {
+          'name' => 'convert_markdown_to_smartdoc',
+          'description' => 'Convert Markdown text to SmartSuite\'s SmartDoc format (rich text). Use this to prepare markdown content before creating/updating records with rich text fields. Returns a SmartDoc structure ready to be used as a field value.
+
+**Supported Markdown Features:**
+- Headings: `# H1`, `## H2`, `### H3`
+- Bold: `**text**` or `__text__`
+- Italic: `*text*` or `_text_`
+- Bullet lists: `- item` or `* item`
+- Tables: `| col1 | col2 |`
+
+**Usage Pattern for Batch Updates:**
+1. Fetch records with markdown content
+2. Call this tool to convert each markdown field
+3. Use `bulk_update_records` with converted SmartDoc values
+
+**Example:**
+```
+Input: "## Summary\n- Point one\n- Point two"
+Output: {"data": {"type": "doc", "content": [...]}}
+```',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'markdown' => {
+                'type' => 'string',
+                'description' => 'The Markdown text to convert. Can include HTML wrapper from SmartSuite (will be stripped automatically).'
+              }
+            },
+            'required' => ['markdown']
+          }
+        }
+      ].freeze
+
       # All tools combined into a single array for MCP protocol responses
-      # Total: 28 tools across 8 categories (4 workspace, 3 table, 11 record, 4 field, 4 member, 2 comment, 2 view, 5 stats)
-      ALL_TOOLS = (WORKSPACE_TOOLS + TABLE_TOOLS + RECORD_TOOLS + FIELD_TOOLS + MEMBER_TOOLS + COMMENT_TOOLS + VIEW_TOOLS + STATS_TOOLS).freeze
+      # Total: 35 tools across 9 categories (4 workspace, 3 table, 12 record, 4 field, 4 member, 2 comment, 2 view, 4 stats, 1 utility)
+      ALL_TOOLS = (WORKSPACE_TOOLS + TABLE_TOOLS + RECORD_TOOLS + FIELD_TOOLS + MEMBER_TOOLS + COMMENT_TOOLS + VIEW_TOOLS + STATS_TOOLS + UTILITY_TOOLS).freeze
 
       # Generates a JSON-RPC 2.0 response for the tools/list MCP method.
       #
