@@ -84,28 +84,24 @@ Use the `convert_markdown_to_smartdoc` MCP tool when Claude needs to:
 
 ### Usage Pattern
 
-```javascript
-// Call the MCP tool
-const smartdoc = await convert_markdown_to_smartdoc({
-  markdown: "## Summary\n- Point one\n- Point two"
-});
-
-// Use in record creation
-await create_record(table_id, {
-  description: smartdoc
-});
-```
-
-### Via Ruby API
+The MCP tool is called by Claude (via MCP protocol), but the underlying implementation is Ruby:
 
 ```ruby
+# Direct Ruby API usage
 smartdoc = SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown_text)
+
+# Use in record creation
+client.create_record(table_id, {
+  'description' => smartdoc
+})
 
 # Use in record update
 client.update_record(table_id, record_id, {
   'description' => smartdoc
 })
 ```
+
+When Claude uses the MCP tool, it sends a JSON-RPC request that invokes this Ruby code behind the scenes.
 
 ### Example
 
