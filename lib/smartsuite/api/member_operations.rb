@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative 'base'
-require_relative '../formatters/toon_formatter'
+require_relative "base"
+require_relative "../formatters/toon_formatter"
 
 module SmartSuite
   module API
@@ -69,10 +69,10 @@ module SmartSuite
       #   search_member('John', include_inactive: true)
       #   search_member('John', format: :json)
       def search_member(query, include_inactive: false, format: :toon)
-        validate_required_parameter!('query', query)
+        validate_required_parameter!("query", query)
 
         # Try cache first with query filtering
-        cached_members = with_cache_check('members', "query:#{query}") do
+        cached_members = with_cache_check("members", "query:#{query}") do
           @cache.get_cached_members(query: query, include_inactive: include_inactive)
         end
         if cached_members
@@ -131,7 +131,7 @@ module SmartSuite
       #   get_team('team_abc')
       #   get_team('team_abc', format: :json)
       def get_team(team_id, format: :toon)
-        validate_required_parameter!('team_id', team_id)
+        validate_required_parameter!("team_id", team_id)
 
         team = fetch_team_by_id(team_id)
         return nil unless team
@@ -151,7 +151,7 @@ module SmartSuite
       # @return [String, Hash] Formatted members
       def list_all_members(limit, offset, include_inactive: false, format: :toon)
         # Try cache first if enabled
-        cached_members = with_cache_check('members') do
+        cached_members = with_cache_check("members") do
           @cache.get_cached_members(include_inactive: include_inactive)
         end
         if cached_members
@@ -185,12 +185,12 @@ module SmartSuite
         solution_member_ids = fetch_solution_member_ids(solution_id)
 
         if solution_member_ids.empty?
-          log_metric('⚠️  Solution has no members')
+          log_metric("⚠️  Solution has no members")
           return format_members_output([], format, total_count: 0, filtered_by_solution: solution_id)
         end
 
         # Try cache first if enabled
-        all_members = with_cache_check('members') do
+        all_members = with_cache_check("members") do
           @cache.get_cached_members(include_inactive: include_inactive)
         end
 
@@ -204,7 +204,7 @@ module SmartSuite
         end
 
         # Filter to only members in the solution
-        filtered_members = all_members.select { |member| solution_member_ids.include?(member['id']) }
+        filtered_members = all_members.select { |member| solution_member_ids.include?(member["id"]) }
 
         format_members_output(filtered_members, format,
                               total_count: filtered_members.size, filtered_by_solution: solution_id)
@@ -214,14 +214,14 @@ module SmartSuite
       #
       # @return [Array<Hash>, Hash] Formatted members array or error response
       def fetch_all_members_from_api
-        endpoint = build_endpoint('/members/list/',
+        endpoint = build_endpoint("/members/list/",
                                   limit: Base::Pagination::FETCH_ALL_LIMIT,
                                   offset: 0)
 
         response = api_request(:post, endpoint, nil)
 
-        if response.is_a?(Hash) && response['items'].is_a?(Array)
-          members = format_member_list(response['items'])
+        if response.is_a?(Hash) && response["items"].is_a?(Array)
+          members = format_member_list(response["items"])
 
           # Cache the formatted members if cache enabled
           if cache_enabled?
@@ -241,17 +241,17 @@ module SmartSuite
       # @return [Array<Hash>] Array of team objects with full data
       def fetch_teams_with_cache
         # Try cache first if enabled
-        cached_teams = with_cache_check('teams') { @cache.get_cached_teams }
+        cached_teams = with_cache_check("teams") { @cache.get_cached_teams }
         return cached_teams if cached_teams
 
         # Fetch from API
-        endpoint = build_endpoint('/teams/list/',
+        endpoint = build_endpoint("/teams/list/",
                                   limit: Base::Pagination::FETCH_ALL_LIMIT,
                                   offset: 0)
         response = api_request(:post, endpoint, nil)
 
         # Handle both array response and hash with 'items' key
-        teams = response.is_a?(Hash) && response['items'] ? response['items'] : response
+        teams = response.is_a?(Hash) && response["items"] ? response["items"] : response
 
         # Cache teams if cache enabled
         if teams.is_a?(Array) && cache_enabled?
@@ -277,7 +277,7 @@ module SmartSuite
         # Fetch all teams (which will cache them) and find the specific one
         log_metric("→ Fetching team from teams list: #{team_id}")
         teams = fetch_teams_with_cache
-        teams&.find { |t| t['id'] == team_id }
+        teams&.find { |t| t["id"] == team_id }
       end
 
       # Enriches a team with member details instead of just IDs.
@@ -285,38 +285,38 @@ module SmartSuite
       # @param team [Hash] Team object with member IDs array
       # @return [Hash] Team with enriched member details
       def enrich_team_with_members(team)
-        return team unless team['members'].is_a?(Array)
+        return team unless team["members"].is_a?(Array)
 
-        member_ids = team['members']
+        member_ids = team["members"]
 
         # Get all members from cache
         all_members = @cache.get_cached_members(include_inactive: true) || []
 
         # Build a lookup hash for quick access
-        members_by_id = all_members.each_with_object({}) { |m, h| h[m['id']] = m }
+        members_by_id = all_members.each_with_object({}) { |m, h| h[m["id"]] = m }
 
         # Enrich member IDs with details
         enriched_members = member_ids.map do |member_id|
           member = members_by_id[member_id]
           if member
             {
-              'id' => member['id'],
-              'email' => member['email'],
-              'full_name' => member['full_name'],
-              'first_name' => member['first_name'],
-              'last_name' => member['last_name']
+              "id" => member["id"],
+              "email" => member["email"],
+              "full_name" => member["full_name"],
+              "first_name" => member["first_name"],
+              "last_name" => member["last_name"]
             }.compact
           else
-            { 'id' => member_id }
+            { "id" => member_id }
           end
         end
 
         {
-          'id' => team['id'],
-          'name' => team['name'],
-          'description' => team['description'],
-          'member_count' => member_ids.size,
-          'members' => enriched_members
+          "id" => team["id"],
+          "name" => team["name"],
+          "description" => team["description"],
+          "member_count" => member_ids.size,
+          "members" => enriched_members
         }
       end
 
@@ -328,25 +328,25 @@ module SmartSuite
       def fetch_solution_member_ids(solution_id)
         # Get solution details to find member IDs
         solution = get_solution(solution_id)
-        return [] unless solution['permissions']
+        return [] unless solution["permissions"]
 
         member_ids = []
 
         # Add members from permissions.members (array of {access, entity})
-        member_ids += solution['permissions']['members'].map { |m| m['entity'] } if solution['permissions']['members']
+        member_ids += solution["permissions"]["members"].map { |m| m["entity"] } if solution["permissions"]["members"]
 
         # Add members from permissions.owners (array of IDs)
-        member_ids += solution['permissions']['owners'] if solution['permissions']['owners']
+        member_ids += solution["permissions"]["owners"] if solution["permissions"]["owners"]
 
         # Add members from teams
-        if solution['permissions']['teams']
-          team_ids = solution['permissions']['teams'].map { |t| t['entity'] }
+        if solution["permissions"]["teams"]
+          team_ids = solution["permissions"]["teams"].map { |t| t["entity"] }
           log_metric("→ Found #{team_ids.size} team(s), fetching team members...")
 
           team_ids.each do |team_id|
             team = fetch_team_by_id(team_id)
-            if team && team['members'].is_a?(Array)
-              member_ids += team['members']
+            if team && team["members"].is_a?(Array)
+              member_ids += team["members"]
               log_metric("  Team #{team['name'] || team_id}: added #{team['members'].size} member(s)")
             end
           rescue StandardError => e
@@ -364,33 +364,33 @@ module SmartSuite
       def format_member_list(items)
         items.map do |member|
           # Handle email - can be string or array
-          email = member['email'].is_a?(Array) ? member['email'].first : member['email']
+          email = member["email"].is_a?(Array) ? member["email"].first : member["email"]
 
           # Handle status - API returns hash {"value": "1", "updated_on": "..."} or plain value
-          status = member['status'].is_a?(Hash) ? member['status']['value'] : member['status']
+          status = member["status"].is_a?(Hash) ? member["status"]["value"] : member["status"]
 
           # Handle deleted_date - API returns {"date": "2024-..." or null}
-          deleted_date = member['deleted_date'] && member['deleted_date']['date']
+          deleted_date = member["deleted_date"] && member["deleted_date"]["date"]
 
           result = {
-            'id' => member['id'],
-            'email' => email,
-            'role' => member['role'],
-            'status' => status,
-            'deleted_date' => deleted_date
+            "id" => member["id"],
+            "email" => email,
+            "role" => member["role"],
+            "status" => status,
+            "deleted_date" => deleted_date
           }
 
           # Add name fields if available
-          if member['full_name']
-            result['first_name'] = member['full_name']['first_name']
-            result['last_name'] = member['full_name']['last_name']
-            result['full_name'] = member['full_name']['sys_root']
+          if member["full_name"]
+            result["first_name"] = member["full_name"]["first_name"]
+            result["last_name"] = member["full_name"]["last_name"]
+            result["full_name"] = member["full_name"]["sys_root"]
           end
 
           # Add other useful fields
-          result['job_title'] = member['job_title'] if member['job_title']
-          result['department'] = member['department'] if member['department']
-          result['timezone'] = member['timezone'] if member['timezone']
+          result["job_title"] = member["job_title"] if member["job_title"]
+          result["department"] = member["department"] if member["department"]
+          result["timezone"] = member["timezone"] if member["timezone"]
 
           result.compact # Remove nil values
         end
@@ -405,17 +405,17 @@ module SmartSuite
       def match_member?(member, query_lower)
         # Search in email (handle both string and array)
         email_match = false
-        if member['email']
-          email = member['email'].is_a?(Array) ? member['email'].first : member['email']
+        if member["email"]
+          email = member["email"].is_a?(Array) ? member["email"].first : member["email"]
           email_match = email && email.to_s.downcase.include?(query_lower)
         end
 
         # Search in name fields
         name_match = false
-        if member['full_name']
-          first_name = member['full_name']['first_name'].to_s
-          last_name = member['full_name']['last_name'].to_s
-          full_name = member['full_name']['sys_root'].to_s
+        if member["full_name"]
+          first_name = member["full_name"]["first_name"].to_s
+          last_name = member["full_name"]["last_name"].to_s
+          full_name = member["full_name"]["sys_root"].to_s
 
           name_match = first_name.downcase.include?(query_lower) ||
                        last_name.downcase.include?(query_lower) ||
@@ -436,16 +436,16 @@ module SmartSuite
           scores = []
 
           # Check full_name
-          scores << FuzzyMatcher.match_score(member['full_name'].to_s, query) if member['full_name']
+          scores << FuzzyMatcher.match_score(member["full_name"].to_s, query) if member["full_name"]
 
           # Check first_name
-          scores << FuzzyMatcher.match_score(member['first_name'].to_s, query) if member['first_name']
+          scores << FuzzyMatcher.match_score(member["first_name"].to_s, query) if member["first_name"]
 
           # Check last_name
-          scores << FuzzyMatcher.match_score(member['last_name'].to_s, query) if member['last_name']
+          scores << FuzzyMatcher.match_score(member["last_name"].to_s, query) if member["last_name"]
 
           # Check email (but weight it slightly lower)
-          scores << (FuzzyMatcher.match_score(member['email'].to_s, query) * 0.9) if member['email']
+          scores << (FuzzyMatcher.match_score(member["email"].to_s, query) * 0.9) if member["email"]
 
           # Return negative for descending sort (highest score first)
           -(scores.max || 0)
@@ -460,13 +460,13 @@ module SmartSuite
       # @return [Boolean] True if member matches query
       def match_member_formatted?(member, query)
         # Search in email (substring match for email - no fuzzy for technical strings)
-        email = member['email']
+        email = member["email"]
         email_match = email && email.to_s.downcase.include?(query.downcase)
 
         # Search in name fields using FuzzyMatcher for consistency with cache path
-        first_name = member['first_name']
-        last_name = member['last_name']
-        full_name = member['full_name']
+        first_name = member["first_name"]
+        last_name = member["last_name"]
+        full_name = member["full_name"]
 
         name_match = FuzzyMatcher.match?(full_name.to_s, query) ||
                      FuzzyMatcher.match?(first_name.to_s, query) ||
@@ -483,7 +483,7 @@ module SmartSuite
       # @return [Boolean] True if member is not deleted
       def member_active?(member)
         # Check deleted_date - if set, member is soft-deleted
-        deleted_date = member['deleted_date']
+        deleted_date = member["deleted_date"]
         deleted_date.nil? || (deleted_date.respond_to?(:empty?) && deleted_date.empty?)
       end
 
@@ -514,14 +514,14 @@ module SmartSuite
         return teams unless teams.is_a?(Array)
 
         formatted_teams = teams.map do |team|
-          members = team['members']
+          members = team["members"]
           member_count = members.is_a?(Array) ? members.size : (members || 0)
 
           {
-            'id' => team['id'],
-            'name' => team['name'],
-            'description' => team['description'],
-            'member_count' => member_count
+            "id" => team["id"],
+            "name" => team["name"],
+            "description" => team["description"],
+            "member_count" => member_count
           }
         end
 
@@ -538,7 +538,7 @@ module SmartSuite
         when :toon
           SmartSuite::Formatters::ToonFormatter.format(teams)
         else # :json
-          { 'teams' => teams, 'count' => teams.size }
+          { "teams" => teams, "count" => teams.size }
         end
       end
 

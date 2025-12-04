@@ -22,10 +22,10 @@ module SmartSuite
       #   # => {"jsonrpc" => "2.0", "id" => 4, "result" => {"resources" => []}}
       def self.resources_list(request)
         {
-          'jsonrpc' => '2.0',
-          'id' => request['id'],
-          'result' => {
-            'resources' => []
+          "jsonrpc" => "2.0",
+          "id" => request["id"],
+          "result" => {
+            "resources" => []
           }
         }
       end

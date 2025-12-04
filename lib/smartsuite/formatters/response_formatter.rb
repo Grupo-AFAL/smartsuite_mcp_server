@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative 'toon_formatter'
-require_relative '../date_formatter'
+require_relative "toon_formatter"
+require_relative "../date_formatter"
 
 module SmartSuite
   # Response formatting module
@@ -33,40 +33,40 @@ module SmartSuite
       def filter_field_structure(field)
         # Extract only essential field information
         filtered = {
-          'slug' => field['slug'],
-          'label' => field['label'],
-          'field_type' => field['field_type']
+          "slug" => field["slug"],
+          "label" => field["label"],
+          "field_type" => field["field_type"]
         }
 
         # Add warning for fields that typically contain large content
-        if large_content_field?(field['field_type'])
-          filtered['large_content_warning'] = 'This field may contain extensive data (10K+ tokens). Request only when needed.'
+        if large_content_field?(field["field_type"])
+          filtered["large_content_warning"] = "This field may contain extensive data (10K+ tokens). Request only when needed."
         end
 
         # Only include essential params if params exist
-        return filtered unless field['params']
+        return filtered unless field["params"]
 
         params = {}
 
         # Always include these if present
-        params['primary'] = true if field['params']['primary']
-        params['required'] = field['params']['required'] unless field['params']['required'].nil?
-        params['unique'] = field['params']['unique'] unless field['params']['unique'].nil?
+        params["primary"] = true if field["params"]["primary"]
+        params["required"] = field["params"]["required"] unless field["params"]["required"].nil?
+        params["unique"] = field["params"]["unique"] unless field["params"]["unique"].nil?
 
         # For choice fields (status, single select, multi select), strip down choices to only label and value
-        if field['params']['choices']
-          params['choices'] = field['params']['choices'].map do |choice|
-            { 'label' => choice['label'], 'value' => choice['value'] }
+        if field["params"]["choices"]
+          params["choices"] = field["params"]["choices"].map do |choice|
+            { "label" => choice["label"], "value" => choice["value"] }
           end
         end
 
         # For linked record fields, include target table and cardinality
-        if field['params']['linked_application']
-          params['linked_application'] = field['params']['linked_application']
-          params['entries_allowed'] = field['params']['entries_allowed'] if field['params']['entries_allowed']
+        if field["params"]["linked_application"]
+          params["linked_application"] = field["params"]["linked_application"]
+          params["entries_allowed"] = field["params"]["entries_allowed"] if field["params"]["entries_allowed"]
         end
 
-        filtered['params'] = params unless params.empty?
+        filtered["params"] = params unless params.empty?
         filtered
       end
 
@@ -104,11 +104,11 @@ module SmartSuite
       # @param hydrated [Boolean] Whether response includes hydrated values (informational only)
       # @return [String, Hash] Formatted string (toon) or filtered JSON hash
       def filter_records_response(response, fields, toon: false, hydrated: true)
-        return response unless response.is_a?(Hash) && response['items'].is_a?(Array)
+        return response unless response.is_a?(Hash) && response["items"].is_a?(Array)
 
         original_tokens = estimate_tokens(JSON.generate(response))
-        filtered_items = filter_items(response['items'], fields)
-        filtered_count = response['filtered_count'] || response['total_count']
+        filtered_items = filter_items(response["items"], fields)
+        filtered_count = response["filtered_count"] || response["total_count"]
 
         if toon
           format_as_toon_response(filtered_items, response, original_tokens, filtered_count)
@@ -129,17 +129,17 @@ module SmartSuite
 
       # Format response as TOON
       def format_as_toon_response(items, response, original_tokens, filtered_count)
-        result = ToonFormatter.format_records(items, total_count: response['total_count'], filtered_count: filtered_count)
-        log_format_metrics(items.size, response['total_count'], filtered_count, original_tokens, result, 'TOON')
+        result = ToonFormatter.format_records(items, total_count: response["total_count"], filtered_count: filtered_count)
+        log_format_metrics(items.size, response["total_count"], filtered_count, original_tokens, result, "TOON")
         result
       end
 
       # Format response as JSON
       def format_as_json_response(items, response, _original_tokens)
-        result = { 'items' => items, 'total_count' => response['total_count'], 'count' => items.size }
+        result = { "items" => items, "total_count" => response["total_count"], "count" => items.size }
         tokens = estimate_tokens(JSON.generate(result))
         total_tokens = update_token_usage(tokens)
-        total_records = response['total_count'] || items.size
+        total_records = response["total_count"] || items.size
         log_metric("✓ #{items.size} of #{total_records} records | +#{tokens} tokens (Total: #{total_tokens})")
         result
       end
@@ -150,9 +150,9 @@ module SmartSuite
         total_tokens = update_token_usage(tokens)
         record_msg = if filtered && filtered < total
                        "#{count} of #{filtered} records (#{total} in table)"
-                     else
+        else
                        "#{count} of #{total} records"
-                     end
+        end
         log_metric("✓ #{record_msg} | +#{tokens} tokens (Total: #{total_tokens})")
       end
 
@@ -181,10 +181,10 @@ module SmartSuite
       # @param response [Hash] Raw API response with 'items' array
       # @return [Hash] Summary with statistics and field analysis
       def generate_summary(response)
-        return response unless response.is_a?(Hash) && response['items'].is_a?(Array)
+        return response unless response.is_a?(Hash) && response["items"].is_a?(Array)
 
-        items = response['items']
-        total = response['total_count'] || items.size
+        items = response["items"]
+        total = response["total_count"] || items.size
 
         # Collect field statistics
         field_stats = {}
@@ -203,11 +203,11 @@ module SmartSuite
         end
 
         # Build summary text
-        summary_lines = ["Found #{items.size} records (total: #{total})"]
+        summary_lines = [ "Found #{items.size} records (total: #{total})" ]
 
         field_stats.each do |field, values|
           if values.size <= 10
-            value_summary = values.map { |v, count| "#{v} (#{count})" }.join(', ')
+            value_summary = values.map { |v, count| "#{v} (#{count})" }.join(", ")
             summary_lines << "  #{field}: #{value_summary}"
           else
             summary_lines << "  #{field}: #{values.size} unique values"
@@ -265,7 +265,7 @@ module SmartSuite
         if smartdoc_value?(parsed_value)
           # Return only HTML content for AI
           # Cache still stores complete JSON with all keys
-          parsed_value['html'] || parsed_value[:html] || ''
+          parsed_value["html"] || parsed_value[:html] || ""
         elsif parsed_value.is_a?(Hash) || parsed_value.is_a?(Array)
           # Complex structure - recursively convert timestamps
           DateFormatter.convert_all(parsed_value)
@@ -301,8 +301,8 @@ module SmartSuite
         return false unless value.is_a?(Hash)
 
         # Check for SmartDoc signature keys
-        has_data = value.key?('data') || value.key?(:data)
-        has_html = value.key?('html') || value.key?(:html)
+        has_data = value.key?("data") || value.key?(:data)
+        has_html = value.key?("html") || value.key?(:html)
 
         has_data && has_html
       end

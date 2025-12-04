@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require 'json'
-require 'net/http'
-require 'uri'
-require 'openssl'
-require_relative '../logger'
+require "json"
+require "net/http"
+require "uri"
+require "openssl"
+require_relative "../logger"
 
 # SmartSuite namespace module
 #
@@ -27,7 +27,7 @@ module SmartSuite
     # - Token usage tracking
     module HttpClient
       # Base URL for all SmartSuite API requests
-      API_BASE_URL = 'https://app.smartsuite.com/api/v1'
+      API_BASE_URL = "https://app.smartsuite.com/api/v1"
 
       # Executes an HTTP request to the SmartSuite API.
       #
@@ -55,21 +55,21 @@ module SmartSuite
         http.verify_mode = OpenSSL::SSL::VERIFY_NONE
 
         request = case method
-                  when :get
+        when :get
                     Net::HTTP::Get.new(uri.request_uri)
-                  when :post
+        when :post
                     Net::HTTP::Post.new(uri.request_uri)
-                  when :put
+        when :put
                     Net::HTTP::Put.new(uri.request_uri)
-                  when :patch
+        when :patch
                     Net::HTTP::Patch.new(uri.request_uri)
-                  when :delete
+        when :delete
                     Net::HTTP::Delete.new(uri.request_uri)
-                  end
+        end
 
-        request['Authorization'] = "Token #{@api_key}"
-        request['Account-Id'] = @account_id
-        request['Content-Type'] = 'application/json'
+        request["Authorization"] = "Token #{@api_key}"
+        request["Account-Id"] = @account_id
+        request["Content-Type"] = "application/json"
 
         request.body = JSON.generate(body) if body
 
@@ -79,7 +79,8 @@ module SmartSuite
 
         unless response.is_a?(Net::HTTPSuccess)
           SmartSuite::Logger.api_response(response.code.to_i, duration, response.body&.length)
-          raise "API request failed: #{response.code} - #{response.body}"
+          error_message = format_api_error(response.code.to_i, response.body, endpoint)
+          raise error_message
         end
 
         # Log successful response
@@ -91,8 +92,70 @@ module SmartSuite
 
         JSON.parse(response.body)
       rescue StandardError => e
-        SmartSuite::Logger.error('API Request', error: e)
+        SmartSuite::Logger.error("API Request", error: e)
         raise
+      end
+
+      # Formats API error messages to be more helpful for AI assistants.
+      #
+      # Parses SmartSuite error responses and provides actionable guidance.
+      #
+      # @param status_code [Integer] HTTP status code
+      # @param body [String] Response body (JSON)
+      # @param endpoint [String] API endpoint that failed
+      # @return [String] Formatted error message with guidance
+      def format_api_error(status_code, body, endpoint)
+        parsed = JSON.parse(body) rescue nil
+
+        base_message = "API request failed (#{status_code})"
+
+        if parsed.is_a?(Hash)
+          # Extract field-specific errors
+          errors = extract_field_errors(parsed)
+          if errors.any?
+            return "#{base_message}: #{errors.join('; ')}. Check the field data and try again."
+          end
+
+          # Handle common error patterns
+          if parsed["detail"]
+            return "#{base_message}: #{parsed['detail']}"
+          end
+
+          if parsed["error"]
+            return "#{base_message}: #{parsed['error']}"
+          end
+
+          if parsed["message"]
+            return "#{base_message}: #{parsed['message']}"
+          end
+        end
+
+        # Fallback to raw response
+        "#{base_message}: #{body}"
+      end
+
+      # Extracts field-specific errors from SmartSuite error response.
+      #
+      # @param parsed [Hash] Parsed error response
+      # @return [Array<String>] List of error messages
+      def extract_field_errors(parsed)
+        errors = []
+
+        parsed.each do |key, value|
+          if value.is_a?(Hash)
+            value.each do |field, messages|
+              if messages.is_a?(Array)
+                errors << "#{key}.#{field}: #{messages.join(', ')}"
+              else
+                errors << "#{key}.#{field}: #{messages}"
+              end
+            end
+          elsif value.is_a?(Array)
+            errors << "#{key}: #{value.join(', ')}"
+          end
+        end
+
+        errors
       end
 
       # Logs a metric message to the unified logger.

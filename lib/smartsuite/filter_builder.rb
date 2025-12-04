@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'time'
-require_relative 'date_formatter'
+require "time"
+require_relative "date_formatter"
 
 module SmartSuite
   # FilterBuilder converts SmartSuite API filter syntax to cache query conditions.
@@ -44,12 +44,12 @@ module SmartSuite
     #   query = FilterBuilder.apply_to_query(cache.query(table_id), filter)
     #   results = query.execute
     def self.apply_to_query(query, filter)
-      return query unless filter && filter['fields']
+      return query unless filter && filter["fields"]
 
-      filter['fields'].each do |field_filter|
-        field_slug = field_filter['field']
-        comparison = field_filter['comparison']
-        value = field_filter['value']
+      filter["fields"].each do |field_filter|
+        field_slug = field_filter["field"]
+        comparison = field_filter["comparison"]
+        value = field_filter["value"]
 
         # Convert SmartSuite comparison operator to cache query condition
         condition = convert_comparison(comparison, value)
@@ -102,56 +102,56 @@ module SmartSuite
     def self.convert_comparison(comparison, value)
       case comparison
       # Equality operators
-      when 'is', 'is_equal_to'
+      when "is", "is_equal_to"
         # Check if this is a date-only value that needs range conversion
         date_range = convert_date_to_range(value)
         return date_range if date_range
 
         value
-      when 'is_not', 'is_not_equal_to'
+      when "is_not", "is_not_equal_to"
         { ne: value }
 
       # Numeric comparison operators
-      when 'is_greater_than'
+      when "is_greater_than"
         { gt: value }
-      when 'is_less_than'
+      when "is_less_than"
         { lt: value }
-      when 'is_equal_or_greater_than'
+      when "is_equal_or_greater_than"
         { gte: value }
-      when 'is_equal_or_less_than'
+      when "is_equal_or_less_than"
         { lte: value }
 
       # Text operators
-      when 'contains'
+      when "contains"
         { contains: value }
-      when 'not_contains', 'does_not_contain'
+      when "not_contains", "does_not_contain"
         { not_contains: value }
 
       # Null check operators
-      when 'is_empty'
+      when "is_empty"
         nil
-      when 'is_not_empty'
+      when "is_not_empty"
         { is_not_null: true }
 
       # Array operators (multi-select, linked records, tags)
-      when 'has_any_of'
+      when "has_any_of"
         { has_any_of: value }
-      when 'has_all_of'
+      when "has_all_of"
         { has_all_of: value }
-      when 'is_exactly'
+      when "is_exactly"
         { is_exactly: value }
-      when 'has_none_of'
+      when "has_none_of"
         { has_none_of: value }
 
       # Date operators (map to numeric comparisons)
       # Extract actual date value if value is a hash with date_mode_value
-      when 'is_before'
+      when "is_before"
         { lt: extract_date_value(value) }
-      when 'is_after'
+      when "is_after"
         { gt: extract_date_value(value) }
-      when 'is_on_or_before'
+      when "is_on_or_before"
         { lte: extract_date_value(value) }
-      when 'is_on_or_after'
+      when "is_on_or_after"
         { gte: extract_date_value(value) }
 
       # Default: equality
@@ -179,11 +179,11 @@ module SmartSuite
     #   extract_date_value("2025-06-15T14:30:00Z")
     #   #=> "2025-06-15T14:30:00Z" (unchanged)
     def self.extract_date_value(value)
-      date_str = if value.is_a?(Hash) && value['date_mode_value']
-                   value['date_mode_value']
-                 else
+      date_str = if value.is_a?(Hash) && value["date_mode_value"]
+                   value["date_mode_value"]
+      else
                    value
-                 end
+      end
 
       convert_to_utc_for_filter(date_str)
     end
@@ -205,7 +205,7 @@ module SmartSuite
         # Convert local midnight to UTC
         # e.g., 2026-06-15 00:00:00 -0700 = 2026-06-15T07:00:00Z
         local_time = Time.parse("#{date_str}T00:00:00#{offset}")
-        local_time.utc.strftime('%Y-%m-%dT%H:%M:%SZ')
+        local_time.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
       else
         # Already has time component, return as-is
         date_str
@@ -224,11 +224,11 @@ module SmartSuite
     #   #=> {between: {min: "2026-06-15T07:00:00Z", max: "2026-06-16T06:59:59Z"}}
     def self.convert_date_to_range(value)
       # Extract date string from nested hash if needed
-      date_str = if value.is_a?(Hash) && value['date_mode_value']
-                   value['date_mode_value']
-                 elsif value.is_a?(String)
+      date_str = if value.is_a?(Hash) && value["date_mode_value"]
+                   value["date_mode_value"]
+      elsif value.is_a?(String)
                    value
-                 end
+      end
 
       return nil unless date_str.is_a?(String)
 
@@ -240,11 +240,11 @@ module SmartSuite
 
       # Calculate start of day (midnight local) in UTC
       start_of_day_local = Time.parse("#{date_str}T00:00:00#{offset}")
-      start_of_day_utc = start_of_day_local.utc.strftime('%Y-%m-%dT%H:%M:%SZ')
+      start_of_day_utc = start_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
 
       # Calculate end of day (23:59:59 local) in UTC
       end_of_day_local = Time.parse("#{date_str}T23:59:59#{offset}")
-      end_of_day_utc = end_of_day_local.utc.strftime('%Y-%m-%dT%H:%M:%SZ')
+      end_of_day_utc = end_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
 
       { between: { min: start_of_day_utc, max: end_of_day_utc } }
     end
@@ -262,18 +262,18 @@ module SmartSuite
 
       # Helper to get offset for a specific time
       get_offset_for_time = lambda do |time_to_check|
-        time_to_check.strftime('%z')
+        time_to_check.strftime("%z")
       end
 
       # Parse reference date or use current time
       ref_time = if reference_date&.match?(/\A\d{4}-\d{2}-\d{2}\z/)
                    Time.parse("#{reference_date}T12:00:00") # Use noon to avoid edge cases
-                 else
+      else
                    Time.now
-                 end
+      end
 
       if eff_tz == :utc
-        '+0000'
+        "+0000"
       elsif eff_tz.nil?
         # Use system timezone for the reference date
         get_offset_for_time.call(ref_time)
@@ -282,17 +282,17 @@ module SmartSuite
         eff_tz
       elsif eff_tz.match?(%r{\A[A-Za-z]+/[A-Za-z_]+})
         # Named timezone - temporarily set TZ to get offset for reference date
-        original_tz = ENV.fetch('TZ', nil)
+        original_tz = ENV.fetch("TZ", nil)
         begin
-          ENV['TZ'] = eff_tz
+          ENV["TZ"] = eff_tz
           # Re-parse time with new TZ to get correct offset
           ref_time_in_tz = Time.parse("#{reference_date || Time.now.strftime('%Y-%m-%d')}T12:00:00")
           get_offset_for_time.call(ref_time_in_tz)
         ensure
           if original_tz
-            ENV['TZ'] = original_tz
+            ENV["TZ"] = original_tz
           else
-            ENV.delete('TZ')
+            ENV.delete("TZ")
           end
         end
       else
