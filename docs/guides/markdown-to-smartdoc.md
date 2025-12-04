@@ -209,7 +209,7 @@ FROM_STATUS=ready_for_review
 TO_STATUS=complete
 
 # Batch processing
-BATCH_SIZE=50
+BATCH_SIZE=25
 ```
 
 ### Basic Usage
@@ -264,7 +264,7 @@ Options:
   --to-status VALUE      Target status value
   --dry-run              Preview changes without updating
   --limit N              Process only N records (for testing)
-  --batch-size N         Bulk update batch size (default: 50)
+  --batch-size N         Bulk update batch size (default: 25, max: 25)
   --config PATH          Path to config file (default: .conversion_config)
   -h, --help             Show help message
 ```
@@ -299,7 +299,7 @@ smartdoc = SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown_text)
 
 **4. Bulk Update in Batches**
 ```ruby
-# Updates records in batches of 50 (configurable)
+# Updates records in batches of 25 (SmartSuite API limit)
 updates = records.map do |record|
   {
     'id' => record['id'],
@@ -340,9 +340,11 @@ Conversion summary:
   Skipped: 5
   Total: 87
 
-Updating 82 records in batches of 50...
-  Batch 1/2... ✓ updated 50 records
-  Batch 2/2... ✓ updated 32 records
+Updating 82 records in batches of 25...
+  Batch 1/4... ✓ updated 25 records
+  Batch 2/4... ✓ updated 25 records
+  Batch 3/4... ✓ updated 25 records
+  Batch 4/4... ✓ updated 7 records
 
 ✓ Conversion complete!
   Updated 82 records
