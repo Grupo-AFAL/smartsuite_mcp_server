@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require_relative '../../lib/smartsuite_client'
-require_relative '../../lib/smartsuite/mcp/tool_registry'
-require_relative '../../lib/smartsuite/mcp/prompt_registry'
-require_relative '../../lib/smartsuite/mcp/resource_registry'
-require_relative '../../lib/smartsuite/formatters/markdown_to_smartdoc'
+require_relative "../../lib/smartsuite_client"
+require_relative "../../lib/smartsuite/mcp/tool_registry"
+require_relative "../../lib/smartsuite/mcp/prompt_registry"
+require_relative "../../lib/smartsuite/mcp/resource_registry"
+require_relative "../../lib/smartsuite/formatters/markdown_to_smartdoc"
 
 # MCP message handler for the Rails hosted server
 # Each user gets their own SmartSuiteClient with their credentials
@@ -40,27 +40,27 @@ class McpHandler
   end
 
   def process(request)
-    method = request['method']
-    id = request['id']
+    method = request["method"]
+    id = request["id"]
 
     result = case method
-             when 'initialize'
+    when "initialize"
                handle_initialize
-             when 'tools/list'
+    when "tools/list"
                handle_tools_list(request)
-             when 'tools/call'
+    when "tools/call"
                handle_tool_call(request)
-             when 'prompts/list'
+    when "prompts/list"
                handle_prompts_list(request)
-             when 'prompts/get'
+    when "prompts/get"
                handle_prompt_get(request)
-             when 'resources/list'
+    when "resources/list"
                handle_resources_list(request)
-             else
+    else
                return error_response(id, -32_601, "Method not found: #{method}")
-             end
+    end
 
-    result.merge('id' => id)
+    result.merge("id" => id)
   rescue StandardError => e
     Rails.logger.error("MCP Handler error: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
     error_response(id, -32_603, "Internal error: #{e.message}")
@@ -70,17 +70,17 @@ class McpHandler
 
   def handle_initialize
     {
-      'jsonrpc' => '2.0',
-      'result' => {
-        'protocolVersion' => '2024-11-05',
-        'serverInfo' => {
-          'name' => 'smartsuite-server',
-          'version' => '2.0.0-hosted'
+      "jsonrpc" => "2.0",
+      "result" => {
+        "protocolVersion" => "2024-11-05",
+        "serverInfo" => {
+          "name" => "smartsuite-server",
+          "version" => "2.0.0-hosted"
         },
-        'capabilities' => {
-          'tools' => {},
-          'prompts' => {},
-          'resources' => {}
+        "capabilities" => {
+          "tools" => {},
+          "prompts" => {},
+          "resources" => {}
         }
       }
     }
@@ -106,230 +106,230 @@ class McpHandler
   def handle_tool_call(request)
     configure_timezone_once
 
-    tool_name = request.dig('params', 'name')
-    arguments = request.dig('params', 'arguments') || {}
+    tool_name = request.dig("params", "name")
+    arguments = request.dig("params", "arguments") || {}
 
     result = execute_tool(tool_name, arguments)
 
-    return result if result.is_a?(Hash) && result['error']
+    return result if result.is_a?(Hash) && result["error"]
 
     # Format result - if already a string (TOON format), use as-is
     result_text = result.is_a?(String) ? result : JSON.pretty_generate(result)
 
     {
-      'jsonrpc' => '2.0',
-      'result' => {
-        'content' => [
+      "jsonrpc" => "2.0",
+      "result" => {
+        "content" => [
           {
-            'type' => 'text',
-            'text' => result_text
+            "type" => "text",
+            "text" => result_text
           }
         ]
       }
     }
   rescue StandardError => e
     Rails.logger.error("Tool execution failed: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
-    error_response(request['id'], -32_603, "Tool execution failed: #{e.message}")
+    error_response(request["id"], -32_603, "Tool execution failed: #{e.message}")
   end
 
   def execute_tool(tool_name, arguments)
     case tool_name
-    when 'list_solutions'
+    when "list_solutions"
       @client.list_solutions(
-        include_activity_data: arguments['include_activity_data'],
-        fields: arguments['fields'],
-        name: arguments['name'],
-        format: (arguments['format'] || 'toon').to_sym
+        include_activity_data: arguments["include_activity_data"],
+        fields: arguments["fields"],
+        name: arguments["name"],
+        format: (arguments["format"] || "toon").to_sym
       )
-    when 'analyze_solution_usage'
+    when "analyze_solution_usage"
       @client.analyze_solution_usage(
-        days_inactive: arguments['days_inactive'] || 90,
-        min_records: arguments['min_records'] || 10
+        days_inactive: arguments["days_inactive"] || 90,
+        min_records: arguments["min_records"] || 10
       )
-    when 'list_solutions_by_owner'
+    when "list_solutions_by_owner"
       @client.list_solutions_by_owner(
-        arguments['owner_id'],
-        include_activity_data: arguments['include_activity_data'],
-        format: (arguments['format'] || 'toon').to_sym
+        arguments["owner_id"],
+        include_activity_data: arguments["include_activity_data"],
+        format: (arguments["format"] || "toon").to_sym
       )
-    when 'get_solution_most_recent_record_update'
-      @client.get_solution_most_recent_record_update(arguments['solution_id'])
-    when 'list_members'
+    when "get_solution_most_recent_record_update"
+      @client.get_solution_most_recent_record_update(arguments["solution_id"])
+    when "list_members"
       @client.list_members(**{
-        limit: arguments['limit'],
-        offset: arguments['offset'],
-        solution_id: arguments['solution_id'],
-        include_inactive: arguments['include_inactive'],
-        format: (arguments['format'] || 'toon').to_sym
+        limit: arguments["limit"],
+        offset: arguments["offset"],
+        solution_id: arguments["solution_id"],
+        include_inactive: arguments["include_inactive"],
+        format: (arguments["format"] || "toon").to_sym
       }.compact)
-    when 'search_member'
+    when "search_member"
       @client.search_member(
-        arguments['query'],
-        include_inactive: arguments['include_inactive'] || false,
-        format: (arguments['format'] || 'toon').to_sym
+        arguments["query"],
+        include_inactive: arguments["include_inactive"] || false,
+        format: (arguments["format"] || "toon").to_sym
       )
-    when 'list_teams'
-      @client.list_teams(format: (arguments['format'] || 'toon').to_sym)
-    when 'get_team'
-      @client.get_team(arguments['team_id'], format: (arguments['format'] || 'toon').to_sym)
-    when 'list_tables'
+    when "list_teams"
+      @client.list_teams(format: (arguments["format"] || "toon").to_sym)
+    when "get_team"
+      @client.get_team(arguments["team_id"], format: (arguments["format"] || "toon").to_sym)
+    when "list_tables"
       @client.list_tables(
-        solution_id: arguments['solution_id'],
-        fields: arguments['fields'],
-        format: (arguments['format'] || 'toon').to_sym
+        solution_id: arguments["solution_id"],
+        fields: arguments["fields"],
+        format: (arguments["format"] || "toon").to_sym
       )
-    when 'get_table'
-      @client.get_table(arguments['table_id'], format: (arguments['format'] || 'toon').to_sym)
-    when 'create_table'
+    when "get_table"
+      @client.get_table(arguments["table_id"], format: (arguments["format"] || "toon").to_sym)
+    when "create_table"
       @client.create_table(
-        arguments['solution_id'],
-        arguments['name'],
-        description: arguments['description'],
-        structure: arguments['structure']
+        arguments["solution_id"],
+        arguments["name"],
+        description: arguments["description"],
+        structure: arguments["structure"]
       )
-    when 'list_records'
+    when "list_records"
       @client.list_records(
-        arguments['table_id'],
-        arguments['limit'],
-        arguments['offset'],
-        filter: arguments['filter'],
-        sort: arguments['sort'],
-        fields: arguments['fields'],
-        hydrated: arguments['hydrated'],
-        format: (arguments['format'] || 'toon').to_sym
+        arguments["table_id"],
+        arguments["limit"],
+        arguments["offset"],
+        filter: arguments["filter"],
+        sort: arguments["sort"],
+        fields: arguments["fields"],
+        hydrated: arguments["hydrated"],
+        format: (arguments["format"] || "toon").to_sym
       )
-    when 'get_record'
-      @client.get_record(arguments['table_id'], arguments['record_id'], format: (arguments['format'] || 'toon').to_sym)
-    when 'create_record'
+    when "get_record"
+      @client.get_record(arguments["table_id"], arguments["record_id"], format: (arguments["format"] || "toon").to_sym)
+    when "create_record"
       @client.create_record(
-        arguments['table_id'],
-        arguments['data'],
-        minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
+        arguments["table_id"],
+        arguments["data"],
+        minimal_response: arguments.key?("minimal_response") ? arguments["minimal_response"] : true
       )
-    when 'update_record'
+    when "update_record"
       @client.update_record(
-        arguments['table_id'],
-        arguments['record_id'],
-        arguments['data'],
-        minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
+        arguments["table_id"],
+        arguments["record_id"],
+        arguments["data"],
+        minimal_response: arguments.key?("minimal_response") ? arguments["minimal_response"] : true
       )
-    when 'delete_record'
+    when "delete_record"
       @client.delete_record(
-        arguments['table_id'],
-        arguments['record_id'],
-        minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
+        arguments["table_id"],
+        arguments["record_id"],
+        minimal_response: arguments.key?("minimal_response") ? arguments["minimal_response"] : true
       )
-    when 'bulk_add_records'
+    when "bulk_add_records"
       @client.bulk_add_records(
-        arguments['table_id'],
-        arguments['records'],
-        minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
+        arguments["table_id"],
+        arguments["records"],
+        minimal_response: arguments.key?("minimal_response") ? arguments["minimal_response"] : true
       )
-    when 'bulk_update_records'
+    when "bulk_update_records"
       @client.bulk_update_records(
-        arguments['table_id'],
-        arguments['records'],
-        minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
+        arguments["table_id"],
+        arguments["records"],
+        minimal_response: arguments.key?("minimal_response") ? arguments["minimal_response"] : true
       )
-    when 'bulk_delete_records'
+    when "bulk_delete_records"
       @client.bulk_delete_records(
-        arguments['table_id'],
-        arguments['record_ids'],
-        minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
+        arguments["table_id"],
+        arguments["record_ids"],
+        minimal_response: arguments.key?("minimal_response") ? arguments["minimal_response"] : true
       )
-    when 'get_file_url'
-      @client.get_file_url(arguments['file_handle'])
-    when 'list_deleted_records'
+    when "get_file_url"
+      @client.get_file_url(arguments["file_handle"])
+    when "list_deleted_records"
       @client.list_deleted_records(
-        arguments['solution_id'],
-        full_data: arguments['full_data'] || false,
-        format: (arguments['format'] || 'toon').to_sym
+        arguments["solution_id"],
+        full_data: arguments["full_data"] || false,
+        format: (arguments["format"] || "toon").to_sym
       )
-    when 'restore_deleted_record'
-      @client.restore_deleted_record(arguments['table_id'], arguments['record_id'], format: (arguments['format'] || 'toon').to_sym)
-    when 'attach_file'
+    when "restore_deleted_record"
+      @client.restore_deleted_record(arguments["table_id"], arguments["record_id"], format: (arguments["format"] || "toon").to_sym)
+    when "attach_file"
       @client.attach_file(
-        arguments['table_id'],
-        arguments['record_id'],
-        arguments['file_field_slug'],
-        arguments['file_urls']
+        arguments["table_id"],
+        arguments["record_id"],
+        arguments["file_field_slug"],
+        arguments["file_urls"]
       )
-    when 'add_field'
+    when "add_field"
       @client.add_field(
-        arguments['table_id'],
-        arguments['field_data'],
-        field_position: arguments['field_position'],
-        auto_fill_structure_layout: arguments['auto_fill_structure_layout'].nil? || arguments['auto_fill_structure_layout']
+        arguments["table_id"],
+        arguments["field_data"],
+        field_position: arguments["field_position"],
+        auto_fill_structure_layout: arguments["auto_fill_structure_layout"].nil? || arguments["auto_fill_structure_layout"]
       )
-    when 'bulk_add_fields'
+    when "bulk_add_fields"
       @client.bulk_add_fields(
-        arguments['table_id'],
-        arguments['fields'],
-        set_as_visible_fields_in_reports: arguments['set_as_visible_fields_in_reports']
+        arguments["table_id"],
+        arguments["fields"],
+        set_as_visible_fields_in_reports: arguments["set_as_visible_fields_in_reports"]
       )
-    when 'update_field'
-      @client.update_field(arguments['table_id'], arguments['slug'], arguments['field_data'])
-    when 'delete_field'
-      @client.delete_field(arguments['table_id'], arguments['slug'])
-    when 'list_comments'
+    when "update_field"
+      @client.update_field(arguments["table_id"], arguments["slug"], arguments["field_data"])
+    when "delete_field"
+      @client.delete_field(arguments["table_id"], arguments["slug"])
+    when "list_comments"
       @client.list_comments(
-        arguments['record_id'],
-        format: (arguments['format'] || 'toon').to_sym
+        arguments["record_id"],
+        format: (arguments["format"] || "toon").to_sym
       )
-    when 'add_comment'
+    when "add_comment"
       @client.add_comment(
-        arguments['table_id'],
-        arguments['record_id'],
-        arguments['message'],
-        arguments['assigned_to']
+        arguments["table_id"],
+        arguments["record_id"],
+        arguments["message"],
+        arguments["assigned_to"]
       )
-    when 'get_view_records'
+    when "get_view_records"
       @client.get_view_records(
-        arguments['table_id'],
-        arguments['view_id'],
-        with_empty_values: arguments['with_empty_values'],
-        format: (arguments['format'] || 'toon').to_sym
+        arguments["table_id"],
+        arguments["view_id"],
+        with_empty_values: arguments["with_empty_values"],
+        format: (arguments["format"] || "toon").to_sym
       )
-    when 'create_view'
+    when "create_view"
       @client.create_view(
-        arguments['application'],
-        arguments['solution'],
-        arguments['label'],
-        arguments['view_mode'],
-        description: arguments['description'],
-        autosave: arguments['autosave'],
-        is_locked: arguments['is_locked'],
-        is_private: arguments['is_private'],
-        is_password_protected: arguments['is_password_protected'],
-        order: arguments['order'],
-        state: arguments['state'],
-        map_state: arguments['map_state'],
-        sharing: arguments['sharing']
+        arguments["application"],
+        arguments["solution"],
+        arguments["label"],
+        arguments["view_mode"],
+        description: arguments["description"],
+        autosave: arguments["autosave"],
+        is_locked: arguments["is_locked"],
+        is_private: arguments["is_private"],
+        is_password_protected: arguments["is_password_protected"],
+        order: arguments["order"],
+        state: arguments["state"],
+        map_state: arguments["map_state"],
+        sharing: arguments["sharing"]
       )
-    when 'get_api_stats'
+    when "get_api_stats"
       # In hosted mode, use Rails ApiCall model instead of stats_tracker
-      get_api_stats_from_rails(arguments['time_range'] || 'all')
-    when 'reset_api_stats'
+      get_api_stats_from_rails(arguments["time_range"] || "all")
+    when "reset_api_stats"
       # In hosted mode, use Rails ApiCall model
       reset_api_stats_in_rails
-    when 'get_cache_status'
+    when "get_cache_status"
       if @client.cache_enabled?
-        @client.cache.get_cache_status(table_id: arguments['table_id'])
+        @client.cache.get_cache_status(table_id: arguments["table_id"])
       else
-        { 'error' => 'Cache is disabled' }
+        { "error" => "Cache is disabled" }
       end
-    when 'refresh_cache'
+    when "refresh_cache"
       if @client.cache_enabled?
         @client.cache.refresh_cache(
-          arguments['resource'],
-          table_id: arguments['table_id'],
-          solution_id: arguments['solution_id']
+          arguments["resource"],
+          table_id: arguments["table_id"],
+          solution_id: arguments["solution_id"]
         )
       else
-        { 'error' => 'Cache is disabled' }
+        { "error" => "Cache is disabled" }
       end
-    when 'convert_markdown_to_smartdoc'
-      SmartSuite::Formatters::MarkdownToSmartdoc.convert(arguments['markdown'])
+    when "convert_markdown_to_smartdoc"
+      SmartSuite::Formatters::MarkdownToSmartdoc.convert(arguments["markdown"])
     else
       error_response(nil, -32_602, "Unknown tool: #{tool_name}")
     end
@@ -347,50 +347,52 @@ class McpHandler
 
   def error_response(id, code, message)
     {
-      'jsonrpc' => '2.0',
-      'id' => id,
-      'error' => {
-        'code' => code,
-        'message' => message
+      "jsonrpc" => "2.0",
+      "id" => id,
+      "error" => {
+        "code" => code,
+        "message" => message
       }
     }
   end
 
   # Get API stats from Rails ApiCall model (hosted mode)
+  # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
   def get_api_stats_from_rails(time_range)
     user_id = @user.respond_to?(:id) ? @user.id : nil
-    return { 'error' => 'Stats not available in local mode' } unless user_id
+    return { "error" => "Stats not available in local mode" } unless user_id
 
     scope = ApiCall.where(user_id: user_id)
 
     # Apply time range filter
     scope = case time_range
-            when 'today'
-              scope.where('created_at >= ?', Time.current.beginning_of_day)
-            when 'week'
-              scope.where('created_at >= ?', 1.week.ago)
-            when 'month'
-              scope.where('created_at >= ?', 1.month.ago)
-            else
+    when "today"
+              scope.where("created_at >= ?", Time.current.beginning_of_day)
+    when "week"
+              scope.where("created_at >= ?", 1.week.ago)
+    when "month"
+              scope.where("created_at >= ?", 1.month.ago)
+    else
               scope
-            end
+    end
 
     {
-      'time_range' => time_range,
-      'total_calls' => scope.count,
-      'cache_hits' => scope.where(cache_hit: true).count,
-      'cache_misses' => scope.where(cache_hit: false).count,
-      'by_tool' => scope.group(:tool_name).count,
-      'by_table' => scope.where.not(table_id: nil).group(:table_id).count
+      "time_range" => time_range,
+      "total_calls" => scope.count,
+      "cache_hits" => scope.where(cache_hit: true).count,
+      "cache_misses" => scope.where(cache_hit: false).count,
+      "by_tool" => scope.group(:tool_name).count,
+      "by_table" => scope.where.not(table_id: nil).group(:table_id).count
     }
   end
+  # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
   # Reset API stats in Rails (hosted mode)
   def reset_api_stats_in_rails
     user_id = @user.respond_to?(:id) ? @user.id : nil
-    return { 'error' => 'Stats not available in local mode' } unless user_id
+    return { "error" => "Stats not available in local mode" } unless user_id
 
     deleted_count = ApiCall.where(user_id: user_id).delete_all
-    { 'success' => true, 'deleted_count' => deleted_count }
+    { "success" => true, "deleted_count" => deleted_count }
   end
 end
