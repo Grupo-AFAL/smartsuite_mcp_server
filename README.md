@@ -152,6 +152,29 @@ refresh_cache('records', table_id: 'table_abc123')
 
 See [examples/](docs/examples/) for more usage patterns.
 
+## 🛠️ Utility Scripts
+
+The server includes CLI utility scripts for administrative and batch operations:
+
+### Batch Markdown Converter
+
+Convert multiple SmartSuite records from Markdown to SmartDoc format in bulk:
+
+```bash
+# Convert all webhook-generated records
+bin/convert_markdown_sessions
+
+# Dry-run to preview changes
+bin/convert_markdown_sessions --dry-run --limit 10
+```
+
+**Use Cases:**
+- Automated webhook data (Read.ai meeting transcripts, etc.)
+- Bulk data formatting/migration
+- Scheduled transformation tasks
+
+**Documentation:** [Batch Markdown Conversion Guide](docs/guides/markdown-batch-conversion.md)
+
 ## 🤝 Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
