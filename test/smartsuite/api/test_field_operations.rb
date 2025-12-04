@@ -129,7 +129,9 @@ class TestFieldOperations < Minitest::Test
 
     assert_equal :post, captured_args[:method]
     assert_equal '/applications/tbl_123/bulk-add-fields/', captured_args[:endpoint]
-    assert_equal fields, captured_args[:body]['fields']
+    # The API requires params field, so it's added automatically if missing
+    expected_fields = fields.map { |f| f.merge('params' => {}) }
+    assert_equal expected_fields, captured_args[:body]['fields']
     assert_equal 'success', result['status']
   end
 

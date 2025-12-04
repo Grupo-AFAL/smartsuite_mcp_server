@@ -88,6 +88,10 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 - [ ] Add static type checking (Sorbet/RBS)
 - [ ] Migration guide for breaking changes
 
+## Known Issues
+
+- [ ] **create_view causes SmartSuite UI to freeze** - When creating a view via the API with filters/state, the SmartSuite UI freezes for that table. Needs investigation into correct state format or API behavior.
+
 ---
 
 ## Success Metrics

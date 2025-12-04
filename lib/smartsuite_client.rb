@@ -82,6 +82,7 @@ class SmartSuiteClient
   # @param stats_tracker [ApiStatsTracker, nil] Optional external stats tracker (used when cache disabled)
   # @param cache_enabled [Boolean] Enable SQLite-based caching (default: true)
   # @param cache_path [String, nil] Custom path for cache database (default: ~/.smartsuite_mcp_cache.db)
+  # @param cache [Object, nil] Custom cache adapter instance (overrides cache_enabled/cache_path)
   # @param session_id [String, nil] Custom session ID for tracking (default: auto-generated)
   # @return [SmartSuiteClient] configured client instance
   # @example Basic initialization
@@ -90,11 +91,14 @@ class SmartSuiteClient
   # @example With caching disabled
   #   client = SmartSuiteClient.new(api_key, account_id, cache_enabled: false)
   #
+  # @example With custom cache adapter (e.g., PostgreSQL)
+  #   client = SmartSuiteClient.new(api_key, account_id, cache: Cache::PostgresLayer.new)
+  #
   # @example With custom configuration
   #   client = SmartSuiteClient.new(api_key, account_id,
   #                                  cache_path: '/tmp/cache.db',
   #                                  session_id: 'my_session')
-  def initialize(api_key, account_id, stats_tracker: nil, cache_enabled: true, cache_path: nil, session_id: nil)
+  def initialize(api_key, account_id, stats_tracker: nil, cache_enabled: true, cache_path: nil, cache: nil, session_id: nil)
     @api_key = api_key
     @account_id = account_id
 
@@ -106,7 +110,13 @@ class SmartSuiteClient
     @context_limit = 200_000 # Claude's context window
 
     # Initialize cache layer
-    if cache_enabled
+    if cache
+      # Use injected cache adapter (e.g., PostgreSQL for hosted mode)
+      @cache = cache
+      @stats_tracker = stats_tracker
+      SmartSuite::Logger.metric("✓ Cache layer initialized (injected adapter: #{cache.class.name})")
+      SmartSuite::Logger.metric("✓ Session ID: #{@session_id}")
+    elsif cache_enabled
       @cache = SmartSuite::Cache::Layer.new(db_path: cache_path)
       SmartSuite::Logger.metric("✓ Cache layer initialized: #{@cache.db_path}")
       SmartSuite::Logger.metric("✓ Session ID: #{@session_id}")

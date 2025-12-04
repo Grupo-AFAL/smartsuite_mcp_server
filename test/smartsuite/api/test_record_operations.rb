@@ -866,14 +866,14 @@ class TestRecordOperations < Minitest::Test
       .with(body: {}.to_json)
       .to_return(
         status: 200,
-        body: { id: 'rec_456', title: 'Task 1 (Restored)', status: 'Active' }.to_json
+        body: { id: 'rec_456', title: 'Task 1', status: 'Active' }.to_json
       )
 
     result = client.restore_deleted_record('tbl_123', 'rec_456', format: :json)
 
     assert result.is_a?(Hash), 'Should return hash'
     assert_equal 'rec_456', result['id']
-    assert_includes result['title'], '(Restored)', 'Title should include "(Restored)" suffix'
+    assert_equal 'Task 1', result['title']
   end
 
   # Test restore_deleted_record requires table_id

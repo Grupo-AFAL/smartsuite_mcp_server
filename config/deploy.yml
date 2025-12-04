@@ -1,0 +1,85 @@
+# Kamal deployment configuration for SmartSuite MCP Server
+# See: https://kamal-deploy.org/docs/configuration/
+
+service: smartsuite-mcp
+
+# Container image - update with your registry
+image: your-registry/smartsuite-mcp
+
+# Deploy to these servers (update with your EC2 IP)
+servers:
+  web:
+    - YOUR_EC2_IP_HERE
+
+# SSL via Let's Encrypt (kamal-proxy handles this)
+proxy:
+  ssl: true
+  host: mcp.yourdomain.com
+  # Health check endpoint
+  healthcheck:
+    path: /up
+    interval: 10
+    timeout: 5
+
+# Container registry (GitHub Container Registry example)
+registry:
+  server: ghcr.io
+  username:
+    - KAMAL_REGISTRY_USERNAME
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+# Build configuration
+builder:
+  arch: amd64
+  # Uncomment if you need multi-platform builds
+  # multiarch: true
+
+# Environment variables
+env:
+  clear:
+    RAILS_ENV: production
+    RAILS_LOG_TO_STDOUT: "true"
+    RAILS_SERVE_STATIC_FILES: "true"
+    # Database connection (update with your RDS endpoint or local PG)
+    # DB_HOST: your-rds-endpoint.region.rds.amazonaws.com
+  secret:
+    - RAILS_MASTER_KEY
+    - DATABASE_URL
+    # Optional: If using AWS RDS
+    # - DB_PASSWORD
+
+# SSH configuration
+ssh:
+  user: ubuntu  # Default EC2 user for Ubuntu AMI
+  # keys:
+  #   - ~/.ssh/your-aws-key.pem
+
+# Persistent storage for logs
+volumes:
+  - "smartsuite_mcp_storage:/rails/storage"
+
+# Aliases for common commands
+aliases:
+  shell: app exec --interactive --reuse "bash"
+  console: app exec --interactive --reuse "bin/rails console"
+  logs: app logs -f
+  dbconsole: app exec --interactive --reuse "bin/rails dbconsole"
+
+# PostgreSQL as an accessory (or use RDS)
+# Uncomment this section if running PostgreSQL on the same server
+accessories:
+  db:
+    image: postgres:16
+    host: YOUR_EC2_IP_HERE
+    port: 5432
+    env:
+      clear:
+        POSTGRES_DB: smartsuite_mcp_production
+        POSTGRES_USER: smartsuite_mcp
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql/data
+    options:
+      restart: unless-stopped
