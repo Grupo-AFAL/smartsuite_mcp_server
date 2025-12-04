@@ -24,15 +24,16 @@ The `bin/convert_markdown_sessions` script and `SmartSuite::Formatters::Markdown
 
 **The script has a DIFFERENT nature from the rest of the SmartSuite MCP server:**
 
-| Aspect | MCP Server Tools | Batch Converter Script |
-|--------|-----------------|------------------------|
-| **Protocol** | MCP (stdin/stdout JSON-RPC) | Direct Ruby execution |
-| **Usage** | AI assistant invokes via Claude Desktop | User runs manually from CLI |
-| **Scope** | General SmartSuite API operations | Specific: Markdown→SmartDoc conversion |
-| **Integration** | Lives in `lib/smartsuite/api/*` | Lives in `bin/` as utility |
-| **Purpose** | Enable AI interaction with SmartSuite | Batch data transformation |
+| Aspect          | MCP Server Tools                        | Batch Converter Script                 |
+| --------------- | --------------------------------------- | -------------------------------------- |
+| **Protocol**    | MCP (stdin/stdout JSON-RPC)             | Direct Ruby execution                  |
+| **Usage**       | AI assistant invokes via Claude Desktop | User runs manually from CLI            |
+| **Scope**       | General SmartSuite API operations       | Specific: Markdown→SmartDoc conversion |
+| **Integration** | Lives in `lib/smartsuite/api/*`         | Lives in `bin/` as utility             |
+| **Purpose**     | Enable AI interaction with SmartSuite   | Batch data transformation              |
 
 **This is appropriate and intentional.** The script:
+
 - ✅ Uses the same underlying libraries (`SmartSuiteClient`, `MarkdownToSmartdoc`)
 - ✅ Follows project coding standards
 - ✅ Is documented separately as a utility tool
@@ -63,6 +64,7 @@ SmartSuite API
 **Location:** `test/smartsuite/formatters/test_markdown_to_smartdoc.rb`
 
 **Coverage:**
+
 - 18 test cases
 - 67 assertions
 - 0 failures, 0 errors, 0 skips
@@ -79,6 +81,7 @@ SmartSuite API
   - ✅ Usage in record updates
 
 **Full test suite status:**
+
 - 1075 total test runs
 - 3167 assertions
 - 93.39% code coverage (exceeds 90% target)
@@ -97,6 +100,7 @@ SmartSuite API
 The script handles multiple error scenarios:
 
 1. **Missing Parameters:**
+
    ```ruby
    # Lines 112-124: Validates required params
    missing_params = []
@@ -105,6 +109,7 @@ The script handles multiple error scenarios:
    ```
 
 2. **Empty Results:**
+
    ```ruby
    # Lines 168-171, 256-259: Exits gracefully
    if records.empty?
@@ -114,6 +119,7 @@ The script handles multiple error scenarios:
    ```
 
 3. **Conversion Errors:**
+
    ```ruby
    # Lines 226-240: Catches errors per-record
    begin
@@ -146,6 +152,7 @@ The script handles multiple error scenarios:
 **Location:** `docs/guides/markdown-batch-conversion.md`
 
 **Contents:**
+
 - ✅ Overview and use case description
 - ✅ Installation instructions
 - ✅ Basic usage examples
@@ -166,16 +173,19 @@ The script handles multiple error scenarios:
 ### Integration with Project Docs (⚠️ NEEDS UPDATE)
 
 **CLAUDE.md:**
+
 - ❌ Does NOT mention the batch converter
 - ❌ Does NOT document the `bin/` utilities
 - ❌ Markdown→SmartDoc conversion not in essential workflow
 
 **ROADMAP.md:**
+
 - ✅ Markdown→SmartDoc converter is part of v2.0 deliverables (indirectly)
 - ❌ Not explicitly listed as a feature
 - ❌ Should be mentioned under "Developer Experience" or new category
 
 **README.md:**
+
 - ❌ Does NOT mention utility scripts
 - ❌ Examples section doesn't show batch conversion
 
@@ -190,17 +200,20 @@ The script handles multiple error scenarios:
 **Problem Solved:** Original script had hardcoded table IDs from user's workspace
 
 **Solution Implemented:**
+
 1. ✅ External config file (`.conversion_config`)
 2. ✅ Config file added to `.gitignore`
 3. ✅ Example file (`.conversion_config.example`) with placeholders
 4. ✅ Clear documentation about privacy
 
 **Files:**
+
 - `.conversion_config` - ✅ Gitignored (user's private data)
 - `.conversion_config.example` - ✅ Committed (template)
 - Script default values - ✅ All set to `nil` (requires explicit config)
 
 **Verification:**
+
 ```bash
 git status .conversion_config
 # (empty - correctly ignored)
@@ -226,6 +239,7 @@ git status .conversion_config.example
 ### Supported Markdown Features
 
 **Currently Supported:**
+
 - ✅ Headings (H1, H2, H3)
 - ✅ Bullet lists (`-`, `*`)
 - ✅ Bold (`**text**`, `__text__`)
@@ -235,6 +249,7 @@ git status .conversion_config.example
 - ✅ HTML cleanup (divs, br tags)
 
 **Not Supported (Documented Limitations):**
+
 - ❌ Ordered lists (`1.`, `2.`)
 - ❌ Checklists (`- [ ]`, `- [x]`)
 - ❌ Code blocks (` ```language `)
@@ -247,6 +262,7 @@ git status .conversion_config.example
 - ❌ Combined formatting (bold+italic)
 
 **Assessment:**
+
 - ✅ Current features cover **Read.ai webhook use case** (meeting minutes)
 - ✅ Missing features are documented
 - ✅ Easy to extend if needed (modular design)
@@ -256,17 +272,20 @@ git status .conversion_config.example
 ### Smart Behavior
 
 **Automatic Skipping:**
+
 - ✅ Records with no content
 - ✅ Records already in SmartDoc format
 - ✅ Records with empty content
 - ✅ Safe to run multiple times
 
 **Batch Processing:**
+
 - ✅ Configurable batch size (default: 25)
 - ✅ Progress indicators per record
 - ✅ Summary at end
 
 **Dry-Run Mode:**
+
 - ✅ Shows what would be converted
 - ✅ Displays sample output
 - ✅ No changes made
@@ -280,11 +299,13 @@ git status .conversion_config.example
 ### Efficiency
 
 **Token Usage:** ✅ EXCELLENT
+
 - Fetches records in **1 API call** (not n+1)
 - Conversion is **local** (no AI tokens)
 - Bulk updates in batches (not individual)
 
 **Actual Performance (79 records):**
+
 - Fetch: <2 seconds
 - Convert: <1 second (local Ruby)
 - Update: 4 batches × ~500ms = ~2 seconds
@@ -305,6 +326,7 @@ git status .conversion_config.example
 **Theoretical Limit:** 1000+ records (limited by SmartSuite API pagination)
 
 **Batch Size:**
+
 - Default: 25 (conservative)
 - SmartSuite API limit: Unknown but likely 50-100
 - Configurable via `--batch-size`
@@ -318,6 +340,7 @@ git status .conversion_config.example
 ### Command-Line Interface (✅ INTUITIVE)
 
 **Positives:**
+
 - ✅ Clear progress indicators
 - ✅ Dry-run mode for safety
 - ✅ Helpful error messages
@@ -326,6 +349,7 @@ git status .conversion_config.example
 - ✅ `--help` with examples
 
 **Example Output Quality:**
+
 ```
 === SmartSuite Markdown to SmartDoc Batch Converter ===
 Fetching records... found 79 records (1334 total)
@@ -345,6 +369,7 @@ Conversion summary:
 ### Configuration (✅ FLEXIBLE)
 
 **Three Usage Modes:**
+
 1. ✅ Config file (recommended) - `bin/convert_markdown_sessions`
 2. ✅ CLI args - `--table-id XXX --from-status YYY ...`
 3. ✅ Mixed (config + overrides) - `--limit 10`
@@ -357,27 +382,30 @@ Conversion summary:
 
 ### How It Differs
 
-| Aspect | MCP Tools | Batch Converter |
-|--------|-----------|-----------------|
-| **Invocation** | AI via protocol | User via CLI |
-| **Interactivity** | Conversational | Batch/scripted |
-| **Scope** | Single operations | Bulk operations |
-| **User** | Claude AI | Developer/admin |
+| Aspect            | MCP Tools         | Batch Converter  |
+| ----------------- | ----------------- | ---------------- |
+| **Invocation**    | AI via protocol   | User via CLI     |
+| **Interactivity** | Conversational    | Batch/scripted   |
+| **Scope**         | Single operations | Bulk operations  |
+| **User**          | Claude AI         | Developer/admin  |
 | **Documentation** | MCP tool registry | CLI help + guide |
 
 ### Why This Is Appropriate
 
 **MCP Server Purpose:**
+
 - Enable AI assistants to interact with SmartSuite
 - Handle **single-record operations** (with guidance)
 - Provide **exploratory capabilities** (search, filter, analyze)
 
 **Batch Converter Purpose:**
+
 - Handle **bulk data transformations** (80+ records)
 - Automate **repetitive tasks** (webhook data cleanup)
 - Provide **administrative utilities**
 
 **Examples of Similar Patterns in Other Projects:**
+
 - Rails: `rails console` (interactive) vs `rake tasks` (batch)
 - Django: `manage.py shell` vs `manage.py commands`
 - Git: Interactive commands vs `git filter-branch` (batch)
@@ -395,16 +423,19 @@ None - all critical items resolved.
 ### Should Address Soon (Low Priority)
 
 1. **Update CLAUDE.md** (5 minutes)
+
    - Add section about utility scripts in `bin/`
    - Mention `convert_markdown_sessions` in relevant workflows
    - Document when to use script vs MCP tools
 
 2. **Update README.md** (5 minutes)
+
    - Add "Utility Scripts" section
    - Link to batch conversion guide
    - Add example in Features section
 
 3. **Update ROADMAP.md** (2 minutes)
+
    - Add "Utility Scripts" to v2.0 completed features
    - Or create new category: "Developer Tools"
 
@@ -416,16 +447,19 @@ None - all critical items resolved.
 ### Nice to Have (Future Enhancements)
 
 1. **Extend Markdown Support** (if users need it)
+
    - Ordered lists
    - Code blocks
    - Links
    - (See feature completeness section)
 
 2. **Logging Option** (if scheduled automation needed)
+
    - `--log-file` parameter
    - Structured output for monitoring
 
 3. **Parallel Processing** (if performance needed)
+
    - Currently serial: fetch → convert → update
    - Could parallelize conversion step
 
@@ -440,6 +474,7 @@ None - all critical items resolved.
 ### Overall Assessment: ✅ READY FOR PRODUCTION
 
 **Strengths:**
+
 - ✅ Solves real user problem (Read.ai webhook formatting)
 - ✅ Well-tested (18 test cases, 0 failures)
 - ✅ Excellent documentation
@@ -450,11 +485,13 @@ None - all critical items resolved.
 - ✅ Clean code (RuboCop compliant)
 
 **Considerations:**
+
 - ⚠️ Different nature than MCP tools (by design)
 - ⚠️ Limited Markdown support (sufficient for use case)
 - ⚠️ Needs documentation integration (minor)
 
 **Risk Assessment:**
+
 - **User Data Risk:** ✅ LOW (config externalized, gitignored)
 - **API Risk:** ✅ LOW (uses existing tested client)
 - **Production Risk:** ✅ LOW (dry-run available, skips already-converted)
@@ -489,10 +526,12 @@ The script is **ready to use as-is**. Users can:
 ### Before Merging to Main
 
 1. **Update CHANGELOG.md** (REQUIRED):
+
    ```markdown
    ## [Unreleased]
 
    ### Added
+
    - Markdown to SmartDoc batch converter (`bin/convert_markdown_sessions`)
    - `SmartSuite::Formatters::MarkdownToSmartdoc` for Markdown conversion
    - Support for external config files (`.conversion_config` pattern)
@@ -500,6 +539,7 @@ The script is **ready to use as-is**. Users can:
    ```
 
 2. **Update documentation** (recommended):
+
    - CLAUDE.md: Document utility scripts
    - README.md: Add utility scripts section
    - ROADMAP.md: Add to v2.0 features
