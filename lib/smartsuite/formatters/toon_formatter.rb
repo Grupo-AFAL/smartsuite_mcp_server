@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'toon'
+require "toon"
 
 module SmartSuite
   module Formatters
@@ -34,7 +34,7 @@ module SmartSuite
         filtered_count ||= total_count
         header = build_header(records.size, total_count, filtered_count)
 
-        data = { 'records' => records }
+        data = { "records" => records }
         toon_output = Toon.encode(data, **toon_options(options))
 
         "#{header}\n#{toon_output}"
@@ -55,9 +55,9 @@ module SmartSuite
       # @param options [Hash] TOON encoding options
       # @return [String] TOON-formatted solutions
       def format_solutions(solutions, **options)
-        return 'solutions[0]:' if solutions.empty?
+        return "solutions[0]:" if solutions.empty?
 
-        data = { 'solutions' => solutions }
+        data = { "solutions" => solutions }
         Toon.encode(data, **toon_options(options))
       end
 
@@ -67,9 +67,9 @@ module SmartSuite
       # @param options [Hash] TOON encoding options
       # @return [String] TOON-formatted tables
       def format_tables(tables, **options)
-        return 'tables[0]:' if tables.empty?
+        return "tables[0]:" if tables.empty?
 
-        data = { 'tables' => tables }
+        data = { "tables" => tables }
         Toon.encode(data, **toon_options(options))
       end
 
@@ -79,9 +79,9 @@ module SmartSuite
       # @param options [Hash] TOON encoding options
       # @return [String] TOON-formatted members
       def format_members(members, **options)
-        return 'members[0]:' if members.empty?
+        return "members[0]:" if members.empty?
 
-        data = { 'members' => members }
+        data = { "members" => members }
         Toon.encode(data, **toon_options(options))
       end
 
@@ -130,7 +130,7 @@ module SmartSuite
       def toon_options(options)
         {
           indent: 2,
-          delimiter: ','
+          delimiter: ","
         }.merge(options)
       end
     end

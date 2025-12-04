@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
-require 'webmock/minitest'
-require 'tempfile'
-require_relative '../lib/smartsuite_client'
+require_relative "test_helper"
+require "webmock/minitest"
+require "tempfile"
+require_relative "../lib/smartsuite_client"
 
 # Try to load SecureFileAttacher - skip all tests if aws-sdk-s3 not installed
 begin
-  require_relative '../lib/secure_file_attacher'
+  require_relative "../lib/secure_file_attacher"
   AWS_SDK_AVAILABLE = true
 rescue LoadError => e
   AWS_SDK_AVAILABLE = false
@@ -24,20 +24,20 @@ class TestSecureFileAttacher < Minitest::Test
   end
 
   def setup
-    @api_key = 'test_api_key'
-    @account_id = 'test_account_id'
-    @bucket_name = 'test-bucket'
+    @api_key = "test_api_key"
+    @account_id = "test_account_id"
+    @bucket_name = "test-bucket"
 
     # Create a real SmartSuiteClient for testing
     @client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
 
     # Create temporary test files
-    @temp_file1 = Tempfile.new(['test1', '.txt'])
-    @temp_file1.write('Test content 1')
+    @temp_file1 = Tempfile.new([ "test1", ".txt" ])
+    @temp_file1.write("Test content 1")
     @temp_file1.close
 
-    @temp_file2 = Tempfile.new(['test2', '.pdf'])
-    @temp_file2.write('Test PDF content')
+    @temp_file2 = Tempfile.new([ "test2", ".pdf" ])
+    @temp_file2.write("Test PDF content")
     @temp_file2.close
 
     # Disable real HTTP connections
@@ -60,14 +60,14 @@ class TestSecureFileAttacher < Minitest::Test
     error = assert_raises(ArgumentError) do
       SecureFileAttacher.new(nil, @bucket_name)
     end
-    assert_includes error.message, 'smartsuite_client cannot be nil'
+    assert_includes error.message, "smartsuite_client cannot be nil"
   end
 
   def test_initialize_requires_bucket_name
     error = assert_raises(ArgumentError) do
       SecureFileAttacher.new(@client, nil)
     end
-    assert_includes error.message, 'bucket_name cannot be nil'
+    assert_includes error.message, "bucket_name cannot be nil"
   end
 
   def test_initialize_sets_default_values
@@ -87,7 +87,7 @@ class TestSecureFileAttacher < Minitest::Test
   end
 
   def test_initialize_accepts_custom_region
-    attacher = create_stubbed_attacher(region: 'eu-west-1')
+    attacher = create_stubbed_attacher(region: "eu-west-1")
     assert_kind_of SecureFileAttacher, attacher
   end
 
@@ -99,72 +99,72 @@ class TestSecureFileAttacher < Minitest::Test
     attacher = create_stubbed_attacher
 
     error = assert_raises(ArgumentError) do
-      attacher.attach_file_securely(nil, 'rec_123', 'attachments', @temp_file1.path)
+      attacher.attach_file_securely(nil, "rec_123", "attachments", @temp_file1.path)
     end
-    assert_includes error.message, 'table_id'
+    assert_includes error.message, "table_id"
   end
 
   def test_attach_file_securely_requires_table_id_not_empty
     attacher = create_stubbed_attacher
 
     error = assert_raises(ArgumentError) do
-      attacher.attach_file_securely('', 'rec_123', 'attachments', @temp_file1.path)
+      attacher.attach_file_securely("", "rec_123", "attachments", @temp_file1.path)
     end
-    assert_includes error.message, 'table_id'
+    assert_includes error.message, "table_id"
   end
 
   def test_attach_file_securely_requires_record_id
     attacher = create_stubbed_attacher
 
     error = assert_raises(ArgumentError) do
-      attacher.attach_file_securely('tbl_123', nil, 'attachments', @temp_file1.path)
+      attacher.attach_file_securely("tbl_123", nil, "attachments", @temp_file1.path)
     end
-    assert_includes error.message, 'record_id'
+    assert_includes error.message, "record_id"
   end
 
   def test_attach_file_securely_requires_record_id_not_empty
     attacher = create_stubbed_attacher
 
     error = assert_raises(ArgumentError) do
-      attacher.attach_file_securely('tbl_123', '', 'attachments', @temp_file1.path)
+      attacher.attach_file_securely("tbl_123", "", "attachments", @temp_file1.path)
     end
-    assert_includes error.message, 'record_id'
+    assert_includes error.message, "record_id"
   end
 
   def test_attach_file_securely_requires_field_slug
     attacher = create_stubbed_attacher
 
     error = assert_raises(ArgumentError) do
-      attacher.attach_file_securely('tbl_123', 'rec_123', nil, @temp_file1.path)
+      attacher.attach_file_securely("tbl_123", "rec_123", nil, @temp_file1.path)
     end
-    assert_includes error.message, 'field_slug'
+    assert_includes error.message, "field_slug"
   end
 
   def test_attach_file_securely_requires_field_slug_not_empty
     attacher = create_stubbed_attacher
 
     error = assert_raises(ArgumentError) do
-      attacher.attach_file_securely('tbl_123', 'rec_123', '', @temp_file1.path)
+      attacher.attach_file_securely("tbl_123", "rec_123", "", @temp_file1.path)
     end
-    assert_includes error.message, 'field_slug'
+    assert_includes error.message, "field_slug"
   end
 
   def test_attach_file_securely_requires_file_paths
     attacher = create_stubbed_attacher
 
     error = assert_raises(ArgumentError) do
-      attacher.attach_file_securely('tbl_123', 'rec_123', 'attachments', nil)
+      attacher.attach_file_securely("tbl_123", "rec_123", "attachments", nil)
     end
-    assert_includes error.message, 'file_paths'
+    assert_includes error.message, "file_paths"
   end
 
   def test_attach_file_securely_requires_file_paths_not_empty_array
     attacher = create_stubbed_attacher
 
     error = assert_raises(ArgumentError) do
-      attacher.attach_file_securely('tbl_123', 'rec_123', 'attachments', [])
+      attacher.attach_file_securely("tbl_123", "rec_123", "attachments", [])
     end
-    assert_includes error.message, 'file_paths'
+    assert_includes error.message, "file_paths"
   end
 
   def test_attach_file_securely_rejects_nonexistent_file
@@ -172,13 +172,13 @@ class TestSecureFileAttacher < Minitest::Test
 
     error = assert_raises(Errno::ENOENT) do
       attacher.attach_file_securely(
-        'tbl_123',
-        'rec_123',
-        'attachments',
-        '/nonexistent/file.pdf'
+        "tbl_123",
+        "rec_123",
+        "attachments",
+        "/nonexistent/file.pdf"
       )
     end
-    assert_includes error.message, 'File not found'
+    assert_includes error.message, "File not found"
   end
 
   def test_attach_file_securely_rejects_directory
@@ -186,13 +186,13 @@ class TestSecureFileAttacher < Minitest::Test
 
     error = assert_raises(ArgumentError) do
       attacher.attach_file_securely(
-        'tbl_123',
-        'rec_123',
-        'attachments',
+        "tbl_123",
+        "rec_123",
+        "attachments",
         File.dirname(@temp_file1.path)
       )
     end
-    assert_includes error.message, 'directory'
+    assert_includes error.message, "directory"
   end
 
   # ==============================================================================
@@ -206,20 +206,20 @@ class TestSecureFileAttacher < Minitest::Test
     stub_request(:patch, %r{/applications/tbl_123/records/rec_456/})
       .to_return(
         status: 200,
-        body: { 'id' => 'rec_456', 'title' => 'Test', 'attachments' => [] }.to_json
+        body: { "id" => "rec_456", "title" => "Test", "attachments" => [] }.to_json
       )
 
     result = attacher.attach_file_securely(
-      'tbl_123',
-      'rec_456',
-      'attachments',
+      "tbl_123",
+      "rec_456",
+      "attachments",
       @temp_file1.path
     )
 
     assert result.is_a?(Hash)
-    assert_equal true, result['success']
-    assert_equal 'rec_456', result['record_id']
-    assert_equal 1, result['attached_count']
+    assert_equal true, result["success"]
+    assert_equal "rec_456", result["record_id"]
+    assert_equal 1, result["attached_count"]
   end
 
   def test_attach_file_securely_multiple_files_success
@@ -229,20 +229,20 @@ class TestSecureFileAttacher < Minitest::Test
     stub_request(:patch, %r{/applications/tbl_123/records/rec_456/})
       .to_return(
         status: 200,
-        body: { 'id' => 'rec_456', 'attachments' => [{}, {}] }.to_json
+        body: { "id" => "rec_456", "attachments" => [ {}, {} ] }.to_json
       )
 
     result = attacher.attach_file_securely(
-      'tbl_123',
-      'rec_456',
-      'attachments',
-      [@temp_file1.path, @temp_file2.path]
+      "tbl_123",
+      "rec_456",
+      "attachments",
+      [ @temp_file1.path, @temp_file2.path ]
     )
 
     assert result.is_a?(Hash)
-    assert_equal true, result['success']
-    assert_equal 'rec_456', result['record_id']
-    assert_equal 2, result['attached_count']
+    assert_equal true, result["success"]
+    assert_equal "rec_456", result["record_id"]
+    assert_equal 2, result["attached_count"]
   end
 
   def test_attach_file_cleans_up_on_smartsuite_error
@@ -250,14 +250,14 @@ class TestSecureFileAttacher < Minitest::Test
 
     # Stub SmartSuite API to fail
     stub_request(:patch, %r{/applications/tbl_123/records/rec_456/})
-      .to_return(status: 500, body: { 'error' => 'Server error' }.to_json)
+      .to_return(status: 500, body: { "error" => "Server error" }.to_json)
 
     # Should raise error but still clean up S3 files (via ensure block)
     assert_raises(RuntimeError) do
       attacher.attach_file_securely(
-        'tbl_123',
-        'rec_456',
-        'attachments',
+        "tbl_123",
+        "rec_456",
+        "attachments",
         @temp_file1.path
       )
     end
@@ -278,9 +278,9 @@ class TestSecureFileAttacher < Minitest::Test
     assert_equal 1, policy[:rules].length
 
     rule = policy[:rules].first
-    assert_equal 'Delete temporary uploads after 1 day', rule[:id]
-    assert_equal 'Enabled', rule[:status]
-    assert_equal 'temp-uploads/', rule[:prefix]
+    assert_equal "Delete temporary uploads after 1 day", rule[:id]
+    assert_equal "Enabled", rule[:status]
+    assert_equal "temp-uploads/", rule[:prefix]
     assert_equal 1, rule[:expiration][:days]
   end
 
@@ -292,19 +292,19 @@ class TestSecureFileAttacher < Minitest::Test
     attacher = create_stubbed_attacher(fetch_timeout: 0)
 
     stub_request(:patch, %r{/applications/tbl_123/records/rec_456/})
-      .to_return(status: 200, body: { 'id' => 'rec_456' }.to_json)
+      .to_return(status: 200, body: { "id" => "rec_456" }.to_json)
 
     # Capture stderr
     original_stderr = $stderr
     $stderr = StringIO.new
 
-    attacher.attach_file_securely('tbl_123', 'rec_456', 'attachments', @temp_file1.path)
+    attacher.attach_file_securely("tbl_123", "rec_456", "attachments", @temp_file1.path)
 
     output = $stderr.string
     $stderr = original_stderr
 
     # Should not have debug output when DEBUG env var not set
-    refute_includes output, '[SecureFileAttacher]'
+    refute_includes output, "[SecureFileAttacher]"
   end
 
   def test_s3_logging_uses_unified_logger
@@ -312,18 +312,18 @@ class TestSecureFileAttacher < Minitest::Test
 
     # Stub SmartSuite API call
     stub_request(:patch, %r{/applications/tbl_123/records/rec_456/})
-      .to_return(status: 200, body: { 'id' => 'rec_456' }.to_json)
+      .to_return(status: 200, body: { "id" => "rec_456" }.to_json)
 
     # Capture what SmartSuite::Logger receives
     logged_operations = []
-    SmartSuite::Logger.stub(:s3, ->(action, message) { logged_operations << [action, message] }) do
-      attacher.attach_file_securely('tbl_123', 'rec_456', 'attachments', @temp_file1.path)
+    SmartSuite::Logger.stub(:s3, ->(action, message) { logged_operations << [ action, message ] }) do
+      attacher.attach_file_securely("tbl_123", "rec_456", "attachments", @temp_file1.path)
     end
 
     # Should have S3 action logging via unified logger
-    assert logged_operations.any? { |op| op[0] == 'UPLOAD' }, "Expected UPLOAD log, got: #{logged_operations}"
-    assert logged_operations.any? { |op| op[0] == 'UPLOAD_COMPLETE' }, 'Expected UPLOAD_COMPLETE log'
-    assert logged_operations.any? { |op| op[0] == 'CLEANUP' }, 'Expected CLEANUP log'
+    assert logged_operations.any? { |op| op[0] == "UPLOAD" }, "Expected UPLOAD log, got: #{logged_operations}"
+    assert logged_operations.any? { |op| op[0] == "UPLOAD_COMPLETE" }, "Expected UPLOAD_COMPLETE log"
+    assert logged_operations.any? { |op| op[0] == "CLEANUP" }, "Expected CLEANUP log"
   end
 
   # ==============================================================================
@@ -333,7 +333,7 @@ class TestSecureFileAttacher < Minitest::Test
   def test_default_constants
     assert_equal 120, SecureFileAttacher::DEFAULT_URL_EXPIRATION
     assert_equal 30, SecureFileAttacher::DEFAULT_FETCH_TIMEOUT
-    assert_equal 'us-east-1', SecureFileAttacher::DEFAULT_REGION
+    assert_equal "us-east-1", SecureFileAttacher::DEFAULT_REGION
   end
 
   # ==============================================================================
@@ -344,7 +344,7 @@ class TestSecureFileAttacher < Minitest::Test
     attacher = create_stubbed_attacher
 
     # Access private method for testing
-    key = attacher.send(:generate_temp_key, '/path/to/document.pdf')
+    key = attacher.send(:generate_temp_key, "/path/to/document.pdf")
 
     assert_match %r{^temp-uploads/\d+/[a-f0-9-]+/document\.pdf$}, key
   end
@@ -352,7 +352,7 @@ class TestSecureFileAttacher < Minitest::Test
   def test_generate_temp_key_uniqueness
     attacher = create_stubbed_attacher
 
-    keys = 5.times.map { attacher.send(:generate_temp_key, '/path/to/file.txt') }
+    keys = 5.times.map { attacher.send(:generate_temp_key, "/path/to/file.txt") }
 
     # All keys should be unique
     assert_equal 5, keys.uniq.size
@@ -373,7 +373,7 @@ class TestSecureFileAttacher < Minitest::Test
     attacher = SecureFileAttacher.new(
       @client,
       @bucket_name,
-      region: 'us-east-1'
+      region: "us-east-1"
     )
 
     assert_equal @client, attacher.client
@@ -394,7 +394,7 @@ class TestSecureFileAttacher < Minitest::Test
     attacher = SecureFileAttacher.new(
       @client,
       @bucket_name,
-      region: 'eu-west-1',
+      region: "eu-west-1",
       url_expires_in: 300,
       fetch_timeout: 60
     )
@@ -415,13 +415,13 @@ class TestSecureFileAttacher < Minitest::Test
     original_stderr = $stderr
     $stderr = StringIO.new
 
-    attacher.send(:log_error, 'Test error message')
+    attacher.send(:log_error, "Test error message")
 
     output = $stderr.string
     $stderr = original_stderr
 
-    assert_includes output, '[SecureFileAttacher ERROR]'
-    assert_includes output, 'Test error message'
+    assert_includes output, "[SecureFileAttacher ERROR]"
+    assert_includes output, "Test error message"
   end
 
   # ==============================================================================
@@ -434,7 +434,7 @@ class TestSecureFileAttacher < Minitest::Test
   def create_stubbed_attacher(**options)
     # Create S3 resource with stubbed responses (no real AWS calls)
     s3_resource = Aws::S3::Resource.new(
-      region: options[:region] || 'us-east-1',
+      region: options[:region] || "us-east-1",
       stub_responses: true
     )
 

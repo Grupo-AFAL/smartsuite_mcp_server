@@ -34,7 +34,7 @@ class McpController < ApplicationController
     end
   rescue JSON::ParserError => e
     render json: {
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       id: nil,
       error: { code: -32700, message: "Parse error: #{e.message}" }
     }, status: :bad_request
@@ -42,9 +42,9 @@ class McpController < ApplicationController
 
   # GET /mcp - SSE stream for server-initiated messages (optional)
   def stream
-    response.headers['Content-Type'] = 'text/event-stream'
-    response.headers['Cache-Control'] = 'no-cache'
-    response.headers['X-Accel-Buffering'] = 'no'
+    response.headers["Content-Type"] = "text/event-stream"
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["X-Accel-Buffering"] = "no"
 
     # For now, just keep the connection alive
     # Server-initiated notifications would be sent here
@@ -76,7 +76,7 @@ class McpController < ApplicationController
   # No API key required - useful for single-user standalone deployments
   def authenticate_local!
     unless LocalUser.env_configured?
-      render json: { error: 'SMARTSUITE_API_KEY and SMARTSUITE_ACCOUNT_ID environment variables required' },
+      render json: { error: "SMARTSUITE_API_KEY and SMARTSUITE_ACCOUNT_ID environment variables required" },
              status: :unauthorized
       return
     end
@@ -93,7 +93,7 @@ class McpController < ApplicationController
     api_key = ApiKey.authenticate(token)
 
     unless api_key
-      render json: { error: 'Invalid or missing API key' }, status: :unauthorized
+      render json: { error: "Invalid or missing API key" }, status: :unauthorized
       return
     end
 
@@ -101,11 +101,11 @@ class McpController < ApplicationController
   end
 
   def extract_token
-    auth_header = request.headers['Authorization']
-    return auth_header.sub(/^Bearer\s+/i, '') if auth_header&.start_with?('Bearer')
+    auth_header = request.headers["Authorization"]
+    return auth_header.sub(/^Bearer\s+/i, "") if auth_header&.start_with?("Bearer")
 
     # Also check X-API-Key header as fallback
-    request.headers['X-API-Key']
+    request.headers["X-API-Key"]
   end
 
   def current_user
@@ -113,32 +113,32 @@ class McpController < ApplicationController
   end
 
   def validate_content_type
-    return if request.content_type&.include?('application/json')
+    return if request.content_type&.include?("application/json")
 
-    render json: { error: 'Content-Type must be application/json' }, status: :unsupported_media_type
+    render json: { error: "Content-Type must be application/json" }, status: :unsupported_media_type
   end
 
   def accepts_sse?
-    accept = request.headers['Accept'] || ''
-    accept.include?('text/event-stream')
+    accept = request.headers["Accept"] || ""
+    accept.include?("text/event-stream")
   end
 
   def stream_response(result)
-    response.headers['Content-Type'] = 'text/event-stream'
-    response.headers['Cache-Control'] = 'no-cache'
+    response.headers["Content-Type"] = "text/event-stream"
+    response.headers["Cache-Control"] = "no-cache"
 
     response.stream.write("event: message\ndata: #{result.to_json}\n\n")
     response.stream.close
   end
 
   def track_api_call(request_body, duration_ms)
-    return unless request_body['method'] == 'tools/call'
+    return unless request_body["method"] == "tools/call"
     return unless current_user
 
     # Skip database tracking in local mode (LocalUser doesn't persist)
     return if current_user.is_a?(LocalUser)
 
-    tool_name = request_body.dig('params', 'name')
+    tool_name = request_body.dig("params", "name")
     table_id = extract_table_id(request_body)
     solution_id = extract_solution_id(request_body)
 
@@ -163,22 +163,22 @@ class McpController < ApplicationController
   end
 
   def extract_solution_id(request_body)
-    request_body.dig('params', 'arguments', 'solution_id')
+    request_body.dig("params", "arguments", "solution_id")
   end
 
   def extract_table_id(request_body)
-    request_body.dig('params', 'arguments', 'table_id')
+    request_body.dig("params", "arguments", "table_id")
   end
 
   def lookup_solution_id_for_table(table_id)
     # Query the cache_tables table directly for the solution_id
     result = ActiveRecord::Base.connection.select_one(
       ActiveRecord::Base.sanitize_sql_array([
-        'SELECT solution_id FROM cache_tables WHERE table_id = ?',
+        "SELECT solution_id FROM cache_tables WHERE table_id = ?",
         table_id
       ])
     )
-    result&.fetch('solution_id', nil)
+    result&.fetch("solution_id", nil)
   rescue StandardError => e
     Rails.logger.debug("Failed to lookup solution_id for table #{table_id}: #{e.message}")
     nil

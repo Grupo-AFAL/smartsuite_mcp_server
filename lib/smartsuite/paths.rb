@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'tmpdir'
+require "tmpdir"
 
 module SmartSuite
   # Centralized path management for SmartSuite MCP server.
@@ -28,7 +28,7 @@ module SmartSuite
     #
     # @return [Boolean] true if SMARTSUITE_TEST_MODE environment variable is 'true'
     def test_mode?
-      ENV['SMARTSUITE_TEST_MODE'] == 'true'
+      ENV["SMARTSUITE_TEST_MODE"] == "true"
     end
 
     # Get the SQLite database path
@@ -38,7 +38,7 @@ module SmartSuite
       if test_mode?
         File.join(Dir.tmpdir, "smartsuite_test_cache_#{Process.pid}.db")
       else
-        File.expand_path('~/.smartsuite_mcp_cache.db')
+        File.expand_path("~/.smartsuite_mcp_cache.db")
       end
     end
 
@@ -49,7 +49,7 @@ module SmartSuite
       if test_mode?
         File.join(Dir.tmpdir, "smartsuite_test_metrics_#{Process.pid}.log")
       else
-        File.expand_path('~/.smartsuite_mcp_metrics.log')
+        File.expand_path("~/.smartsuite_mcp_metrics.log")
       end
     end
   end

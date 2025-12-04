@@ -162,27 +162,27 @@ class SmartSuiteServer
     arguments = request.dig('params', 'arguments') || {}
 
     result = case tool_name
-             when 'list_solutions'
+    when 'list_solutions'
                @client.list_solutions(
                  include_activity_data: arguments['include_activity_data'],
                  fields: arguments['fields'],
                  name: arguments['name'],
                  format: (arguments['format'] || 'toon').to_sym
                )
-             when 'analyze_solution_usage'
+    when 'analyze_solution_usage'
                @client.analyze_solution_usage(
                  days_inactive: arguments['days_inactive'] || 90,
                  min_records: arguments['min_records'] || 10
                )
-             when 'list_solutions_by_owner'
+    when 'list_solutions_by_owner'
                @client.list_solutions_by_owner(
                  arguments['owner_id'],
                  include_activity_data: arguments['include_activity_data'],
                  format: (arguments['format'] || 'toon').to_sym
                )
-             when 'get_solution_most_recent_record_update'
+    when 'get_solution_most_recent_record_update'
                @client.get_solution_most_recent_record_update(arguments['solution_id'])
-             when 'list_members'
+    when 'list_members'
                @client.list_members(**{
                  limit: arguments['limit'],
                  offset: arguments['offset'],
@@ -190,32 +190,32 @@ class SmartSuiteServer
                  include_inactive: arguments['include_inactive'],
                  format: (arguments['format'] || 'toon').to_sym
                }.compact)
-             when 'search_member'
+    when 'search_member'
                @client.search_member(
                  arguments['query'],
                  include_inactive: arguments['include_inactive'] || false,
                  format: (arguments['format'] || 'toon').to_sym
                )
-             when 'list_teams'
+    when 'list_teams'
                @client.list_teams(format: (arguments['format'] || 'toon').to_sym)
-             when 'get_team'
+    when 'get_team'
                @client.get_team(arguments['team_id'], format: (arguments['format'] || 'toon').to_sym)
-             when 'list_tables'
+    when 'list_tables'
                @client.list_tables(
                  solution_id: arguments['solution_id'],
                  fields: arguments['fields'],
                  format: (arguments['format'] || 'toon').to_sym
                )
-             when 'get_table'
+    when 'get_table'
                @client.get_table(arguments['table_id'], format: (arguments['format'] || 'toon').to_sym)
-             when 'create_table'
+    when 'create_table'
                @client.create_table(
                  arguments['solution_id'],
                  arguments['name'],
                  description: arguments['description'],
                  structure: arguments['structure']
                )
-             when 'list_records'
+    when 'list_records'
                @client.list_records(
                  arguments['table_id'],
                  arguments['limit'],
@@ -226,99 +226,99 @@ class SmartSuiteServer
                  hydrated: arguments['hydrated'],
                  format: (arguments['format'] || 'toon').to_sym
                )
-             when 'get_record'
+    when 'get_record'
                @client.get_record(arguments['table_id'], arguments['record_id'], format: (arguments['format'] || 'toon').to_sym)
-             when 'create_record'
+    when 'create_record'
                @client.create_record(
                  arguments['table_id'],
                  arguments['data'],
                  minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
                )
-             when 'update_record'
+    when 'update_record'
                @client.update_record(
                  arguments['table_id'],
                  arguments['record_id'],
                  arguments['data'],
                  minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
                )
-             when 'delete_record'
+    when 'delete_record'
                @client.delete_record(
                  arguments['table_id'],
                  arguments['record_id'],
                  minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
                )
-             when 'bulk_add_records'
+    when 'bulk_add_records'
                @client.bulk_add_records(
                  arguments['table_id'],
                  arguments['records'],
                  minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
                )
-             when 'bulk_update_records'
+    when 'bulk_update_records'
                @client.bulk_update_records(
                  arguments['table_id'],
                  arguments['records'],
                  minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
                )
-             when 'bulk_delete_records'
+    when 'bulk_delete_records'
                @client.bulk_delete_records(
                  arguments['table_id'],
                  arguments['record_ids'],
                  minimal_response: arguments.key?('minimal_response') ? arguments['minimal_response'] : true
                )
-             when 'get_file_url'
+    when 'get_file_url'
                @client.get_file_url(arguments['file_handle'])
-             when 'list_deleted_records'
+    when 'list_deleted_records'
                @client.list_deleted_records(
                  arguments['solution_id'],
                  full_data: arguments['full_data'] || false,
                  format: (arguments['format'] || 'toon').to_sym
                )
-             when 'restore_deleted_record'
+    when 'restore_deleted_record'
                @client.restore_deleted_record(arguments['table_id'], arguments['record_id'], format: (arguments['format'] || 'toon').to_sym)
-             when 'attach_file'
+    when 'attach_file'
                @client.attach_file(
                  arguments['table_id'],
                  arguments['record_id'],
                  arguments['file_field_slug'],
                  arguments['file_urls']
                )
-             when 'add_field'
+    when 'add_field'
                @client.add_field(
                  arguments['table_id'],
                  arguments['field_data'],
                  field_position: arguments['field_position'],
                  auto_fill_structure_layout: arguments['auto_fill_structure_layout'].nil? || arguments['auto_fill_structure_layout']
                )
-             when 'bulk_add_fields'
+    when 'bulk_add_fields'
                @client.bulk_add_fields(
                  arguments['table_id'],
                  arguments['fields'],
                  set_as_visible_fields_in_reports: arguments['set_as_visible_fields_in_reports']
                )
-             when 'update_field'
+    when 'update_field'
                @client.update_field(arguments['table_id'], arguments['slug'], arguments['field_data'])
-             when 'delete_field'
+    when 'delete_field'
                @client.delete_field(arguments['table_id'], arguments['slug'])
-             when 'list_comments'
+    when 'list_comments'
                @client.list_comments(
                  arguments['record_id'],
                  format: (arguments['format'] || 'toon').to_sym
                )
-             when 'add_comment'
+    when 'add_comment'
                @client.add_comment(
                  arguments['table_id'],
                  arguments['record_id'],
                  arguments['message'],
                  arguments['assigned_to']
                )
-             when 'get_view_records'
+    when 'get_view_records'
                @client.get_view_records(
                  arguments['table_id'],
                  arguments['view_id'],
                  with_empty_values: arguments['with_empty_values'],
                  format: (arguments['format'] || 'toon').to_sym
                )
-             when 'create_view'
+    when 'create_view'
                @client.create_view(
                  arguments['application'],
                  arguments['solution'],
@@ -334,17 +334,17 @@ class SmartSuiteServer
                  map_state: arguments['map_state'],
                  sharing: arguments['sharing']
                )
-             when 'get_api_stats'
+    when 'get_api_stats'
                @client.stats_tracker.get_stats(time_range: arguments['time_range'] || 'all')
-             when 'reset_api_stats'
+    when 'reset_api_stats'
                @client.stats_tracker.reset_stats
-             when 'get_cache_status'
+    when 'get_cache_status'
                if @client.cache_enabled?
                  @client.cache.get_cache_status(table_id: arguments['table_id'])
                else
                  { 'error' => 'Cache is disabled' }
                end
-             when 'refresh_cache'
+    when 'refresh_cache'
                if @client.cache_enabled?
                  @client.cache.refresh_cache(
                    arguments['resource'],
@@ -354,9 +354,9 @@ class SmartSuiteServer
                else
                  { 'error' => 'Cache is disabled' }
                end
-             when 'convert_markdown_to_smartdoc'
+    when 'convert_markdown_to_smartdoc'
                SmartSuite::Formatters::MarkdownToSmartdoc.convert(arguments['markdown'])
-             else
+    else
                return {
                  'jsonrpc' => '2.0',
                  'id' => request['id'],
@@ -365,7 +365,7 @@ class SmartSuiteServer
                    'message' => "Unknown tool: #{tool_name}"
                  }
                }
-             end
+    end
 
     # Format result - if already a string (TOON format), use as-is
     # Otherwise, convert to JSON

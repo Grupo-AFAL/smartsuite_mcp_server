@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'time'
+require "time"
 
 module SmartSuite
   # DateTransformer provides transparent date handling for AI interactions.
@@ -150,7 +150,7 @@ module SmartSuite
       return false unless hash.is_a?(Hash)
 
       keys = hash.keys.map(&:to_s)
-      (keys & DATE_SUBFIELDS).any? || keys.include?('include_time')
+      (keys & DATE_SUBFIELDS).any? || keys.include?("include_time")
     end
 
     # Transform a simple date string to SmartSuite format.
@@ -166,8 +166,8 @@ module SmartSuite
         return str unless date
 
         {
-          'date' => "#{date}T00:00:00Z",
-          'include_time' => false
+          "date" => "#{date}T00:00:00Z",
+          "include_time" => false
         }
       elsif datetime?(str)
         # Has time component
@@ -175,8 +175,8 @@ module SmartSuite
         return str unless normalized
 
         {
-          'date' => normalized,
-          'include_time' => true
+          "date" => normalized,
+          "include_time" => true
         }
       else
         str
@@ -201,13 +201,13 @@ module SmartSuite
         if DATE_SUBFIELDS.include?(key_str)
           result[key_str] = if value.is_a?(String)
                               transform_date_string(value)
-                            elsif value.is_a?(Hash) && value.key?('date')
+          elsif value.is_a?(Hash) && value.key?("date")
                               # Already in correct format, ensure include_time is set
                               ensure_include_time(value)
-                            else
+          else
                               value
-                            end
-        elsif key_str == 'include_time'
+          end
+        elsif key_str == "include_time"
           # Skip - will be set by transform_date_string
           next
         else
@@ -224,16 +224,16 @@ module SmartSuite
     # @param hash [Hash] Date hash with 'date' key
     # @return [Hash] Hash with include_time set
     def ensure_include_time(hash)
-      return hash unless hash.is_a?(Hash) && hash['date']
+      return hash unless hash.is_a?(Hash) && hash["date"]
 
       # If include_time is already set, trust it
-      return hash if hash.key?('include_time')
+      return hash if hash.key?("include_time")
 
       # Infer from the date string
-      date_str = hash['date'].to_s
+      date_str = hash["date"].to_s
       has_time = datetime?(date_str) && !midnight_utc?(date_str)
 
-      hash.merge('include_time' => has_time)
+      hash.merge("include_time" => has_time)
     end
 
     # Check if a string is date-only (no time component).
@@ -268,7 +268,7 @@ module SmartSuite
     # @return [String, nil] Normalized date or nil if parsing fails
     def parse_date_only(str)
       if DATE_SLASH_PATTERN.match?(str)
-        str.tr('/', '-')
+        str.tr("/", "-")
       else
         str
       end
@@ -290,7 +290,7 @@ module SmartSuite
     def normalize_datetime(str)
       if ISO_DATETIME_PATTERN.match?(str)
         # ISO format - may have timezone offset, convert to UTC
-        if str.end_with?('Z')
+        if str.end_with?("Z")
           str
         elsif str.match?(/[+-]\d{2}:?\d{2}\z/)
           # Has timezone offset - parse and convert to UTC
@@ -318,10 +318,10 @@ module SmartSuite
     # @return [String] UTC datetime with Z suffix
     def convert_to_utc(str)
       time = Time.parse(str)
-      time.utc.strftime('%Y-%m-%dT%H:%M:%SZ')
+      time.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     rescue StandardError
       # If parsing fails, return with Z suffix as fallback
-      str.sub(/[+-]\d{2}:?\d{2}\z/, 'Z')
+      str.sub(/[+-]\d{2}:?\d{2}\z/, "Z")
     end
 
     # Build a map of field names to their types from table structure.
@@ -332,8 +332,8 @@ module SmartSuite
       return {} unless structure.is_a?(Array)
 
       structure.each_with_object({}) do |field, map|
-        slug = field['slug'] || field[:slug]
-        type = field['field_type'] || field[:field_type]
+        slug = field["slug"] || field[:slug]
+        type = field["field_type"] || field[:field_type]
         map[slug] = type if slug && type
       end
     end

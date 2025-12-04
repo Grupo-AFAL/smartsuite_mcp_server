@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'set'
-require_relative '../logger'
+require "set"
+require_relative "../logger"
 
 module SmartSuite
   module Cache
@@ -69,26 +69,26 @@ module SmartSuite
         schema = @cache.get_cached_table_schema(@table_id)
         raise "Table #{@table_id} not cached" unless schema
 
-        field_mapping = schema['field_mapping']
-        structure = schema['structure']
-        fields_info = structure['structure'] || []
+        field_mapping = schema["field_mapping"]
+        structure = schema["structure"]
+        fields_info = structure["structure"] || []
 
         conditions.each do |field_slug, condition|
           field_slug_str = field_slug.to_s
 
           # Special handling for built-in 'id' field
-          if field_slug_str == 'id'
-            @where_clauses << 'id = ?'
+          if field_slug_str == "id"
+            @where_clauses << "id = ?"
             @params << condition
             next
           end
 
           # For daterangefield and duedatefield sub-fields (e.g., "s31437fa81.to_date"),
           # extract the base field slug to find the field info
-          base_field_slug = field_slug_str.sub(/\.(from_date|to_date)$/, '')
+          base_field_slug = field_slug_str.sub(/\.(from_date|to_date)$/, "")
 
           # Find field info using base slug
-          field_info = fields_info.find { |f| f['slug'] == base_field_slug }
+          field_info = fields_info.find { |f| f["slug"] == base_field_slug }
           next unless field_info # Skip unknown fields
 
           # Get SQL column name(s) using base slug (field_mapping uses base slug)
@@ -111,37 +111,37 @@ module SmartSuite
       # @param field_slug [String, Symbol] Field to order by
       # @param direction [String] 'ASC' or 'DESC'
       # @return [CacheQuery] self for chaining
-      def order(field_slug, direction = 'ASC')
+      def order(field_slug, direction = "ASC")
         schema = @cache.get_cached_table_schema(@table_id)
         return self unless schema
 
-        field_mapping = schema['field_mapping']
-        structure = schema['structure']
-        fields_info = structure['structure'] || []
+        field_mapping = schema["field_mapping"]
+        structure = schema["structure"]
+        fields_info = structure["structure"] || []
 
         columns = field_mapping[field_slug.to_s]
 
         if columns
           # Find field info to check field type
-          field_info = fields_info.find { |f| f['slug'] == field_slug.to_s }
-          field_type = field_info ? field_info['field_type'].downcase : nil
+          field_info = fields_info.find { |f| f["slug"] == field_slug.to_s }
+          field_type = field_info ? field_info["field_type"].downcase : nil
 
           # Select appropriate column based on field type (same logic as build_condition)
           # For duedatefield and daterangefield, SmartSuite API uses to_date for sorting
           col_name = if %w[duedatefield daterangefield].include?(field_type)
                        # Check if sorting by sub-field (e.g., due_date.from_date)
-                       if field_slug.to_s.end_with?('.from_date')
-                         columns.keys.find { |k| k.end_with?('_from') } || columns.keys.first
-                       elsif field_slug.to_s.end_with?('.to_date')
-                         columns.keys.find { |k| k.end_with?('_to') } || columns.keys.first
+                       if field_slug.to_s.end_with?(".from_date")
+                         columns.keys.find { |k| k.end_with?("_from") } || columns.keys.first
+                       elsif field_slug.to_s.end_with?(".to_date")
+                         columns.keys.find { |k| k.end_with?("_to") } || columns.keys.first
                        else
                          # Default: use to_date column (matches SmartSuite API behavior)
-                         columns.keys.find { |k| k.end_with?('_to') } || columns.keys.first
+                         columns.keys.find { |k| k.end_with?("_to") } || columns.keys.first
                        end
-                     else
+          else
                        # For other field types, use first column
                        columns.keys.first
-                     end
+          end
 
           @order_clauses << "#{col_name} #{direction.upcase}"
         end
@@ -174,7 +174,7 @@ module SmartSuite
         schema = @cache.get_cached_table_schema(@table_id)
         return [] unless schema
 
-        sql_table_name = schema['sql_table_name']
+        sql_table_name = schema["sql_table_name"]
 
         # Build SQL query
         sql = "SELECT * FROM #{sql_table_name}"
@@ -204,9 +204,9 @@ module SmartSuite
         SmartSuite::Logger.db_result(result.length, duration)
 
         # Map transliterated column names back to original field slugs
-        map_column_names_to_field_slugs(result, schema['field_mapping'])
+        map_column_names_to_field_slugs(result, schema["field_mapping"])
       rescue StandardError => e
-        SmartSuite::Logger.error('Cache Query Execute', error: e)
+        SmartSuite::Logger.error("Cache Query Execute", error: e)
         raise
       end
 
@@ -217,7 +217,7 @@ module SmartSuite
         schema = @cache.get_cached_table_schema(@table_id)
         return 0 unless schema
 
-        sql_table_name = schema['sql_table_name']
+        sql_table_name = schema["sql_table_name"]
 
         # Build SQL query
         sql = "SELECT COUNT(*) as count FROM #{sql_table_name}"
@@ -232,12 +232,12 @@ module SmartSuite
         result = @cache.db.execute(sql, @params).first
 
         duration = Time.now - start_time
-        count = result ? result['count'] : 0
+        count = result ? result["count"] : 0
         SmartSuite::Logger.db_result(1, duration) # COUNT always returns 1 row
 
         count
       rescue StandardError => e
-        SmartSuite::Logger.error('Cache Query Count', error: e)
+        SmartSuite::Logger.error("Cache Query Count", error: e)
         raise
       end
 
@@ -259,9 +259,9 @@ module SmartSuite
 
         field_mapping.each do |field_slug, columns|
           columns.each_key do |col_name|
-            if col_name.end_with?('_include_time')
+            if col_name.end_with?("_include_time")
               # Store include_time column reference: col_name => base_column_name
-              base_col = col_name.sub(/_include_time$/, '')
+              base_col = col_name.sub(/_include_time$/, "")
               include_time_columns[col_name] = base_col
             end
             reverse_mapping[col_name] = field_slug
@@ -280,7 +280,7 @@ module SmartSuite
             if include_time_columns.key?(col_name)
               # Store include_time value keyed by base column name
               base_col = include_time_columns[col_name]
-              include_time_values[base_col] = [1, true].include?(value)
+              include_time_values[base_col] = [ 1, true ].include?(value)
             else
               # Store the raw value keyed by column name for later processing
               date_column_values[col_name] = value
@@ -289,16 +289,16 @@ module SmartSuite
               field_slug = reverse_mapping[col_name] || col_name
 
               # Check if this is a multi-column date field (from/to structure)
-              if col_name.end_with?('_from')
+              if col_name.end_with?("_from")
                 multi_column_fields[field_slug] ||= {}
                 multi_column_fields[field_slug][:from_col] = col_name
-              elsif col_name.end_with?('_to')
+              elsif col_name.end_with?("_to")
                 multi_column_fields[field_slug] ||= {}
                 multi_column_fields[field_slug][:to_col] = col_name
-              elsif col_name.end_with?('_is_overdue')
+              elsif col_name.end_with?("_is_overdue")
                 multi_column_fields[field_slug] ||= {}
                 multi_column_fields[field_slug][:is_overdue] = value == 1
-              elsif col_name.end_with?('_is_completed')
+              elsif col_name.end_with?("_is_completed")
                 multi_column_fields[field_slug] ||= {}
                 multi_column_fields[field_slug][:is_completed] = value == 1
               else
@@ -316,17 +316,17 @@ module SmartSuite
             if cols[:from_col]
               from_date = date_column_values[cols[:from_col]]
               from_include_time = include_time_values[cols[:from_col]]
-              result['from_date'] = { 'date' => from_date, 'include_time' => from_include_time || false } if from_date
+              result["from_date"] = { "date" => from_date, "include_time" => from_include_time || false } if from_date
             end
 
             if cols[:to_col]
               to_date = date_column_values[cols[:to_col]]
               to_include_time = include_time_values[cols[:to_col]]
-              result['to_date'] = { 'date' => to_date, 'include_time' => to_include_time || false } if to_date
+              result["to_date"] = { "date" => to_date, "include_time" => to_include_time || false } if to_date
             end
 
-            result['is_overdue'] = cols[:is_overdue] if cols.key?(:is_overdue)
-            result['is_completed'] = cols[:is_completed] if cols.key?(:is_completed)
+            result["is_overdue"] = cols[:is_overdue] if cols.key?(:is_overdue)
+            result["is_completed"] = cols[:is_completed] if cols.key?(:is_completed)
 
             mapped_row[field_slug] = result unless result.empty?
           end
@@ -348,7 +348,7 @@ module SmartSuite
             processed_fields.add(field_slug)
 
             # Create hash with date and include_time flag
-            mapped_row[field_slug] = { 'date' => date_value, 'include_time' => include_time }
+            mapped_row[field_slug] = { "date" => date_value, "include_time" => include_time }
           end
 
           mapped_row
@@ -364,29 +364,29 @@ module SmartSuite
       # @param full_field_slug [String] Full field slug including .from_date/.to_date suffix (optional)
       # @return [Array<String, Array>] [SQL clause, parameters]
       def build_condition(field_info, columns, condition, full_field_slug = nil)
-        field_type = field_info['field_type'].downcase
+        field_type = field_info["field_type"].downcase
         # Use full_field_slug if provided, otherwise fall back to field_info slug
-        field_slug = full_field_slug || field_info['slug']
+        field_slug = full_field_slug || field_info["slug"]
 
         # Select appropriate column based on field type and slug
         # For duedatefield and daterangefield, SmartSuite API uses to_date for all comparisons
         # unless explicitly filtering by .from_date or .to_date sub-field
         col_name = if %w[duedatefield daterangefield].include?(field_type)
                      # Check if filtering by sub-field (e.g., due_date.from_date)
-                     if field_slug.end_with?('.from_date')
+                     if field_slug.end_with?(".from_date")
                        # User explicitly requested from_date column
-                       columns.keys.find { |k| k.end_with?('_from') } || columns.keys.first
-                     elsif field_slug.end_with?('.to_date')
+                       columns.keys.find { |k| k.end_with?("_from") } || columns.keys.first
+                     elsif field_slug.end_with?(".to_date")
                        # User explicitly requested to_date column
-                       columns.keys.find { |k| k.end_with?('_to') } || columns.keys.first
+                       columns.keys.find { |k| k.end_with?("_to") } || columns.keys.first
                      else
                        # Default: use to_date column (matches SmartSuite API behavior)
-                       columns.keys.find { |k| k.end_with?('_to') } || columns.keys.first
+                       columns.keys.find { |k| k.end_with?("_to") } || columns.keys.first
                      end
-                   else
+        else
                      # For other field types, use first column
                      columns.keys.first
-                   end
+        end
 
         # Handle different condition formats
         if condition.is_a?(Hash)
@@ -394,7 +394,7 @@ module SmartSuite
           build_complex_condition(field_type, col_name, condition)
         else
           # Simple equality
-          ["#{col_name} = ?", [condition]]
+          [ "#{col_name} = ?", [ condition ] ]
         end
       end
 
@@ -409,81 +409,81 @@ module SmartSuite
 
         case operator
         when :eq
-          ["#{col_name} = ?", [value]]
+          [ "#{col_name} = ?", [ value ] ]
         when :ne, :not_eq
-          ["#{col_name} != ?", [value]]
+          [ "#{col_name} != ?", [ value ] ]
         when :gt
-          ["#{col_name} > ?", [value]]
+          [ "#{col_name} > ?", [ value ] ]
         when :gte
-          ["#{col_name} >= ?", [value]]
+          [ "#{col_name} >= ?", [ value ] ]
         when :lt
-          ["#{col_name} < ?", [value]]
+          [ "#{col_name} < ?", [ value ] ]
         when :lte
-          ["#{col_name} <= ?", [value]]
+          [ "#{col_name} <= ?", [ value ] ]
         when :contains
-          ["#{col_name} LIKE ?", ["%#{value}%"]]
+          [ "#{col_name} LIKE ?", [ "%#{value}%" ] ]
         when :starts_with
-          ["#{col_name} LIKE ?", ["#{value}%"]]
+          [ "#{col_name} LIKE ?", [ "#{value}%" ] ]
         when :ends_with
-          ["#{col_name} LIKE ?", ["%#{value}"]]
+          [ "#{col_name} LIKE ?", [ "%#{value}" ] ]
         when :in
-          placeholders = value.map { '?' }.join(',')
-          ["#{col_name} IN (#{placeholders})", value]
+          placeholders = value.map { "?" }.join(",")
+          [ "#{col_name} IN (#{placeholders})", value ]
         when :not_in
-          placeholders = value.map { '?' }.join(',')
-          ["#{col_name} NOT IN (#{placeholders})", value]
+          placeholders = value.map { "?" }.join(",")
+          [ "#{col_name} NOT IN (#{placeholders})", value ]
         when :between
-          ["#{col_name} BETWEEN ? AND ?", [value[:min], value[:max]]]
+          [ "#{col_name} BETWEEN ? AND ?", [ value[:min], value[:max] ] ]
         when :is_null
-          ["#{col_name} IS NULL", []]
+          [ "#{col_name} IS NULL", [] ]
         when :is_not_null
-          ["#{col_name} IS NOT NULL", []]
+          [ "#{col_name} IS NOT NULL", [] ]
         when :is_empty
           # For JSON array fields (userfield, multipleselectfield, linkedrecordfield)
           if json_array_field?(field_type)
-            ["(#{col_name} IS NULL OR #{col_name} = '[]')", []]
+            [ "(#{col_name} IS NULL OR #{col_name} = '[]')", [] ]
           # For text fields
           elsif text_field?(field_type)
-            ["(#{col_name} IS NULL OR #{col_name} = '')", []]
+            [ "(#{col_name} IS NULL OR #{col_name} = '')", [] ]
           else
-            ["#{col_name} IS NULL", []]
+            [ "#{col_name} IS NULL", [] ]
           end
         when :is_not_empty
           # For JSON array fields (userfield, multipleselectfield, linkedrecordfield)
           if json_array_field?(field_type)
-            ["(#{col_name} IS NOT NULL AND #{col_name} != '[]')", []]
+            [ "(#{col_name} IS NOT NULL AND #{col_name} != '[]')", [] ]
           # For text fields
           elsif text_field?(field_type)
-            ["(#{col_name} IS NOT NULL AND #{col_name} != '')", []]
+            [ "(#{col_name} IS NOT NULL AND #{col_name} != '')", [] ]
           else
-            ["#{col_name} IS NOT NULL", []]
+            [ "#{col_name} IS NOT NULL", [] ]
           end
         when :has_any_of
           # For JSON arrays (assigned_to, linked_record, tags, etc.)
           conditions = value.map { "json_extract(#{col_name}, '$') LIKE ?" }
           params = value.map { |v| "%\"#{v}\"%" }
-          ["(#{conditions.join(' OR ')})", params]
+          [ "(#{conditions.join(' OR ')})", params ]
         when :has_all_of
           # All values must be present in JSON array
           conditions = value.map { "json_extract(#{col_name}, '$') LIKE ?" }
           params = value.map { |v| "%\"#{v}\"%" }
-          ["(#{conditions.join(' AND ')})", params]
+          [ "(#{conditions.join(' AND ')})", params ]
         when :has_none_of
           # None of the values should be present
           conditions = value.map { "json_extract(#{col_name}, '$') NOT LIKE ?" }
           params = value.map { |v| "%\"#{v}\"%" }
-          ["(#{conditions.join(' AND ')})", params]
+          [ "(#{conditions.join(' AND ')})", params ]
         when :is_exactly
           # Array must contain exactly these values (no more, no less)
           # Check: (1) length matches AND (2) all values present
           length_check = "json_array_length(#{col_name}) = ?"
           value_checks = value.map { "json_extract(#{col_name}, '$') LIKE ?" }
-          all_conditions = [length_check] + value_checks
-          params = [value.length] + value.map { |v| "%\"#{v}\"%" }
-          ["(#{all_conditions.join(' AND ')})", params]
+          all_conditions = [ length_check ] + value_checks
+          params = [ value.length ] + value.map { |v| "%\"#{v}\"%" }
+          [ "(#{all_conditions.join(' AND ')})", params ]
         else
           # Fallback: treat as equality
-          ["#{col_name} = ?", [value]]
+          [ "#{col_name} = ?", [ value ] ]
         end
       end
     end

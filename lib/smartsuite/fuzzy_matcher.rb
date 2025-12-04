@@ -68,7 +68,7 @@ module SmartSuite
       return 0.0 if str1.empty? || str2.empty?
 
       distance = levenshtein_distance(str1, str2)
-      max_length = [str1.length, str2.length].max
+      max_length = [ str1.length, str2.length ].max
 
       # Convert distance to similarity score (0.0 = completely different, 1.0 = identical)
       1.0 - (distance.to_f / max_length)
@@ -131,10 +131,10 @@ module SmartSuite
 
       # Remove common Spanish accents for better matching
       accent_map = {
-        'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
-        'ñ' => 'n', 'ü' => 'u',
-        'Á' => 'a', 'É' => 'e', 'Í' => 'i', 'Ó' => 'o', 'Ú' => 'u',
-        'Ñ' => 'n', 'Ü' => 'u'
+        "á" => "a", "é" => "e", "í" => "i", "ó" => "o", "ú" => "u",
+        "ñ" => "n", "ü" => "u",
+        "Á" => "a", "É" => "e", "Í" => "i", "Ó" => "o", "Ú" => "u",
+        "Ñ" => "n", "Ü" => "u"
       }
 
       accent_map.each { |accented, plain| normalized.gsub!(accented, plain) }
@@ -178,7 +178,7 @@ module SmartSuite
       query_words.each do |qw|
         target_words.each do |tw|
           score = similarity(tw, qw)
-          best_score = [best_score, score].max
+          best_score = [ best_score, score ].max
         end
       end
 

@@ -16,4 +16,4 @@
 #   AUTH_MODE=local  (for local standalone server)
 #   AUTH_MODE=remote (for hosted multi-user server)
 
-Rails.application.config.smartsuite_auth_mode = ENV.fetch('AUTH_MODE', 'remote').to_sym
+Rails.application.config.smartsuite_auth_mode = ENV.fetch("AUTH_MODE", "remote").to_sym

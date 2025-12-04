@@ -11,7 +11,7 @@ class CreateApiCalls < ActiveRecord::Migration[8.0]
       t.datetime :created_at, null: false
     end
 
-    add_index :api_calls, [:user_id, :created_at]
-    add_index :api_calls, [:user_id, :tool_name]
+    add_index :api_calls, [ :user_id, :created_at ]
+    add_index :api_calls, [ :user_id, :tool_name ]
   end
 end

@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require 'time'
-require_relative 'base'
-require_relative '../fuzzy_matcher'
-require_relative '../formatters/toon_formatter'
+require "time"
+require_relative "base"
+require_relative "../fuzzy_matcher"
+require_relative "../formatters/toon_formatter"
 
 module SmartSuite
   module API
@@ -51,14 +51,14 @@ module SmartSuite
         # Note: Even if fields parameter is specified, we use cache and filter client-side
         # because the /solutions/ API endpoint doesn't respect the fields parameter anyway
         # Note: Name filtering happens at DB layer using custom fuzzy_match SQLite function
-        cached_solutions = with_cache_check('solutions') { @cache.get_cached_solutions(name: name) }
+        cached_solutions = with_cache_check("solutions") { @cache.get_cached_solutions(name: name) }
         if cached_solutions
           log_metric("→ Fuzzy matched #{cached_solutions.size} solutions for: #{name}") if name
           return format_solutions_response(cached_solutions, include_activity_data, fields, nil, format)
         end
 
         # Build endpoint with query parameters using Base helper
-        endpoint = build_endpoint('/solutions/', fields: fields)
+        endpoint = build_endpoint("/solutions/", fields: fields)
 
         response = api_request(:get, endpoint)
 
@@ -93,7 +93,7 @@ module SmartSuite
         if name && !solutions_list.empty?
           original_count = solutions_list.size
           solutions_list = solutions_list.select do |solution|
-            SmartSuite::FuzzyMatcher.match?(solution['name'], name)
+            SmartSuite::FuzzyMatcher.match?(solution["name"], name)
           end
           log_metric("→ Fuzzy matched #{solutions_list.size}/#{original_count} solutions for: #{name}")
         end
@@ -150,7 +150,7 @@ module SmartSuite
       # @example
       #   get_solution('sol_123')
       def get_solution(solution_id)
-        validate_required_parameter!('solution_id', solution_id)
+        validate_required_parameter!("solution_id", solution_id)
 
         api_request(:get, "/solutions/#{solution_id}/")
       end
@@ -172,17 +172,17 @@ module SmartSuite
       # @example Explicit format selection
       #   list_solutions_by_owner('user_abc', format: :json)
       def list_solutions_by_owner(owner_id, include_activity_data: false, format: :toon)
-        validate_required_parameter!('owner_id', owner_id)
+        validate_required_parameter!("owner_id", owner_id)
 
         log_metric("→ Listing solutions owned by user: #{owner_id}")
 
         # Use cache-first strategy - cache stores full data including permissions
-        cached_solutions = with_cache_check('solutions') { @cache.get_cached_solutions }
+        cached_solutions = with_cache_check("solutions") { @cache.get_cached_solutions }
         if cached_solutions
           solutions_list = cached_solutions
         else
           # Cache miss - fetch and cache all solutions
-          response = api_request(:get, '/solutions/')
+          response = api_request(:get, "/solutions/")
           solutions_list = extract_items_safely(response)
 
           # Cache the full response
@@ -194,9 +194,9 @@ module SmartSuite
 
         # Filter solutions where the user is in the owners array
         owned_solutions = solutions_list.select do |solution|
-          solution['permissions'] &&
-            solution['permissions']['owners'] &&
-            solution['permissions']['owners'].include?(owner_id)
+          solution["permissions"] &&
+            solution["permissions"]["owners"] &&
+            solution["permissions"]["owners"].include?(owner_id)
         end
 
         # Extract only essential fields to reduce response size
@@ -219,17 +219,17 @@ module SmartSuite
       # @example
       #   get_solution_most_recent_record_update('sol_123')
       def get_solution_most_recent_record_update(solution_id)
-        validate_required_parameter!('solution_id', solution_id)
+        validate_required_parameter!("solution_id", solution_id)
 
         # Get all tables for this solution (use JSON format for internal processing)
         tables_response = list_tables(solution_id: solution_id, format: :json)
 
-        return nil unless tables_response['tables'] && !tables_response['tables'].empty?
+        return nil unless tables_response["tables"] && !tables_response["tables"].empty?
 
         most_recent_update = nil
 
-        tables_response['tables'].each do |table|
-          table_id = table['id']
+        tables_response["tables"].each do |table|
+          table_id = table["id"]
 
           # Use cache-first strategy: populate cache with ALL records
           # This ensures records are available for subsequent queries
@@ -238,7 +238,7 @@ module SmartSuite
 
             # Query the cache for the most recent record
             query = @cache.query(table_id)
-                          .order('last_updated', 'DESC')
+                          .order("last_updated", "DESC")
                           .limit(1)
             results = query.execute
 
@@ -246,20 +246,20 @@ module SmartSuite
 
             record = results.first
             # Extract last_updated timestamp - cache stores it as JSON string
-            last_updated = record['last_updated']
+            last_updated = record["last_updated"]
             record_update = extract_last_updated_timestamp(last_updated)
           else
             # Fallback: direct API call (original behavior when cache disabled)
             base_path = "/applications/#{table_id}/records/list/"
             endpoint = build_endpoint(base_path, limit: 1, offset: 0)
-            body = { sort: [{ 'field' => 'last_updated', 'direction' => 'desc' }] }
+            body = { sort: [ { "field" => "last_updated", "direction" => "desc" } ] }
 
             records_response = api_request(:post, endpoint, body)
 
-            next unless records_response['items']&.first
+            next unless records_response["items"]&.first
 
-            record = records_response['items'].first
-            record_update = record.dig('last_updated', 'on')
+            record = records_response["items"].first
+            record_update = record.dig("last_updated", "on")
           end
 
           most_recent_update = record_update if record_update && (most_recent_update.nil? || record_update > most_recent_update)
@@ -284,7 +284,7 @@ module SmartSuite
         if last_updated.is_a?(String)
           begin
             parsed = JSON.parse(last_updated)
-            return parsed['on'] if parsed.is_a?(Hash)
+            return parsed["on"] if parsed.is_a?(Hash)
           rescue JSON::ParserError
             # Not JSON, return as-is if it looks like a timestamp
             return last_updated if last_updated.match?(/^\d{4}-\d{2}-\d{2}/)
@@ -292,7 +292,7 @@ module SmartSuite
         end
 
         # If it's a Hash, extract 'on' key
-        return last_updated['on'] if last_updated.is_a?(Hash)
+        return last_updated["on"] if last_updated.is_a?(Hash)
 
         nil
       end
@@ -304,28 +304,28 @@ module SmartSuite
       # @return [Hash] Solution with only essential fields
       def extract_essential_solution_fields(solution, include_activity_data: false)
         base_fields = {
-          'id' => solution['id'],
-          'name' => solution['name'],
-          'logo_icon' => solution['logo_icon'],
-          'logo_color' => solution['logo_color']
+          "id" => solution["id"],
+          "name" => solution["name"],
+          "logo_icon" => solution["logo_icon"],
+          "logo_color" => solution["logo_color"]
         }
 
         return base_fields unless include_activity_data
 
         base_fields.merge(
-          'status' => solution['status'],
-          'hidden' => solution['hidden'],
-          'last_access' => solution['last_access'],
-          'updated' => solution['updated'],
-          'created' => solution['created'],
-          'records_count' => solution['records_count'],
-          'members_count' => solution['members_count'],
-          'applications_count' => solution['applications_count'],
-          'automation_count' => solution['automation_count'],
-          'has_demo_data' => solution['has_demo_data'],
-          'delete_date' => solution['delete_date'],
-          'deleted_by' => solution['deleted_by'],
-          'updated_by' => solution['updated_by']
+          "status" => solution["status"],
+          "hidden" => solution["hidden"],
+          "last_access" => solution["last_access"],
+          "updated" => solution["updated"],
+          "created" => solution["created"],
+          "records_count" => solution["records_count"],
+          "members_count" => solution["members_count"],
+          "applications_count" => solution["applications_count"],
+          "automation_count" => solution["automation_count"],
+          "has_demo_data" => solution["has_demo_data"],
+          "delete_date" => solution["delete_date"],
+          "deleted_by" => solution["deleted_by"],
+          "updated_by" => solution["updated_by"]
         )
       end
 
@@ -348,9 +348,9 @@ module SmartSuite
 
         # Get all solutions with activity data (use JSON format for internal processing)
         solutions_data = list_solutions(include_activity_data: true, format: :json)
-        return solutions_data unless solutions_data.is_a?(Hash) && solutions_data['solutions']
+        return solutions_data unless solutions_data.is_a?(Hash) && solutions_data["solutions"]
 
-        solutions = solutions_data['solutions']
+        solutions = solutions_data["solutions"]
         current_time = Time.now
 
         # Categorize solutions
@@ -360,45 +360,45 @@ module SmartSuite
 
         solutions.each do |solution|
           # Skip already deleted or scheduled for deletion
-          next if solution['delete_date'] || solution['deleted_by']
+          next if solution["delete_date"] || solution["deleted_by"]
 
           # Parse last_access date
-          last_access_time = solution['last_access'] ? Time.parse(solution['last_access']) : nil
+          last_access_time = solution["last_access"] ? Time.parse(solution["last_access"]) : nil
           days_since_access = last_access_time ? ((current_time - last_access_time) / 86_400).to_i : nil
 
           # Determine category
           category_info = {
-            'id' => solution['id'],
-            'name' => solution['name'],
-            'status' => solution['status'],
-            'hidden' => solution['hidden'],
-            'last_access' => solution['last_access'],
-            'days_since_access' => days_since_access,
-            'records_count' => solution['records_count'],
-            'members_count' => solution['members_count'],
-            'applications_count' => solution['applications_count'],
-            'automation_count' => solution['automation_count'],
-            'has_demo_data' => solution['has_demo_data']
+            "id" => solution["id"],
+            "name" => solution["name"],
+            "status" => solution["status"],
+            "hidden" => solution["hidden"],
+            "last_access" => solution["last_access"],
+            "days_since_access" => days_since_access,
+            "records_count" => solution["records_count"],
+            "members_count" => solution["members_count"],
+            "applications_count" => solution["applications_count"],
+            "automation_count" => solution["automation_count"],
+            "has_demo_data" => solution["has_demo_data"]
           }
 
           # Categorization logic
           # Focus on last_access date - demo data presence doesn't indicate usage
-          records_count = solution['records_count'].to_i
-          automation_count = solution['automation_count'].to_i
+          records_count = solution["records_count"].to_i
+          automation_count = solution["automation_count"].to_i
 
-          if solution['last_access'].nil? || days_since_access.nil?
+          if solution["last_access"].nil? || days_since_access.nil?
             # Never accessed - highest priority for cleanup
             if records_count < min_records && automation_count.zero?
-              inactive << category_info.merge('reason' => 'Never accessed, minimal records, no automations')
+              inactive << category_info.merge("reason" => "Never accessed, minimal records, no automations")
             else
-              potentially_unused << category_info.merge('reason' => 'Never accessed but has content (may be template or abandoned)')
+              potentially_unused << category_info.merge("reason" => "Never accessed but has content (may be template or abandoned)")
             end
           elsif days_since_access >= days_inactive
             # Not accessed in threshold period
             if records_count < min_records && automation_count.zero?
-              inactive << category_info.merge('reason' => "Not accessed in #{days_since_access} days, minimal records")
+              inactive << category_info.merge("reason" => "Not accessed in #{days_since_access} days, minimal records")
             else
-              potentially_unused << category_info.merge('reason' => "Not accessed in #{days_since_access} days but has content")
+              potentially_unused << category_info.merge("reason" => "Not accessed in #{days_since_access} days but has content")
             end
           else
             # Recently accessed - in active use
@@ -407,22 +407,22 @@ module SmartSuite
         end
 
         result = {
-          'analysis_date' => current_time.iso8601,
-          'thresholds' => {
-            'days_inactive' => days_inactive,
-            'min_records' => min_records
+          "analysis_date" => current_time.iso8601,
+          "thresholds" => {
+            "days_inactive" => days_inactive,
+            "min_records" => min_records
           },
-          'summary' => {
-            'total_solutions' => solutions.size,
-            'inactive_count' => inactive.size,
-            'potentially_unused_count' => potentially_unused.size,
-            'active_count' => active.size
+          "summary" => {
+            "total_solutions" => solutions.size,
+            "inactive_count" => inactive.size,
+            "potentially_unused_count" => potentially_unused.size,
+            "active_count" => active.size
           },
-          'inactive_solutions' => inactive.sort_by { |s| s['days_since_access'] || Float::INFINITY }.reverse,
-          'potentially_unused_solutions' => potentially_unused.sort_by do |s|
-            s['days_since_access'] || Float::INFINITY
+          "inactive_solutions" => inactive.sort_by { |s| s["days_since_access"] || Float::INFINITY }.reverse,
+          "potentially_unused_solutions" => potentially_unused.sort_by do |s|
+            s["days_since_access"] || Float::INFINITY
           end.reverse,
-          'active_solutions_count' => active.size
+          "active_solutions_count" => active.size
         }
 
         format_single_response(result, format)

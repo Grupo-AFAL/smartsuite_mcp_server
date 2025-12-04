@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
-require_relative '../lib/smartsuite_client'
+require_relative "test_helper"
+require_relative "../lib/smartsuite_client"
 
 class SmartSuiteClientTest < Minitest::Test
   def setup
-    @api_key = 'test_api_key'
-    @account_id = 'test_account_id'
+    @api_key = "test_api_key"
+    @account_id = "test_account_id"
     @test_cache_path = File.join(Dir.tmpdir, "smartsuite_client_test_#{Process.pid}_#{rand(10_000)}.db")
   end
 
@@ -77,10 +77,10 @@ class SmartSuiteClientTest < Minitest::Test
   end
 
   def test_client_uses_custom_session_id
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path, session_id: 'custom_session')
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path, session_id: "custom_session")
 
     session_id = client.stats_tracker.instance_variable_get(:@session_id)
-    assert_equal 'custom_session', session_id
+    assert_equal "custom_session", session_id
   end
 
   def test_client_uses_custom_cache_path

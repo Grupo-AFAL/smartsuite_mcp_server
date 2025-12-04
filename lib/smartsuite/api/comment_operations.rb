@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative 'base'
-require_relative '../formatters/toon_formatter'
+require_relative "base"
+require_relative "../formatters/toon_formatter"
 
 module SmartSuite
   module API
@@ -23,15 +23,15 @@ module SmartSuite
       #   list_comments("rec_abc123")
       #   list_comments("rec_abc123", format: :json)
       def list_comments(record_id, format: :toon)
-        validate_required_parameter!('record_id', record_id)
+        validate_required_parameter!("record_id", record_id)
 
-        endpoint = build_endpoint('/comments/', record: record_id)
+        endpoint = build_endpoint("/comments/", record: record_id)
         response = api_request(:get, endpoint)
 
-        return response unless response.is_a?(Hash) && response['results'].is_a?(Array)
+        return response unless response.is_a?(Hash) && response["results"].is_a?(Array)
 
         # SmartSuite API returns count: null, so calculate from results
-        comments = response['results']
+        comments = response["results"]
         count = comments.length
 
         format_comments_output(comments, count, format)
@@ -55,18 +55,18 @@ module SmartSuite
       # @example With assignment
       #   add_comment("tbl_123", "rec_456", "Review needed", "user_789")
       def add_comment(table_id, record_id, message, assigned_to = nil, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('record_id', record_id)
-        validate_required_parameter!('message', message)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("record_id", record_id)
+        validate_required_parameter!("message", message)
 
         body = {
-          'assigned_to' => assigned_to,
-          'message' => format_message(message),
-          'application' => table_id,
-          'record' => record_id
+          "assigned_to" => assigned_to,
+          "message" => format_message(message),
+          "application" => table_id,
+          "record" => record_id
         }
 
-        response = api_request(:post, '/comments/', body)
+        response = api_request(:post, "/comments/", body)
         format_single_response(response, format)
       end
 
@@ -83,7 +83,7 @@ module SmartSuite
         when :toon
           SmartSuite::Formatters::ToonFormatter.format(comments)
         else # :json
-          { 'results' => comments, 'count' => count }
+          { "results" => comments, "count" => count }
         end
       end
 
@@ -94,15 +94,15 @@ module SmartSuite
       # @return [Hash] Formatted message object
       def format_message(text)
         {
-          'data' => {
-            'type' => 'doc',
-            'content' => [
+          "data" => {
+            "type" => "doc",
+            "content" => [
               {
-                'type' => 'paragraph',
-                'content' => [
+                "type" => "paragraph",
+                "content" => [
                   {
-                    'type' => 'text',
-                    'text' => text
+                    "type" => "text",
+                    "text" => text
                   }
                 ]
               }

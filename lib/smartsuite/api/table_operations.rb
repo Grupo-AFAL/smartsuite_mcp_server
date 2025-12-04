@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative 'base'
-require_relative '../formatters/toon_formatter'
+require_relative "base"
+require_relative "../formatters/toon_formatter"
 
 module SmartSuite
   module API
@@ -39,11 +39,11 @@ module SmartSuite
       # @example Explicit format selection
       #   list_tables(format: :json)
       def list_tables(solution_id: nil, fields: nil, format: :toon)
-        validate_optional_parameter!('fields', fields, Array) if fields
+        validate_optional_parameter!("fields", fields, Array) if fields
 
         # Try cache first if enabled and no custom fields specified
-        cache_key = solution_id ? "solution:#{solution_id}" : 'all tables'
-        cached_tables = with_cache_check('tables', cache_key, bypass: fields&.any?) do
+        cache_key = solution_id ? "solution:#{solution_id}" : "all tables"
+        cached_tables = with_cache_check("tables", cache_key, bypass: fields&.any?) do
           @cache.get_cached_table_list(solution_id)
         end
         return format_tables_response(cached_tables, fields, format) if cached_tables
@@ -53,7 +53,7 @@ module SmartSuite
         log_metric("→ Requesting specific fields: #{fields.join(', ')}") if fields&.any?
 
         # Build endpoint with query parameters using Base helper
-        endpoint = build_endpoint('/applications/', solution: solution_id, fields: fields)
+        endpoint = build_endpoint("/applications/", solution: solution_id, fields: fields)
 
         response = api_request(:get, endpoint)
 
@@ -86,17 +86,17 @@ module SmartSuite
         tables = if fields && !fields.empty?
                    # User requested specific fields - return as-is
                    tables_list
-                 else
+        else
                    # No fields specified - apply client-side filtering for essential fields only
                    tables_list.map do |table|
                      {
-                       'id' => table['id'],
-                       'name' => table['name'],
+                       "id" => table["id"],
+                       "name" => table["name"],
                        # API returns 'solution' but we normalize to 'solution_id'
-                       'solution_id' => table['solution'] || table['solution_id']
+                       "solution_id" => table["solution"] || table["solution_id"]
                      }
                    end
-                 end
+        end
 
         format_tables_output(tables, format)
       end
@@ -131,7 +131,7 @@ module SmartSuite
       #   get_table("tbl_123")
       #   get_table("tbl_123", format: :json)
       def get_table(table_id, format: :toon)
-        validate_required_parameter!('table_id', table_id)
+        validate_required_parameter!("table_id", table_id)
 
         result = nil
 
@@ -140,8 +140,8 @@ module SmartSuite
           cached_table = @cache.get_cached_table(table_id)
           if cached_table
             # Filter structure to only essential fields (cache has full structure)
-            filtered_structure = cached_table['structure'].map { |field| filter_field_structure(field) }
-            cached_table['structure'] = filtered_structure
+            filtered_structure = cached_table["structure"].map { |field| filter_field_structure(field) }
+            cached_table["structure"] = filtered_structure
             result = cached_table
           end
         end
@@ -157,14 +157,14 @@ module SmartSuite
           @cache&.cache_single_table(response)
 
           # Filter structure to only essential fields
-          filtered_structure = response['structure'].map { |field| filter_field_structure(field) }
+          filtered_structure = response["structure"].map { |field| filter_field_structure(field) }
 
           result = {
-            'id' => response['id'],
-            'name' => response['name'],
+            "id" => response["id"],
+            "name" => response["name"],
             # API returns 'solution' but we normalize to 'solution_id'
-            'solution_id' => response['solution'] || response['solution_id'],
-            'structure' => filtered_structure
+            "solution_id" => response["solution"] || response["solution_id"],
+            "structure" => filtered_structure
           }
         end
 
@@ -190,19 +190,19 @@ module SmartSuite
       #                  {"slug" => "title", "label" => "Title", "field_type" => "textfield"}
       #                ])
       def create_table(solution_id, name, description: nil, structure: nil, format: :toon)
-        validate_required_parameter!('solution_id', solution_id)
-        validate_required_parameter!('name', name)
-        validate_optional_parameter!('structure', structure, Array) if structure
+        validate_required_parameter!("solution_id", solution_id)
+        validate_required_parameter!("name", name)
+        validate_optional_parameter!("structure", structure, Array) if structure
 
         body = {
-          'name' => name,
-          'solution' => solution_id,
-          'structure' => structure || []
+          "name" => name,
+          "solution" => solution_id,
+          "structure" => structure || []
         }
 
-        body['description'] = description if description
+        body["description"] = description if description
 
-        response = api_request(:post, '/applications/', body)
+        response = api_request(:post, "/applications/", body)
 
         return response unless response.is_a?(Hash)
 

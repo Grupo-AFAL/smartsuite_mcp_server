@@ -64,7 +64,7 @@ Rails.application.configure do
 
   # Log to both STDOUT (console) and file (for debugging)
   stdout_logger = ActiveSupport::Logger.new($stdout)
-  file_logger = ActiveSupport::Logger.new(Rails.root.join('log', 'development.log'))
+  file_logger = ActiveSupport::Logger.new(Rails.root.join("log", "development.log"))
 
   stdout_logger.formatter = config.log_formatter
   file_logger.formatter = config.log_formatter

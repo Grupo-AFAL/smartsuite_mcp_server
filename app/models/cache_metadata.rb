@@ -6,8 +6,8 @@ class CacheMetadata < ApplicationRecord
   validates :table_id, presence: true, uniqueness: true
   validates :pg_table_name, presence: true
 
-  scope :expired, -> { where('expires_at < ?', Time.current) }
-  scope :valid, -> { where('expires_at > ?', Time.current) }
+  scope :expired, -> { where("expires_at < ?", Time.current) }
+  scope :valid, -> { where("expires_at > ?", Time.current) }
 
   def expired?
     expires_at.present? && expires_at < Time.current

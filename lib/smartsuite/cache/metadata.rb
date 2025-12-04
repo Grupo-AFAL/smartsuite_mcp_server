@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'sqlite3'
-require 'json'
-require 'time'
+require "sqlite3"
+require "json"
+require "time"
 
 module SmartSuite
   module Cache
@@ -21,46 +21,46 @@ module SmartSuite
       # @api private
       FIELD_TYPE_SQL_MAP = {
         # System fields
-        'autonumber' => 'INTEGER',
-        'comments_count' => 'INTEGER',
-        'record_id' => 'TEXT',
-        'application_slug' => 'TEXT',
-        'application_id' => 'TEXT',
-        'followed_by' => 'TEXT',
+        "autonumber" => "INTEGER",
+        "comments_count" => "INTEGER",
+        "record_id" => "TEXT",
+        "application_slug" => "TEXT",
+        "application_id" => "TEXT",
+        "followed_by" => "TEXT",
         # Text fields
-        'textfield' => 'TEXT',
-        'textarea' => 'TEXT',
-        'title' => 'TEXT',
-        'emailfield' => 'TEXT',
-        'phonefield' => 'TEXT',
-        'linkfield' => 'TEXT',
-        'ipaddressfield' => 'TEXT',
-        'colorpickerfield' => 'TEXT',
-        'socialnetworkfield' => 'TEXT',
+        "textfield" => "TEXT",
+        "textarea" => "TEXT",
+        "title" => "TEXT",
+        "emailfield" => "TEXT",
+        "phonefield" => "TEXT",
+        "linkfield" => "TEXT",
+        "ipaddressfield" => "TEXT",
+        "colorpickerfield" => "TEXT",
+        "socialnetworkfield" => "TEXT",
         # Date fields
-        'datefield' => 'TEXT',
-        'durationfield' => 'REAL',
-        'timefield' => 'TEXT',
+        "datefield" => "TEXT",
+        "durationfield" => "REAL",
+        "timefield" => "TEXT",
         # Number fields
-        'numberfield' => 'REAL',
-        'currencyfield' => 'REAL',
-        'percentfield' => 'REAL',
-        'ratingfield' => 'REAL',
-        'numbersliderfield' => 'REAL',
-        'percentcompletefield' => 'REAL',
+        "numberfield" => "REAL",
+        "currencyfield" => "REAL",
+        "percentfield" => "REAL",
+        "ratingfield" => "REAL",
+        "numbersliderfield" => "REAL",
+        "percentcompletefield" => "REAL",
         # List fields
-        'singleselectfield' => 'TEXT',
-        'multipleselectfield' => 'TEXT',
-        'tagfield' => 'TEXT',
-        'yesnofield' => 'INTEGER',
+        "singleselectfield" => "TEXT",
+        "multipleselectfield" => "TEXT",
+        "tagfield" => "TEXT",
+        "yesnofield" => "INTEGER",
         # Reference fields
-        'assignedtofield' => 'TEXT',
-        'linkedrecordfield' => 'TEXT',
-        'buttonfield' => 'TEXT',
+        "assignedtofield" => "TEXT",
+        "linkedrecordfield" => "TEXT",
+        "buttonfield" => "TEXT",
         # File fields
-        'filesfield' => 'TEXT',
-        'imagesfield' => 'TEXT',
-        'signaturefield' => 'TEXT'
+        "filesfield" => "TEXT",
+        "imagesfield" => "TEXT",
+        "signaturefield" => "TEXT"
       }.freeze
       # Get or create a cache table for a SmartSuite table
       #
@@ -74,7 +74,7 @@ module SmartSuite
         if schema
           # Check if structure has changed (new fields added)
           handle_schema_evolution(table_id, structure, schema)
-          return schema['sql_table_name']
+          return schema["sql_table_name"]
         end
 
         # Create new cache table
@@ -87,24 +87,24 @@ module SmartSuite
       # @param structure [Hash] SmartSuite table structure
       # @return [String] SQL table name
       def create_cache_table(table_id, structure)
-        table_name = structure['name']
+        table_name = structure["name"]
 
         # Generate human-readable SQL table name: cache_records_{sanitized_name}_{table_id}
         # Example: cache_records_customers_tbl_abc123 (v1.6+)
-        sanitized_name = sanitize_table_name(table_name || 'table')
+        sanitized_name = sanitize_table_name(table_name || "table")
         sanitized_id = sanitize_table_name(table_id)
         sql_table_name = "cache_records_#{sanitized_name}_#{sanitized_id}"
 
-        fields = structure['structure'] || []
+        fields = structure["structure"] || []
 
         # Build column definitions with label-based names (v1.6+)
-        columns = ['id TEXT PRIMARY KEY']
+        columns = [ "id TEXT PRIMARY KEY" ]
         field_mapping = {}
-        used_column_names = Set.new(['id']) # Track to avoid duplicates
+        used_column_names = Set.new([ "id" ]) # Track to avoid duplicates
 
         fields.each do |field|
-          field_slug = field['slug']
-          next if field_slug == 'id' # Skip ID, already defined
+          field_slug = field["slug"]
+          next if field_slug == "id" # Skip ID, already defined
 
           field_columns = get_field_columns(field)
           field_columns.each do |col_name, col_type|
@@ -119,8 +119,8 @@ module SmartSuite
         end
 
         # Add metadata columns
-        columns << 'cached_at INTEGER NOT NULL'
-        columns << 'expires_at INTEGER NOT NULL'
+        columns << "cached_at INTEGER NOT NULL"
+        columns << "expires_at INTEGER NOT NULL"
 
         # Create table
         @db.execute("CREATE TABLE IF NOT EXISTS #{sql_table_name} (#{columns.join(', ')})")
@@ -133,11 +133,11 @@ module SmartSuite
           "INSERT OR REPLACE INTO cache_table_registry
          (table_id, sql_table_name, table_name, structure, field_mapping, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)",
-          [table_id, sql_table_name, table_name, structure.to_json, field_mapping.to_json, Time.now.utc.iso8601,
-           Time.now.utc.iso8601]
+          [ table_id, sql_table_name, table_name, structure.to_json, field_mapping.to_json, Time.now.utc.iso8601,
+           Time.now.utc.iso8601 ]
         )
 
-        record_stat('table_creation', 'create', sql_table_name, { table_id: table_id, field_count: fields.size })
+        record_stat("table_creation", "create", sql_table_name, { table_id: table_id, field_count: fields.size })
 
         sql_table_name
       end
@@ -149,90 +149,90 @@ module SmartSuite
       # @param field [Hash] SmartSuite field definition
       # @return [Hash] Column name => SQL type mapping
       def get_field_columns(field)
-        field_slug = field['slug']
-        field_label = field['label']
-        field_type = field['field_type'].downcase
+        field_slug = field["slug"]
+        field_label = field["label"]
+        field_type = field["field_type"].downcase
 
         # Use field label for column name, fallback to slug (v1.6+)
         # Example: "Status" → "status" instead of "s7e8c12e98"
         col_name = if field_label && !field_label.empty?
                      sanitize_column_name(field_label)
-                   else
+        else
                      sanitize_column_name(field_slug)
-                   end
+        end
 
         case field_type
-        when 'firstcreatedfield'
+        when "firstcreatedfield"
           {
-            "#{col_name}_on" => 'TEXT',
-            "#{col_name}_by" => 'TEXT'
+            "#{col_name}_on" => "TEXT",
+            "#{col_name}_by" => "TEXT"
           }
-        when 'lastupdatedfield'
+        when "lastupdatedfield"
           {
-            "#{col_name}_on" => 'TEXT',
-            "#{col_name}_by" => 'TEXT'
+            "#{col_name}_on" => "TEXT",
+            "#{col_name}_by" => "TEXT"
           }
-        when 'deleted_date'
+        when "deleted_date"
           {
-            'deleted_on' => 'TEXT',
-            'deleted_by' => 'TEXT'
+            "deleted_on" => "TEXT",
+            "deleted_by" => "TEXT"
           }
-        when 'datefield'
+        when "datefield"
           {
-            col_name => 'TEXT',
-            "#{col_name}_include_time" => 'INTEGER'
+            col_name => "TEXT",
+            "#{col_name}_include_time" => "INTEGER"
           }
-        when 'daterangefield'
+        when "daterangefield"
           {
-            "#{col_name}_from" => 'TEXT',
-            "#{col_name}_from_include_time" => 'INTEGER',
-            "#{col_name}_to" => 'TEXT',
-            "#{col_name}_to_include_time" => 'INTEGER'
+            "#{col_name}_from" => "TEXT",
+            "#{col_name}_from_include_time" => "INTEGER",
+            "#{col_name}_to" => "TEXT",
+            "#{col_name}_to_include_time" => "INTEGER"
           }
-        when 'duedatefield'
+        when "duedatefield"
           {
-            "#{col_name}_from" => 'TEXT',
-            "#{col_name}_from_include_time" => 'INTEGER',
-            "#{col_name}_to" => 'TEXT',
-            "#{col_name}_to_include_time" => 'INTEGER',
-            "#{col_name}_is_overdue" => 'INTEGER',
-            "#{col_name}_is_completed" => 'INTEGER'
+            "#{col_name}_from" => "TEXT",
+            "#{col_name}_from_include_time" => "INTEGER",
+            "#{col_name}_to" => "TEXT",
+            "#{col_name}_to_include_time" => "INTEGER",
+            "#{col_name}_is_overdue" => "INTEGER",
+            "#{col_name}_is_completed" => "INTEGER"
           }
-        when 'statusfield'
+        when "statusfield"
           {
-            col_name => 'TEXT',
-            "#{col_name}_updated_on" => 'TEXT'
+            col_name => "TEXT",
+            "#{col_name}_updated_on" => "TEXT"
           }
-        when 'addressfield'
+        when "addressfield"
           {
-            "#{col_name}_text" => 'TEXT',  # Searchable concatenated address
-            "#{col_name}_json" => 'TEXT'   # Full JSON object
+            "#{col_name}_text" => "TEXT",  # Searchable concatenated address
+            "#{col_name}_json" => "TEXT"   # Full JSON object
           }
-        when 'fullnamefield'
+        when "fullnamefield"
           {
-            col_name => 'TEXT',              # Full name (sys_root)
-            "#{col_name}_json" => 'TEXT'     # Components
+            col_name => "TEXT",              # Full name (sys_root)
+            "#{col_name}_json" => "TEXT"     # Components
           }
-        when 'smartdocfield'
+        when "smartdocfield"
           {
-            "#{col_name}_preview" => 'TEXT',  # Searchable text
-            "#{col_name}_json" => 'TEXT'      # Full content
+            "#{col_name}_preview" => "TEXT",  # Searchable text
+            "#{col_name}_json" => "TEXT"      # Full content
           }
-        when 'checklistfield'
+        when "checklistfield"
           {
-            "#{col_name}_json" => 'TEXT',
-            "#{col_name}_total" => 'INTEGER',
-            "#{col_name}_completed" => 'INTEGER'
+            "#{col_name}_json" => "TEXT",
+            "#{col_name}_total" => "INTEGER",
+            "#{col_name}_completed" => "INTEGER"
           }
-        when 'votefield'
+        when "votefield"
           {
-            "#{col_name}_count" => 'INTEGER',
-            "#{col_name}_json" => 'TEXT'
+            "#{col_name}_count" => "INTEGER",
+            "#{col_name}_json" => "TEXT"
           }
-        when 'timetrackingfield'
+        when "timetrackingfield"
           {
-            "#{col_name}_json" => 'TEXT',
-            "#{col_name}_total" => 'REAL'
+            "#{col_name}_json" => "TEXT",
+            "#{col_name}_total" => "REAL"
           }
         else
           # Single column for most field types
@@ -245,9 +245,9 @@ module SmartSuite
       # @param field_type [String] SmartSuite field type
       # @return [String] SQLite column type (defaults to TEXT for unknown types)
       def map_field_type_to_sql(field_type)
-        return 'TEXT' if field_type.nil? || field_type.empty?
+        return "TEXT" if field_type.nil? || field_type.empty?
 
-        FIELD_TYPE_SQL_MAP.fetch(field_type.downcase, 'TEXT')
+        FIELD_TYPE_SQL_MAP.fetch(field_type.downcase, "TEXT")
       end
 
       # Create indexes for commonly-filtered fields
@@ -263,8 +263,8 @@ module SmartSuite
         fields.each do |field|
           next unless should_index_field?(field)
 
-          field_slug = field['slug']
-          field_type = field['field_type'].downcase
+          field_slug = field["slug"]
+          field_type = field["field_type"].downcase
 
           # Get primary column name for this field
           columns = field_mapping[field_slug]
@@ -272,16 +272,16 @@ module SmartSuite
 
           # For multi-column fields, index the main columns
           case field_type
-          when 'statusfield'
+          when "statusfield"
             # Use actual column name from field_mapping (label-based, not slug-based)
             col_name = columns.keys.first
             @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}
                        ON #{sql_table_name}(#{col_name})")
-          when 'daterangefield', 'duedatefield'
+          when "daterangefield", "duedatefield"
             # Use actual column names from field_mapping instead of regenerating
             col_names = columns.keys
-            from_col = col_names.find { |c| c.end_with?('_from') }
-            to_col = col_names.find { |c| c.end_with?('_to') }
+            from_col = col_names.find { |c| c.end_with?("_from") }
+            to_col = col_names.find { |c| c.end_with?("_to") }
 
             if from_col
               @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{from_col}
@@ -291,7 +291,7 @@ module SmartSuite
               @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{to_col}
                          ON #{sql_table_name}(#{to_col})")
             end
-          when 'lastupdated'
+          when "lastupdated"
             @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_updated_on
                        ON #{sql_table_name}(updated_on)")
           else
@@ -308,7 +308,7 @@ module SmartSuite
       # @param field [Hash] SmartSuite field definition
       # @return [Boolean]
       def should_index_field?(field)
-        field_type = field['field_type'].downcase
+        field_type = field["field_type"].downcase
 
         # Always index these types (commonly filtered)
         always_index = %w[
@@ -326,10 +326,10 @@ module SmartSuite
         return true if always_index.include?(field_type)
 
         # Index primary fields
-        return true if field['params'] && field['params']['primary']
+        return true if field["params"] && field["params"]["primary"]
 
         # Index title field
-        return true if field['slug'] == 'title'
+        return true if field["slug"] == "title"
 
         false
       end
@@ -339,7 +339,7 @@ module SmartSuite
       # @param table_id [String] SmartSuite table ID
       # @return [String] SQL-safe table name
       def sanitize_table_name(table_id)
-        table_id.gsub(/[^a-zA-Z0-9_]/, '_')
+        table_id.gsub(/[^a-zA-Z0-9_]/, "_")
       end
 
       # Sanitize column name for SQL
@@ -355,13 +355,13 @@ module SmartSuite
         transliterated = transliterate_accents(field_slug)
 
         # Then sanitize: keep only alphanumeric and underscores, convert to lowercase
-        sanitized = transliterated.gsub(/[^a-zA-Z0-9_]/, '_').downcase
+        sanitized = transliterated.gsub(/[^a-zA-Z0-9_]/, "_").downcase
 
         # Remove consecutive underscores
-        sanitized = sanitized.gsub(/_+/, '_')
+        sanitized = sanitized.gsub(/_+/, "_")
 
         # Remove leading/trailing underscores
-        sanitized = sanitized.gsub(/^_+|_+$/, '')
+        sanitized = sanitized.gsub(/^_+|_+$/, "")
 
         # Ensure doesn't start with digit
         sanitized = "f_#{sanitized}" if sanitized =~ /^[0-9]/
@@ -372,7 +372,7 @@ module SmartSuite
         sanitized = "field_#{sanitized}" if reserved.include?(sanitized)
 
         # Fallback to "column" if empty after sanitization
-        sanitized = 'column' if sanitized.empty?
+        sanitized = "column" if sanitized.empty?
 
         sanitized
       end
@@ -384,31 +384,31 @@ module SmartSuite
       def transliterate_accents(text)
         # Common Spanish and Latin accent mappings
         accent_map = {
-          'á' => 'a', 'Á' => 'A',
-          'é' => 'e', 'É' => 'E',
-          'í' => 'i', 'Í' => 'I',
-          'ó' => 'o', 'Ó' => 'O',
-          'ú' => 'u', 'Ú' => 'U',
-          'ñ' => 'n', 'Ñ' => 'N',
-          'ü' => 'u', 'Ü' => 'U',
-          'à' => 'a', 'À' => 'A',
-          'è' => 'e', 'È' => 'E',
-          'ì' => 'i', 'Ì' => 'I',
-          'ò' => 'o', 'Ò' => 'O',
-          'ù' => 'u', 'Ù' => 'U',
-          'â' => 'a', 'Â' => 'A',
-          'ê' => 'e', 'Ê' => 'E',
-          'î' => 'i', 'Î' => 'I',
-          'ô' => 'o', 'Ô' => 'O',
-          'û' => 'u', 'Û' => 'U',
-          'ã' => 'a', 'Ã' => 'A',
-          'õ' => 'o', 'Õ' => 'O',
-          'ç' => 'c', 'Ç' => 'C',
-          'ä' => 'a', 'Ä' => 'A',
-          'ë' => 'e', 'Ë' => 'E',
-          'ï' => 'i', 'Ï' => 'I',
-          'ö' => 'o', 'Ö' => 'O',
-          'ÿ' => 'y', 'Ÿ' => 'Y'
+          "á" => "a", "Á" => "A",
+          "é" => "e", "É" => "E",
+          "í" => "i", "Í" => "I",
+          "ó" => "o", "Ó" => "O",
+          "ú" => "u", "Ú" => "U",
+          "ñ" => "n", "Ñ" => "N",
+          "ü" => "u", "Ü" => "U",
+          "à" => "a", "À" => "A",
+          "è" => "e", "È" => "E",
+          "ì" => "i", "Ì" => "I",
+          "ò" => "o", "Ò" => "O",
+          "ù" => "u", "Ù" => "U",
+          "â" => "a", "Â" => "A",
+          "ê" => "e", "Ê" => "E",
+          "î" => "i", "Î" => "I",
+          "ô" => "o", "Ô" => "O",
+          "û" => "u", "Û" => "U",
+          "ã" => "a", "Ã" => "A",
+          "õ" => "o", "Õ" => "O",
+          "ç" => "c", "Ç" => "C",
+          "ä" => "a", "Ä" => "A",
+          "ë" => "e", "Ë" => "E",
+          "ï" => "i", "Ï" => "I",
+          "ö" => "o", "Ö" => "O",
+          "ÿ" => "y", "Ÿ" => "Y"
         }
 
         result = text.dup
@@ -442,15 +442,15 @@ module SmartSuite
       # @return [Hash, nil] Schema metadata or nil if not cached
       def get_cached_table_schema(table_id)
         result = @db.execute(
-          'SELECT * FROM cache_table_registry WHERE table_id = ?',
-          [table_id]
+          "SELECT * FROM cache_table_registry WHERE table_id = ?",
+          [ table_id ]
         ).first
 
         return nil unless result
 
         # Parse JSON fields
-        result['structure'] = JSON.parse(result['structure'])
-        result['field_mapping'] = JSON.parse(result['field_mapping'])
+        result["structure"] = JSON.parse(result["structure"])
+        result["field_mapping"] = JSON.parse(result["field_mapping"])
         result
       end
 
@@ -461,8 +461,8 @@ module SmartSuite
       # @param table_id [String] SmartSuite table ID
       def remove_cached_table_schema(table_id)
         @db.execute(
-          'DELETE FROM cache_table_registry WHERE table_id = ?',
-          [table_id]
+          "DELETE FROM cache_table_registry WHERE table_id = ?",
+          [ table_id ]
         )
       end
 
@@ -472,19 +472,19 @@ module SmartSuite
       # @param new_structure [Hash] Updated SmartSuite table structure
       # @param old_schema [Hash] Existing cached schema
       def handle_schema_evolution(table_id, new_structure, old_schema)
-        old_fields = old_schema['structure']['structure'].to_set { |f| f['slug'] }
-        new_fields_list = new_structure['structure'] || []
-        new_fields = new_fields_list.to_set { |f| f['slug'] }
+        old_fields = old_schema["structure"]["structure"].to_set { |f| f["slug"] }
+        new_fields_list = new_structure["structure"] || []
+        new_fields = new_fields_list.to_set { |f| f["slug"] }
 
         added_fields = new_fields - old_fields
         return if added_fields.empty? # No new fields
 
-        sql_table_name = old_schema['sql_table_name']
-        field_mapping = old_schema['field_mapping']
+        sql_table_name = old_schema["sql_table_name"]
+        field_mapping = old_schema["field_mapping"]
 
         # Add new columns
         added_fields.each do |field_slug|
-          field_info = new_fields_list.find { |f| f['slug'] == field_slug }
+          field_info = new_fields_list.find { |f| f["slug"] == field_slug }
           next unless field_info
 
           field_columns = get_field_columns(field_info)
@@ -499,17 +499,17 @@ module SmartSuite
 
           # Use actual column names from field_mapping (same logic as create_indexes_for_table)
           columns = field_mapping[field_slug]
-          field_type = field_info['field_type'].downcase
+          field_type = field_info["field_type"].downcase
 
           case field_type
-          when 'statusfield'
+          when "statusfield"
             col_name = columns.keys.first
             @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{col_name}
                        ON #{sql_table_name}(#{col_name})")
-          when 'daterangefield', 'duedatefield'
+          when "daterangefield", "duedatefield"
             col_names = columns.keys
-            from_col = col_names.find { |c| c.end_with?('_from') }
-            to_col = col_names.find { |c| c.end_with?('_to') }
+            from_col = col_names.find { |c| c.end_with?("_from") }
+            to_col = col_names.find { |c| c.end_with?("_to") }
 
             if from_col
               @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{from_col}
@@ -519,7 +519,7 @@ module SmartSuite
               @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_#{to_col}
                          ON #{sql_table_name}(#{to_col})")
             end
-          when 'lastupdated'
+          when "lastupdated"
             @db.execute("CREATE INDEX IF NOT EXISTS idx_#{sql_table_name}_updated_on
                        ON #{sql_table_name}(updated_on)")
           else
@@ -535,10 +535,10 @@ module SmartSuite
           "UPDATE cache_table_registry
          SET structure = ?, field_mapping = ?, updated_at = ?
          WHERE table_id = ?",
-          [new_structure.to_json, field_mapping.to_json, Time.now.utc.iso8601, table_id]
+          [ new_structure.to_json, field_mapping.to_json, Time.now.utc.iso8601, table_id ]
         )
 
-        record_stat('schema_evolution', 'add_fields', sql_table_name,
+        record_stat("schema_evolution", "add_fields", sql_table_name,
                     { table_id: table_id, added_fields: added_fields.to_a })
       end
 
@@ -548,11 +548,11 @@ module SmartSuite
       # @return [Integer] TTL in seconds
       def get_table_ttl(table_id)
         result = @db.execute(
-          'SELECT ttl_seconds FROM cache_ttl_config WHERE table_id = ?',
-          [table_id]
+          "SELECT ttl_seconds FROM cache_ttl_config WHERE table_id = ?",
+          [ table_id ]
         ).first
 
-        result ? result['ttl_seconds'] : Layer::DEFAULT_TTL
+        result ? result["ttl_seconds"] : Layer::DEFAULT_TTL
       end
 
       # Set TTL for a table
@@ -566,10 +566,10 @@ module SmartSuite
           "INSERT OR REPLACE INTO cache_ttl_config
            (table_id, ttl_seconds, mutation_level, notes, updated_at)
            VALUES (?, ?, ?, ?, ?)",
-          [table_id, ttl_seconds, mutation_level, notes, Time.now.utc.iso8601]
+          [ table_id, ttl_seconds, mutation_level, notes, Time.now.utc.iso8601 ]
         )
 
-        record_stat('ttl_config', 'set', table_id,
+        record_stat("ttl_config", "set", table_id,
                     { ttl_seconds: ttl_seconds, mutation_level: mutation_level })
       end
     end

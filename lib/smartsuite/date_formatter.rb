@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'time'
+require "time"
 
 module SmartSuite
   # DateFormatter handles conversion of UTC timestamps to local time.
@@ -89,12 +89,12 @@ module SmartSuite
       # Normalize timezone value to a consistent format.
       def normalize_timezone(value)
         case value
-        when nil, '', :local, :system
+        when nil, "", :local, :system
           nil # Use system timezone
         when :utc
           :utc
         when UTC_OFFSET_PATTERN
-          value.to_s.delete(':') # Normalize to "+0500" format
+          value.to_s.delete(":") # Normalize to "+0500" format
         when NAMED_TIMEZONE_PATTERN
           # Named timezone (e.g., "America/Mexico_City") - store as-is
           value.to_s.strip
@@ -127,8 +127,8 @@ module SmartSuite
     def to_local(value)
       # Handle hash format with include_time flag
       if value.is_a?(Hash)
-        date_str = value['date'] || value[:date]
-        include_time = value['include_time'] || value[:include_time]
+        date_str = value["date"] || value[:date]
+        include_time = value["include_time"] || value[:include_time]
         return convert_date_with_flag(date_str, include_time)
       end
 
@@ -146,7 +146,7 @@ module SmartSuite
       # Date-only values represent calendar days, not instants in time
       return value if date_only?(value)
 
-      convert_time(time, effective_tz).strftime('%Y-%m-%d %H:%M:%S %z')
+      convert_time(time, effective_tz).strftime("%Y-%m-%d %H:%M:%S %z")
     rescue ArgumentError
       # Return original if parsing fails
       value
@@ -178,16 +178,16 @@ module SmartSuite
       # Midnight UTC is date-only unless include_time explicitly says otherwise
       has_time = if midnight_utc?(time)
                    include_time # Trust include_time flag for midnight
-                 else
+      else
                    true # Non-midnight always has time component
-                 end
+      end
 
       if has_time
         # Has time component - convert to local timezone
-        convert_time(time, effective_tz).strftime('%Y-%m-%d %H:%M:%S %z')
+        convert_time(time, effective_tz).strftime("%Y-%m-%d %H:%M:%S %z")
       else
         # Date-only - return just the date from the UTC timestamp (no conversion)
-        time.utc.strftime('%Y-%m-%d')
+        time.utc.strftime("%Y-%m-%d")
       end
     rescue ArgumentError
       date_str
@@ -212,14 +212,14 @@ module SmartSuite
       return DateFormatter.timezone if DateFormatter.timezone
 
       # Check environment variable
-      env_tz = ENV.fetch('SMARTSUITE_TIMEZONE', nil)
+      env_tz = ENV.fetch("SMARTSUITE_TIMEZONE", nil)
       return nil if env_tz.nil? || env_tz.empty?
 
       # Normalize environment variable value
       case env_tz.downcase
-      when 'utc'
+      when "utc"
         :utc
-      when 'local', 'system'
+      when "local", "system"
         nil
       else
         env_tz
@@ -272,17 +272,17 @@ module SmartSuite
     # @param tz_name [String] Named timezone (e.g., "America/Mexico_City")
     # @return [Time] Time in the target timezone
     def convert_with_named_timezone(time, tz_name)
-      original_tz = ENV.fetch('TZ', nil)
+      original_tz = ENV.fetch("TZ", nil)
       begin
-        ENV['TZ'] = tz_name
+        ENV["TZ"] = tz_name
         # Force Ruby to re-read TZ
         Time.at(time.to_i).localtime
       ensure
         # Restore original TZ (or unset if it wasn't set)
         if original_tz
-          ENV['TZ'] = original_tz
+          ENV["TZ"] = original_tz
         else
-          ENV.delete('TZ')
+          ENV.delete("TZ")
         end
       end
     end
@@ -344,8 +344,8 @@ module SmartSuite
     def date_hash?(hash)
       return false unless hash.is_a?(Hash)
 
-      (hash.key?('date') || hash.key?(:date)) &&
-        (hash.key?('include_time') || hash.key?(:include_time))
+      (hash.key?("date") || hash.key?(:date)) &&
+        (hash.key?("include_time") || hash.key?(:include_time))
     end
 
     # Get current timezone information for display.
@@ -354,12 +354,12 @@ module SmartSuite
     def timezone_info
       eff_tz = effective_timezone
       {
-        'configured' => DateFormatter.timezone,
-        'environment' => ENV.fetch('SMARTSUITE_TIMEZONE', nil),
-        'effective' => eff_tz || 'system',
-        'current_offset' => Time.now.strftime('%z'),
-        'current_zone' => Time.now.zone,
-        'type' => timezone_type(eff_tz)
+        "configured" => DateFormatter.timezone,
+        "environment" => ENV.fetch("SMARTSUITE_TIMEZONE", nil),
+        "effective" => eff_tz || "system",
+        "current_offset" => Time.now.strftime("%z"),
+        "current_zone" => Time.now.zone,
+        "type" => timezone_type(eff_tz)
       }
     end
 
@@ -369,15 +369,15 @@ module SmartSuite
     # @return [String] Timezone type identifier
     def timezone_type(eff_tz)
       if eff_tz == :utc
-        'utc'
+        "utc"
       elsif eff_tz.nil?
-        'system'
+        "system"
       elsif eff_tz.match?(UTC_OFFSET_PATTERN)
-        'offset'
+        "offset"
       elsif named_timezone?(eff_tz)
-        'named'
+        "named"
       else
-        'unknown'
+        "unknown"
       end
     end
   end

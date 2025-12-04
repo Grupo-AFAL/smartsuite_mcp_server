@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'sqlite3'
-require 'json'
-require 'time'
+require "sqlite3"
+require "json"
+require "time"
 
 module SmartSuite
   module Cache
@@ -64,14 +64,14 @@ module SmartSuite
         @perf_counters.each do |table_id, counters|
           # Get current values from database
           current = db_execute(
-            'SELECT hit_count, miss_count FROM cache_performance WHERE table_id = ?',
+            "SELECT hit_count, miss_count FROM cache_performance WHERE table_id = ?",
             table_id
           ).first
 
           if current
             # Update existing record
-            new_hits = current['hit_count'] + counters[:hits]
-            new_misses = current['miss_count'] + counters[:misses]
+            new_hits = current["hit_count"] + counters[:hits]
+            new_misses = current["miss_count"] + counters[:misses]
 
             db_execute(
               "UPDATE cache_performance
@@ -109,24 +109,24 @@ module SmartSuite
 
         results = if table_id
                     db_execute(
-                      'SELECT * FROM cache_performance WHERE table_id = ?',
+                      "SELECT * FROM cache_performance WHERE table_id = ?",
                       table_id
                     )
-                  else
-                    db_execute('SELECT * FROM cache_performance ORDER BY last_access_time DESC')
-                  end
+        else
+                    db_execute("SELECT * FROM cache_performance ORDER BY last_access_time DESC")
+        end
 
         results.map do |row|
-          total = row['hit_count'] + row['miss_count']
+          total = row["hit_count"] + row["miss_count"]
           {
-            'table_id' => row['table_id'],
-            'hit_count' => row['hit_count'],
-            'miss_count' => row['miss_count'],
-            'total_operations' => total,
-            'hit_rate' => total.positive? ? (row['hit_count'].to_f / total * 100).round(2) : 0.0,
-            'last_access_time' => row['last_access_time'],
-            'record_count' => row['record_count'],
-            'cache_size_bytes' => row['cache_size_bytes']
+            "table_id" => row["table_id"],
+            "hit_count" => row["hit_count"],
+            "miss_count" => row["miss_count"],
+            "total_operations" => total,
+            "hit_rate" => total.positive? ? (row["hit_count"].to_f / total * 100).round(2) : 0.0,
+            "last_access_time" => row["last_access_time"],
+            "record_count" => row["record_count"],
+            "cache_size_bytes" => row["cache_size_bytes"]
           }
         end
       end

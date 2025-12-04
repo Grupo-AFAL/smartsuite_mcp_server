@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'time'
+require "time"
 
 module SmartSuite
   # ResponseFormats provides standardized response building for MCP tools.
@@ -38,12 +38,12 @@ module SmartSuite
     # @example With additional data
     #   operation_response('warm', 'Warmed 3 tables', status: 'completed', data: {warmed: 3, skipped: 2})
     #   # => {"status" => "completed", "operation" => "warm", "message" => "...", "warmed" => 3, ...}
-    def operation_response(operation, message, status: 'success', **data)
+    def operation_response(operation, message, status: "success", **data)
       {
-        'status' => status,
-        'operation' => operation,
-        'message' => message,
-        'timestamp' => Time.now.utc.iso8601
+        "status" => status,
+        "operation" => operation,
+        "message" => message,
+        "timestamp" => Time.now.utc.iso8601
       }.merge(data.transform_keys(&:to_s))
     end
 
@@ -64,10 +64,10 @@ module SmartSuite
     #   error_response('invalid_parameter', 'table_id is required', parameter: 'table_id')
     def error_response(error, message, **data)
       {
-        'status' => 'error',
-        'error' => error,
-        'message' => message,
-        'timestamp' => Time.now.utc.iso8601
+        "status" => "error",
+        "error" => error,
+        "message" => message,
+        "timestamp" => Time.now.utc.iso8601
       }.merge(data.transform_keys(&:to_s))
     end
 
@@ -86,7 +86,7 @@ module SmartSuite
     #   query_response(time_range: 'all', summary: {...}, by_method: {...})
     def query_response(**data)
       {
-        'timestamp' => Time.now.utc.iso8601
+        "timestamp" => Time.now.utc.iso8601
       }.merge(data.transform_keys(&:to_s))
     end
 
@@ -108,8 +108,8 @@ module SmartSuite
     def collection_response(items, collection_name, **metadata)
       {
         collection_name.to_s => items,
-        'count' => items.size,
-        'timestamp' => Time.now.utc.iso8601
+        "count" => items.size,
+        "timestamp" => Time.now.utc.iso8601
       }.merge(metadata.transform_keys(&:to_s))
     end
   end
