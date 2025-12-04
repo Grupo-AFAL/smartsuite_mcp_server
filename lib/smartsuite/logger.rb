@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'logger'
-require 'fileutils'
-require_relative 'paths'
+require "logger"
+require "fileutils"
+require_relative "paths"
 
 module SmartSuite
   # Unified logging system for SmartSuite MCP server.
@@ -66,12 +66,12 @@ module SmartSuite
 
     # Log categories with their associated colors
     CATEGORIES = {
-      api: { color: "#{BOLD}#{BRIGHT_CYAN}", prefix: 'API' },        # Bold Bright Cyan
-      db: { color: "#{BOLD}#{BRIGHT_GREEN}", prefix: 'DB' },         # Bold Bright Green
-      cache: { color: "#{BOLD}#{BRIGHT_MAGENTA}", prefix: 'CACHE' }, # Bold Bright Magenta
-      s3: { color: "#{BOLD}#{BRIGHT_BLUE}", prefix: 'S3' },          # Bold Bright Blue
-      server: { color: "#{BOLD}#{BRIGHT_WHITE}", prefix: 'SERVER' }, # Bold Bright White
-      metric: { color: "#{BOLD}#{BRIGHT_YELLOW}", prefix: 'METRIC' } # Bold Bright Yellow
+      api: { color: "#{BOLD}#{BRIGHT_CYAN}", prefix: "API" },        # Bold Bright Cyan
+      db: { color: "#{BOLD}#{BRIGHT_GREEN}", prefix: "DB" },         # Bold Bright Green
+      cache: { color: "#{BOLD}#{BRIGHT_MAGENTA}", prefix: "CACHE" }, # Bold Bright Magenta
+      s3: { color: "#{BOLD}#{BRIGHT_BLUE}", prefix: "S3" },          # Bold Bright Blue
+      server: { color: "#{BOLD}#{BRIGHT_WHITE}", prefix: "SERVER" }, # Bold Bright White
+      metric: { color: "#{BOLD}#{BRIGHT_YELLOW}", prefix: "METRIC" } # Bold Bright Yellow
     }.freeze
 
     class << self
@@ -88,7 +88,7 @@ module SmartSuite
       attr_writer :stderr_enabled
 
       def level
-        @level ||= (ENV['SMARTSUITE_LOG_LEVEL'] || 'debug').downcase.to_sym
+        @level ||= (ENV["SMARTSUITE_LOG_LEVEL"] || "debug").downcase.to_sym
       end
 
       def colors_enabled
@@ -97,8 +97,21 @@ module SmartSuite
       end
 
       def stderr_enabled
-        @stderr_enabled = ENV['SMARTSUITE_LOG_STDERR'] == 'true' if @stderr_enabled.nil?
+        @stderr_enabled = ENV["SMARTSUITE_LOG_STDERR"] == "true" if @stderr_enabled.nil?
         @stderr_enabled
+      end
+
+      # Get/set Rails logger for output
+      # @return [::Logger, nil] Rails logger if available
+      attr_writer :rails_logger
+
+      def rails_logger
+        return @rails_logger if defined?(@rails_logger)
+
+        # Check if Rails is defined AND has a logger method that returns a valid logger
+        @rails_logger = if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+                          Rails.logger
+        end
       end
 
       # Get the unified log file path
@@ -106,26 +119,26 @@ module SmartSuite
       # @return [String] absolute path to log file
       def log_file_path
         if integration_test_environment?
-          File.expand_path('~/.smartsuite_mcp_integration.log')
+          File.expand_path("~/.smartsuite_mcp_integration.log")
         elsif test_environment?
-          File.expand_path('~/.smartsuite_mcp_test.log')
+          File.expand_path("~/.smartsuite_mcp_test.log")
         else
-          File.expand_path('~/.smartsuite_mcp.log')
+          File.expand_path("~/.smartsuite_mcp.log")
         end
       end
 
       # Detect if running in integration test environment
       # @return [Boolean]
       def integration_test_environment?
-        caller_locations.any? { |loc| loc.path.include?('test/integration/') }
+        caller_locations.any? { |loc| loc.path.include?("test/integration/") }
       end
 
       # Detect if running in test environment
       # @return [Boolean]
       def test_environment?
         SmartSuite::Paths.test_mode? ||
-          ENV['RACK_ENV'] == 'test' ||
-          ENV['RAILS_ENV'] == 'test' ||
+          ENV["RACK_ENV"] == "test" ||
+          ENV["RAILS_ENV"] == "test" ||
           defined?(Minitest) ||
           defined?(RSpec)
       end
@@ -136,7 +149,7 @@ module SmartSuite
         @file_logger ||= begin
           log_path = log_file_path
           FileUtils.mkdir_p(File.dirname(log_path))
-          logger = ::Logger.new(log_path, 'daily')
+          logger = ::Logger.new(log_path, "daily")
           logger.level = ::Logger::DEBUG
           logger.formatter = proc do |severity, datetime, _progname, msg|
             "[#{datetime.strftime('%Y-%m-%d %H:%M:%S.%L')}] #{severity.ljust(5)} #{msg}\n"
@@ -223,7 +236,7 @@ module SmartSuite
       def api_response(status, duration, body_size = nil)
         return unless should_log?(:info)
 
-        success_icon = status >= 200 && status < 300 ? '✓' : '✗'
+        success_icon = status >= 200 && status < 300 ? "✓" : "✗"
         msg = "#{success_icon} #{status} | #{format_duration(duration)}"
         msg += " | #{format_bytes(body_size)}" if body_size
 
@@ -237,7 +250,7 @@ module SmartSuite
       def db_query(sql, params = [], duration = nil)
         return unless should_log?(:debug)
 
-        clean_sql = sql.gsub(/\s+/, ' ').strip
+        clean_sql = sql.gsub(/\s+/, " ").strip
         msg = "→ #{clean_sql}"
         msg += " | Params: #{params.inspect}" unless params.empty?
         msg += " | #{format_duration(duration)}" if duration
@@ -324,7 +337,7 @@ module SmartSuite
       # Log a separator line
       # @param char [String] character to use for the line
       # @param length [Integer] line length
-      def separator(char = '=', length = 50)
+      def separator(char = "=", length = 50)
         return unless should_log?(:info)
 
         log(:info, char * length, category: :metric)
@@ -363,9 +376,21 @@ module SmartSuite
         file_logger.send(level, formatted)
 
         # Optionally log to stderr (with colors if enabled)
-        return unless stderr_enabled
+        if stderr_enabled
+          warn "[#{Time.now.strftime('%H:%M:%S')}] #{formatted}"
+        end
 
-        warn "[#{Time.now.strftime('%H:%M:%S')}] #{formatted}"
+        # Log to Rails logger if available (keep colors for distinct output)
+        return unless rails_logger
+
+        # Use the colored formatted message for Rails console visibility
+        colored_message = formatted
+        case level
+        when :debug then rails_logger.debug(colored_message)
+        when :info then rails_logger.info(colored_message)
+        when :warn then rails_logger.warn(colored_message)
+        when :error then rails_logger.error(colored_message)
+        end
       end
 
       # Format message with category prefix and colors
@@ -398,7 +423,7 @@ module SmartSuite
 
       # Strip ANSI color codes from string
       def strip_colors(str)
-        str.gsub(/\e\[[0-9;]*m/, '')
+        str.gsub(/\e\[[0-9;]*m/, "")
       end
 
       # Truncate JSON for logging

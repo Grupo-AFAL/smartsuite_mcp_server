@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rails Hosted Server Mode** - New deployment option for multi-user hosted environments
+  - Rails 8.0 API-only application for Streamable HTTP transport (MCP specification 2025-06-18)
+  - PostgreSQL-based cache layer (`Cache::PostgresLayer`) replaces SQLite for shared multi-tenant caching
+  - Dual authentication modes via `AUTH_MODE` environment variable:
+    - `local`: Single-user mode using environment variables (backward compatible)
+    - `remote`: Multi-user mode with database-backed API key authentication
+  - Per-user API key management with SmartSuite credential storage
+  - API call tracking with cache hit/miss statistics per user
+  - Thread-local cache hit tracking for accurate per-request statistics
+  - Client instance caching per user for consistent session IDs
+  - New models: `User`, `ApiKey`, `ApiCall`, `LocalUser`
+  - New services: `McpHandler`, `Cache::PostgresLayer`
+  - New controller: `McpController` with SSE support
+
+- **Improved Error Messages for AI** - Better error formatting to help AI assistants self-correct
+  - New `format_api_error` method extracts structured error details from SmartSuite API responses
+  - New `extract_field_errors` method parses field-specific validation errors
+  - Error messages now include actionable guidance (e.g., "Check the field data and try again")
+
 - **Markdown to SmartDoc Converter** - New formatter module and MCP tool for converting markdown text to SmartSuite's SmartDoc format
   - New `SmartSuite::Formatters::MarkdownToSmartdoc` class (`lib/smartsuite/formatters/markdown_to_smartdoc.rb`)
   - New `convert_markdown_to_smartdoc` MCP tool for AI-accessible conversion
@@ -38,6 +57,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Proxy configuration instructions for corporate environments
 
 ### Fixed
+
+- **Field operations require params field** - SmartSuite API requires `params` field in field data
+  - `add_field` now automatically adds `params: {}` if not provided
+  - `bulk_add_fields` now adds `params: {}` to each field if not provided
+  - Prevents API errors when creating fields without explicit params
+
+- **View operations boolean field handling** - Fixed nil boolean values causing API errors
+  - `create_view` now explicitly sets boolean fields to defaults when nil
+  - `autosave`, `is_locked`, `is_private`, `is_password_protected` now default correctly
+
+- **Logger Rails detection** - Fixed crash when Rails module is defined but not fully initialized
+  - `rails_logger` method now safely checks for `Rails.respond_to?(:logger)` before accessing
+  - Prevents `NoMethodError: undefined method 'logger' for module Rails` during test execution
 
 - **Install script Ruby version handling** - The installation script now automatically installs Ruby via Homebrew when an outdated version (e.g., macOS system Ruby 2.6) is detected, instead of just showing an error message and exiting
 
@@ -692,7 +724,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Accepts `preview` parameter to limit returned fields (default: true)
     - Returns records with deletion metadata
   - `restore_deleted_record`: Restore a soft-deleted record back to the table
-    - Appends "(Restored)" to the record title
   - Implemented in `RecordOperations` module (lines 451-490)
   - Added MCP tool schemas in `ToolRegistry` (lines 371-406)
   - Added server handlers in `SmartSuiteServer` (lines 217-220)

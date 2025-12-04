@@ -1,14 +1,6 @@
-# frozen_string_literal: true
+# Add your own tasks in files placed in lib/tasks ending in .rake,
+# for example lib/tasks/capistrano.rake, and they will automatically be available to Rake.
 
-require 'rake/testtask'
+require_relative "config/application"
 
-Rake::TestTask.new do |t|
-  t.libs << 'test'
-  # Include all test files except integration tests (which require real credentials)
-  t.test_files = FileList['test/**/test_*.rb'].exclude('test/integration/**/*')
-  t.verbose = true
-  # Disable Ruby warnings to suppress bundler/rubygems constant redefinition warnings
-  t.warning = false
-end
-
-task default: :test
+Rails.application.load_tasks

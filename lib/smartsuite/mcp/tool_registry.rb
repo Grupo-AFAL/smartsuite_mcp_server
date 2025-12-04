@@ -488,7 +488,7 @@ For rich text fields (richtextareafield), use SmartDoc format (TipTap/ProseMirro
         },
         {
           'name' => 'restore_deleted_record',
-          'description' => 'Restore a deleted record. Restores a soft-deleted record back to the table. The restored record will have "(Restored)" appended to its title.',
+          'description' => 'Restore a deleted record. Restores a soft-deleted record back to the table.',
           'inputSchema' => {
             'type' => 'object',
             'properties' => {

@@ -299,16 +299,8 @@ module SmartSuite
       def ensure_records_cached(table_id)
         return unless cache_enabled?
 
-        # Check if cache is valid
-        if @cache.cache_valid?(table_id)
-          # Track cache hit
-          @cache.track_cache_hit(table_id)
-          return
-        end
-
-        # Track cache miss
-        @cache.track_cache_miss(table_id)
-        SmartSuite::Logger.cache('miss', table_id, action: 'fetching all records')
+        # Check if cache is valid - no logging here, will log on actual cache access
+        return if @cache.cache_valid?(table_id)
 
         # Fetch table structure (use JSON format for internal processing)
         structure = get_table(table_id, format: :json)
@@ -316,10 +308,8 @@ module SmartSuite
         # Fetch ALL records (aggressive strategy)
         all_records = fetch_all_records(table_id)
 
-        # Cache records
+        # Cache records - cache_table_records will log the CACHED event
         @cache.cache_table_records(table_id, structure, all_records)
-
-        SmartSuite::Logger.cache('cached', table_id, records: all_records.size)
       end
 
       # Format a single object response based on format parameter.

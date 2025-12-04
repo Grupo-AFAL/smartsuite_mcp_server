@@ -1119,7 +1119,9 @@ class SmartSuiteServerTest < Minitest::Test
 
     assert_equal :post, api_method, 'Should use POST method'
     assert_equal '/applications/tbl_123/add_field/', api_endpoint
-    assert_equal field_data, api_body['field']
+    # The API requires params field, so it's added automatically if missing
+    expected_field_data = field_data.merge('params' => {})
+    assert_equal expected_field_data, api_body['field']
     assert_equal true, api_body['auto_fill_structure_layout']
     assert_equal 'Test Field', result['label']
   end
@@ -1187,7 +1189,9 @@ class SmartSuiteServerTest < Minitest::Test
 
     assert_equal :post, api_method, 'Should use POST method'
     assert_equal '/applications/tbl_123/bulk-add-fields/', api_endpoint
-    assert_equal fields, api_body['fields']
+    # The API requires params field, so it's added automatically if missing
+    expected_fields = fields.map { |f| f.merge('params' => {}) }
+    assert_equal expected_fields, api_body['fields']
     assert_equal true, result['success']
   end
 

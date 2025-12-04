@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'base'
+require_relative "base"
 
 module SmartSuite
   module API
@@ -33,13 +33,17 @@ module SmartSuite
       #     "params" => {"choices" => ["High", "Medium", "Low"]}
       #   })
       def add_field(table_id, field_data, field_position: nil, auto_fill_structure_layout: true, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('field_data', field_data, Hash)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("field_data", field_data, Hash)
+
+        # Ensure params key exists (SmartSuite API requires it)
+        field_data = field_data.dup
+        field_data["params"] ||= {}
 
         body = {
-          'field' => field_data,
-          'field_position' => field_position || {},
-          'auto_fill_structure_layout' => auto_fill_structure_layout
+          "field" => field_data,
+          "field_position" => field_position || {},
+          "auto_fill_structure_layout" => auto_fill_structure_layout
         }
 
         response = api_request(:post, "/applications/#{table_id}/add_field/", body)
@@ -70,14 +74,21 @@ module SmartSuite
       #     {"slug" => "field2", "label" => "Priority", "field_type" => "singleselectfield"}
       #   ])
       def bulk_add_fields(table_id, fields, set_as_visible_fields_in_reports: nil, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('fields', fields, Array)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("fields", fields, Array)
+
+        # Ensure each field has a params key (SmartSuite API requires it)
+        fields = fields.map do |field|
+          field = field.dup
+          field["params"] ||= {}
+          field
+        end
 
         body = {
-          'fields' => fields
+          "fields" => fields
         }
 
-        body['set_as_visible_fields_in_reports'] = set_as_visible_fields_in_reports if set_as_visible_fields_in_reports
+        body["set_as_visible_fields_in_reports"] = set_as_visible_fields_in_reports if set_as_visible_fields_in_reports
 
         response = api_request(:post, "/applications/#{table_id}/bulk-add-fields/", body)
 
@@ -104,14 +115,14 @@ module SmartSuite
       #     "params" => {"choices" => ["Urgent", "High", "Medium", "Low"]}
       #   })
       def update_field(table_id, slug, field_data, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('slug', slug)
-        validate_required_parameter!('field_data', field_data, Hash)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("slug", slug)
+        validate_required_parameter!("field_data", field_data, Hash)
 
         # Ensure slug is included in the field data
         # params is required by SmartSuite API, default to empty hash if not provided
-        body = field_data.merge('slug' => slug)
-        body['params'] ||= {}
+        body = field_data.merge("slug" => slug)
+        body["params"] ||= {}
 
         response = api_request(:put, "/applications/#{table_id}/change_field/", body)
 
@@ -136,11 +147,11 @@ module SmartSuite
       # @example
       #   delete_field("tbl_123", "abc123")
       def delete_field(table_id, slug, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('slug', slug)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("slug", slug)
 
         body = {
-          'slug' => slug
+          "slug" => slug
         }
 
         response = api_request(:post, "/applications/#{table_id}/delete_field/", body)

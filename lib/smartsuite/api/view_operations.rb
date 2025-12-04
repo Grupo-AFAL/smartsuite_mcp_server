@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require_relative 'base'
-require_relative '../formatters/toon_formatter'
+require_relative "base"
+require_relative "../formatters/toon_formatter"
 
 module SmartSuite
   module API
@@ -31,8 +31,8 @@ module SmartSuite
       #   get_view_records("tbl_123", "view_456")
       #   get_view_records("tbl_123", "view_456", format: :json)
       def get_view_records(table_id, view_id, with_empty_values: false, format: :toon)
-        validate_required_parameter!('table_id', table_id)
-        validate_required_parameter!('view_id', view_id)
+        validate_required_parameter!("table_id", table_id)
+        validate_required_parameter!("view_id", view_id)
 
         # Build endpoint with query parameters using Base helper
         base_path = "/applications/#{table_id}/records-for-report/"
@@ -40,7 +40,7 @@ module SmartSuite
 
         response = api_request(:get, endpoint)
 
-        return response unless response.is_a?(Hash) && response['records'].is_a?(Array)
+        return response unless response.is_a?(Hash) && response["records"].is_a?(Array)
 
         format_view_records_output(response, format)
       end
@@ -53,7 +53,7 @@ module SmartSuite
       # @param format [Symbol] Output format (:toon or :json)
       # @return [String, Hash] Formatted output
       def format_view_records_output(response, format)
-        records = response['records']
+        records = response["records"]
         record_count = records.size
 
         case format
@@ -95,30 +95,30 @@ module SmartSuite
       #   create_view("tbl_123", "sol_456", "Location Map", "map",
       #               state: {filter: {...}}, map_state: {center: [...]})
       def create_view(application, solution, label, view_mode, format: :toon, **options)
-        validate_required_parameter!('application', application)
-        validate_required_parameter!('solution', solution)
-        validate_required_parameter!('label', label)
-        validate_required_parameter!('view_mode', view_mode)
+        validate_required_parameter!("application", application)
+        validate_required_parameter!("solution", solution)
+        validate_required_parameter!("label", label)
+        validate_required_parameter!("view_mode", view_mode)
 
         body = {
-          'application' => application,
-          'solution' => solution,
-          'label' => label,
-          'view_mode' => view_mode,
-          'autosave' => options.fetch(:autosave, true),
-          'is_locked' => options.fetch(:is_locked, false),
-          'is_private' => options.fetch(:is_private, false),
-          'is_password_protected' => options.fetch(:is_password_protected, false)
+          "application" => application,
+          "solution" => solution,
+          "label" => label,
+          "view_mode" => view_mode,
+          "autosave" => options[:autosave].nil? ? true : options[:autosave],
+          "is_locked" => options[:is_locked].nil? ? false : options[:is_locked],
+          "is_private" => options[:is_private].nil? ? false : options[:is_private],
+          "is_password_protected" => options[:is_password_protected].nil? ? false : options[:is_password_protected]
         }
 
         # Add optional fields
-        body['description'] = options[:description] if options[:description]
-        body['order'] = options[:order] if options[:order]
-        body['state'] = options[:state] if options[:state]
-        body['map_state'] = options[:map_state] if options[:map_state]
-        body['sharing'] = options[:sharing] if options[:sharing]
+        body["description"] = options[:description] if options[:description]
+        body["order"] = options[:order] if options[:order]
+        body["state"] = options[:state] if options[:state]
+        body["map_state"] = options[:map_state] if options[:map_state]
+        body["sharing"] = options[:sharing] if options[:sharing]
 
-        response = api_request(:post, '/reports/', body)
+        response = api_request(:post, "/reports/", body)
 
         return response unless response.is_a?(Hash)
 

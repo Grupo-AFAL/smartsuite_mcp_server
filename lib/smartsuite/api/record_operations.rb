@@ -683,7 +683,6 @@ module SmartSuite
       # Restores a deleted record.
       #
       # Restores a soft-deleted record back to the table.
-      # The restored record will have "(Restored)" appended to its title.
       #
       # @param table_id [String] Table identifier
       # @param record_id [String] Record identifier to restore
