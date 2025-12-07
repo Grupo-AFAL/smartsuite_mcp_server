@@ -45,19 +45,19 @@ class McpHandler
 
     result = case method
     when "initialize"
-               handle_initialize
+      handle_initialize
     when "tools/list"
-               handle_tools_list(request)
+      handle_tools_list(request)
     when "tools/call"
-               handle_tool_call(request)
+      handle_tool_call(request)
     when "prompts/list"
-               handle_prompts_list(request)
+      handle_prompts_list(request)
     when "prompts/get"
-               handle_prompt_get(request)
+      handle_prompt_get(request)
     when "resources/list"
-               handle_resources_list(request)
+      handle_resources_list(request)
     else
-               return error_response(id, -32_601, "Method not found: #{method}")
+      return error_response(id, -32_601, "Method not found: #{method}")
     end
 
     result.merge("id" => id)
@@ -367,13 +367,13 @@ class McpHandler
     # Apply time range filter
     scope = case time_range
     when "today"
-              scope.where("created_at >= ?", Time.current.beginning_of_day)
+      scope.where("created_at >= ?", Time.current.beginning_of_day)
     when "week"
-              scope.where("created_at >= ?", 1.week.ago)
+      scope.where("created_at >= ?", 1.week.ago)
     when "month"
-              scope.where("created_at >= ?", 1.month.ago)
+      scope.where("created_at >= ?", 1.month.ago)
     else
-              scope
+      scope
     end
 
     {
