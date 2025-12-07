@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Create Solution Tool** - New MCP tool for creating SmartSuite solutions
+  - New `create_solution` method in `WorkspaceOperations` module
+  - New `create_solution` MCP tool accessible via AI assistants
+  - Parameters: `name` (required), `logo_icon` (Material Design icon name), `logo_color` (hex color from predefined palette)
+  - Validates colors against SmartSuite's 20 valid solution colors
+  - Normalizes color input (handles missing `#` prefix and case variations)
+  - Automatically invalidates solutions cache after creation
+  - Comprehensive test suite with 9 new tests
+
 - **Markdown to SmartDoc Converter** - New formatter module and MCP tool for converting markdown text to SmartSuite's SmartDoc format
   - New `SmartSuite::Formatters::MarkdownToSmartdoc` class (`lib/smartsuite/formatters/markdown_to_smartdoc.rb`)
   - New `convert_markdown_to_smartdoc` MCP tool for AI-accessible conversion

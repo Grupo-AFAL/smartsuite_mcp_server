@@ -488,4 +488,140 @@ class TestWorkspaceOperations < Minitest::Test
     assert result.is_a?(String), 'Default format should be TOON (string)'
     assert result.include?('solutions'), 'TOON output should contain solutions'
   end
+
+  # ========== create_solution tests ==========
+
+  def test_create_solution_success
+    expected_response = {
+      'id' => 'sol_new',
+      'name' => 'My New Solution',
+      'logo_icon' => 'folder',
+      'logo_color' => '#3A86FF',
+      'status' => 'in_development'
+    }
+
+    endpoint_called = nil
+    body_sent = nil
+    client = create_mock_client do |method, endpoint, body = nil|
+      endpoint_called = endpoint
+      body_sent = body
+      expected_response
+    end
+
+    result = client.create_solution('My New Solution', 'folder', '#3A86FF', format: :json)
+
+    assert_equal '/solutions/', endpoint_called
+    assert_equal 'My New Solution', body_sent['name']
+    assert_equal 'folder', body_sent['logo_icon']
+    assert_equal '#3A86FF', body_sent['logo_color']
+    assert_equal 'sol_new', result['id']
+    assert_equal 'My New Solution', result['name']
+  end
+
+  def test_create_solution_normalizes_color_uppercase
+    expected_response = { 'id' => 'sol_new', 'name' => 'Test', 'logo_color' => '#3A86FF' }
+
+    body_sent = nil
+    client = create_mock_client do |_method, _endpoint, body = nil|
+      body_sent = body
+      expected_response
+    end
+
+    client.create_solution('Test', 'star', '#3a86ff', format: :json) # lowercase
+
+    assert_equal '#3A86FF', body_sent['logo_color'], 'Color should be normalized to uppercase'
+  end
+
+  def test_create_solution_normalizes_color_without_hash
+    expected_response = { 'id' => 'sol_new', 'name' => 'Test', 'logo_color' => '#FF5757' }
+
+    body_sent = nil
+    client = create_mock_client do |_method, _endpoint, body = nil|
+      body_sent = body
+      expected_response
+    end
+
+    client.create_solution('Test', 'star', 'FF5757', format: :json) # no hash
+
+    assert_equal '#FF5757', body_sent['logo_color'], 'Color should be normalized with # prefix'
+  end
+
+  def test_create_solution_invalid_color
+    client = create_mock_client
+
+    error = assert_raises(ArgumentError) do
+      client.create_solution('Test', 'folder', '#INVALID')
+    end
+
+    assert_match(/Invalid logo_color/, error.message)
+    assert_match(/#3A86FF/, error.message) # Should list valid colors
+  end
+
+  def test_create_solution_missing_name
+    client = create_mock_client
+
+    assert_raises(ArgumentError, 'name is required') do
+      client.create_solution(nil, 'folder', '#3A86FF')
+    end
+
+    assert_raises(ArgumentError, 'name is required') do
+      client.create_solution('', 'folder', '#3A86FF')
+    end
+  end
+
+  def test_create_solution_missing_logo_icon
+    client = create_mock_client
+
+    assert_raises(ArgumentError, 'logo_icon is required') do
+      client.create_solution('Test', nil, '#3A86FF')
+    end
+
+    assert_raises(ArgumentError, 'logo_icon is required') do
+      client.create_solution('Test', '', '#3A86FF')
+    end
+  end
+
+  def test_create_solution_missing_logo_color
+    client = create_mock_client
+
+    assert_raises(ArgumentError, 'logo_color is required') do
+      client.create_solution('Test', 'folder', nil)
+    end
+
+    assert_raises(ArgumentError, 'logo_color is required') do
+      client.create_solution('Test', 'folder', '')
+    end
+  end
+
+  def test_create_solution_all_valid_colors
+    valid_colors = %w[
+      #3A86FF #4ECCFD #3EAC40 #FF5757 #FF9210
+      #FFB938 #883CD0 #EC506E #17C4C4 #6A849B
+      #0C41F3 #00B3FA #199A27 #F1273F #FF702E
+      #FDA80D #673DB6 #CD286A #00B2A8 #50515B
+    ]
+
+    valid_colors.each do |color|
+      expected_response = { 'id' => 'sol_new', 'name' => 'Test', 'logo_color' => color }
+      client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
+
+      result = client.create_solution('Test', 'folder', color, format: :json)
+      assert_equal color, result['logo_color'], "Color #{color} should be valid"
+    end
+  end
+
+  def test_create_solution_default_toon_format
+    expected_response = {
+      'id' => 'sol_new',
+      'name' => 'My New Solution',
+      'logo_icon' => 'folder',
+      'logo_color' => '#3A86FF'
+    }
+
+    client = create_mock_client { |_method, _endpoint, _body = nil| expected_response }
+    result = client.create_solution('My New Solution', 'folder', '#3A86FF')
+
+    # Default format should be TOON (string output)
+    assert result.is_a?(String), 'Default format should be TOON (string)'
+  end
 end
