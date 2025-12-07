@@ -3,25 +3,25 @@
 
 service: smartsuite-mcp
 
-# Container image - update with your registry
-image: your-registry/smartsuite-mcp
+# Container image on GitHub Container Registry
+image: ghcr.io/grupo-afal/smartsuite-mcp
 
-# Deploy to these servers (update with your EC2 IP)
+# Deploy to these servers (update with your server IP)
 servers:
   web:
-    - YOUR_EC2_IP_HERE
+    - <%= ENV.fetch("DEPLOY_SERVER_IP", "YOUR_SERVER_IP_HERE") %>
 
 # SSL via Let's Encrypt (kamal-proxy handles this)
 proxy:
   ssl: true
-  host: mcp.yourdomain.com
+  host: <%= ENV.fetch("DEPLOY_HOST", "mcp.yourdomain.com") %>
   # Health check endpoint
   healthcheck:
     path: /up
     interval: 10
     timeout: 5
 
-# Container registry (GitHub Container Registry example)
+# GitHub Container Registry
 registry:
   server: ghcr.io
   username:
@@ -66,12 +66,12 @@ aliases:
   logs: app logs -f
   dbconsole: app exec --interactive --reuse "bin/rails dbconsole"
 
-# PostgreSQL as an accessory (or use RDS)
-# Uncomment this section if running PostgreSQL on the same server
+# PostgreSQL as an accessory (or use managed database like RDS)
+# Comment out this section if using external database
 accessories:
   db:
     image: postgres:16
-    host: YOUR_EC2_IP_HERE
+    host: <%= ENV.fetch("DEPLOY_SERVER_IP", "YOUR_SERVER_IP_HERE") %>
     port: 5432
     env:
       clear:
