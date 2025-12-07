@@ -74,8 +74,17 @@ aliases:
   logs: app logs -f
   dbconsole: app exec --interactive --reuse "bin/rails dbconsole"
 
-# PostgreSQL as an accessory (or use managed database like RDS)
-# Comment out this section if using external database
+# PostgreSQL as an accessory (runs on same server as app)
+#
+# Database contents:
+#   - Cache tables (can be rebuilt from SmartSuite API - expendable)
+#   - users, api_keys, api_calls (important - backed up daily)
+#
+# Daily backups: Set up cron job on EC2 with bin/backup-db script
+#   0 3 * * * /rails/bin/backup-db >> /var/log/smartsuite-backup.log 2>&1
+#
+# Cost: $0 (runs on same EC2 instance)
+# Alternative: AWS RDS (~$15/month after free tier) - overkill for this use case
 accessories:
   db:
     image: postgres:16
