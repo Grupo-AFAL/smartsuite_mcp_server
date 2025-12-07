@@ -31,6 +31,10 @@
 # Ignore master key for decrypting credentials and more.
 /config/master.key
 
+# Kamal deploy config (contains user-specific settings)
+# Copy config/deploy.yml.example to config/deploy.yml and customize
+/config/deploy.yml
+
 # Ignore YARD documentation output
 /.yardoc
 /doc
