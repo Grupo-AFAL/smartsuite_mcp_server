@@ -2,10 +2,10 @@
 
 source "https://rubygems.org"
 
-ruby ">= 3.0.0"
+ruby ">= 3.1.0"
 
 # Rails framework
-gem "rails", "~> 8.0.4"
+gem "rails", "~> 8.1.1"
 
 # PostgreSQL for database (replaces SQLite for hosted version)
 gem "pg", "~> 1.1"
