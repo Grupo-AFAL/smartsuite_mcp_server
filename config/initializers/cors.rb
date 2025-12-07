@@ -5,6 +5,8 @@
 # Avoid CORS issues when API is called from the frontend app.
 # Handle Cross-Origin Resource Sharing (CORS) in order to accept cross-origin Ajax requests.
 
+# Read more: https://github.com/cyu/rack-cors
+
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     # Allow all origins for MCP clients (Claude Code, etc.)
@@ -19,6 +21,6 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
 
     resource "/up",
              headers: :any,
-             methods: [ :get ]
+             methods: [:get]
   end
 end
