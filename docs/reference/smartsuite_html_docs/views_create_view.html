@@ -1,0 +1,2075 @@
+<!DOCTYPE html>
+<html
+  lang="en"
+  dir="ltr"
+  class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-solution-data/views/create-view"
+  data-has-hydrated="false"
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="generator" content="Docusaurus v3.8.1" />
+    <title data-rh="true">Create View | SmartSuite Developers</title>
+    <meta
+      data-rh="true"
+      name="viewport"
+      content="width=device-width,initial-scale=1"
+    />
+    <meta data-rh="true" name="twitter:card" content="summary_large_image" />
+    <meta
+      data-rh="true"
+      property="og:image"
+      content="https://developers.smartsuite.com/img/240x240.jpg"
+    />
+    <meta
+      data-rh="true"
+      name="twitter:image"
+      content="https://developers.smartsuite.com/img/240x240.jpg"
+    />
+    <meta
+      data-rh="true"
+      property="og:url"
+      content="https://developers.smartsuite.com/docs/solution-data/views/create-view"
+    />
+    <meta data-rh="true" property="og:locale" content="en" />
+    <meta data-rh="true" name="docusaurus_locale" content="en" />
+    <meta data-rh="true" name="docsearch:language" content="en" />
+    <meta data-rh="true" name="docusaurus_version" content="current" />
+    <meta data-rh="true" name="docusaurus_tag" content="docs-default-current" />
+    <meta data-rh="true" name="docsearch:version" content="current" />
+    <meta
+      data-rh="true"
+      name="docsearch:docusaurus_tag"
+      content="docs-default-current"
+    />
+    <meta
+      data-rh="true"
+      property="og:title"
+      content="Create View | SmartSuite Developers"
+    />
+    <meta data-rh="true" name="description" content="Creates a new View." />
+    <meta
+      data-rh="true"
+      property="og:description"
+      content="Creates a new View."
+    />
+    <link data-rh="true" rel="icon" href="/img/favicon.ico" />
+    <link
+      data-rh="true"
+      rel="canonical"
+      href="https://developers.smartsuite.com/docs/solution-data/views/create-view"
+    />
+    <link
+      data-rh="true"
+      rel="alternate"
+      href="https://developers.smartsuite.com/docs/solution-data/views/create-view"
+      hreflang="en"
+    />
+    <link
+      data-rh="true"
+      rel="alternate"
+      href="https://developers.smartsuite.com/docs/solution-data/views/create-view"
+      hreflang="x-default"
+    />
+    <script data-rh="true" type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Solution Data",
+            "item": "https://developers.smartsuite.com/docs/category/solution-data"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Views",
+            "item": "https://developers.smartsuite.com/docs/category/views"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Create View",
+            "item": "https://developers.smartsuite.com/docs/solution-data/views/create-view"
+          }
+        ]
+      }
+    </script>
+    <link rel="stylesheet" href="/react-ui.css" />
+    <script
+      src="https://kit.fontawesome.com/fdbb61d20c.js"
+      async
+      crossorigin="anonymous"
+    ></script>
+    <link rel="stylesheet" href="/assets/css/styles.198333b4.css" />
+    <script src="/assets/js/runtime~main.c69a27e5.js" defer="defer"></script>
+    <script src="/assets/js/main.39750279.js" defer="defer"></script>
+  </head>
+  <body class="navigation-with-keyboard">
+    <svg xmlns="http://www.w3.org/2000/svg" style="display: none">
+      <defs>
+        <symbol id="theme-svg-external-link" viewBox="0 0 24 24">
+          <path
+            fill="currentColor"
+            d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"
+          />
+        </symbol>
+      </defs>
+    </svg>
+    <script>
+      !(function () {
+        var t = 'light'
+        var e =
+          (function () {
+            try {
+              return new URLSearchParams(window.location.search).get(
+                'docusaurus-theme'
+              )
+            } catch (t) {}
+          })() ||
+          (function () {
+            try {
+              return window.localStorage.getItem('theme')
+            } catch (t) {}
+          })()
+        document.documentElement.setAttribute('data-theme', e || t),
+          document.documentElement.setAttribute('data-theme-choice', e || t)
+      })(),
+        (function () {
+          try {
+            const c = new URLSearchParams(window.location.search).entries()
+            for (var [t, e] of c)
+              if (t.startsWith('docusaurus-data-')) {
+                var a = t.replace('docusaurus-data-', 'data-')
+                document.documentElement.setAttribute(a, e)
+              }
+          } catch (t) {}
+        })()
+    </script>
+    <div id="__docusaurus">
+      <div role="region" aria-label="Skip to main content">
+        <a
+          class="skipToContent_fXgn"
+          href="#__docusaurus_skipToContent_fallback"
+          >Skip to main content</a
+        >
+      </div>
+      <nav aria-label="Main" class="navbar navbar--fixed-top">
+        <div class="navbar__inner">
+          <div class="navbar__items">
+            <button
+              aria-label="Toggle navigation bar"
+              aria-expanded="false"
+              class="navbar__toggle clean-btn"
+              type="button"
+            >
+              <svg
+                width="30"
+                height="30"
+                viewBox="0 0 30 30"
+                aria-hidden="true"
+              >
+                <path
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-miterlimit="10"
+                  stroke-width="2"
+                  d="M4 7h22M4 15h22M4 23h22"
+                ></path>
+              </svg></button
+            ><a class="navbar__brand" href="/"
+              ><div class="navbar__logo">
+                <img
+                  src="/img/logo-smartsuite-short.svg"
+                  alt="SmartSuite"
+                  class="themedComponent_mlkZ themedComponent--light_NVdE"
+                  height="24"
+                  width="22"
+                /><img
+                  src="/img/logo-smartsuite-short.svg"
+                  alt="SmartSuite"
+                  class="themedComponent_mlkZ themedComponent--dark_xIcU"
+                  height="24"
+                  width="22"
+                />
+              </div>
+              <b class="navbar__title text--truncate">Developers Docs</b></a
+            >
+          </div>
+          <div class="navbar__items navbar__items--right">
+            <a
+              href="https://academy.smartsuite.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="navbar__item navbar__link"
+              >Academy<svg
+                width="13.5"
+                height="13.5"
+                aria-hidden="true"
+                class="iconExternalLink_nPIU"
+              >
+                <use href="#theme-svg-external-link"></use></svg></a
+            ><a
+              href="https://community.smartsuite.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="navbar__item navbar__link"
+              >Community<svg
+                width="13.5"
+                height="13.5"
+                aria-hidden="true"
+                class="iconExternalLink_nPIU"
+              >
+                <use href="#theme-svg-external-link"></use></svg></a
+            ><a
+              href="https://help.smartsuite.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="navbar__item navbar__link"
+              >Help Center<svg
+                width="13.5"
+                height="13.5"
+                aria-hidden="true"
+                class="iconExternalLink_nPIU"
+              >
+                <use href="#theme-svg-external-link"></use></svg
+            ></a>
+            <div class="navbarSearchContainer_qklK"></div>
+          </div>
+        </div>
+        <div role="presentation" class="navbar-sidebar__backdrop"></div>
+      </nav>
+      <nav class="menu_IdfN">
+        <a
+          aria-current="page"
+          class="navbar__item navbar__link navbar__link--active"
+          href="/docs/intro"
+          >REST API</a
+        ><a class="navbar__item navbar__link" href="/docs/scripting/intro"
+          >Scripting</a
+        ><a class="navbar__item navbar__link" href="/docs/solution-api"
+          >Developer Docs</a
+        >
+      </nav>
+      <div
+        id="__docusaurus_skipToContent_fallback"
+        class="main-wrapper mainWrapper_BlXs"
+      >
+        <div class="docsWrapper_hBAB">
+          <button
+            aria-label="Scroll back to top"
+            class="clean-btn theme-back-to-top-button backToTopButton_sjWU"
+            type="button"
+          ></button>
+          <div class="docRoot_UBD9">
+            <aside class="theme-doc-sidebar-container docSidebarContainer_YfHR">
+              <div class="sidebarViewport_aRkj">
+                <div class="sidebar_njMd">
+                  <nav
+                    aria-label="Docs sidebar"
+                    class="menu thin-scrollbar menu_SIkG"
+                  >
+                    <ul class="theme-doc-sidebar-menu menu__list">
+                      <li
+                        class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"
+                      >
+                        <a class="menu__link" href="/docs/intro"
+                          >Introduction</a
+                        >
+                      </li>
+                      <li
+                        class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"
+                      >
+                        <a class="menu__link" href="/docs/authentication"
+                          >Authentication</a
+                        >
+                      </li>
+                      <li
+                        class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"
+                      >
+                        <a class="menu__link" href="/docs/errors">Errors</a>
+                      </li>
+                      <li
+                        class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"
+                      >
+                        <a class="menu__link" href="/docs/rate-limits"
+                          >Rate Limits</a
+                        >
+                      </li>
+                      <li
+                        class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"
+                      >
+                        <div class="menu__list-item-collapsible">
+                          <a
+                            class="menu__link menu__link--sublist menu__link--active"
+                            href="/docs/category/solution-data"
+                            >Solution Data</a
+                          ><button
+                            aria-label="Collapse sidebar category &#x27;Solution Data&#x27;"
+                            aria-expanded="true"
+                            type="button"
+                            class="clean-btn menu__caret"
+                          ></button>
+                        </div>
+                        <ul class="menu__list">
+                          <li
+                            class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"
+                          >
+                            <div class="menu__list-item-collapsible">
+                              <a
+                                class="menu__link menu__link--sublist"
+                                tabindex="0"
+                                href="/docs/category/records"
+                                >Records</a
+                              ><button
+                                aria-label="Expand sidebar category &#x27;Records&#x27;"
+                                aria-expanded="false"
+                                type="button"
+                                class="clean-btn menu__caret"
+                              ></button>
+                            </div>
+                          </li>
+                          <li
+                            class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"
+                          >
+                            <div class="menu__list-item-collapsible">
+                              <a
+                                class="menu__link menu__link--sublist"
+                                tabindex="0"
+                                href="/docs/category/fields"
+                                >Fields</a
+                              ><button
+                                aria-label="Expand sidebar category &#x27;Fields&#x27;"
+                                aria-expanded="false"
+                                type="button"
+                                class="clean-btn menu__caret"
+                              ></button>
+                            </div>
+                          </li>
+                          <li
+                            class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"
+                          >
+                            <div class="menu__list-item-collapsible">
+                              <a
+                                class="menu__link menu__link--sublist"
+                                tabindex="0"
+                                href="/docs/category/comments"
+                                >Comments</a
+                              ><button
+                                aria-label="Expand sidebar category &#x27;Comments&#x27;"
+                                aria-expanded="false"
+                                type="button"
+                                class="clean-btn menu__caret"
+                              ></button>
+                            </div>
+                          </li>
+                          <li
+                            class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"
+                          >
+                            <div class="menu__list-item-collapsible">
+                              <a
+                                class="menu__link menu__link--sublist"
+                                tabindex="0"
+                                href="/docs/category/tables"
+                                >Tables</a
+                              ><button
+                                aria-label="Expand sidebar category &#x27;Tables&#x27;"
+                                aria-expanded="false"
+                                type="button"
+                                class="clean-btn menu__caret"
+                              ></button>
+                            </div>
+                          </li>
+                          <li
+                            class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"
+                          >
+                            <div class="menu__list-item-collapsible">
+                              <a
+                                class="menu__link menu__link--sublist"
+                                tabindex="0"
+                                href="/docs/category/solutions"
+                                >Solutions</a
+                              ><button
+                                aria-label="Expand sidebar category &#x27;Solutions&#x27;"
+                                aria-expanded="false"
+                                type="button"
+                                class="clean-btn menu__caret"
+                              ></button>
+                            </div>
+                          </li>
+                          <li
+                            class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item"
+                          >
+                            <div class="menu__list-item-collapsible">
+                              <a
+                                class="menu__link menu__link--sublist menu__link--active"
+                                tabindex="0"
+                                href="/docs/category/views"
+                                >Views</a
+                              ><button
+                                aria-label="Collapse sidebar category &#x27;Views&#x27;"
+                                aria-expanded="true"
+                                type="button"
+                                class="clean-btn menu__caret"
+                              ></button>
+                            </div>
+                            <ul class="menu__list">
+                              <li
+                                class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"
+                              >
+                                <a
+                                  class="menu__link menu__link--active"
+                                  aria-current="page"
+                                  tabindex="0"
+                                  href="/docs/solution-data/views/create-view"
+                                  >Create View</a
+                                >
+                              </li>
+                              <li
+                                class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"
+                              >
+                                <a
+                                  class="menu__link"
+                                  tabindex="0"
+                                  href="/docs/solution-data/views/records-for-view"
+                                  >Get Records for View</a
+                                >
+                              </li>
+                            </ul>
+                          </li>
+                          <li
+                            class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"
+                          >
+                            <div class="menu__list-item-collapsible">
+                              <a
+                                class="menu__link menu__link--sublist"
+                                tabindex="0"
+                                href="/docs/category/webhooks"
+                                >Webhooks</a
+                              ><button
+                                aria-label="Expand sidebar category &#x27;Webhooks&#x27;"
+                                aria-expanded="false"
+                                type="button"
+                                class="clean-btn menu__caret"
+                              ></button>
+                            </div>
+                          </li>
+                        </ul>
+                      </li>
+                      <li
+                        class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"
+                      >
+                        <div class="menu__list-item-collapsible">
+                          <a
+                            class="menu__link menu__link--sublist"
+                            href="/docs/category/org-management"
+                            >Org Management</a
+                          ><button
+                            aria-label="Expand sidebar category &#x27;Org Management&#x27;"
+                            aria-expanded="false"
+                            type="button"
+                            class="clean-btn menu__caret"
+                          ></button>
+                        </div>
+                      </li>
+                    </ul>
+                  </nav>
+                </div>
+              </div>
+            </aside>
+            <main class="docMainContainer_TBSr">
+              <div class="container padding-top--md padding-bottom--lg">
+                <div class="row">
+                  <div class="col docItemCol_VOVn">
+                    <div class="docItemContainer_Djhp">
+                      <article>
+                        <nav
+                          class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl"
+                          aria-label="Breadcrumbs"
+                        >
+                          <ul class="breadcrumbs">
+                            <li class="breadcrumbs__item">
+                              <a
+                                aria-label="Home page"
+                                class="breadcrumbs__link"
+                                href="/"
+                                ><svg
+                                  viewBox="0 0 24 24"
+                                  class="breadcrumbHomeIcon_YNFT"
+                                >
+                                  <path
+                                    d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z"
+                                    fill="currentColor"
+                                  ></path></svg
+                              ></a>
+                            </li>
+                            <li class="breadcrumbs__item">
+                              <a
+                                class="breadcrumbs__link"
+                                href="/docs/category/solution-data"
+                                ><span>Solution Data</span></a
+                              >
+                            </li>
+                            <li class="breadcrumbs__item">
+                              <a
+                                class="breadcrumbs__link"
+                                href="/docs/category/views"
+                                ><span>Views</span></a
+                              >
+                            </li>
+                            <li
+                              class="breadcrumbs__item breadcrumbs__item--active"
+                            >
+                              <span class="breadcrumbs__link">Create View</span>
+                            </li>
+                          </ul>
+                        </nav>
+                        <div
+                          class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"
+                        >
+                          <button
+                            type="button"
+                            class="clean-btn tocCollapsibleButton_TO0P"
+                          >
+                            On this page
+                          </button>
+                        </div>
+                        <div class="theme-doc-markdown markdown">
+                          <header><h1>Create View</h1></header>
+                          <div
+                            class="language-text codeBlockContainer_Ckt0 theme-code-block"
+                            style="
+                              --prism-color: #393a34;
+                              --prism-background-color: #f6f8fa;
+                            "
+                          >
+                            <div class="codeBlockTitle_OeMC">POST</div>
+                            <div class="codeBlockContent_QJqH">
+                              <pre
+                                tabindex="0"
+                                class="prism-code language-text codeBlock_bY9V thin-scrollbar"
+                                style="
+                                  color: #393a34;
+                                  background-color: #f6f8fa;
+                                "
+                              ><code class="codeBlockLines_e6Vv"><span class="token-line theme-code-block-highlighted-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line theme-code-block-highlighted-line" style="color:#393A34"><span class="token plain">https://app.smartsuite.com/api/v1/reports/</span><br></span><span class="token-line theme-code-block-highlighted-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></span></code></pre>
+                            </div>
+                          </div>
+                          <p>Creates a new View.</p>
+                          <div
+                            class="language-text codeBlockContainer_Ckt0 theme-code-block"
+                            style="
+                              --prism-color: #393a34;
+                              --prism-background-color: #f6f8fa;
+                            "
+                          >
+                            <div class="codeBlockTitle_OeMC">
+                              Example Request (Simple Grid View)
+                            </div>
+                            <div class="codeBlockContent_QJqH">
+                              <pre
+                                tabindex="0"
+                                class="prism-code language-text codeBlock_bY9V thin-scrollbar"
+                                style="
+                                  color: #393a34;
+                                  background-color: #f6f8fa;
+                                "
+                              ><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">curl -X POST https://app.smartsuite.com/api/v1/reports/ \</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  -H &quot;Authorization: Token YOUR_API_KEY&quot; \</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  -H &quot;ACCOUNT-ID: WORKSPACE_ID&quot; \</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  -H &quot;Content-Type: application/json&quot; \</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  --data &#x27;{</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;application&quot;: &quot;[app_id]&quot;,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;autosave&quot;: false,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;description&quot;: &quot;&quot;,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;is_dirty&quot;: false,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;is_locked&quot;: false,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;is_password_protected&quot;: false,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;is_private&quot;: false,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;map_state&quot;: {},</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;sharing_allow_all_fields&quot;: false,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;sharing_allow_copy&quot;: false,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;sharing_allow_export&quot;: false,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;sharing_allow_open_record&quot;: false,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;sharing_enabled&quot;: false,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;sharing_hash&quot;: &quot;&quot;,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;sharing_password&quot;: &quot;&quot;,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;sharing_show_toolbar&quot;: false,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;solution&quot;: &quot;641b70cb0d94c969a49983aa&quot;,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;state&quot;: {</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    &quot;filterWindow&quot;: {</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      &quot;opened&quot;: false,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      &quot;filter&quot;: {</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        &quot;operator&quot;: &quot;and&quot;,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        &quot;fields&quot;: []</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      }</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    },</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    &quot;fieldsWindow&quot;: {</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      &quot;visibleFields&quot;: [ &quot;title&quot; ],</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      &quot;fixedFieldsCount&quot;: 1,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      &quot;columnsWidth&quot;: {},</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      &quot;collapsed&quot;: []</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    }</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  },</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;label&quot;: &quot;TEST&quot;,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;view_mode&quot;: &quot;grid&quot;,</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  &quot;order&quot;: 2</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">}&#x27;</span><br></span></code></pre>
+                            </div>
+                          </div>
+                          <h2
+                            class="anchor anchorWithStickyNavbar_LWe7"
+                            id="request-body"
+                          >
+                            Request Body<a
+                              href="#request-body"
+                              class="hash-link"
+                              aria-label="Direct link to Request Body"
+                              title="Direct link to Request Body"
+                              >​</a
+                            >
+                          </h2>
+                          <table>
+                            <thead>
+                              <tr>
+                                <th style="text-align: left">Param</th>
+                                <th style="text-align: left">Type</th>
+                                <th style="text-align: center">Optional</th>
+                                <th style="text-align: left">Description</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td style="text-align: left">application</td>
+                                <td style="text-align: left">
+                                  <code>string</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">
+                                  Id of the App where you want to create the
+                                  View
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">autosave</td>
+                                <td style="text-align: left">
+                                  <code>boolean</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">
+                                  Autosave state for the new View
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">description</td>
+                                <td style="text-align: left">
+                                  <code>string</code>
+                                </td>
+                                <td style="text-align: center">Yes</td>
+                                <td style="text-align: left">
+                                  Optional description for the View
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">is_dirty</td>
+                                <td style="text-align: left">
+                                  <code>boolean</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">-Internal Use-</td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">is_locked</td>
+                                <td style="text-align: left">
+                                  <code>boolean</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">
+                                  View locked status
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">
+                                  is_password_protected
+                                </td>
+                                <td style="text-align: left">
+                                  <code>boolean</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">
+                                  View password protect status
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">is_private</td>
+                                <td style="text-align: left">
+                                  <code>boolean</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">
+                                  View private status
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">map_state</td>
+                                <td style="text-align: left">
+                                  <code>map state object</code>
+                                </td>
+                                <td style="text-align: center">Yes</td>
+                                <td style="text-align: left">
+                                  Map View type configuration
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">
+                                  sharing_allow_all_fields
+                                </td>
+                                <td style="text-align: left">
+                                  <code>boolean</code>
+                                </td>
+                                <td style="text-align: center">Yes</td>
+                                <td style="text-align: left">
+                                  Allow all fields when sharing
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">
+                                  sharing_allow_copy
+                                </td>
+                                <td style="text-align: left">
+                                  <code>boolean</code>
+                                </td>
+                                <td style="text-align: center">Yes</td>
+                                <td style="text-align: left">
+                                  Allow copy when sharing
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">
+                                  sharing_allow_export
+                                </td>
+                                <td style="text-align: left">
+                                  <code>boolean</code>
+                                </td>
+                                <td style="text-align: center">Yes</td>
+                                <td style="text-align: left">
+                                  Allow export when sharing
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">
+                                  sharing_allow_open_records
+                                </td>
+                                <td style="text-align: left">
+                                  <code>boolean</code>
+                                </td>
+                                <td style="text-align: center">Yes</td>
+                                <td style="text-align: left">
+                                  Allow opening record details when sharing
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">
+                                  sharing_enabled
+                                </td>
+                                <td style="text-align: left">
+                                  <code>boolean</code>
+                                </td>
+                                <td style="text-align: center">Yes</td>
+                                <td style="text-align: left">
+                                  Sharing state enabled or disabled
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">sharing_hash</td>
+                                <td style="text-align: left">
+                                  <code>string</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">
+                                  Shared View hash value
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">
+                                  sharing_password
+                                </td>
+                                <td style="text-align: left">
+                                  <code>string</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">
+                                  Shared View password value
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">
+                                  sharing_show_toolbar
+                                </td>
+                                <td style="text-align: left">
+                                  <code>boolean</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">
+                                  Shared View toolbar toggle
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">solution</td>
+                                <td style="text-align: left">
+                                  <code>string</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">
+                                  Id of the App Solution containing the View
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">state</td>
+                                <td style="text-align: left">
+                                  <code>view state object</code>
+                                </td>
+                                <td style="text-align: center">Yes</td>
+                                <td style="text-align: left">
+                                  View state configuration
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">label</td>
+                                <td style="text-align: left">
+                                  <code>string</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">
+                                  Display name of the View
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">view_mode</td>
+                                <td style="text-align: left">
+                                  <code>string</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">View mode</td>
+                              </tr>
+                              <tr>
+                                <td style="text-align: left">order</td>
+                                <td style="text-align: left">
+                                  <code>number</code>
+                                </td>
+                                <td style="text-align: center">No</td>
+                                <td style="text-align: left">
+                                  Display order of the View in the View list
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          <hr />
+                          <h2
+                            class="anchor anchorWithStickyNavbar_LWe7"
+                            id="state-object"
+                          >
+                            state object<a
+                              href="#state-object"
+                              class="hash-link"
+                              aria-label="Direct link to state object"
+                              title="Direct link to state object"
+                              >​</a
+                            >
+                          </h2>
+                          <h3
+                            class="anchor anchorWithStickyNavbar_LWe7"
+                            id="state-object-properties"
+                          >
+                            state object properties<a
+                              href="#state-object-properties"
+                              class="hash-link"
+                              aria-label="Direct link to state object properties"
+                              title="Direct link to state object properties"
+                              >​</a
+                            >
+                          </h3>
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Property</th>
+                                <th>Data Type</th>
+                                <th>Description</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td>filterWindow</td>
+                                <td>Object</td>
+                                <td>The filter window settings.</td>
+                              </tr>
+                              <tr>
+                                <td>filterWindow.opened</td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates if the filter window is opened or
+                                  closed.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>filterWindow.filter</td>
+                                <td>Object</td>
+                                <td>
+                                  The filter settings within the filter window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>filterWindow.filter.operator</td>
+                                <td>String</td>
+                                <td>The operator used for filtering.</td>
+                              </tr>
+                              <tr>
+                                <td>filterWindow.filter.fields</td>
+                                <td>Array</td>
+                                <td>The array of fields used for filtering.</td>
+                              </tr>
+                              <tr>
+                                <td>fieldsWindow</td>
+                                <td>Object</td>
+                                <td>The fields window settings.</td>
+                              </tr>
+                              <tr>
+                                <td>fieldsWindow.visibleFields</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of fields that are visible in the
+                                  fields window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>fieldsWindow.fixedFieldsCount</td>
+                                <td>Number</td>
+                                <td>
+                                  The number of fixed fields in the fields
+                                  window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>fieldsWindow.columnsWidth</td>
+                                <td>Object</td>
+                                <td>
+                                  The object containing the widths of columns in
+                                  the fields window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>fieldsWindow.collapsed</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of collapsed fields in the fields
+                                  window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>aggregates</td>
+                                <td>Object</td>
+                                <td>Aggregate settings settings.</td>
+                              </tr>
+                              <tr>
+                                <td>coverWindow</td>
+                                <td>null</td>
+                                <td>
+                                  Indicates that the cover window is null (not
+                                  applicable).
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>sortWindow</td>
+                                <td>Object</td>
+                                <td>The sort window settings.</td>
+                              </tr>
+                              <tr>
+                                <td>sortWindow.sort</td>
+                                <td>Array</td>
+                                <td>The array of sort settings.</td>
+                              </tr>
+                              <tr>
+                                <td>groupbyWindow</td>
+                                <td>Object</td>
+                                <td>The group by window settings.</td>
+                              </tr>
+                              <tr>
+                                <td>groupbyWindow.collapsed</td>
+                                <td>Object</td>
+                                <td>
+                                  The object containing collapsed settings for
+                                  group by fields.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>groupbyWindow.group</td>
+                                <td>Array</td>
+                                <td>The array of group by fields.</td>
+                              </tr>
+                              <tr>
+                                <td>spotlightWindow</td>
+                                <td>Object</td>
+                                <td>The spotlight window settings.</td>
+                              </tr>
+                              <tr>
+                                <td>spotlightWindow.spotlights</td>
+                                <td>Array</td>
+                                <td>The array of spotlights.</td>
+                              </tr>
+                              <tr>
+                                <td>cardSizeWindow</td>
+                                <td>Object</td>
+                                <td>The card size window settings.</td>
+                              </tr>
+                              <tr>
+                                <td>cardSizeWindow.size</td>
+                                <td>String</td>
+                                <td>The size of the card.</td>
+                              </tr>
+                              <tr>
+                                <td>rowSizeWindow</td>
+                                <td>Object</td>
+                                <td>The row size window settings.</td>
+                              </tr>
+                              <tr>
+                                <td>rowSizeWindow.size</td>
+                                <td>String</td>
+                                <td>The size of the row.</td>
+                              </tr>
+                              <tr>
+                                <td>rowSizeWindow.previousSize</td>
+                                <td>null</td>
+                                <td>
+                                  The previous size of the row (not applicable).
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>stackByWindow</td>
+                                <td>Object</td>
+                                <td>The stack by window settings.</td>
+                              </tr>
+                              <tr>
+                                <td>stackByWindow.columnFieldSlug</td>
+                                <td>null</td>
+                                <td>
+                                  The slug of the column field in the stack by
+                                  window (not applicable).
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>stackByWindow.swimlaneFieldSlug</td>
+                                <td>null</td>
+                                <td>
+                                  The slug of the swimlane field in the stack by
+                                  window (not applicable).
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>stackByWindow.collapsedColumns</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of collapsed columns in the stack by
+                                  window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>stackByWindow.collapsedSwimlanes</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of collapsed swimlanes in the stack
+                                  by window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>stackByWindow.columnsValues</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of column values in the stack by
+                                  window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>locationByWindow</td>
+                                <td>Object</td>
+                                <td>The location by window settings.</td>
+                              </tr>
+                              <tr>
+                                <td>locationByWindow.selectedFieldSlug</td>
+                                <td>null</td>
+                                <td>
+                                  The selected field slug in the location by
+                                  window (not applicable).
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>calendarFieldsWindow</td>
+                                <td>Object</td>
+                                <td>The calendar fields window settings.</td>
+                              </tr>
+                              <tr>
+                                <td>calendarFieldsWindow.fields</td>
+                                <td>Array</td>
+                                <td></td>
+                              </tr>
+                              <tr>
+                                <td>calendarFieldsWindow.showRecordsList</td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether the records list is shown in
+                                  the calendar fields window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>calendarFieldsWindow.viewType</td>
+                                <td>String</td>
+                                <td>
+                                  The type of view displayed in the calendar
+                                  fields window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  calendarFieldsWindow.externalReportsInfo
+                                </td>
+                                <td>Array</td>
+                                <td>
+                                  The array of external reports information in
+                                  the calendar fields window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>calendarFieldsWindow.displayWeekends</td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether weekends are displayed in
+                                  the calendar fields window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>timelineFieldsWindow</td>
+                                <td>Object</td>
+                                <td>The timeline fields window settings.</td>
+                              </tr>
+                              <tr>
+                                <td>timelineFieldsWindow.fields</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of fields in the timeline fields
+                                  window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>timelineFieldsWindow.viewMode</td>
+                                <td>String</td>
+                                <td>
+                                  The mode of the timeline view in the timeline
+                                  fields window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>timelineFieldsWindow.showRecordsList</td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether the records list is shown in
+                                  the timeline fields window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>timelineFieldsWindow.periods</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of periods in the timeline fields
+                                  window.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings</td>
+                                <td>Object</td>
+                                <td>The chart settings.</td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.sidebarActive</td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether the sidebar is active in the
+                                  chart settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.selectedFields</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of selected fields in the chart
+                                  settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.selectedChart</td>
+                                <td>String</td>
+                                <td>
+                                  The selected chart type in the chart settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.checkedLegends</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of checked legends in the chart
+                                  settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.sortedLegends</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of sorted legends in the chart
+                                  settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.customSortApplied</td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether a custom sort is applied in
+                                  the chart settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.groupByField</td>
+                                <td>Object</td>
+                                <td>
+                                  The group by field settings in the chart
+                                  settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.groupByField.slug</td>
+                                <td>null</td>
+                                <td>
+                                  The slug of the group by field (not
+                                  applicable).
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.groupByField.nestedOption</td>
+                                <td>null</td>
+                                <td>
+                                  The nested option of the group by field (not
+                                  applicable).
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  chartSettings.groupByField.additionalOption
+                                </td>
+                                <td>null</td>
+                                <td>
+                                  The additional option of the group by field
+                                  (not applicable).
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.dynamicFilterField</td>
+                                <td>Object</td>
+                                <td>
+                                  The dynamic filter field settings in the chart
+                                  settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.dynamicFilterField.slug</td>
+                                <td>null</td>
+                                <td>
+                                  The slug of the dynamic filter field (not
+                                  applicable).
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  chartSettings.dynamicFilterField.nestedOption
+                                </td>
+                                <td>null</td>
+                                <td>
+                                  The nested option of the dynamic filter field
+                                  (not applicable).
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  chartSettings.dynamicFilterField.fieldOptions
+                                </td>
+                                <td>Array</td>
+                                <td>
+                                  The array of field options in the dynamic
+                                  filter field.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  chartSettings.dynamicFilterField.selectedOption
+                                </td>
+                                <td>null</td>
+                                <td>
+                                  The selected option of the dynamic filter
+                                  field (not applicable).
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  chartSettings.dynamicFilterSectionExpanded
+                                </td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether the dynamic filter section
+                                  is expanded in the chart settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.advancedChartOptions</td>
+                                <td>Object</td>
+                                <td>
+                                  The advanced chart options in the chart
+                                  settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  chartSettings.advancedChartOptions.showDataLabels
+                                </td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether data labels are shown on the
+                                  chart.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  chartSettings.advancedChartOptions.showValueAxisLabel
+                                </td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether the value axis label is
+                                  shown on the chart.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  chartSettings.advancedChartOptions.showCategoryAxisLabel
+                                </td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether the category axis label is
+                                  shown on the chart.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  chartSettings.advancedChartOptions.showXAxisLabel
+                                </td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether the X-axis label is shown on
+                                  the chart.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  chartSettings.advancedChartOptions.showYAxisLabel
+                                </td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether the Y-axis label is shown on
+                                  the chart.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  chartSettings.advancedChartOptions.showBubbleLegend
+                                </td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether the bubble legend is shown
+                                  on the chart.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.categories</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of categories in the chart settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.drillIn</td>
+                                <td>Object</td>
+                                <td>
+                                  The drill-in settings in the chart settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.drillIn.visibleFields</td>
+                                <td>null</td>
+                                <td>
+                                  The visible fields in the drill-in settings
+                                  (not applicable).
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.benchmarkLines</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of benchmark lines in the chart
+                                  settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  chartSettings.benchmarkLinesSectionExpanded
+                                </td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether the benchmark lines section
+                                  is expanded in the chart settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.totals</td>
+                                <td>Array</td>
+                                <td>
+                                  The array of totals in the chart settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>chartSettings.totalsSectionExpanded</td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether the totals section is
+                                  expanded in the chart settings.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>isToolbarVisible</td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates whether the toolbar is visible.
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          <h3
+                            class="anchor anchorWithStickyNavbar_LWe7"
+                            id="state-object-example"
+                          >
+                            state object example<a
+                              href="#state-object-example"
+                              class="hash-link"
+                              aria-label="Direct link to state object example"
+                              title="Direct link to state object example"
+                              >​</a
+                            >
+                          </h3>
+                          <div
+                            class="language-json codeBlockContainer_Ckt0 theme-code-block"
+                            style="
+                              --prism-color: #393a34;
+                              --prism-background-color: #f6f8fa;
+                            "
+                          >
+                            <div class="codeBlockTitle_OeMC">Example</div>
+                            <div class="codeBlockContent_QJqH">
+                              <pre
+                                tabindex="0"
+                                class="prism-code language-json codeBlock_bY9V thin-scrollbar"
+                                style="
+                                  color: #393a34;
+                                  background-color: #f6f8fa;
+                                "
+                              ><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;filterWindow&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;opened&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;filter&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;operator&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;and&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;fields&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token punctuation" style="color:#393A34">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;fieldsWindow&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;visibleFields&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;title&quot;</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;fixedFieldsCount&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;columnsWidth&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;collapsed&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;aggregates&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;coverWindow&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token null keyword" style="color:#00009f">null</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;sortWindow&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"> </span><span class="token property" style="color:#36acaa">&quot;sort&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;groupbyWindow&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;collapsed&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;group&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;spotlightWindow&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"> </span><span class="token property" style="color:#36acaa">&quot;spotlights&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;cardSizeWindow&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"> </span><span class="token property" style="color:#36acaa">&quot;size&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;s&quot;</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;rowSizeWindow&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;size&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;compact&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;previousSize&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token null keyword" style="color:#00009f">null</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;stackByWindow&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;columnFieldSlug&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token null keyword" style="color:#00009f">null</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;swimlaneFieldSlug&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token null keyword" style="color:#00009f">null</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;collapsedColumns&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;collapsedSwimlanes&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;columnsValues&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;locationByWindow&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"> </span><span class="token property" style="color:#36acaa">&quot;selectedFieldSlug&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token null keyword" style="color:#00009f">null</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;calendarFieldsWindow&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;fields&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;showRecordsList&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;viewType&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;dayGridMonth&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;externalReportsInfo&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;displayWeekends&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">true</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;timelineFieldsWindow&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;fields&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;viewMode&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;day&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;showRecordsList&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;periods&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;chartSettings&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;sidebarActive&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">true</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;selectedFields&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;selectedChart&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;bar&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;checkedLegends&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;sortedLegends&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;customSortApplied&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;groupByField&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;slug&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token null keyword" style="color:#00009f">null</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;nestedOption&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token null keyword" style="color:#00009f">null</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;additionalOption&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token null keyword" style="color:#00009f">null</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;dynamicFilterField&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;slug&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token null keyword" style="color:#00009f">null</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;nestedOption&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token null keyword" style="color:#00009f">null</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;fieldOptions&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;selectedOption&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token null keyword" style="color:#00009f">null</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;dynamicFilterSectionExpanded&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;advancedChartOptions&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;showDataLabels&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;showValueAxisLabel&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;showCategoryAxisLabel&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;showXAxisLabel&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;showYAxisLabel&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;showBubbleLegend&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;categories&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;drillIn&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"> </span><span class="token property" style="color:#36acaa">&quot;visibleFields&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token null keyword" style="color:#00009f">null</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;benchmarkLines&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;benchmarkLinesSectionExpanded&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;totals&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">[</span><span class="token punctuation" style="color:#393A34">]</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;totalsSectionExpanded&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;isToolbarVisible&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">true</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token punctuation" style="color:#393A34">}</span><br></span></code></pre>
+                            </div>
+                          </div>
+                          <hr />
+                          <h2
+                            class="anchor anchorWithStickyNavbar_LWe7"
+                            id="map_state-object"
+                          >
+                            map_state object<a
+                              href="#map_state-object"
+                              class="hash-link"
+                              aria-label="Direct link to map_state object"
+                              title="Direct link to map_state object"
+                              >​</a
+                            >
+                          </h2>
+                          <h3
+                            class="anchor anchorWithStickyNavbar_LWe7"
+                            id="map_state-object-properties"
+                          >
+                            map_state object properties<a
+                              href="#map_state-object-properties"
+                              class="hash-link"
+                              aria-label="Direct link to map_state object properties"
+                              title="Direct link to map_state object properties"
+                              >​</a
+                            >
+                          </h3>
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Property</th>
+                                <th>Data Type</th>
+                                <th>Description</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td>settings</td>
+                                <td>Object</td>
+                                <td></td>
+                              </tr>
+                              <tr>
+                                <td>settings.mapTypeId</td>
+                                <td>String</td>
+                                <td>
+                                  The type of the map to be displayed.
+                                  <p>Options:</p>
+                                  <ul>
+                                    <li>roadmap</li>
+                                    <li>satellite</li>
+                                    <li>hybrid</li>
+                                    <li>silver</li>
+                                    <li>retro</li>
+                                  </ul>
+                                  <p></p>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.locationRadius</td>
+                                <td>Object</td>
+                                <td>
+                                  The radius around a location for search or
+                                  display.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.locationRadius.enabled</td>
+                                <td>Boolean</td>
+                                <td>
+                                  Indicates if the location radius is enabled or
+                                  disabled.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.locationRadius.meters</td>
+                                <td>Number</td>
+                                <td>The radius distance in meters.</td>
+                              </tr>
+                              <tr>
+                                <td>settings.locationRadius.measureUnit</td>
+                                <td>String</td>
+                                <td>The unit of measurement for the radius.</td>
+                              </tr>
+                              <tr>
+                                <td>settings.locationMarker</td>
+                                <td>Object</td>
+                                <td>
+                                  The marker settings for a specific location.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.locationMarker.iconType</td>
+                                <td>String</td>
+                                <td>
+                                  The type of icon for the location marker.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.locationMarker.iconSizeType</td>
+                                <td>String</td>
+                                <td>
+                                  The size type of the location marker icon.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.locationMarker.iconColor</td>
+                                <td>String</td>
+                                <td>The color of the location marker icon.</td>
+                              </tr>
+                              <tr>
+                                <td>settings.displayElements</td>
+                                <td>Object</td>
+                                <td>
+                                  The display elements settings for different
+                                  map types.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.displayElements.roadmap</td>
+                                <td>Object</td>
+                                <td>
+                                  The display elements settings for the roadmap
+                                  map type.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.displayElements.roadmap.labels</td>
+                                <td>Number</td>
+                                <td>
+                                  The level of label visibility on the roadmap.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  settings.displayElements.roadmap.terrain
+                                </td>
+                                <td>Number</td>
+                                <td>
+                                  The level of terrain visibility on the
+                                  roadmap.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  settings.displayElements.roadmap.highways
+                                </td>
+                                <td>Number</td>
+                                <td>
+                                  The level of highway visibility on the
+                                  roadmap.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.displayElements.roadmap.roads</td>
+                                <td>Number</td>
+                                <td>
+                                  The level of road visibility on the roadmap.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  settings.displayElements.roadmap.transit
+                                </td>
+                                <td>Number</td>
+                                <td>
+                                  The level of transit visibility on the
+                                  roadmap.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.displayElements.roadmap.poi</td>
+                                <td>Number</td>
+                                <td>
+                                  The level of point of interest (POI)
+                                  visibility on the roadmap.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.displayElements.roadmap.water</td>
+                                <td>Number</td>
+                                <td>
+                                  The level of water visibility on the roadmap.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.displayElements.satellite</td>
+                                <td>Object</td>
+                                <td>
+                                  The display elements settings for the
+                                  satellite map type.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  settings.displayElements.satellite.labels
+                                </td>
+                                <td>Number</td>
+                                <td>
+                                  The level of label visibility on the satellite
+                                  view.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  settings.displayElements.satellite.terrain
+                                </td>
+                                <td>Number</td>
+                                <td>
+                                  The level of terrain visibility on the
+                                  satellite view.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  settings.displayElements.satellite.highways
+                                </td>
+                                <td>Number</td>
+                                <td>
+                                  The level of highway visibility on the
+                                  satellite view.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  settings.displayElements.satellite.roads
+                                </td>
+                                <td>Number</td>
+                                <td>
+                                  The level of road visibility on the satellite
+                                  view.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  settings.displayElements.satellite.transit
+                                </td>
+                                <td>Number</td>
+                                <td>
+                                  The level of transit visibility on the
+                                  satellite view.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.displayElements.satellite.poi</td>
+                                <td>Number</td>
+                                <td>
+                                  The level of point of interest (POI)
+                                  visibility on the satellite view.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  settings.displayElements.satellite.water
+                                </td>
+                                <td>Number</td>
+                                <td>
+                                  The level of water visibility on the satellite
+                                  view.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.displayElements.hybrid</td>
+                                <td>Object</td>
+                                <td>
+                                  The display elements settings for the hybrid
+                                  map type.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.displayElements.hybrid.labels</td>
+                                <td>Number</td>
+                                <td>
+                                  The level of label visibility on the hybrid
+                                  map.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.displayElements.hybrid.terrain</td>
+                                <td>Number</td>
+                                <td>
+                                  The level of terrain visibility on the hybrid
+                                  map.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>
+                                  settings.displayElements.hybrid.highways
+                                </td>
+                                <td>Number</td>
+                                <td>
+                                  The level of highway visibility on the hybrid
+                                  map.
+                                </td>
+                              </tr>
+                              <tr>
+                                <td>settings.displayElements.hybrid.roads</td>
+                                <td>Number</td>
+                                <td>
+                                  The level of road visibility on the hybrid map
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          <h3
+                            class="anchor anchorWithStickyNavbar_LWe7"
+                            id="map_state-object-example"
+                          >
+                            map_state object example<a
+                              href="#map_state-object-example"
+                              class="hash-link"
+                              aria-label="Direct link to map_state object example"
+                              title="Direct link to map_state object example"
+                              >​</a
+                            >
+                          </h3>
+                          <div
+                            class="language-json codeBlockContainer_Ckt0 theme-code-block"
+                            style="
+                              --prism-color: #393a34;
+                              --prism-background-color: #f6f8fa;
+                            "
+                          >
+                            <div class="codeBlockTitle_OeMC">
+                              Example Structure
+                            </div>
+                            <div class="codeBlockContent_QJqH">
+                              <pre
+                                tabindex="0"
+                                class="prism-code language-json codeBlock_bY9V thin-scrollbar"
+                                style="
+                                  color: #393a34;
+                                  background-color: #f6f8fa;
+                                "
+                              ><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;settings&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;mapTypeId&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;roadmap&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;locationRadius&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;enabled&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;meters&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">0</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;measureUnit&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;miles&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;locationMarker&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;iconType&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;pin&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;iconSizeType&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;m&quot;</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;iconColor&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token string" style="color:#e3116c">&quot;#3A86FF&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token property" style="color:#36acaa">&quot;displayElements&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;roadmap&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;labels&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;terrain&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;highways&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;roads&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;transit&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">0</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;poi&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;water&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;satellite&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;labels&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;terrain&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;highways&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;roads&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">0</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;transit&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">0</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;poi&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">0</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;water&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;hybrid&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;labels&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;terrain&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;highways&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;roads&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;transit&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">0</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;poi&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">0</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;water&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;silver&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;labels&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;terrain&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;highways&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;roads&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;transit&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;poi&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;water&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token property" style="color:#36acaa">&quot;retro&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token punctuation" style="color:#393A34">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;labels&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;terrain&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;highways&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;roads&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;transit&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;poi&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">1</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">          </span><span class="token property" style="color:#36acaa">&quot;water&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token number" style="color:#36acaa">2</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        </span><span class="token punctuation" style="color:#393A34">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">      </span><span class="token punctuation" style="color:#393A34">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token punctuation" style="color:#393A34">}</span><span class="token punctuation" style="color:#393A34">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">    </span><span class="token property" style="color:#36acaa">&quot;sidebarActive&quot;</span><span class="token operator" style="color:#393A34">:</span><span class="token plain"> </span><span class="token boolean" style="color:#36acaa">false</span><span class="token plain"></span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">  </span><span class="token punctuation" style="color:#393A34">}</span><br></span></code></pre>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                      <nav
+                        class="docusaurus-mt-lg pagination-nav"
+                        aria-label="Docs pages"
+                      >
+                        <a
+                          class="pagination-nav__link pagination-nav__link--prev"
+                          href="/docs/category/views"
+                          ><div class="pagination-nav__sublabel">Previous</div>
+                          <div class="pagination-nav__label">Views</div></a
+                        ><a
+                          class="pagination-nav__link pagination-nav__link--next"
+                          href="/docs/solution-data/views/records-for-view"
+                          ><div class="pagination-nav__sublabel">Next</div>
+                          <div class="pagination-nav__label">
+                            Get Records for View
+                          </div></a
+                        >
+                      </nav>
+                    </div>
+                  </div>
+                  <div class="col col--3">
+                    <div
+                      class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"
+                    >
+                      <ul
+                        class="table-of-contents table-of-contents__left-border"
+                      >
+                        <li>
+                          <a
+                            href="#request-body"
+                            class="table-of-contents__link toc-highlight"
+                            >Request Body</a
+                          >
+                        </li>
+                        <li>
+                          <a
+                            href="#state-object"
+                            class="table-of-contents__link toc-highlight"
+                            >state object</a
+                          >
+                          <ul>
+                            <li>
+                              <a
+                                href="#state-object-properties"
+                                class="table-of-contents__link toc-highlight"
+                                >state object properties</a
+                              >
+                            </li>
+                            <li>
+                              <a
+                                href="#state-object-example"
+                                class="table-of-contents__link toc-highlight"
+                                >state object example</a
+                              >
+                            </li>
+                          </ul>
+                        </li>
+                        <li>
+                          <a
+                            href="#map_state-object"
+                            class="table-of-contents__link toc-highlight"
+                            >map_state object</a
+                          >
+                          <ul>
+                            <li>
+                              <a
+                                href="#map_state-object-properties"
+                                class="table-of-contents__link toc-highlight"
+                                >map_state object properties</a
+                              >
+                            </li>
+                            <li>
+                              <a
+                                href="#map_state-object-example"
+                                class="table-of-contents__link toc-highlight"
+                                >map_state object example</a
+                              >
+                            </li>
+                          </ul>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+      <footer class="footer_KjW4">
+        <div class="top_oAdM">
+          <div>
+            <img
+              src="/img/logo-smartsuite.svg"
+              alt="SmartSuite"
+              class="logo_cZ7s"
+            />
+            <div class="office_FUg5">
+              <div class="title_SBRw">Office Hours</div>
+              <div class="text_eHqn">
+                Get your questions answered by a SmartSuite Expert
+              </div>
+              <div class="schedule_YVak">
+                <div class="day_zAGE">
+                  Monday/Friday, 9:00 AM - 10:00AM (PST)
+                </div>
+                <div class="day_zAGE">Wednesday, 7:00 AM - 8:00AM (PST)</div>
+              </div>
+              <a
+                href="https://calendly.com/smartsuite-success/live-office-hours-1"
+                target="_blank"
+                rel="noreferrer noopener"
+                class="button_kAsm"
+                >Register Now</a
+              >
+            </div>
+          </div>
+          <div class="second_A5C4">
+            <div class="linksGroup_AHJO">
+              <div class="links_yKMv">
+                <div class="title_SBRw">Engage</div>
+                <ul class="list_WpXm">
+                  <li>
+                    <a
+                      href="https://us06web.zoom.us/j/89991564243"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="link_tTQ4"
+                      >Join Office Hours</a
+                    >
+                  </li>
+                  <li>
+                    <a
+                      href="https://form.smartsuite.com/x8zfht5g/kiSuB2y6sx"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="link_tTQ4"
+                      >Monthly Training Class</a
+                    >
+                  </li>
+                </ul>
+              </div>
+              <div class="links_yKMv">
+                <div class="title_SBRw">Community</div>
+                <ul class="list_WpXm">
+                  <li>
+                    <a
+                      href="https://community.smartsuite.com"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="link_tTQ4"
+                      >User Community</a
+                    >
+                  </li>
+                  <li>
+                    <a
+                      href="https://academy.smartsuite.com"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="link_tTQ4"
+                      >SmartSuite Academy</a
+                    >
+                  </li>
+                  <li>
+                    <a
+                      href="https://www.smartsuite.com/blog"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="link_tTQ4"
+                      >Blog</a
+                    >
+                  </li>
+                </ul>
+              </div>
+              <div class="links_yKMv">
+                <div class="title_SBRw">Resources</div>
+                <ul class="list_WpXm">
+                  <li>
+                    <a
+                      href="https://www.smartsuite.com/webinars"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="link_tTQ4"
+                      >Webinars</a
+                    >
+                  </li>
+                  <li>
+                    <a
+                      href="https://www.youtube.com/@hellosmartsuite"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="link_tTQ4"
+                      >Video Center</a
+                    >
+                  </li>
+                </ul>
+              </div>
+              <div class="links_yKMv">
+                <div class="title_SBRw">Company</div>
+                <ul class="list_WpXm">
+                  <li>
+                    <a
+                      href="https://smartsuite.com"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="link_tTQ4"
+                      >SmartSuite.com</a
+                    >
+                  </li>
+                  <li>
+                    <a
+                      href="https://feedback.smartsuite.com"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="link_tTQ4"
+                      >Product Roadmap</a
+                    >
+                  </li>
+                  <li>
+                    <a
+                      href="https://www.smartsuite.com/whats-new"
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="link_tTQ4"
+                      >What’s New</a
+                    >
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="bottom_dD8I">
+          <div>
+            <nav class="socials_Pa_Y">
+              <a
+                href="https://www.facebook.com/HelloSmartSuite"
+                target="_blank"
+                rel="noreferrer noopener"
+                ><img src="/img/icons/socials/facebook.png" alt="Facebook" /></a
+              ><a
+                href="https://www.instagram.com/hellosmartsuite/"
+                target="_blank"
+                rel="noreferrer noopener"
+                ><img
+                  src="/img/icons/socials/instagram.png"
+                  alt="Instagram" /></a
+              ><a
+                href="https://www.twitter.com/HelloSmartSuite"
+                target="_blank"
+                rel="noreferrer noopener"
+                ><img src="/img/icons/socials/x.png" alt="X" /></a
+              ><a
+                href="https://www.linkedin.com/company/hellosmartsuite/"
+                target="_blank"
+                rel="noreferrer noopener"
+                ><img src="/img/icons/socials/linkedin.png" alt="LinkedIn" /></a
+              ><a
+                href="https://www.youtube.com/@hellosmartsuite"
+                target="_blank"
+                rel="noreferrer noopener"
+                ><img src="/img/icons/socials/youtube.png" alt="YouTube"
+              /></a>
+            </nav>
+          </div>
+          <div class="second_A5C4">
+            <div class="copy_dAR5">
+              ©
+              <!-- -->2025<!-- -->
+              SmartSuite Holdings LLC. All Rights Reserved
+            </div>
+            <div class="certificates_Pzbz">
+              <img src="/img/icons/certificates/hipaa.png" alt="HIPAA" /><img
+                src="/img/icons/certificates/gdpr.png"
+                alt="GDPR"
+              /><img
+                src="/img/icons/certificates/aicpa-soc.png"
+                alt="AICPA SOC"
+              /><img
+                src="/img/icons/certificates/iso-27701.png"
+                alt="ISO 27701"
+              />
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>
