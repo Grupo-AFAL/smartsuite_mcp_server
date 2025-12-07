@@ -377,10 +377,40 @@ The SmartSuite API requires specific parameter placement:
 The server implements:
 - `initialize`: MCP handshake and capability negotiation
 - `tools/list`: List all available SmartSuite tools
-- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_solutions_by_owner, list_tables, get_table, create_table, list_records, get_record, create_record, update_record, delete_record, bulk_add_records, bulk_update_records, bulk_delete_records, attach_file, get_file_url, list_deleted_records, restore_deleted_record, add_field, bulk_add_fields, update_field, delete_field, list_members, search_member, list_teams, get_team, list_comments, add_comment, get_view_records, create_view, get_api_stats, reset_api_stats, get_cache_status, refresh_cache, convert_markdown_to_smartdoc)
+- `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_solutions_by_owner, get_solution_most_recent_record_update, create_solution, list_tables, get_table, create_table, list_records, get_record, create_record, update_record, delete_record, bulk_add_records, bulk_update_records, bulk_delete_records, attach_file, get_file_url, list_deleted_records, restore_deleted_record, add_field, bulk_add_fields, update_field, delete_field, list_members, search_member, list_teams, get_team, list_comments, add_comment, get_view_records, create_view, get_api_stats, reset_api_stats, get_cache_status, refresh_cache, convert_markdown_to_smartdoc)
 - `prompts/list`: List example prompts for filters
 - `prompts/get`: Get specific prompt templates
 - `resources/list`: List available resources (empty)
+
+### Creating Solutions
+
+The server provides a `create_solution` tool for creating new solutions (workspace containers for tables):
+
+**Endpoint:** `POST /api/v1/solutions/`
+
+**Required Parameters:**
+- `name` (string): The name for the new solution
+- `logo_icon` (string): Material Design icon name (e.g., "folder", "calendar", "star", "home", "work")
+- `logo_color` (string): Hex color from the predefined palette
+
+**Valid Solution Colors:**
+```
+Primary:  #3A86FF (blue), #4ECCFD (light blue), #3EAC40 (green), #FF5757 (red), #FF9210 (orange)
+          #FFB938 (yellow), #883CD0 (purple), #EC506E (pink), #17C4C4 (teal), #6A849B (grey)
+Dark:     #0C41F3 (blue), #00B3FA (light blue), #199A27 (green), #F1273F (red), #FF702E (orange)
+          #FDA80D (yellow), #673DB6 (purple), #CD286A (pink), #00B2A8 (teal), #50515B (grey)
+```
+
+**Features:**
+- Validates color against the 20 allowed hex values
+- Normalizes color input (handles missing `#` prefix and case variations)
+- Automatically invalidates solutions cache after creation
+
+**Example:**
+```ruby
+create_solution('My Project', 'folder', '#3A86FF')
+create_solution('CRM System', 'people', '#FF5757', format: :json)
+```
 
 ### Solution Usage Analysis
 
