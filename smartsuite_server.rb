@@ -182,6 +182,13 @@ class SmartSuiteServer
                )
              when 'get_solution_most_recent_record_update'
                @client.get_solution_most_recent_record_update(arguments['solution_id'])
+             when 'create_solution'
+               @client.create_solution(
+                 arguments['name'],
+                 arguments['logo_icon'],
+                 arguments['logo_color'],
+                 format: (arguments['format'] || 'toon').to_sym
+               )
              when 'list_members'
                @client.list_members(**{
                  limit: arguments['limit'],
