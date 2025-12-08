@@ -1,6 +1,6 @@
 # SmartSuite MCP Server - Product Roadmap
 
-**Last Updated:** November 24, 2025
+**Last Updated:** December 8, 2025
 **Current Version:** 2.0.0
 **Next Release:** 2.1.0 (Q2 2026)
 
@@ -63,6 +63,10 @@ Build the most efficient and developer-friendly MCP server for SmartSuite, with 
 
 ### High Impact
 
+- **Tool filtering & permissions** - Dynamic tool filtering based on user role/API key permissions
+  - Admin-only tools (e.g., `delete_record`, `bulk_delete_records`, schema modifications)
+  - Per-user tool whitelisting/blacklisting
+  - Consider migrating to [ruby-fast-mcp](https://github.com/yjacquin/ruby-fast-mcp) which has built-in dynamic tool filtering support
 - Template system (pre-defined table structures)
 - Data validation (client-side before API calls)
 - Rate limiting with smart throttling
