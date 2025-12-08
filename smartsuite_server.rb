@@ -4,11 +4,11 @@
 require 'json'
 require_relative 'lib/smart_suite_client'
 require_relative 'lib/api_stats_tracker'
-require_relative 'lib/smartsuite/logger'
-require_relative 'lib/smartsuite/mcp/tool_registry'
-require_relative 'lib/smartsuite/mcp/prompt_registry'
-require_relative 'lib/smartsuite/mcp/resource_registry'
-require_relative 'lib/smartsuite/formatters/markdown_to_smartdoc'
+require_relative 'lib/smart_suite/logger'
+require_relative 'lib/smart_suite/mcp/tool_registry'
+require_relative 'lib/smart_suite/mcp/prompt_registry'
+require_relative 'lib/smart_suite/mcp/resource_registry'
+require_relative 'lib/smart_suite/formatters/markdown_to_smartdoc'
 
 # rubocop:disable Metrics/ClassLength
 class SmartSuiteServer

@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "../../test_helper"
-require_relative "../../../lib/smartsuite/api/http_client"
-require_relative "../../../lib/smartsuite/logger"
+require_relative "../../../lib/smart_suite/api/http_client"
+require_relative "../../../lib/smart_suite/logger"
 require "webmock/minitest"
 require "stringio"
 

@@ -2,7 +2,7 @@
 
 require_relative "../../test_helper"
 require "sqlite3"
-require_relative "../../../lib/smartsuite/cache/schema"
+require_relative "../../../lib/smart_suite/cache/schema"
 
 # Tests for SmartSuite::Cache::Schema
 class TestCacheSchema < Minitest::Test

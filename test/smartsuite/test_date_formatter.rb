@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../test_helper"
-require_relative "../../lib/smartsuite/date_formatter"
+require_relative "../../lib/smart_suite/date_formatter"
 
 class TestDateFormatter < Minitest::Test
   def setup

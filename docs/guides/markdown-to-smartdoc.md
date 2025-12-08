@@ -669,5 +669,5 @@ Visit [SmartSuite](https://smartsuite.com) for more.
 ## See Also
 
 - [SmartDoc Format Reference](../smartdoc_examples.md) - Complete SmartDoc structure
-- [API Documentation](../../lib/smartsuite/formatters/markdown_to_smartdoc.rb) - Implementation details
+- [API Documentation](../../lib/smart_suite/formatters/markdown_to_smartdoc.rb) - Implementation details
 - [Bulk Operations Guide](../api/records.md#bulk-operations) - General bulk operations guide

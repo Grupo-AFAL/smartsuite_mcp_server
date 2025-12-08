@@ -12,10 +12,10 @@ SimpleCov.start do
 
   add_group "Server", "smartsuite_server.rb"
   add_group "Client", "lib/smart_suite_client.rb"
-  add_group "Cache", "lib/smartsuite/cache"
-  add_group "API", "lib/smartsuite/api"
-  add_group "MCP", "lib/smartsuite/mcp"
-  add_group "Formatters", "lib/smartsuite/formatters"
+  add_group "Cache", "lib/smart_suite/cache"
+  add_group "API", "lib/smart_suite/api"
+  add_group "MCP", "lib/smart_suite/mcp"
+  add_group "Formatters", "lib/smart_suite/formatters"
 
   # Track coverage over time
   track_files "{lib,smartsuite_server.rb}/**/*.rb"

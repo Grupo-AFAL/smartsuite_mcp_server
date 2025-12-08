@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../test_helper"
-require_relative "../../lib/smartsuite/fuzzy_matcher"
+require_relative "../../lib/smart_suite/fuzzy_matcher"
 
 class TestFuzzyMatcher < Minitest::Test
   # Test exact matches

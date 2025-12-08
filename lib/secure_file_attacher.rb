@@ -2,7 +2,7 @@
 
 require "aws-sdk-s3"
 require "securerandom"
-require_relative "smartsuite/logger"
+require_relative "smart_suite/logger"
 
 # SecureFileAttacher provides a secure way to attach local files to SmartSuite records.
 #

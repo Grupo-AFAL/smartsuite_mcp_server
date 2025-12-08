@@ -48,7 +48,7 @@ This document traces the path of data through the system for different operation
                             │ Check cache
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│              CACHE LAYER (lib/smartsuite/cache_layer.rb)        │
+│              CACHE LAYER (lib/smart_suite/cache_layer.rb)        │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │ 1. Check cache_valid?(table_id)                           │  │
 │  │    - Query cache_metadata table                           │  │
@@ -59,7 +59,7 @@ This document traces the path of data through the system for different operation
                             │ Cache HIT
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│             CACHE QUERY (lib/smartsuite/cache_query.rb)         │
+│             CACHE QUERY (lib/smart_suite/cache_query.rb)         │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │ query = CacheQuery.new(db, table_id)                      │  │
 │  │   .select(fields)                                         │  │
@@ -90,7 +90,7 @@ This document traces the path of data through the system for different operation
                             │ Raw records
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│           TOON FORMATTER (lib/smartsuite/formatters/)           │
+│           TOON FORMATTER (lib/smart_suite/formatters/)           │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │ ToonFormatter.format_records(records, total_count: 127)   │  │
 │  │                                                           │  │
@@ -167,7 +167,7 @@ API calls: 0
                             │ GET /applications/{table_id}
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│         HTTP CLIENT (lib/smartsuite/api/http_client.rb)         │
+│         HTTP CLIENT (lib/smart_suite/api/http_client.rb)         │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │ api_request('GET', "/applications/tbl_abc123")            │  │
 │  │   Headers:                                                │  │
@@ -328,7 +328,7 @@ API calls: 2-5 (pagination), then 0
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│           RECORD OPERATIONS (lib/smartsuite/api/)               │
+│           RECORD OPERATIONS (lib/smart_suite/api/)               │
 │  create_record(table_id, data)                                 │
 │    - No cache interaction                                      │
 │    - Direct API call                                           │
@@ -435,7 +435,7 @@ Cache: NOT updated (expires by TTL)
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│           FIELD OPERATIONS (lib/smartsuite/api/)                │
+│           FIELD OPERATIONS (lib/smart_suite/api/)                │
 │  add_field(table_id, field_data, field_position: {},           │
 │            auto_fill_structure_layout: true)                    │
 └───────────────────────────┬─────────────────────────────────────┘

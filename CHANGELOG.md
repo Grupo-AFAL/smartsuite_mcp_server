@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive test suite with 9 new tests
 
 - **Markdown to SmartDoc Converter** - New formatter module and MCP tool for converting markdown text to SmartSuite's SmartDoc format
-  - New `SmartSuite::Formatters::MarkdownToSmartdoc` class (`lib/smartsuite/formatters/markdown_to_smartdoc.rb`)
+  - New `SmartSuite::Formatters::MarkdownToSmartdoc` class (`lib/smart_suite/formatters/markdown_to_smartdoc.rb`)
   - New `convert_markdown_to_smartdoc` MCP tool for AI-accessible conversion
   - Supports headings (`#`, `##`, `###`), bullet lists (`-`, `*`), ordered lists (`1.`, `2.`), markdown tables, code blocks, links, horizontal rules, and inline formatting (`**bold**`, `*italic*`, combined)
   - Uses correct snake_case type names required by SmartSuite (e.g., `bullet_list`, `list_item`, `table_row`)
@@ -270,7 +270,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `bulk_add_records`: `:toon` (default) or `:json`
     - `bulk_update_records`: `:toon` (default) or `:json`
     - `bulk_delete_records`: `:toon` (default) or `:json`
-  - `ToonFormatter` module (`lib/smartsuite/formatters/toon_formatter.rb`) with specialized formatters:
+  - `ToonFormatter` module (`lib/smart_suite/formatters/toon_formatter.rb`) with specialized formatters:
     - `format_records` - Format record lists with counts header
     - `format_record` - Format single record
     - `format_solutions`, `format_tables`, `format_members` - Specialized formatters
@@ -427,10 +427,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ```
   - **Full response option**: Set `minimal_response: false` for backward compatibility (returns complete record)
   - **Implementation details**:
-    - Updated 6 methods in `RecordOperations` module (`lib/smartsuite/api/record_operations.rb`): lines 327-593
-    - Added 2 cache methods in `Cache::Layer` (`lib/smartsuite/cache/layer.rb`): lines 606-657
+    - Updated 6 methods in `RecordOperations` module (`lib/smart_suite/api/record_operations.rb`): lines 327-593
+    - Added 2 cache methods in `Cache::Layer` (`lib/smart_suite/cache/layer.rb`): lines 606-657
     - Updated 6 server handlers in `SmartSuiteServer` (`smartsuite_server.rb`): lines 204-240
-    - Updated 6 MCP tool schemas in `ToolRegistry` (`lib/smartsuite/mcp/tool_registry.rb`): lines 358-495
+    - Updated 6 MCP tool schemas in `ToolRegistry` (`lib/smart_suite/mcp/tool_registry.rb`): lines 358-495
   - **Tests**: All 513 tests passing with backward compatibility verified
   - **BREAKING CHANGE**: Default behavior changed to minimal responses (v2.0)
     - Previous versions returned full responses by default
@@ -580,7 +580,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Test isolation from production database** - Fixed tests writing to production database instead of test-specific paths
 
-  - Created `SmartSuite::Paths` module (`lib/smartsuite/paths.rb`) as single source of truth for file paths
+  - Created `SmartSuite::Paths` module (`lib/smart_suite/paths.rb`) as single source of truth for file paths
   - All components now use `SmartSuite::Paths.database_path` and `SmartSuite::Paths.metrics_log_path`
   - In test mode (`SMARTSUITE_TEST_MODE=true`), uses temporary directory with process-specific filenames
   - `ApiStatsTracker` now creates its own tables when used standalone (without `Cache::Layer`)
@@ -599,9 +599,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact**: These fields were stored as JSON text instead of separate queryable columns
   - **Problem**: Couldn't filter by creation/update date or user - filters returned incorrect results
   - **Fix**:
-    - Updated `get_field_columns` to match `'firstcreatedfield'` and `'lastupdatedfield'` (lib/smartsuite/cache/metadata.rb:120-129)
-    - Updated `extract_field_value` to use column name prefix (lib/smartsuite/cache/layer.rb:423-432)
-    - Updated `find_matching_value` to match new column names (lib/smartsuite/cache/layer.rb:329-348)
+    - Updated `get_field_columns` to match `'firstcreatedfield'` and `'lastupdatedfield'` (lib/smart_suite/cache/metadata.rb:120-129)
+    - Updated `extract_field_value` to use column name prefix (lib/smart_suite/cache/layer.rb:423-432)
+    - Updated `find_matching_value` to match new column names (lib/smart_suite/cache/layer.rb:329-348)
     - Updated test to use correct field type
   - **New schema**: Creates `first_created_on`, `first_created_by`, `last_updated_on`, `last_updated_by` columns
   - **Migration**: Delete `~/.smartsuite_mcp_cache.db` to recreate with new schema
@@ -628,7 +628,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Returned: Record ID `6674c77f3636d0b05182235e` ("RPA: CXP Output") - WRONG RECORD
     - SQL generated: `SELECT * FROM cache_records_... LIMIT 1` (NO WHERE CLAUSE!)
     - Expected SQL: `SELECT * FROM cache_records_... WHERE id = ? LIMIT 1`
-  - **Fix**: Added special handling for 'id' field before structure lookup in `Cache::Query.where()` (lib/smartsuite/cache/query.rb:78-83)
+  - **Fix**: Added special handling for 'id' field before structure lookup in `Cache::Query.where()` (lib/smart_suite/cache/query.rb:78-83)
     ```ruby
     if field_slug_str == 'id'
       @where_clauses << 'id = ?'
@@ -998,7 +998,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Refactored is_empty/is_not_empty to use helper methods instead of regex (line 341-360)
   - **Impact**: Eliminates entire class of bugs related to substring matching in field type detection
   - **Benefits**: More maintainable, more explicit, easier to extend with new field types
-  - **Fixed in**: `Cache::Query` (lib/smartsuite/cache/query.rb)
+  - **Fixed in**: `Cache::Query` (lib/smart_suite/cache/query.rb)
 
 - **SmartDoc HTML extraction from cached records** - Fixed ResponseFormatter not extracting HTML from rich text fields when using cache
   - Cache stores SmartDoc fields as JSON strings, but ResponseFormatter was only detecting Hash objects
@@ -1083,14 +1083,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `reek` - Code smell detection
   - `yard` - Documentation coverage checking
 - **Test helper** (`test/test_helper.rb`) for centralized test configuration
-- **API::Base module** (`lib/smartsuite/api/base.rb`) - Common helper module for all API operations:
+- **API::Base module** (`lib/smart_suite/api/base.rb`) - Common helper module for all API operations:
   - Pagination constants (DEFAULT_LIMIT, FETCH_ALL_LIMIT, MAX_LIMIT, DEFAULT_OFFSET)
   - Parameter validation helpers (validate_required_parameter!, validate_optional_parameter!)
   - Endpoint building with URL encoding (build_endpoint)
   - Cache coordination helpers (should_bypass_cache?, log_cache_hit, log_cache_miss)
   - Response building and tracking (build_collection_response, track_response_size, extract_items_from_response)
   - Logging helpers (format_timestamp)
-- **FilterBuilder module** (`lib/smartsuite/filter_builder.rb`) - Reusable filter conversion logic:
+- **FilterBuilder module** (`lib/smart_suite/filter_builder.rb`) - Reusable filter conversion logic:
   - Converts SmartSuite API filter format to cache query conditions
   - Supports 20+ comparison operators (is, is_not, contains, is_greater_than, etc.)
   - 30 test cases with comprehensive edge case coverage
@@ -1181,7 +1181,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Modular cache layer architecture** (v1.7):
   - Split `cache_layer.rb` (1646 lines) into focused modules
-  - Organized in dedicated `lib/smartsuite/cache/` directory following Ruby conventions:
+  - Organized in dedicated `lib/smart_suite/cache/` directory following Ruby conventions:
     - `SmartSuite::Cache::Layer` (923 lines) - Core caching interface
     - `SmartSuite::Cache::Metadata` (459 lines) - Table registry, schema management, TTL config
     - `SmartSuite::Cache::Performance` (131 lines) - Hit/miss tracking, statistics

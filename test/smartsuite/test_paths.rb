@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../test_helper"
-require_relative "../../lib/smartsuite/paths"
+require_relative "../../lib/smart_suite/paths"
 
 class TestPaths < Minitest::Test
   def test_test_mode_returns_true_when_env_set

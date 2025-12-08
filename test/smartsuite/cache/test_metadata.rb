@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "../../test_helper"
-require_relative "../../../lib/smartsuite/cache/metadata"
-require_relative "../../../lib/smartsuite/cache/layer"
+require_relative "../../../lib/smart_suite/cache/metadata"
+require_relative "../../../lib/smart_suite/cache/layer"
 require "sqlite3"
 require "fileutils"
 require "set"

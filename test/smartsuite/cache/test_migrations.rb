@@ -3,7 +3,7 @@
 require_relative "../../test_helper"
 require "sqlite3"
 require "fileutils"
-require_relative "../../../lib/smartsuite/cache/layer"
+require_relative "../../../lib/smart_suite/cache/layer"
 
 class TestCacheMigrations < Minitest::Test
   def setup

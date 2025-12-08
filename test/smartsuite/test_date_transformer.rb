@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../test_helper"
-require_relative "../../lib/smartsuite/date_transformer"
+require_relative "../../lib/smart_suite/date_transformer"
 
 class TestDateTransformer < Minitest::Test
   # ===================
