@@ -5,6 +5,11 @@ Rails.application.routes.draw do
   post "mcp", to: "mcp#messages"
   get "mcp", to: "mcp#stream"
 
+  # Installation page and scripts
+  get "install", to: "install#show"
+  get "install.sh", to: "install#script_sh"
+  get "install.ps1", to: "install#script_ps1"
+
   # Health check for load balancers and Kamal
   get "up" => "rails/health#show", as: :rails_health_check
 

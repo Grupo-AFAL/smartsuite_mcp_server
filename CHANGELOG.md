@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Installation Scripts** - Cross-platform installers for easy MCP client setup
+  - Unix installer (`bin/install/install.sh`) for macOS and Linux
+  - Windows installer (`bin/install/install.ps1`) for PowerShell
+  - Two installation modes:
+    - `local`: Runs MCP server locally with Ruby and SmartSuite credentials
+    - `remote`: Connects to hosted MCP server via mcp-remote bridge
+  - Auto-installs Node.js (via fnm) or Ruby (via rbenv) if needed
+  - Generates Claude Desktop configuration automatically
+  - Web-based installation page at `/install` with OS detection
+  - Scripts available at `/install.sh` and `/install.ps1` endpoints
+
 - **Sentry Error Monitoring** - Optional error monitoring integration for production deployments
   - `sentry-rails` gem for automatic error capturing and Rails-specific context
   - Performance monitoring with configurable sample rates (10% by default)
