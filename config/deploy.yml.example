@@ -1,0 +1,106 @@
+# Kamal deployment configuration for SmartSuite MCP Server
+# See: https://kamal-deploy.org/docs/configuration/
+#
+# SETUP:
+#   1. Copy this file to config/deploy.yml (gitignored)
+#   2. Set environment variables (see .kamal/secrets)
+#   3. Run: kamal setup && kamal deploy
+
+service: smartsuite-mcp
+
+# Container image - uses environment variables for registry/username
+# Examples:
+#   ghcr.io/yourusername/smartsuite-mcp (GitHub Container Registry)
+#   yourusername/smartsuite-mcp (Docker Hub)
+#   123456789.dkr.ecr.us-east-1.amazonaws.com/smartsuite-mcp (AWS ECR)
+image: <%= ENV.fetch("KAMAL_REGISTRY", "ghcr.io") %>/<%= ENV.fetch("KAMAL_REGISTRY_USERNAME") %>/smartsuite-mcp
+
+# Deploy to these servers
+servers:
+  web:
+    - <%= ENV.fetch("DEPLOY_SERVER_IP") %>
+
+# SSL via Let's Encrypt (kamal-proxy handles this)
+proxy:
+  ssl: true
+  host: <%= ENV.fetch("DEPLOY_HOST") %>
+  healthcheck:
+    path: /up
+    interval: 10
+    timeout: 5
+
+# Container registry credentials
+registry:
+  server: <%= ENV.fetch("KAMAL_REGISTRY", "ghcr.io") %>
+  username:
+    - KAMAL_REGISTRY_USERNAME
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+# Build configuration
+builder:
+  arch: amd64
+  # Uncomment if you need multi-platform builds
+  # multiarch: true
+
+# Environment variables
+env:
+  clear:
+    RAILS_ENV: production
+    RAILS_LOG_TO_STDOUT: "true"
+    RAILS_SERVE_STATIC_FILES: "true"
+    # Database connection (update with your RDS endpoint or local PG)
+    # DB_HOST: your-rds-endpoint.region.rds.amazonaws.com
+  secret:
+    - RAILS_MASTER_KEY
+    - DATABASE_URL
+    - POSTGRES_PASSWORD
+    # AWS credentials for S3 backups (use separate IAM user)
+    - BACKUP_AWS_ACCESS_KEY_ID
+    - BACKUP_AWS_SECRET_ACCESS_KEY
+    - BACKUP_AWS_REGION
+    - BACKUP_S3_BUCKET
+    # Error monitoring (optional)
+    - SENTRY_DSN
+
+# SSH configuration
+ssh:
+  user: ubuntu  # Default EC2 user for Ubuntu AMI
+  # keys:
+  #   - ~/.ssh/your-aws-key.pem
+
+# Persistent storage for logs
+volumes:
+  - "smartsuite_mcp_storage:/rails/storage"
+
+# Aliases for common commands
+aliases:
+  shell: app exec --interactive --reuse "bash"
+  console: app exec --interactive --reuse "bin/rails console"
+  logs: app logs -f
+  dbconsole: app exec --interactive --reuse "bin/rails dbconsole"
+
+# PostgreSQL as an accessory (runs on same server as app)
+#
+# Database contents:
+#   - Cache tables (can be rebuilt from SmartSuite API - expendable)
+#   - users, api_keys, api_calls (important - backed up daily)
+#
+# Daily backups: Set up cron job on EC2 with bin/backup-db script
+#   0 3 * * * /rails/bin/backup-db >> /var/log/smartsuite-backup.log 2>&1
+#
+# Cost: $0 (runs on same EC2 instance)
+# Alternative: AWS RDS (~$15/month after free tier) - overkill for this use case
+accessories:
+  db:
+    image: postgres:16
+    host: <%= ENV.fetch("DEPLOY_SERVER_IP") %>
+    port: 5432
+    env:
+      clear:
+        POSTGRES_DB: smartsuite_mcp_production
+        POSTGRES_USER: smartsuite_mcp
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql/data

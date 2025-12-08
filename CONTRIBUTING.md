@@ -29,6 +29,7 @@ We are committed to providing a welcoming and inspiring community for all. Pleas
 Before creating bug reports, please check existing issues to avoid duplicates.
 
 **Good bug reports include:**
+
 - Clear, descriptive title
 - Steps to reproduce the issue
 - Expected behavior vs actual behavior
@@ -36,10 +37,12 @@ Before creating bug reports, please check existing issues to avoid duplicates.
 - Relevant logs or error messages
 
 **Example:**
+
 ```markdown
 **Description:** list_tables fails with large workspaces
 
 **Steps to Reproduce:**
+
 1. Configure MCP server with workspace containing 100+ tables
 2. Call list_tables tool
 3. Observe timeout error
@@ -48,7 +51,8 @@ Before creating bug reports, please check existing issues to avoid duplicates.
 **Actual:** Request times out after 30 seconds
 
 **Environment:**
-- Ruby: 3.3.7
+
+- Ruby: 3.4.7
 - OS: macOS 14.5
 - MCP Server: v1.0.1
 ```
@@ -81,6 +85,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 6. Write a clear commit message
 
 **PR Title Format:**
+
 - `feat: Add support for deleting records`
 - `fix: Handle timeout errors in list_records`
 - `docs: Update installation instructions`
@@ -148,6 +153,7 @@ smartsuite_mcp/
 We follow standard Ruby conventions:
 
 **Good:**
+
 ```ruby
 def list_solutions
   response = api_request(:get, '/solutions/')
@@ -161,6 +167,7 @@ end
 ```
 
 **Avoid:**
+
 ```ruby
 def list_solutions
   response=api_request(:get,'/solutions/')
@@ -190,6 +197,7 @@ end
 5. **Mock external dependencies** (API calls in tests)
 
 **Good test:**
+
 ```ruby
 def test_client_list_solutions_formats_hash_response
   client = SmartSuiteClient.new('test_key', 'test_account')
@@ -241,6 +249,7 @@ end
 ### Examples
 
 **Simple commit:**
+
 ```
 feat: Add delete_record tool
 
@@ -249,6 +258,7 @@ Includes error handling and tests.
 ```
 
 **With breaking changes:**
+
 ```
 feat: Change list_tables response format
 

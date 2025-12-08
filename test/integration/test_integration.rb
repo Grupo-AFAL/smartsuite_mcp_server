@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'minitest/autorun'
-require 'tmpdir'
-require_relative '../../lib/smartsuite_client'
+require "minitest/autorun"
+require "tmpdir"
+require_relative "../../lib/smart_suite_client"
 
 # Integration tests for SmartSuite MCP Server
 #
@@ -24,16 +24,16 @@ require_relative '../../lib/smartsuite_client'
 # - Loads credentials only from local .env file
 class TestIntegration < Minitest::Test
   # Test database path - isolated from production cache
-  TEST_DB_PATH = File.join(Dir.tmpdir, 'smartsuite_mcp_test_cache.db')
+  TEST_DB_PATH = File.join(Dir.tmpdir, "smartsuite_mcp_test_cache.db")
 
   # Load credentials from local .env file ONLY
   # This ensures we never accidentally use production credentials
   def self.load_test_credentials
-    env_file = File.join(__dir__, '.env')
+    env_file = File.join(__dir__, ".env")
 
     unless File.exist?(env_file)
       warn "\n⚠️  Integration test .env file not found!"
-      warn '   Please copy .env.example to .env and configure test credentials:'
+      warn "   Please copy .env.example to .env and configure test credentials:"
       warn "   cp test/integration/.env.example test/integration/.env\n\n"
       return {}
     end
@@ -41,15 +41,15 @@ class TestIntegration < Minitest::Test
     credentials = {}
     File.readlines(env_file).each do |line|
       line = line.strip
-      next if line.empty? || line.start_with?('#')
+      next if line.empty? || line.start_with?("#")
 
-      key, value = line.split('=', 2)
+      key, value = line.split("=", 2)
       credentials[key] = value if key && value
     end
 
     # Safety check: prevent using production credentials
-    if credentials['SMARTSUITE_API_KEY']&.include?('your_api_key_here') ||
-       credentials['SMARTSUITE_ACCOUNT_ID']&.include?('your_account_id_here')
+    if credentials["SMARTSUITE_API_KEY"]&.include?("your_api_key_here") ||
+       credentials["SMARTSUITE_ACCOUNT_ID"]&.include?("your_account_id_here")
       warn "\n⚠️  Test credentials not configured!"
       warn "   Please edit test/integration/.env with your TEST credentials\n\n"
       return {}
@@ -64,14 +64,14 @@ class TestIntegration < Minitest::Test
     return false if TEST_CREDENTIALS.empty?
 
     # Create a temporary client to fetch workspace info
-    api_key = TEST_CREDENTIALS['SMARTSUITE_API_KEY']
-    account_id = TEST_CREDENTIALS['SMARTSUITE_ACCOUNT_ID']
+    api_key = TEST_CREDENTIALS["SMARTSUITE_API_KEY"]
+    account_id = TEST_CREDENTIALS["SMARTSUITE_ACCOUNT_ID"]
 
     begin
       # Use a separate temp DB for the confirmation check
       temp_client = SmartSuiteClient.new(api_key, account_id,
                                          cache_enabled: true,
-                                         cache_path: File.join(Dir.tmpdir, 'temp_confirmation.db'))
+                                         cache_path: File.join(Dir.tmpdir, "temp_confirmation.db"))
 
       # Fetch workspace info (first few solutions)
       result = temp_client.list_solutions
@@ -79,12 +79,12 @@ class TestIntegration < Minitest::Test
 
       # Clean up temp DB
       begin
-        File.delete(File.join(Dir.tmpdir, 'temp_confirmation.db'))
+        File.delete(File.join(Dir.tmpdir, "temp_confirmation.db"))
       rescue StandardError
         nil
       end
 
-      if result['count'].zero?
+      if result["count"].zero?
         warn "\n⚠️  No solutions found in this workspace!"
         warn "   This might not be a valid test workspace.\n\n"
         return false
@@ -92,26 +92,26 @@ class TestIntegration < Minitest::Test
 
       # Show workspace info and ask for confirmation
       puts "\n#{'=' * 70}"
-      puts '⚠️  WORKSPACE CONFIRMATION REQUIRED'
-      puts '=' * 70
+      puts "⚠️  WORKSPACE CONFIRMATION REQUIRED"
+      puts "=" * 70
       puts "\nYou are about to run integration tests against:"
       puts "  Account ID: #{account_id}"
       puts "  Solutions found: #{result['count']}"
       puts "\nFirst few solutions:"
-      result['solutions'].first(3).each do |solution|
+      result["solutions"].first(3).each do |solution|
         puts "  - #{solution['name']} (#{solution['id']})"
       end
       puts "\n⚠️  WARNING: These tests will:"
-      puts '  - Read data from your workspace'
-      puts '  - Create test records (if write tests are enabled)'
-      puts '  - Modify test records (if write tests are enabled)'
-      puts '  - Use API calls (counts toward your rate limit)'
+      puts "  - Read data from your workspace"
+      puts "  - Create test records (if write tests are enabled)"
+      puts "  - Modify test records (if write tests are enabled)"
+      puts "  - Use API calls (counts toward your rate limit)"
       puts "\n#{'=' * 70}"
-      print 'Is this the correct TEST workspace? (yes/no): '
+      print "Is this the correct TEST workspace? (yes/no): "
 
       response = $stdin.gets&.chomp&.downcase
 
-      if response == 'yes'
+      if response == "yes"
         puts "\n✓ Workspace confirmed. Starting tests...\n"
         true
       else
@@ -134,12 +134,12 @@ class TestIntegration < Minitest::Test
 
   def setup
     # Skip all tests if workspace not confirmed
-    skip 'Workspace not confirmed - tests aborted' unless WORKSPACE_CONFIRMED
+    skip "Workspace not confirmed - tests aborted" unless WORKSPACE_CONFIRMED
 
     # IMPORTANT: Only use credentials from local .env file
     # Never use ENV['SMARTSUITE_API_KEY'] from shell to prevent accidents
-    @api_key = TEST_CREDENTIALS['SMARTSUITE_API_KEY']
-    @account_id = TEST_CREDENTIALS['SMARTSUITE_ACCOUNT_ID']
+    @api_key = TEST_CREDENTIALS["SMARTSUITE_API_KEY"]
+    @account_id = TEST_CREDENTIALS["SMARTSUITE_ACCOUNT_ID"]
 
     if integration_tests_enabled?
       # Use isolated test database - never touches production cache
@@ -165,20 +165,20 @@ class TestIntegration < Minitest::Test
   # ==================== Workspace Tests ====================
 
   def test_workspace_list_solutions
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
 
     result = @client.list_solutions
 
-    assert result.is_a?(Hash), 'Expected Hash response'
-    assert result.key?('solutions'), "Missing 'solutions' key"
-    assert result.key?('count'), "Missing 'count' key"
-    assert result['solutions'].is_a?(Array), 'Expected solutions to be Array'
-    assert result['count'] >= 0, 'Expected non-negative count'
+    assert result.is_a?(Hash), "Expected Hash response"
+    assert result.key?("solutions"), "Missing 'solutions' key"
+    assert result.key?("count"), "Missing 'count' key"
+    assert result["solutions"].is_a?(Array), "Expected solutions to be Array"
+    assert result["count"] >= 0, "Expected non-negative count"
 
-    if result['count'].positive?
-      solution = result['solutions'].first
-      assert solution.key?('id'), "Solution missing 'id'"
-      assert solution.key?('name'), "Solution missing 'name'"
+    if result["count"].positive?
+      solution = result["solutions"].first
+      assert solution.key?("id"), "Solution missing 'id'"
+      assert solution.key?("name"), "Solution missing 'name'"
       puts "\n✓ Found #{result['count']} solutions"
       puts "  First solution: #{solution['name']} (#{solution['id']})"
     else
@@ -187,36 +187,36 @@ class TestIntegration < Minitest::Test
   end
 
   def test_workspace_list_solutions_with_activity_data
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
 
     result = @client.list_solutions(include_activity_data: true)
 
-    assert result.is_a?(Hash), 'Expected Hash response'
-    assert result.key?('solutions'), "Missing 'solutions' key"
+    assert result.is_a?(Hash), "Expected Hash response"
+    assert result.key?("solutions"), "Missing 'solutions' key"
 
-    return unless result['count'].positive?
+    return unless result["count"].positive?
 
-    solution = result['solutions'].first
-    assert solution.key?('last_access'), "Solution missing 'last_access' when activity data requested"
-    assert solution.key?('records_count'), "Solution missing 'records_count'"
+    solution = result["solutions"].first
+    assert solution.key?("last_access"), "Solution missing 'last_access' when activity data requested"
+    assert solution.key?("records_count"), "Solution missing 'records_count'"
     puts "\n✓ Activity data included: last_access=#{solution['last_access']}, records_count=#{solution['records_count']}"
   end
 
   def test_workspace_analyze_solution_usage
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
 
     result = @client.analyze_solution_usage(days_inactive: 90, min_records: 10)
 
-    assert result.is_a?(Hash), 'Expected Hash response'
-    assert result.key?('summary'), "Missing 'summary' key"
-    assert result.key?('inactive_solutions'), "Missing 'inactive_solutions' key"
-    assert result.key?('potentially_unused_solutions'), "Missing 'potentially_unused_solutions' key"
+    assert result.is_a?(Hash), "Expected Hash response"
+    assert result.key?("summary"), "Missing 'summary' key"
+    assert result.key?("inactive_solutions"), "Missing 'inactive_solutions' key"
+    assert result.key?("potentially_unused_solutions"), "Missing 'potentially_unused_solutions' key"
 
-    summary = result['summary']
-    total = summary['total_solutions']
-    inactive = summary['inactive_count']
-    potentially_unused = summary['potentially_unused_count']
-    active = summary['active_count']
+    summary = result["summary"]
+    total = summary["total_solutions"]
+    inactive = summary["inactive_count"]
+    potentially_unused = summary["potentially_unused_count"]
+    active = summary["active_count"]
 
     assert_equal total, inactive + potentially_unused + active, "Counts don't add up"
 
@@ -227,19 +227,19 @@ class TestIntegration < Minitest::Test
   # ==================== Table Tests ====================
 
   def test_table_list_tables
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
 
     result = @client.list_tables
 
-    assert result.is_a?(Hash), 'Expected Hash response'
-    assert result.key?('tables'), "Missing 'tables' key"
-    assert result.key?('count'), "Missing 'count' key"
-    assert result['tables'].is_a?(Array), 'Expected tables to be Array'
+    assert result.is_a?(Hash), "Expected Hash response"
+    assert result.key?("tables"), "Missing 'tables' key"
+    assert result.key?("count"), "Missing 'count' key"
+    assert result["tables"].is_a?(Array), "Expected tables to be Array"
 
-    if result['count'].positive?
-      table = result['tables'].first
-      assert table.key?('id'), "Table missing 'id'"
-      assert table.key?('name'), "Table missing 'name'"
+    if result["count"].positive?
+      table = result["tables"].first
+      assert table.key?("id"), "Table missing 'id'"
+      assert table.key?("name"), "Table missing 'name'"
       puts "\n✓ Found #{result['count']} tables"
       puts "  First table: #{table['name']} (#{table['id']})"
     else
@@ -248,106 +248,106 @@ class TestIntegration < Minitest::Test
   end
 
   def test_table_get_structure
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
 
     # Get first table
     tables = @client.list_tables
-    skip 'No tables found to test' if tables['count'].zero?
+    skip "No tables found to test" if tables["count"].zero?
 
-    table_id = tables['tables'].first['id']
+    table_id = tables["tables"].first["id"]
     result = @client.get_table(table_id)
 
-    assert result.is_a?(Hash), 'Expected Hash response'
-    assert result.key?('id'), "Missing 'id' key"
-    assert result.key?('structure'), "Missing 'structure' key"
-    assert result['structure'].is_a?(Array), 'Expected structure to be Array'
+    assert result.is_a?(Hash), "Expected Hash response"
+    assert result.key?("id"), "Missing 'id' key"
+    assert result.key?("structure"), "Missing 'structure' key"
+    assert result["structure"].is_a?(Array), "Expected structure to be Array"
 
-    field_count = result['structure'].size
+    field_count = result["structure"].size
     puts "\n✓ Table structure retrieved: #{field_count} fields"
 
     return unless field_count.positive?
 
-    field = result['structure'].first
-    assert field.key?('slug'), "Field missing 'slug'"
-    assert field.key?('label'), "Field missing 'label'"
-    assert field.key?('field_type'), "Field missing 'field_type'"
+    field = result["structure"].first
+    assert field.key?("slug"), "Field missing 'slug'"
+    assert field.key?("label"), "Field missing 'label'"
+    assert field.key?("field_type"), "Field missing 'field_type'"
     puts "  First field: #{field['label']} (#{field['field_type']})"
   end
 
   # ==================== Record Tests ====================
 
   def test_record_list_records
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
 
     # Get first table with records
     tables = @client.list_tables
-    skip 'No tables found to test' if tables['count'].zero?
+    skip "No tables found to test" if tables["count"].zero?
 
-    table_id = tables['tables'].first['id']
+    table_id = tables["tables"].first["id"]
 
     # Get table structure to find field names
     table = @client.get_table(table_id)
-    skip 'No fields in table' if table['structure'].empty?
+    skip "No fields in table" if table["structure"].empty?
 
     # Use first field as test field
-    field_slug = table['structure'].first['slug']
+    field_slug = table["structure"].first["slug"]
 
-    result = @client.list_records(table_id, 10, 0, fields: [field_slug])
+    result = @client.list_records(table_id, 10, 0, fields: [ field_slug ])
 
     # Result is plain text format, so just verify it's a string
-    assert result.is_a?(String), 'Expected String response (plain text format)'
-    assert result.include?('records'), "Expected 'records' in response"
+    assert result.is_a?(String), "Expected String response (plain text format)"
+    assert result.include?("records"), "Expected 'records' in response"
 
     puts "\n✓ Records retrieved (plain text format)"
     puts result.lines.first(5).join # Show first 5 lines
   end
 
   def test_record_cache_behavior
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
 
     tables = @client.list_tables
-    skip 'No tables found to test' if tables['count'].zero?
+    skip "No tables found to test" if tables["count"].zero?
 
-    table_id = tables['tables'].first['id']
+    table_id = tables["tables"].first["id"]
     table = @client.get_table(table_id)
-    skip 'No fields in table' if table['structure'].empty?
+    skip "No fields in table" if table["structure"].empty?
 
-    field_slug = table['structure'].first['slug']
+    field_slug = table["structure"].first["slug"]
 
     # First call - should fetch from API
     puts "\n→ First call (cache miss expected)..."
-    result1 = @client.list_records(table_id, 5, 0, fields: [field_slug])
+    result1 = @client.list_records(table_id, 5, 0, fields: [ field_slug ])
     assert result1.is_a?(String)
 
     # Second call - should use cache
-    puts '→ Second call (cache hit expected)...'
-    result2 = @client.list_records(table_id, 5, 0, fields: [field_slug])
+    puts "→ Second call (cache hit expected)..."
+    result2 = @client.list_records(table_id, 5, 0, fields: [ field_slug ])
     assert result2.is_a?(String)
 
     # Third call with bypass_cache - should fetch from API
-    puts '→ Third call with bypass_cache=true (cache bypass)...'
-    result3 = @client.list_records(table_id, 5, 0, fields: [field_slug])
+    puts "→ Third call with bypass_cache=true (cache bypass)..."
+    result3 = @client.list_records(table_id, 5, 0, fields: [ field_slug ])
     assert result3.is_a?(String)
 
-    puts '✓ Cache behavior verified (see metrics log for hit/miss details)'
+    puts "✓ Cache behavior verified (see metrics log for hit/miss details)"
   end
 
   # ==================== Member Tests ====================
 
   def test_member_list_members
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
 
     result = @client.list_members(limit: 10)
 
-    assert result.is_a?(Hash), 'Expected Hash response'
-    assert result.key?('members'), "Missing 'members' key"
-    assert result.key?('count'), "Missing 'count' key"
-    assert result['members'].is_a?(Array), 'Expected members to be Array'
+    assert result.is_a?(Hash), "Expected Hash response"
+    assert result.key?("members"), "Missing 'members' key"
+    assert result.key?("count"), "Missing 'count' key"
+    assert result["members"].is_a?(Array), "Expected members to be Array"
 
-    if result['count'].positive?
-      member = result['members'].first
-      assert member.key?('id'), "Member missing 'id'"
-      assert member.key?('email'), "Member missing 'email'"
+    if result["count"].positive?
+      member = result["members"].first
+      assert member.key?("id"), "Member missing 'id'"
+      assert member.key?("email"), "Member missing 'email'"
       puts "\n✓ Found #{result['count']} members"
       puts "  First member: #{member['email']}"
     else
@@ -356,26 +356,26 @@ class TestIntegration < Minitest::Test
   end
 
   def test_member_search
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
 
     # Get a member first
     members = @client.list_members(limit: 1)
-    skip 'No members found to test' if members['count'].zero?
+    skip "No members found to test" if members["count"].zero?
 
-    member = members['members'].first
-    member_email = member['email']
+    member = members["members"].first
+    member_email = member["email"]
 
     # Handle email being an array or string
     email_string = member_email.is_a?(Array) ? member_email.first : member_email
-    skip 'No valid email found to test' if email_string.nil? || email_string.empty?
+    skip "No valid email found to test" if email_string.nil? || email_string.empty?
 
-    search_query = email_string.split('@').first # Search by first part of email
+    search_query = email_string.split("@").first # Search by first part of email
 
     result = @client.search_member(search_query)
 
-    assert result.is_a?(Hash), 'Expected Hash response'
-    assert result.key?('members'), "Missing 'members' key"
-    assert result['count'] >= 0, 'Expected non-negative count'
+    assert result.is_a?(Hash), "Expected Hash response"
+    assert result.key?("members"), "Missing 'members' key"
+    assert result["count"] >= 0, "Expected non-negative count"
 
     puts "\n✓ Member search for '#{search_query}': #{result['count']} results"
   end
@@ -383,16 +383,16 @@ class TestIntegration < Minitest::Test
   # ==================== Cache Tests ====================
 
   def test_cache_get_status
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
-    skip 'Cache not enabled' unless @client.cache_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
+    skip "Cache not enabled" unless @client.cache_enabled?
 
     result = @client.cache.get_cache_status
 
-    assert result.is_a?(Hash), 'Expected Hash response'
-    assert result.key?('timestamp'), "Missing 'timestamp' key"
-    assert result.key?('solutions'), "Missing 'solutions' key"
-    assert result.key?('tables'), "Missing 'tables' key"
-    assert result.key?('records'), "Missing 'records' key"
+    assert result.is_a?(Hash), "Expected Hash response"
+    assert result.key?("timestamp"), "Missing 'timestamp' key"
+    assert result.key?("solutions"), "Missing 'solutions' key"
+    assert result.key?("tables"), "Missing 'tables' key"
+    assert result.key?("records"), "Missing 'records' key"
 
     puts "\n✓ Cache status retrieved"
     puts "  Solutions cached: #{result['solutions'] ? 'Yes' : 'No'}"
@@ -401,17 +401,17 @@ class TestIntegration < Minitest::Test
   end
 
   def test_cache_refresh
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
-    skip 'Cache not enabled' unless @client.cache_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
+    skip "Cache not enabled" unless @client.cache_enabled?
 
-    result = @client.cache.refresh_cache('solutions')
+    result = @client.cache.refresh_cache("solutions")
 
-    assert result.is_a?(Hash), 'Expected Hash response'
-    assert_equal 'success', result['status'], 'Expected status=success'
-    assert_equal 'refresh', result['operation'], 'Expected operation=refresh'
-    assert result.key?('message'), "Missing 'message' key"
-    assert result.key?('timestamp'), "Missing 'timestamp' key"
-    assert_equal 'solutions', result['resource'], 'Expected resource=solutions'
+    assert result.is_a?(Hash), "Expected Hash response"
+    assert_equal "success", result["status"], "Expected status=success"
+    assert_equal "refresh", result["operation"], "Expected operation=refresh"
+    assert result.key?("message"), "Missing 'message' key"
+    assert result.key?("timestamp"), "Missing 'timestamp' key"
+    assert_equal "solutions", result["resource"], "Expected resource=solutions"
 
     puts "\n✓ Cache refresh successful"
     puts "  #{result['message']}"
@@ -420,26 +420,26 @@ class TestIntegration < Minitest::Test
   # ==================== API Stats Tests ====================
 
   def test_stats_get_api_stats
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
-    skip 'Stats tracker not available' unless @client.stats_tracker
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
+    skip "Stats tracker not available" unless @client.stats_tracker
 
-    result = @client.stats_tracker.get_stats(time_range: 'session')
+    result = @client.stats_tracker.get_stats(time_range: "session")
 
-    assert result.is_a?(Hash), 'Expected Hash response'
-    assert result.key?('time_range'), "Missing 'time_range' key"
-    assert result.key?('summary'), "Missing 'summary' key"
-    assert result.key?('cache_stats'), "Missing 'cache_stats' key"
+    assert result.is_a?(Hash), "Expected Hash response"
+    assert result.key?("time_range"), "Missing 'time_range' key"
+    assert result.key?("summary"), "Missing 'summary' key"
+    assert result.key?("cache_stats"), "Missing 'cache_stats' key"
 
-    summary = result['summary']
-    total_calls = summary['total_calls']
+    summary = result["summary"]
+    total_calls = summary["total_calls"]
 
     puts "\n✓ API stats retrieved"
     puts "  Time range: #{result['time_range']}"
     puts "  Total API calls this session: #{total_calls}"
 
-    return unless result['cache_stats']
+    return unless result["cache_stats"]
 
-    cache = result['cache_stats']
+    cache = result["cache_stats"]
     puts "  Cache hits: #{cache['total_hits']}"
     puts "  Cache misses: #{cache['total_misses']}"
     puts "  Hit rate: #{cache['hit_rate_percentage']}%"
@@ -448,11 +448,11 @@ class TestIntegration < Minitest::Test
   # ==================== Error Handling Tests ====================
 
   def test_error_handling_invalid_table_id
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
 
     # Try to get a non-existent table
     error = assert_raises(StandardError) do
-      @client.get_table('invalid_table_id_12345')
+      @client.get_table("invalid_table_id_12345")
     end
 
     puts "\n✓ Error handling works for invalid table ID"
@@ -460,14 +460,14 @@ class TestIntegration < Minitest::Test
   end
 
   def test_error_handling_missing_required_parameter
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
 
     # Try to call method without required parameter
     error = assert_raises(ArgumentError) do
       @client.get_solution(nil)
     end
 
-    assert_includes error.message, 'required', "Expected 'required' in error message"
+    assert_includes error.message, "required", "Expected 'required' in error message"
 
     puts "\n✓ Error handling works for missing required parameter"
     puts "  Error: #{error.message}"
@@ -476,24 +476,24 @@ class TestIntegration < Minitest::Test
   # ==================== Integration Summary ====================
 
   def test_zzz_integration_summary
-    skip 'Integration test - requires real API credentials' unless integration_tests_enabled?
+    skip "Integration test - requires real API credentials" unless integration_tests_enabled?
 
     puts "\n#{'=' * 70}"
-    puts 'INTEGRATION TEST SUMMARY'
-    puts '=' * 70
+    puts "INTEGRATION TEST SUMMARY"
+    puts "=" * 70
 
     # Get final stats
     if @client.stats_tracker
-      stats = @client.stats_tracker.get_stats(time_range: 'session')
-      summary = stats['summary']
+      stats = @client.stats_tracker.get_stats(time_range: "session")
+      summary = stats["summary"]
 
       puts "\nAPI Usage:"
       puts "  Total API calls: #{summary['total_calls']}"
       puts "  Unique solutions: #{summary['unique_solutions']}"
       puts "  Unique tables: #{summary['unique_tables']}"
 
-      if stats['cache_stats']
-        cache = stats['cache_stats']
+      if stats["cache_stats"]
+        cache = stats["cache_stats"]
         puts "\nCache Performance:"
         puts "  Cache hits: #{cache['total_hits']}"
         puts "  Cache misses: #{cache['total_misses']}"
@@ -505,7 +505,7 @@ class TestIntegration < Minitest::Test
     # Get cache status
     if @client.cache_enabled?
       status = @client.cache.get_cache_status
-      records_count = status['records'].is_a?(Array) ? status['records'].size : 0
+      records_count = status["records"].is_a?(Array) ? status["records"].size : 0
 
       puts "\nCache Status:"
       puts "  Solutions cached: #{status['solutions'] ? 'Yes' : 'No'}"
@@ -514,7 +514,7 @@ class TestIntegration < Minitest::Test
     end
 
     puts "\n#{'=' * 70}"
-    puts '✓ All integration tests completed successfully!'
-    puts '=' * 70
+    puts "✓ All integration tests completed successfully!"
+    puts "=" * 70
   end
 end

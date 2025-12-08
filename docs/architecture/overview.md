@@ -26,7 +26,7 @@ The SmartSuite MCP Server is a Ruby-based MCP (Model Context Protocol) server th
 │  └────────────────────────┬───────────────────────────────┘  │
 │                           │                                  │
 │  ┌────────────────────────┴───────────────────────────────┐  │
-│  │              MCP Protocol Layer (lib/smartsuite/mcp/)  │  │
+│  │              MCP Protocol Layer (lib/smart_suite/mcp/)  │  │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │  │
 │  │  │ ToolRegistry │  │PromptRegistry│  │ Resource     │  │  │
 │  │  │  (26 tools)  │  │  (8 prompts) │  │  Registry    │  │  │
@@ -34,7 +34,7 @@ The SmartSuite MCP Server is a Ruby-based MCP (Model Context Protocol) server th
 │  └────────────────────────┬───────────────────────────────┘  │
 │                           │                                  │
 │  ┌────────────────────────┴───────────────────────────────┐  │
-│  │       API Client Layer (lib/smartsuite/api/)           │  │
+│  │       API Client Layer (lib/smart_suite/api/)           │  │
 │  │  ┌─────────────────┐ ┌─────────────────┐               │  │
 │  │  │   HttpClient    │ │ ApiStatsTracker │               │  │
 │  │  │ (authentication)│ │  (monitoring)   │               │  │
@@ -50,7 +50,7 @@ The SmartSuite MCP Server is a Ruby-based MCP (Model Context Protocol) server th
 │  └────────────────────────┬───────────────────────────────┘  │
 │                           │                                  │
 │  ┌────────────────────────┴───────────────────────────────┐  │
-│  │         Cache Layer (lib/smartsuite/)                  │  │
+│  │         Cache Layer (lib/smart_suite/)                  │  │
 │  │  ┌──────────────┐    ┌────────────────────────┐        │  │
 │  │  │  CacheLayer  │───▶│  CacheQuery            │        │  │
 │  │  │ (TTL, CRUD)  │    │ (chainable SQL builder)│        │  │
@@ -66,7 +66,7 @@ The SmartSuite MCP Server is a Ruby-based MCP (Model Context Protocol) server th
 │  └────────────────────────┬───────────────────────────────┘  │
 │                           │                                  │
 │  ┌────────────────────────┴───────────────────────────────┐  │
-│  │      Formatters Layer (lib/smartsuite/formatters/)     │  │
+│  │      Formatters Layer (lib/smart_suite/formatters/)     │  │
 │  │  - ToonFormatter (TOON format, 50-60% token savings)   │  │
 │  │  - ResponseFormatter (filtering, no truncation)        │  │
 │  └────────────────────────────────────────────────────────┘  │
@@ -103,7 +103,7 @@ The SmartSuite MCP Server is a Ruby-based MCP (Model Context Protocol) server th
 
 ### 2. MCP Protocol Layer
 
-**Location:** `lib/smartsuite/mcp/`
+**Location:** `lib/smart_suite/mcp/`
 
 **Components:**
 
@@ -127,7 +127,7 @@ The SmartSuite MCP Server is a Ruby-based MCP (Model Context Protocol) server th
 
 ### 3. API Client Layer
 
-**Location:** `lib/smartsuite/api/`
+**Location:** `lib/smart_suite/api/`
 
 **HttpClient** (`http_client.rb`, 68 lines)
 
@@ -153,7 +153,7 @@ The SmartSuite MCP Server is a Ruby-based MCP (Model Context Protocol) server th
 
 ### 4. Cache Layer
 
-**Location:** `lib/smartsuite/`
+**Location:** `lib/smart_suite/`
 
 **CacheLayer** (`cache_layer.rb`)
 
@@ -187,13 +187,13 @@ The SmartSuite MCP Server is a Ruby-based MCP (Model Context Protocol) server th
 
 ### 6. Response Formatters
 
-**ToonFormatter** (`lib/smartsuite/formatters/toon_formatter.rb`)
+**ToonFormatter** (`lib/smart_suite/formatters/toon_formatter.rb`)
 
 - TOON format output (50-60% token savings vs JSON)
 - Tabular format eliminates repetitive field names
 - Default format for all list operations
 
-**ResponseFormatter** (`lib/smartsuite/formatters/response_formatter.rb`)
+**ResponseFormatter** (`lib/smart_suite/formatters/response_formatter.rb`)
 
 - Table structure filtering (removes 83.8% of UI metadata)
 - No value truncation (user controls via field selection)
@@ -537,7 +537,7 @@ Each user runs their own server instance:
 
 ### Adding New Operations
 
-1. Create module in `lib/smartsuite/api/`
+1. Create module in `lib/smart_suite/api/`
 2. Include in `SmartSuiteClient`
 3. Call via `HttpClient`
 4. Add error handling

@@ -9,7 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Sentry Error Monitoring** - Optional error monitoring integration for production deployments
+  - `sentry-rails` gem for automatic error capturing and Rails-specific context
+  - Performance monitoring with configurable sample rates (10% by default)
+  - Breadcrumbs for ActiveSupport and HTTP requests
+  - Only enabled in production environment
+  - Configure via `SENTRY_DSN` environment variable
+
+- **Rails Hosted Server Mode** - New deployment option for multi-user hosted environments
+
+  - Rails 8.0 API-only application for Streamable HTTP transport (MCP specification 2025-06-18)
+  - PostgreSQL-based cache layer (`Cache::PostgresLayer`) replaces SQLite for shared multi-tenant caching
+  - Dual authentication modes via `AUTH_MODE` environment variable:
+    - `local`: Single-user mode using environment variables (backward compatible)
+    - `remote`: Multi-user mode with database-backed API key authentication
+  - Per-user API key management with SmartSuite credential storage
+  - API call tracking with cache hit/miss statistics per user
+  - Thread-local cache hit tracking for accurate per-request statistics
+  - Client instance caching per user for consistent session IDs
+  - New models: `User`, `ApiKey`, `ApiCall`, `LocalUser`
+  - New services: `McpHandler`, `Cache::PostgresLayer`
+  - New controller: `McpController` with SSE support
+
+- **Improved Error Messages for AI** - Better error formatting to help AI assistants self-correct
+  - New `format_api_error` method extracts structured error details from SmartSuite API responses
+  - New `extract_field_errors` method parses field-specific validation errors
+  - Error messages now include actionable guidance (e.g., "Check the field data and try again")
 - **Create Solution Tool** - New MCP tool for creating SmartSuite solutions
+
   - New `create_solution` method in `WorkspaceOperations` module
   - New `create_solution` MCP tool accessible via AI assistants
   - Parameters: `name` (required), `logo_icon` (Material Design icon name), `logo_color` (hex color from predefined palette)
@@ -19,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive test suite with 9 new tests
 
 - **Markdown to SmartDoc Converter** - New formatter module and MCP tool for converting markdown text to SmartSuite's SmartDoc format
-  - New `SmartSuite::Formatters::MarkdownToSmartdoc` class (`lib/smartsuite/formatters/markdown_to_smartdoc.rb`)
+  - New `SmartSuite::Formatters::MarkdownToSmartdoc` class (`lib/smart_suite/formatters/markdown_to_smartdoc.rb`)
   - New `convert_markdown_to_smartdoc` MCP tool for AI-accessible conversion
   - Supports headings (`#`, `##`, `###`), bullet lists (`-`, `*`), ordered lists (`1.`, `2.`), markdown tables, code blocks, links, horizontal rules, and inline formatting (`**bold**`, `*italic*`, combined)
   - Uses correct snake_case type names required by SmartSuite (e.g., `bullet_list`, `list_item`, `table_row`)
@@ -35,6 +62,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Refactored MCP Controller** - Extracted responsibilities into focused components for better maintainability
+  - `MCPAuthentication` concern: Handles local/remote authentication modes
+  - `SSEStreaming` concern: Manages Server-Sent Events response format
+  - `APICallTracker` service: Tracks API calls for analytics
+  - Controller reduced from 190 lines to 65 lines (66% reduction)
+
 - **SmartDoc Format Documentation** - Added comprehensive documentation about SmartSuite's rich text format
   - New section in CLAUDE.md documenting snake_case type name requirements
   - Type conversion table: `bulletList` → `bullet_list`, `listItem` → `list_item`, etc.
@@ -47,6 +80,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Proxy configuration instructions for corporate environments
 
 ### Fixed
+
+- **Field operations require params field** - SmartSuite API requires `params` field in field data
+
+  - `add_field` now automatically adds `params: {}` if not provided
+  - `bulk_add_fields` now adds `params: {}` to each field if not provided
+  - Prevents API errors when creating fields without explicit params
+
+- **View operations boolean field handling** - Fixed nil boolean values causing API errors
+
+  - `create_view` now explicitly sets boolean fields to defaults when nil
+  - `autosave`, `is_locked`, `is_private`, `is_password_protected` now default correctly
+
+- **Logger Rails detection** - Fixed crash when Rails module is defined but not fully initialized
+
+  - `rails_logger` method now safely checks for `Rails.respond_to?(:logger)` before accessing
+  - Prevents `NoMethodError: undefined method 'logger' for module Rails` during test execution
 
 - **Install script Ruby version handling** - The installation script now automatically installs Ruby via Homebrew when an outdated version (e.g., macOS system Ruby 2.6) is detected, instead of just showing an error message and exiting
 
@@ -234,7 +283,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `bulk_add_records`: `:toon` (default) or `:json`
     - `bulk_update_records`: `:toon` (default) or `:json`
     - `bulk_delete_records`: `:toon` (default) or `:json`
-  - `ToonFormatter` module (`lib/smartsuite/formatters/toon_formatter.rb`) with specialized formatters:
+  - `ToonFormatter` module (`lib/smart_suite/formatters/toon_formatter.rb`) with specialized formatters:
     - `format_records` - Format record lists with counts header
     - `format_record` - Format single record
     - `format_solutions`, `format_tables`, `format_members` - Specialized formatters
@@ -391,10 +440,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ```
   - **Full response option**: Set `minimal_response: false` for backward compatibility (returns complete record)
   - **Implementation details**:
-    - Updated 6 methods in `RecordOperations` module (`lib/smartsuite/api/record_operations.rb`): lines 327-593
-    - Added 2 cache methods in `Cache::Layer` (`lib/smartsuite/cache/layer.rb`): lines 606-657
+    - Updated 6 methods in `RecordOperations` module (`lib/smart_suite/api/record_operations.rb`): lines 327-593
+    - Added 2 cache methods in `Cache::Layer` (`lib/smart_suite/cache/layer.rb`): lines 606-657
     - Updated 6 server handlers in `SmartSuiteServer` (`smartsuite_server.rb`): lines 204-240
-    - Updated 6 MCP tool schemas in `ToolRegistry` (`lib/smartsuite/mcp/tool_registry.rb`): lines 358-495
+    - Updated 6 MCP tool schemas in `ToolRegistry` (`lib/smart_suite/mcp/tool_registry.rb`): lines 358-495
   - **Tests**: All 513 tests passing with backward compatibility verified
   - **BREAKING CHANGE**: Default behavior changed to minimal responses (v2.0)
     - Previous versions returned full responses by default
@@ -544,7 +593,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Test isolation from production database** - Fixed tests writing to production database instead of test-specific paths
 
-  - Created `SmartSuite::Paths` module (`lib/smartsuite/paths.rb`) as single source of truth for file paths
+  - Created `SmartSuite::Paths` module (`lib/smart_suite/paths.rb`) as single source of truth for file paths
   - All components now use `SmartSuite::Paths.database_path` and `SmartSuite::Paths.metrics_log_path`
   - In test mode (`SMARTSUITE_TEST_MODE=true`), uses temporary directory with process-specific filenames
   - `ApiStatsTracker` now creates its own tables when used standalone (without `Cache::Layer`)
@@ -563,9 +612,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact**: These fields were stored as JSON text instead of separate queryable columns
   - **Problem**: Couldn't filter by creation/update date or user - filters returned incorrect results
   - **Fix**:
-    - Updated `get_field_columns` to match `'firstcreatedfield'` and `'lastupdatedfield'` (lib/smartsuite/cache/metadata.rb:120-129)
-    - Updated `extract_field_value` to use column name prefix (lib/smartsuite/cache/layer.rb:423-432)
-    - Updated `find_matching_value` to match new column names (lib/smartsuite/cache/layer.rb:329-348)
+    - Updated `get_field_columns` to match `'firstcreatedfield'` and `'lastupdatedfield'` (lib/smart_suite/cache/metadata.rb:120-129)
+    - Updated `extract_field_value` to use column name prefix (lib/smart_suite/cache/layer.rb:423-432)
+    - Updated `find_matching_value` to match new column names (lib/smart_suite/cache/layer.rb:329-348)
     - Updated test to use correct field type
   - **New schema**: Creates `first_created_on`, `first_created_by`, `last_updated_on`, `last_updated_by` columns
   - **Migration**: Delete `~/.smartsuite_mcp_cache.db` to recreate with new schema
@@ -592,7 +641,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Returned: Record ID `6674c77f3636d0b05182235e` ("RPA: CXP Output") - WRONG RECORD
     - SQL generated: `SELECT * FROM cache_records_... LIMIT 1` (NO WHERE CLAUSE!)
     - Expected SQL: `SELECT * FROM cache_records_... WHERE id = ? LIMIT 1`
-  - **Fix**: Added special handling for 'id' field before structure lookup in `Cache::Query.where()` (lib/smartsuite/cache/query.rb:78-83)
+  - **Fix**: Added special handling for 'id' field before structure lookup in `Cache::Query.where()` (lib/smart_suite/cache/query.rb:78-83)
     ```ruby
     if field_slug_str == 'id'
       @where_clauses << 'id = ?'
@@ -701,7 +750,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Accepts `preview` parameter to limit returned fields (default: true)
     - Returns records with deletion metadata
   - `restore_deleted_record`: Restore a soft-deleted record back to the table
-    - Appends "(Restored)" to the record title
   - Implemented in `RecordOperations` module (lines 451-490)
   - Added MCP tool schemas in `ToolRegistry` (lines 371-406)
   - Added server handlers in `SmartSuiteServer` (lines 217-220)
@@ -963,7 +1011,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Refactored is_empty/is_not_empty to use helper methods instead of regex (line 341-360)
   - **Impact**: Eliminates entire class of bugs related to substring matching in field type detection
   - **Benefits**: More maintainable, more explicit, easier to extend with new field types
-  - **Fixed in**: `Cache::Query` (lib/smartsuite/cache/query.rb)
+  - **Fixed in**: `Cache::Query` (lib/smart_suite/cache/query.rb)
 
 - **SmartDoc HTML extraction from cached records** - Fixed ResponseFormatter not extracting HTML from rich text fields when using cache
   - Cache stores SmartDoc fields as JSON strings, but ResponseFormatter was only detecting Hash objects
@@ -1048,14 +1096,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `reek` - Code smell detection
   - `yard` - Documentation coverage checking
 - **Test helper** (`test/test_helper.rb`) for centralized test configuration
-- **API::Base module** (`lib/smartsuite/api/base.rb`) - Common helper module for all API operations:
+- **API::Base module** (`lib/smart_suite/api/base.rb`) - Common helper module for all API operations:
   - Pagination constants (DEFAULT_LIMIT, FETCH_ALL_LIMIT, MAX_LIMIT, DEFAULT_OFFSET)
   - Parameter validation helpers (validate_required_parameter!, validate_optional_parameter!)
   - Endpoint building with URL encoding (build_endpoint)
   - Cache coordination helpers (should_bypass_cache?, log_cache_hit, log_cache_miss)
   - Response building and tracking (build_collection_response, track_response_size, extract_items_from_response)
   - Logging helpers (format_timestamp)
-- **FilterBuilder module** (`lib/smartsuite/filter_builder.rb`) - Reusable filter conversion logic:
+- **FilterBuilder module** (`lib/smart_suite/filter_builder.rb`) - Reusable filter conversion logic:
   - Converts SmartSuite API filter format to cache query conditions
   - Supports 20+ comparison operators (is, is_not, contains, is_greater_than, etc.)
   - 30 test cases with comprehensive edge case coverage
@@ -1146,7 +1194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Modular cache layer architecture** (v1.7):
   - Split `cache_layer.rb` (1646 lines) into focused modules
-  - Organized in dedicated `lib/smartsuite/cache/` directory following Ruby conventions:
+  - Organized in dedicated `lib/smart_suite/cache/` directory following Ruby conventions:
     - `SmartSuite::Cache::Layer` (923 lines) - Core caching interface
     - `SmartSuite::Cache::Metadata` (459 lines) - Table registry, schema management, TTL config
     - `SmartSuite::Cache::Performance` (131 lines) - Hit/miss tracking, statistics

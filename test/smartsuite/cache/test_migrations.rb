@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require_relative '../../test_helper'
-require 'sqlite3'
-require 'fileutils'
-require_relative '../../../lib/smartsuite/cache/layer'
+require_relative "../../test_helper"
+require "sqlite3"
+require "fileutils"
+require_relative "../../../lib/smart_suite/cache/layer"
 
 class TestCacheMigrations < Minitest::Test
   def setup
@@ -52,13 +52,13 @@ class TestCacheMigrations < Minitest::Test
     old_exists = cache.db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='cached_table_schemas'").first
     new_exists = cache.db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='cache_table_registry'").first
 
-    refute old_exists, 'Old table cached_table_schemas should not exist'
-    assert new_exists, 'New table cache_table_registry should exist'
+    refute old_exists, "Old table cached_table_schemas should not exist"
+    assert new_exists, "New table cache_table_registry should exist"
 
     # Verify data was preserved
-    row = cache.db.execute('SELECT * FROM cache_table_registry WHERE table_id = ?', ['tbl_1']).first
-    assert_equal 'tbl_1', row['table_id']
-    assert_equal 'sql_tbl_1', row['sql_table_name']
+    row = cache.db.execute("SELECT * FROM cache_table_registry WHERE table_id = ?", [ "tbl_1" ]).first
+    assert_equal "tbl_1", row["table_id"]
+    assert_equal "sql_tbl_1", row["sql_table_name"]
   end
 
   def test_migrate_table_rename_both_exist_drops_old
@@ -95,11 +95,11 @@ class TestCacheMigrations < Minitest::Test
 
     # Verify old table is gone
     old_exists = cache.db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='cached_table_schemas'").first
-    refute old_exists, 'Old table cached_table_schemas should be dropped'
+    refute old_exists, "Old table cached_table_schemas should be dropped"
 
     # Verify new table data is preserved (not overwritten)
-    row = cache.db.execute('SELECT * FROM cache_table_registry WHERE table_id = ?', ['new_1']).first
-    assert_equal 'new_1', row['table_id']
+    row = cache.db.execute("SELECT * FROM cache_table_registry WHERE table_id = ?", [ "new_1" ]).first
+    assert_equal "new_1", row["table_id"]
   end
 
   def test_migrate_table_rename_no_old_table_noop
@@ -144,25 +144,25 @@ class TestCacheMigrations < Minitest::Test
     SQL
     # Insert with Unix timestamp
     now = Time.now.to_i
-    db.execute("INSERT INTO cache_table_registry VALUES ('tbl_1', 'sql_tbl_1', 'Table', '[]', '{}', ?, ?)", [now, now])
+    db.execute("INSERT INTO cache_table_registry VALUES ('tbl_1', 'sql_tbl_1', 'Table', '[]', '{}', ?, ?)", [ now, now ])
     db.close
 
     # Initialize cache layer which runs migrations
     cache = create_cache
 
     # Verify column types are now TEXT
-    cols = cache.db.execute('PRAGMA table_info(cache_table_registry)')
-    created_col = cols.find { |c| c['name'] == 'created_at' }
-    updated_col = cols.find { |c| c['name'] == 'updated_at' }
+    cols = cache.db.execute("PRAGMA table_info(cache_table_registry)")
+    created_col = cols.find { |c| c["name"] == "created_at" }
+    updated_col = cols.find { |c| c["name"] == "updated_at" }
 
-    assert_equal 'TEXT', created_col['type']
-    assert_equal 'TEXT', updated_col['type']
+    assert_equal "TEXT", created_col["type"]
+    assert_equal "TEXT", updated_col["type"]
 
     # Verify data was converted
-    row = cache.db.execute('SELECT created_at, updated_at FROM cache_table_registry WHERE table_id = ?', ['tbl_1']).first
-    refute_nil row['created_at']
+    row = cache.db.execute("SELECT created_at, updated_at FROM cache_table_registry WHERE table_id = ?", [ "tbl_1" ]).first
+    refute_nil row["created_at"]
     # Should be datetime string, not integer
-    assert_match(/^\d{4}-\d{2}-\d{2}/, row['created_at'])
+    assert_match(/^\d{4}-\d{2}-\d{2}/, row["created_at"])
   end
 
   def test_migrate_integer_timestamps_in_cache_ttl_config
@@ -190,14 +190,14 @@ class TestCacheMigrations < Minitest::Test
       )
     SQL
     now = Time.now.to_i
-    db.execute("INSERT INTO cache_ttl_config VALUES ('tbl_1', 7200, 'frequent', 'Test', ?)", [now])
+    db.execute("INSERT INTO cache_ttl_config VALUES ('tbl_1', 7200, 'frequent', 'Test', ?)", [ now ])
     db.close
 
     cache = create_cache
 
-    cols = cache.db.execute('PRAGMA table_info(cache_ttl_config)')
-    updated_col = cols.find { |c| c['name'] == 'updated_at' }
-    assert_equal 'TEXT', updated_col['type']
+    cols = cache.db.execute("PRAGMA table_info(cache_ttl_config)")
+    updated_col = cols.find { |c| c["name"] == "updated_at" }
+    assert_equal "TEXT", updated_col["type"]
   end
 
   def test_migrate_integer_timestamps_in_api_call_log
@@ -228,14 +228,14 @@ class TestCacheMigrations < Minitest::Test
       )
     SQL
     now = Time.now.to_i
-    db.execute("INSERT INTO api_call_log (user_hash, method, endpoint, timestamp) VALUES ('hash123', 'GET', '/test', ?)", [now])
+    db.execute("INSERT INTO api_call_log (user_hash, method, endpoint, timestamp) VALUES ('hash123', 'GET', '/test', ?)", [ now ])
     db.close
 
     cache = create_cache
 
-    cols = cache.db.execute('PRAGMA table_info(api_call_log)')
-    ts_col = cols.find { |c| c['name'] == 'timestamp' }
-    assert_equal 'TEXT', ts_col['type']
+    cols = cache.db.execute("PRAGMA table_info(api_call_log)")
+    ts_col = cols.find { |c| c["name"] == "timestamp" }
+    assert_equal "TEXT", ts_col["type"]
   end
 
   def test_migrate_integer_timestamps_in_api_stats_summary
@@ -260,14 +260,14 @@ class TestCacheMigrations < Minitest::Test
       )
     SQL
     now = Time.now.to_i
-    db.execute("INSERT INTO api_stats_summary VALUES ('hash123', 10, ?, ?)", [now - 3600, now])
+    db.execute("INSERT INTO api_stats_summary VALUES ('hash123', 10, ?, ?)", [ now - 3600, now ])
     db.close
 
     cache = create_cache
 
-    cols = cache.db.execute('PRAGMA table_info(api_stats_summary)')
-    first_col = cols.find { |c| c['name'] == 'first_call' }
-    assert_equal 'TEXT', first_col['type']
+    cols = cache.db.execute("PRAGMA table_info(api_stats_summary)")
+    first_col = cols.find { |c| c["name"] == "first_call" }
+    assert_equal "TEXT", first_col["type"]
   end
 
   def test_migrate_integer_timestamps_in_cache_stats
@@ -294,14 +294,14 @@ class TestCacheMigrations < Minitest::Test
       )
     SQL
     now = Time.now.to_i
-    db.execute("INSERT INTO cache_stats (category, operation, key, timestamp) VALUES ('test', 'read', 'key1', ?)", [now])
+    db.execute("INSERT INTO cache_stats (category, operation, key, timestamp) VALUES ('test', 'read', 'key1', ?)", [ now ])
     db.close
 
     cache = create_cache
 
-    cols = cache.db.execute('PRAGMA table_info(cache_stats)')
-    ts_col = cols.find { |c| c['name'] == 'timestamp' }
-    assert_equal 'TEXT', ts_col['type']
+    cols = cache.db.execute("PRAGMA table_info(cache_stats)")
+    ts_col = cols.find { |c| c["name"] == "timestamp" }
+    assert_equal "TEXT", ts_col["type"]
   end
 
   def test_migrate_integer_timestamps_skips_if_already_text
@@ -325,8 +325,8 @@ class TestCacheMigrations < Minitest::Test
     cache = create_cache
 
     # Verify data is still intact
-    row = cache.db.execute('SELECT * FROM cache_table_registry WHERE table_id = ?', ['tbl_1']).first
-    assert_equal 'tbl_1', row['table_id']
+    row = cache.db.execute("SELECT * FROM cache_table_registry WHERE table_id = ?", [ "tbl_1" ]).first
+    assert_equal "tbl_1", row["table_id"]
   end
 
   # ========== migrate_cached_tables_schema tests ==========
@@ -375,33 +375,33 @@ class TestCacheMigrations < Minitest::Test
 
     cache = create_cache
 
-    cols = cache.db.execute('PRAGMA table_info(cached_tables)')
-    col_names = cols.map { |c| c['name'] }
+    cols = cache.db.execute("PRAGMA table_info(cached_tables)")
+    col_names = cols.map { |c| c["name"] }
 
     # Old fields should be removed
-    refute_includes col_names, 'description'
-    refute_includes col_names, 'updated'
-    refute_includes col_names, 'updated_by'
-    refute_includes col_names, 'deleted_date'
-    refute_includes col_names, 'deleted_by'
-    refute_includes col_names, 'record_count'
+    refute_includes col_names, "description"
+    refute_includes col_names, "updated"
+    refute_includes col_names, "updated_by"
+    refute_includes col_names, "deleted_date"
+    refute_includes col_names, "deleted_by"
+    refute_includes col_names, "record_count"
 
     # New fields should be added
-    assert_includes col_names, 'status'
-    assert_includes col_names, 'hidden'
-    assert_includes col_names, 'icon'
-    assert_includes col_names, 'primary_field'
-    assert_includes col_names, 'table_order'
-    assert_includes col_names, 'permissions'
-    assert_includes col_names, 'field_permissions'
-    assert_includes col_names, 'record_term'
-    assert_includes col_names, 'fields_count_total'
-    assert_includes col_names, 'fields_count_linkedrecordfield'
+    assert_includes col_names, "status"
+    assert_includes col_names, "hidden"
+    assert_includes col_names, "icon"
+    assert_includes col_names, "primary_field"
+    assert_includes col_names, "table_order"
+    assert_includes col_names, "permissions"
+    assert_includes col_names, "field_permissions"
+    assert_includes col_names, "record_term"
+    assert_includes col_names, "fields_count_total"
+    assert_includes col_names, "fields_count_linkedrecordfield"
 
     # Data should be preserved
-    row = cache.db.execute('SELECT * FROM cached_tables WHERE id = ?', ['tbl_1']).first
-    assert_equal 'tbl_1', row['id']
-    assert_equal 'Table 1', row['name']
+    row = cache.db.execute("SELECT * FROM cached_tables WHERE id = ?", [ "tbl_1" ]).first
+    assert_equal "tbl_1", row["id"]
+    assert_equal "Table 1", row["name"]
   end
 
   def test_migrate_cached_tables_schema_skips_if_already_migrated
@@ -451,8 +451,8 @@ class TestCacheMigrations < Minitest::Test
     cache = create_cache
 
     # Data should be intact
-    row = cache.db.execute('SELECT * FROM cached_tables WHERE id = ?', ['tbl_1']).first
-    assert_equal 'tbl_1', row['id']
+    row = cache.db.execute("SELECT * FROM cached_tables WHERE id = ?", [ "tbl_1" ]).first
+    assert_equal "tbl_1", row["id"]
   end
 
   # ========== migrate_cached_members_schema tests ==========
@@ -494,14 +494,14 @@ class TestCacheMigrations < Minitest::Test
 
     cache = create_cache
 
-    cols = cache.db.execute('PRAGMA table_info(cached_members)')
-    col_names = cols.map { |c| c['name'] }
+    cols = cache.db.execute("PRAGMA table_info(cached_members)")
+    col_names = cols.map { |c| c["name"] }
 
-    assert_includes col_names, 'deleted_date'
+    assert_includes col_names, "deleted_date"
 
     # Data should be intact
-    row = cache.db.execute('SELECT * FROM cached_members WHERE id = ?', ['mem_1']).first
-    assert_equal 'mem_1', row['id']
+    row = cache.db.execute("SELECT * FROM cached_members WHERE id = ?", [ "mem_1" ]).first
+    assert_equal "mem_1", row["id"]
   end
 
   def test_migrate_cached_members_skips_if_column_exists
@@ -544,8 +544,8 @@ class TestCacheMigrations < Minitest::Test
     cache = create_cache
 
     # Data should be intact including deleted_date
-    row = cache.db.execute('SELECT * FROM cached_members WHERE id = ?', ['mem_1']).first
-    assert_equal '2025-01-01', row['deleted_date']
+    row = cache.db.execute("SELECT * FROM cached_members WHERE id = ?", [ "mem_1" ]).first
+    assert_equal "2025-01-01", row["deleted_date"]
   end
 
   # ========== Idempotency tests ==========
@@ -558,7 +558,7 @@ class TestCacheMigrations < Minitest::Test
     cache2 = create_cache
 
     # Verify tables exist
-    tables = cache2.db.execute("SELECT name FROM sqlite_master WHERE type='table'").map { |r| r['name'] }
-    assert_includes tables, 'cache_table_registry'
+    tables = cache2.db.execute("SELECT name FROM sqlite_master WHERE type='table'").map { |r| r["name"] }
+    assert_includes tables, "cache_table_registry"
   end
 end

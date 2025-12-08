@@ -22,6 +22,7 @@ This CLAUDE.md file contains essential information for Claude Code. For detailed
 ## Essential Commands
 
 ### Testing
+
 ```bash
 # Run all tests
 bundle exec rake test
@@ -34,6 +35,7 @@ ruby test/test_smartsuite_server.rb
 ```
 
 ### Development Setup
+
 ```bash
 # Install dependencies
 bundle install
@@ -50,7 +52,9 @@ ruby smartsuite_server.rb
 ```
 
 ### Manual Testing
+
 The server communicates via stdin/stdout using JSON-RPC protocol. Test by sending JSON messages:
+
 ```bash
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ruby smartsuite_server.rb
 ```
@@ -66,6 +70,7 @@ The project includes utility scripts in `bin/` for administrative and batch oper
 **Use Case:** Automated webhook data (e.g., Read.ai meeting transcripts) that arrives as Markdown but needs to be formatted as rich text in SmartSuite.
 
 **Key Features:**
+
 - Single API call to fetch filtered records (not n+1)
 - Local conversion (0 AI tokens)
 - Bulk updates in configurable batches
@@ -74,6 +79,7 @@ The project includes utility scripts in `bin/` for administrative and batch oper
 - External configuration via `.conversion_config` (gitignored for privacy)
 
 **Usage:**
+
 ```bash
 # Basic usage (uses .conversion_config)
 bin/convert_markdown_sessions
@@ -90,6 +96,7 @@ bin/convert_markdown_sessions --from-status pending --to-status complete
 
 **Configuration:**
 Create `.conversion_config` from `.conversion_config.example`:
+
 ```bash
 cp .conversion_config.example .conversion_config
 # Edit with your table IDs, field slugs, and status values
@@ -99,14 +106,14 @@ cp .conversion_config.example .conversion_config
 
 ### When to Use Utility Scripts vs MCP Tools
 
-| Scenario | Use |
-|----------|-----|
-| Bulk operation (50+ records) | Utility script |
-| Automated/scheduled task | Utility script |
-| Data migration/transformation | Utility script |
-| Single record operation | MCP tool (via AI) |
-| Exploratory analysis | MCP tool (via AI) |
-| AI-guided workflow | MCP tool (via AI) |
+| Scenario                      | Use               |
+| ----------------------------- | ----------------- |
+| Bulk operation (50+ records)  | Utility script    |
+| Automated/scheduled task      | Utility script    |
+| Data migration/transformation | Utility script    |
+| Single record operation       | MCP tool (via AI) |
+| Exploratory analysis          | MCP tool (via AI) |
+| AI-guided workflow            | MCP tool (via AI) |
 
 ## Development Workflow
 
@@ -125,6 +132,7 @@ git checkout -b fix/cache-invalidation-bug
 ```
 
 Branch naming conventions:
+
 - `feature/` - New features or enhancements
 - `fix/` - Bug fixes
 - `refactor/` - Code refactoring without functional changes
@@ -135,6 +143,7 @@ Branch naming conventions:
 **BEFORE merging or creating a PR**, complete this checklist:
 
 1. **Documentation** ✅
+
    - **ALWAYS update CHANGELOG.md** with changes under `[Unreleased]` section (required for ALL changes, enforced by GitHub Actions)
    - Update ROADMAP.md if the feature affects planned milestones
    - Update relevant docs in `docs/` directory
@@ -142,6 +151,7 @@ Branch naming conventions:
    - Update CLAUDE.md if workflow or architecture changes
 
 2. **Tests** ✅
+
    - Run full test suite: `bundle exec rake test`
    - Ensure tests pass with 0 failures
    - Add tests for new functionality
@@ -149,17 +159,20 @@ Branch naming conventions:
    - Consider edge cases and error scenarios
 
 3. **Code Quality** ✅
+
    - Run RuboCop: `bundle exec rubocop`
    - Fix any style violations: `bundle exec rubocop -A` (auto-correct)
    - Run Reek for code smells: `bundle exec reek`
    - Ensure YARD coverage: `bundle exec yard stats --list-undoc`
 
 4. **Linting** ✅
+
    - Markdown files: Check with markdownlint
    - Ensure CHANGELOG follows Keep a Changelog format
    - Check for proper heading structure and formatting
 
 5. **Refactoring Opportunities** ✅
+
    - Look for code duplication (DRY principle)
    - Check if new helpers/modules could be extracted
    - Verify proper use of existing modules (API::Base, FilterBuilder, etc.)
@@ -172,6 +185,7 @@ Branch naming conventions:
    - Ensure security audit passes (bundle audit)
 
 **Example completion workflow:**
+
 ```bash
 # 1. Run all checks
 bundle exec rake test
@@ -203,21 +217,25 @@ git push origin feature/feature-name
 The codebase follows a modular architecture with clear separation of concerns across three layers:
 
 ### 1. Server Layer
+
 **SmartSuiteServer** (`smartsuite_server.rb`, 262 lines)
+
 - **Responsibility**: MCP protocol handler and main entry point
 - Manages JSON-RPC communication over stdin/stdout
 - Routes MCP protocol methods to appropriate registries
 - Handles errors and notifications
 - Does NOT handle SmartSuite API calls or tool schemas directly
 
-### 2. MCP Protocol Layer (`lib/smartsuite/mcp/`)
+### 2. MCP Protocol Layer (`lib/smart_suite/mcp/`)
+
 Handles MCP protocol responses and schemas:
 
 - **ToolRegistry** (`tool_registry.rb`): All 35 tool schemas organized by category
 - **PromptRegistry** (`prompt_registry.rb`, 447 lines): 8 prompt templates covering all major filter patterns
 - **ResourceRegistry** (`resource_registry.rb`, 15 lines): Resource listing (currently empty)
 
-### 3. API Client Layer (`lib/smartsuite/api/`)
+### 3. API Client Layer (`lib/smart_suite/api/`)
+
 Handles SmartSuite API communication:
 
 - **HttpClient** (`http_client.rb`, 68 lines): HTTP request execution, authentication, logging
@@ -230,17 +248,20 @@ Handles SmartSuite API communication:
 - **ViewOperations** (`view_operations.rb`, 88 lines): View/report management (get records, create views)
 
 **SmartSuiteClient** (`lib/smartsuite_client.rb`, 30 lines)
+
 - Thin wrapper that includes all API modules
 - 30 lines vs original 708 lines (96% reduction)
 
-### 4. Formatters Layer (`lib/smartsuite/formatters/`)
+### 4. Formatters Layer (`lib/smart_suite/formatters/`)
+
 Implements token optimization and format conversion:
 
 - **ResponseFormatter** (`response_formatter.rb`): Response filtering, supports multiple output formats (no value truncation per user request)
 - **ToonFormatter** (`toon_formatter.rb`): TOON (Token-Oriented Object Notation) encoding for maximum token savings (~50-60% vs JSON)
 - **MarkdownToSmartdoc** (`markdown_to_smartdoc.rb`): Converts Markdown text to SmartSuite's SmartDoc format (rich text fields)
 
-### 5. Cache Layer (`lib/smartsuite/cache/`)
+### 5. Cache Layer (`lib/smart_suite/cache/`)
+
 SQLite-based persistent caching for SmartSuite data (v1.7+: modular architecture):
 
 - **Cache::Layer** (`cache/layer.rb`): Core caching interface, dynamic table creation
@@ -251,7 +272,9 @@ SQLite-based persistent caching for SmartSuite data (v1.7+: modular architecture
 - **Database**: `~/.smartsuite_mcp_cache.db` (single file, includes both cache and API stats)
 
 ### 6. Supporting Components
+
 **ApiStatsTracker** (`lib/api_stats_tracker.rb`)
+
 - **Responsibility**: API usage monitoring with session tracking
 - Tracks API calls by user, session, solution, table, method, endpoint
 - Persists statistics to SQLite database (shares database with cache layer)
@@ -259,7 +282,8 @@ SQLite-based persistent caching for SmartSuite data (v1.7+: modular architecture
 - Hashes API keys for privacy (SHA256, first 8 chars)
 - Operates silently - never interrupts user work on errors
 
-**DateFormatter** (`lib/smartsuite/date_formatter.rb`)
+**DateFormatter** (`lib/smart_suite/date_formatter.rb`)
+
 - **Responsibility**: UTC to local time conversion for user-friendly display
 - SmartSuite stores all dates in UTC; this module converts them for display
 - **Handles SmartSuite's `include_time` flag** to distinguish date-only vs datetime:
@@ -284,6 +308,7 @@ SQLite-based persistent caching for SmartSuite data (v1.7+: modular architecture
 ## Key Design Patterns
 
 ### SQLite Caching Strategy
+
 The server uses aggressive caching to minimize API calls and enable efficient local queries:
 
 1. **Aggressive Fetch**: When cache misses, fetch ALL records from table (paginated with limit=1000)
@@ -294,6 +319,7 @@ The server uses aggressive caching to minimize API calls and enable efficient lo
 6. **Session Tracking**: Every client session tracked for usage analysis
 
 ### Token Optimization Strategy
+
 This server is heavily optimized to minimize Claude's token usage:
 
 1. **Filtered Table Structures**: `get_table` returns only essential fields (slug, label, field_type, minimal params), removing 83.8% of UI/display metadata
@@ -306,6 +332,7 @@ This server is heavily optimized to minimize Claude's token usage:
 6. **Cache-First Strategy**: Minimize API calls by querying local SQLite cache
 
 ### Data Flow Pattern
+
 ```
 User Request (stdin)
     ↓
@@ -331,6 +358,7 @@ JSON-RPC Response (stdout)
 ```
 
 ### Error Handling Layers
+
 - **Server Layer**: JSON-RPC protocol errors (code -32700, -32600, etc.)
 - **Client Layer**: HTTP errors from SmartSuite API
 - **Tracker Layer**: Silent failures with stderr logging
@@ -338,28 +366,35 @@ JSON-RPC Response (stdout)
 ## Important Implementation Details
 
 ### Environment Variables
+
 Always required:
+
 - `SMARTSUITE_API_KEY`: SmartSuite API authentication
 - `SMARTSUITE_ACCOUNT_ID`: Workspace identifier
 
 Optional (timezone configuration):
+
 - `SMARTSUITE_USER_EMAIL`: Your SmartSuite email for automatic timezone detection from your profile
 - `SMARTSUITE_TIMEZONE`: Manual timezone override (e.g., `America/Mexico_City` or `+0530`)
 
 ### SmartSuite API Parameter Conventions
+
 The SmartSuite API requires specific parameter placement:
 
 **Query Parameters (in URL):**
+
 - `limit`: Maximum number of records/items to return (POST endpoints)
 - `offset`: Pagination offset (number of items to skip) (POST endpoints)
 - `fields`: Field slug to include in response (GET endpoints, can be repeated)
 - `solution`: Solution ID to filter by (GET endpoints)
 
 **Body Parameters (JSON payload):**
+
 - `filter`: Filter criteria object (POST endpoints)
 - `sort`: Sort criteria array (POST endpoints)
 
 **Example Endpoints:**
+
 - List records: `POST /api/v1/applications/{table_id}/records/list/?limit=10&offset=0`
   - Body: `{"filter": {...}, "sort": [...]}`
 - List members: `POST /api/v1/members/list/?limit=100&offset=0`
@@ -367,6 +402,7 @@ The SmartSuite API requires specific parameter placement:
 - List tables: `GET /api/v1/applications/?solution=sol_123&fields=name&fields=id&fields=structure`
 
 **Important Notes:**
+
 - The endpoints for members and teams are `/members/list/` and `/teams/list/`, NOT `/applications/members/records/list/`
 - The `fields` parameter in GET endpoints (like `/applications/`) can be repeated to request multiple fields
 - When `fields` is specified in `list_tables`, the API returns only those fields; when omitted, client-side filtering returns only essential fields (id, name, solution_id)
@@ -374,7 +410,9 @@ The SmartSuite API requires specific parameter placement:
 - Note: Requesting `permissions` field for all solutions (110+) may exceed token limits due to large permissions objects. Consider fetching individual solutions or using `include_activity_data` instead
 
 ### MCP Protocol Methods
+
 The server implements:
+
 - `initialize`: MCP handshake and capability negotiation
 - `tools/list`: List all available SmartSuite tools
 - `tools/call`: Execute a tool (list_solutions, analyze_solution_usage, list_solutions_by_owner, get_solution_most_recent_record_update, create_solution, list_tables, get_table, create_table, list_records, get_record, create_record, update_record, delete_record, bulk_add_records, bulk_update_records, bulk_delete_records, attach_file, get_file_url, list_deleted_records, restore_deleted_record, add_field, bulk_add_fields, update_field, delete_field, list_members, search_member, list_teams, get_team, list_comments, add_comment, get_view_records, create_view, get_api_stats, reset_api_stats, get_cache_status, refresh_cache, convert_markdown_to_smartdoc)
@@ -389,11 +427,13 @@ The server provides a `create_solution` tool for creating new solutions (workspa
 **Endpoint:** `POST /api/v1/solutions/`
 
 **Required Parameters:**
+
 - `name` (string): The name for the new solution
 - `logo_icon` (string): Material Design icon name (e.g., "folder", "calendar", "star", "home", "work")
 - `logo_color` (string): Hex color from the predefined palette
 
 **Valid Solution Colors:**
+
 ```
 Primary:  #3A86FF (blue), #4ECCFD (light blue), #3EAC40 (green), #FF5757 (red), #FF9210 (orange)
           #FFB938 (yellow), #883CD0 (purple), #EC506E (pink), #17C4C4 (teal), #6A849B (grey)
@@ -402,11 +442,13 @@ Dark:     #0C41F3 (blue), #00B3FA (light blue), #199A27 (green), #F1273F (red), 
 ```
 
 **Features:**
+
 - Validates color against the 20 allowed hex values
 - Normalizes color input (handles missing `#` prefix and case variations)
 - Automatically invalidates solutions cache after creation
 
 **Example:**
+
 ```ruby
 create_solution('My Project', 'folder', '#3A86FF')
 create_solution('CRM System', 'people', '#FF5757', format: :json)
@@ -417,11 +459,13 @@ create_solution('CRM System', 'people', '#FF5757', format: :json)
 The server provides powerful tools for identifying unused or underutilized solutions:
 
 **analyze_solution_usage** - Analyzes all solutions and categorizes them by usage level based on `last_access` timestamps:
+
 - **Inactive solutions**: Never accessed or not accessed in X days + minimal records/automations
 - **Potentially unused**: Never accessed but has content, OR not accessed in X days with significant content
 - **Active solutions**: Recently accessed (accessed within the threshold period)
 
 **Important Notes:**
+
 - The analysis focuses on `last_access` dates as the primary indicator of usage
 - The `has_demo_data` flag is NOT used for categorization - many production solutions contain demo data
 - "Never accessed" solutions may be templates, abandoned projects, or API-only solutions
@@ -431,10 +475,12 @@ The server provides powerful tools for identifying unused or underutilized solut
   - Archived/historical data still in use
 
 Parameters:
+
 - `days_inactive` (default: 90): Days since last access to consider inactive
 - `min_records` (default: 10): Minimum records to not be considered empty
 
 Returns:
+
 ```json
 {
   "analysis_date": "2025-01-05T...",
@@ -451,6 +497,7 @@ Returns:
 ```
 
 Each solution includes:
+
 - `id`, `name`, `status`, `hidden`
 - `last_access`, `days_since_access`
 - `records_count`, `members_count`, `applications_count`, `automation_count`
@@ -458,10 +505,12 @@ Each solution includes:
 - `reason`: Why it's categorized as inactive/potentially unused
 
 **list_solutions** - Now accepts optional parameters:
+
 - `include_activity_data: true`: Include all activity/usage fields for custom analysis
 - `fields: ["id", "name", ...]`: Request specific fields (client-side filtered since API doesn't support it)
 
 **list_solutions_by_owner** - Filters solutions by owner:
+
 - Fetches all solutions with permissions data
 - Filters client-side by owner ID from `permissions.owners` array
 - Returns only solutions owned by the specified user
@@ -469,6 +518,7 @@ Each solution includes:
 - Much more efficient than requesting `permissions` field for all solutions
 
 **get_solution_most_recent_record_update** - Gets most recent record update:
+
 - Queries all tables in a solution
 - Finds the most recently updated record across all tables
 - Returns `last_updated.on` timestamp or nil if no records
@@ -479,6 +529,7 @@ Each solution includes:
 **list_records** uses cache-first strategy with required fields parameter:
 
 **Parameters:**
+
 - `table_id` (required): Table identifier
 - `limit` (default: 10): Maximum records to return
 - `offset` (default: 0): Pagination offset
@@ -489,23 +540,27 @@ Each solution includes:
 - `format` (default: `:toon`): Output format - `:toon` (TOON, ~50-60% savings) or `:json`
 
 **Behavior:**
+
 - Filters, sorts, limits, and offsets work consistently regardless of cache state
 - Returns TOON format by default showing "X of Y filtered records (Z total)" with tabular data
 - When cache is enabled (default), uses local SQLite queries for zero-latency filtering/sorting
 - When cache is disabled, sends filters/sort to SmartSuite API
 
 **Implementation Details (for Claude Code):**
+
 - **Cache enabled**: Filters → SQL WHERE, Sort → SQL ORDER BY, then limit/offset
 - **Cache disabled**: All parameters sent to SmartSuite API
 - Cache is automatically populated on first access and expires after TTL (default 4 hours)
 - Mutations (create/update/delete) do NOT invalidate cache - it expires naturally
 
 **Important Notes:**
+
 - **Fields parameter is REQUIRED** - returns error if not specified
 - **No value truncation** - returns full field values (control tokens by specifying only needed fields)
 - **Always shows total vs filtered counts** - helps AI make informed pagination decisions
 
 **Example:**
+
 ```ruby
 # Default usage - TOON format (most token-efficient)
 list_records('tbl_123', 10, 0, fields: ['status', 'priority', 'assigned_to'])
@@ -519,6 +574,7 @@ list_records('tbl_123', 10, 0)  # ERROR
 ```
 
 ### Available Prompt Templates
+
 The PromptRegistry provides 8 example prompts demonstrating common filter patterns:
 
 1. **filter_active_records**: Single select/status filtering (uses `is` operator)
@@ -539,23 +595,29 @@ Each prompt generates a complete example with the correct filter structure, oper
 #### Filter Operators by Field Type
 
 **Text-based fields** (Text, Email, Phone, Full Name, Address, Link, Text Area, etc.):
+
 - Operators: `is`, `is_not`, `is_empty`, `is_not_empty`, `contains`, `not_contains`
 - Value: String
+
 ```ruby
 {"field" => "email", "comparison" => "contains", "value" => "example.com"}
 ```
 
 **Numeric fields** (Number, Currency, Rating, Percent, Duration, etc.):
+
 - Operators: `is_equal_to`, `is_not_equal_to`, `is_greater_than`, `is_less_than`, `is_equal_or_greater_than`, `is_equal_or_less_than`, `is_empty`, `is_not_empty`
 - Value: Numeric
+
 ```ruby
 {"field" => "amount", "comparison" => "is_greater_than", "value" => 1000}
 ```
 
 **Date fields** (Date, Due Date, Date Range, First Created, Last Updated):
+
 - Operators: `is`, `is_not`, `is_before`, `is_on_or_before`, `is_on_or_after`, `is_empty`, `is_not_empty`
 - Special for Due Date: `is_overdue`, `is_not_overdue`
 - Value: Date object with `date_mode` and `date_mode_value`
+
 ```ruby
 {
   "field" => "due_date",
@@ -568,58 +630,73 @@ Each prompt generates a complete example with the correct filter structure, oper
 ```
 
 **Single Select/Status fields**:
+
 - Operators: `is`, `is_not`, `is_any_of`, `is_none_of`, `is_empty`, `is_not_empty`
 - Value: String or array
+
 ```ruby
 {"field" => "status", "comparison" => "is_any_of", "value" => ["Active", "Pending"]}
 ```
 
 **Multiple Select/Tag fields**:
+
 - Operators: `has_any_of`, `has_all_of`, `is_exactly`, `has_none_of`, `is_empty`, `is_not_empty`
 - Value: Array
+
 ```ruby
 {"field" => "tags", "comparison" => "has_any_of", "value" => ["urgent", "bug"]}
 ```
 
 **Linked Record fields**:
+
 - Operators: `contains`, `not_contains`, `has_any_of`, `has_all_of`, `is_exactly`, `has_none_of`, `is_empty`, `is_not_empty`
 - Value: Array of record IDs (use null for empty checks)
+
 ```ruby
 {"field" => "related_project", "comparison" => "has_any_of", "value" => ["record_id_1", "record_id_2"]}
 {"field" => "related_project", "comparison" => "is_empty", "value" => nil}
 ```
 
 **Assigned To (User) fields**:
+
 - Operators: `has_any_of`, `has_all_of`, `is_exactly`, `has_none_of`, `is_empty`, `is_not_empty`
 - Value: Array of user IDs
+
 ```ruby
 {"field" => "assigned_user", "comparison" => "has_any_of", "value" => ["user_id_1"]}
 ```
 
 **Files & Images**:
+
 - Operators: `file_name_contains`, `file_type_is`, `is_empty`, `is_not_empty`
 - Value: String (filename or file type)
 - Valid file types: archive, image, music, pdf, powerpoint, spreadsheet, video, word, other
+
 ```ruby
 {"field" => "attachments", "comparison" => "file_type_is", "value" => "pdf"}
 ```
 
 **Yes/No (Boolean)**:
+
 - Operators: `is`, `is_empty`, `is_not_empty`
 - Value: Boolean or null
 
 **Important notes:**
+
 - Filter operators are case-sensitive
 - For empty checks, use `nil` or `null` as value
 - Date Range fields reference dates as `[field_slug].from_date` and `[field_slug].to_date`
 - Formula and Lookup fields inherit operators from their return types
 
 ### Response Filtering in ResponseFormatter
+
 The `filter_field_structure` method aggressively removes non-essential data:
+
 - Keeps: slug, label, field_type, required, unique, primary, choices (minimal), linked_application, entries_allowed
 - Removes: display_format, help_doc, default_value, width, column_widths, visible_fields, choice colors/icons, etc.
 
 The `truncate_value` method **does NOT truncate values** (per user request):
+
 - Returns all field values in full without truncation
 - Users must specify only needed fields via `fields` parameter to control token usage
 - Encourages fetching minimal fields rather than truncating large values
@@ -627,6 +704,7 @@ The `truncate_value` method **does NOT truncate values** (per user request):
 ## Testing Approach
 
 Tests use Minitest (Ruby stdlib). Structure:
+
 - Mock stdin/stdout using StringIO
 - Test MCP protocol compliance
 - Verify tool handlers work correctly
@@ -634,6 +712,7 @@ Tests use Minitest (Ruby stdlib). Structure:
 - Check error handling
 
 When adding tests:
+
 1. Create methods starting with `test_`
 2. Use `call_private_method` helper for internal methods
 3. Mock HTTP responses for API tests
@@ -641,30 +720,35 @@ When adding tests:
 
 ### Field Operations
 
-The server supports full CRUD operations on table fields via the FieldOperations module (`lib/smartsuite/api/field_operations.rb`):
+The server supports full CRUD operations on table fields via the FieldOperations module (`lib/smart_suite/api/field_operations.rb`):
 
 **add_field** (line 19):
+
 - Endpoint: `POST /api/v1/applications/{table_id}/add_field/`
 - Always includes `field_position` (defaults to `{}`) and `auto_fill_structure_layout` (defaults to `true`)
 - Handles empty API responses (returns `{}` on success)
 
 **bulk_add_fields** (line 46):
+
 - Endpoint: `POST /api/v1/applications/{table_id}/bulk-add-fields/`
 - Add multiple fields in one request for better performance
 - Note: Certain field types not supported (Formula, Count, TimeTracking)
 
 **update_field** (line 70):
+
 - Endpoint: `PUT /api/v1/applications/{table_id}/change_field/`
 - Automatically merges slug into field_data body
 - Uses PUT HTTP method
 
 **delete_field** (line 92):
+
 - Endpoint: `POST /api/v1/applications/{table_id}/delete_field/`
 - Returns deleted field object on success
 - Operation is permanent
 
 **Help Text Format:**
 The `help_doc` parameter requires rich text format (TipTap/ProseMirror):
+
 ```ruby
 {
   "data" => {
@@ -685,14 +769,16 @@ Display format can be `"tooltip"` (hover to see) or `"inline"` (shown below fiel
 
 ### Comment Operations
 
-The server supports comment management via the CommentOperations module (`lib/smartsuite/api/comment_operations.rb`):
+The server supports comment management via the CommentOperations module (`lib/smart_suite/api/comment_operations.rb`):
 
 **list_comments** (line 15):
+
 - Endpoint: `GET /api/v1/comments/?record=[Record_Id]`
 - Returns array of comment objects with message content, author, timestamps, and assignment information
 - Query parameter: `record` (the record ID)
 
 **add_comment** (line 36):
+
 - Endpoint: `POST /api/v1/comments/`
 - Creates a new comment on a record
 - Supports plain text input (automatically formatted to rich text)
@@ -700,6 +786,7 @@ The server supports comment management via the CommentOperations module (`lib/sm
 
 **Message Format:**
 Comments use SmartSuite's rich text format (TipTap/ProseMirror). Plain text is automatically converted:
+
 ```ruby
 # Input (plain text)
 "This is a comment"
@@ -724,6 +811,7 @@ Comments use SmartSuite's rich text format (TipTap/ProseMirror). Plain text is a
 ```
 
 **Comment Object Structure:**
+
 - `id`: Comment unique identifier
 - `message`: Rich text message object with data, html, and preview
 - `record`: Record ID the comment belongs to
@@ -737,6 +825,7 @@ Comments use SmartSuite's rich text format (TipTap/ProseMirror). Plain text is a
 - `key`: Comment number on the record
 
 **Important Notes:**
+
 - Endpoint paths must NOT include `/api/v1/` prefix as HttpClient already prepends the base URL
 - The API expects query parameter named `record`, not `record_id` (though the MCP tool parameter can use any name)
 
@@ -747,7 +836,7 @@ SmartSuite rich text fields (`richtextareafield`) use **TipTap/ProseMirror forma
 **CRITICAL: Use snake_case for all type names:**
 
 | Standard TipTap (camelCase) | SmartSuite (snake_case) |
-|-----------------------------|-------------------------|
+| --------------------------- | ----------------------- |
 | `bulletList`                | `bullet_list`           |
 | `orderedList`               | `ordered_list`          |
 | `listItem`                  | `list_item`             |
@@ -765,6 +854,7 @@ SmartSuite rich text fields (`richtextareafield`) use **TipTap/ProseMirror forma
 **Marks (inline formatting):** `strong` (bold), `em` (italic), `underline`, `strikethrough`, `link`, `color`, `highlight`
 
 **Basic structure:**
+
 ```json
 {
   "data": {
@@ -772,8 +862,8 @@ SmartSuite rich text fields (`richtextareafield`) use **TipTap/ProseMirror forma
     "content": [
       {
         "type": "heading",
-        "attrs": {"level": 2},
-        "content": [{"type": "text", "text": "Title"}]
+        "attrs": { "level": 2 },
+        "content": [{ "type": "text", "text": "Title" }]
       },
       {
         "type": "bullet_list",
@@ -783,7 +873,7 @@ SmartSuite rich text fields (`richtextareafield`) use **TipTap/ProseMirror forma
             "content": [
               {
                 "type": "paragraph",
-                "content": [{"type": "text", "text": "Item 1"}]
+                "content": [{ "type": "text", "text": "Item 1" }]
               }
             ]
           }
@@ -801,6 +891,7 @@ For complete examples including tables, code blocks, callouts, mentions, and mor
 The server provides a `convert_markdown_to_smartdoc` tool that converts Markdown text to SmartDoc format.
 
 **Supported Markdown Features:**
+
 - Headings: `# H1`, `## H2`, `### H3`
 - Bold: `**text**` or `__text__`
 - Italic: `*text*` or `_text_`
@@ -811,27 +902,27 @@ The server provides a `convert_markdown_to_smartdoc` tool that converts Markdown
 
 1. Fetch records with markdown content:
 
-    ```ruby
-    records = list_records(table_id, 100, 0,
-      filter: { operator: 'and', fields: [{ field: 'status', comparison: 'is', value: 'pending' }] },
-      fields: ['id', 'description']
-    )
-    ```
+   ```ruby
+   records = list_records(table_id, 100, 0,
+     filter: { operator: 'and', fields: [{ field: 'status', comparison: 'is', value: 'pending' }] },
+     fields: ['id', 'description']
+   )
+   ```
 
 1. Convert markdown fields and prepare update batch:
 
-    ```ruby
-    updates = records.map do |record|
-      smartdoc = convert_markdown_to_smartdoc(record['description'])
-      { 'id' => record['id'], 'description' => smartdoc }
-    end
-    ```
+   ```ruby
+   updates = records.map do |record|
+     smartdoc = convert_markdown_to_smartdoc(record['description'])
+     { 'id' => record['id'], 'description' => smartdoc }
+   end
+   ```
 
 1. Bulk update with converted SmartDoc (single API call):
 
-    ```ruby
-    bulk_update_records(table_id, updates)
-    ```
+   ```ruby
+   bulk_update_records(table_id, updates)
+   ```
 
 **Implementation:** `SmartSuite::Formatters::MarkdownToSmartdoc.convert(markdown_string)`
 
@@ -842,11 +933,13 @@ The server provides a `convert_markdown_to_smartdoc` tool that converts Markdown
 The server uses a unified logging system (`SmartSuite::Logger`) that consolidates all logging into a single configurable class:
 
 **Log File:**
+
 - Production: `~/.smartsuite_mcp.log`
 - Test: `~/.smartsuite_mcp_test.log`
 - Integration tests: `~/.smartsuite_mcp_integration.log`
 
 **Features:**
+
 - Multiple log levels: DEBUG, INFO, WARN, ERROR
 - Log categories: API, DB, CACHE, S3, SERVER, METRIC
 - ANSI color support (configurable via `colors_enabled`)
@@ -854,10 +947,12 @@ The server uses a unified logging system (`SmartSuite::Logger`) that consolidate
 - Configurable via environment variables
 
 **Environment Variables:**
+
 - `SMARTSUITE_LOG_LEVEL`: Set log level (debug, info, warn, error)
 - `SMARTSUITE_LOG_STDERR`: Set to 'true' to also output to stderr
 
 **Usage:**
+
 ```ruby
 SmartSuite::Logger.info('Server started')
 SmartSuite::Logger.api_request(:get, url, params)
@@ -866,6 +961,7 @@ SmartSuite::Logger.error('Failed', error: exception)
 ```
 
 **Database File:**
+
 - `~/.smartsuite_mcp_cache.db`: SQLite database containing:
   - Cached table records (one SQL table per SmartSuite table)
   - API call logs with session tracking
@@ -875,6 +971,7 @@ SmartSuite::Logger.error('Failed', error: exception)
 ## SmartSuite API Rate Limits
 
 Be aware of:
+
 - Standard: 5 requests/second per user
 - Overage: 2 requests/second when exceeding monthly allowance
 - Hard limit: Requests denied at 125% of monthly limits
@@ -882,6 +979,7 @@ Be aware of:
 ## Dependencies
 
 Ruby standard library:
+
 - json
 - net/http
 - uri
@@ -890,9 +988,11 @@ Ruby standard library:
 - digest
 
 External gems:
+
 - sqlite3 (caching layer)
 - toon-ruby (TOON format encoding for token optimization)
 
 Test dependencies:
+
 - minitest
 - rake

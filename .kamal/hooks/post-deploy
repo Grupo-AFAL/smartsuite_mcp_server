@@ -1,0 +1,46 @@
+#!/bin/bash
+# Kamal post-deploy hook: Set up cron for database backups
+#
+# This hook runs after each deploy and ensures the backup cron job is configured.
+# It's idempotent - safe to run multiple times.
+
+set -e
+
+echo "Setting up backup cron job..."
+
+# Get the server IP from Kamal
+SERVER_IP="${KAMAL_HOSTS:-}"
+
+if [ -z "$SERVER_IP" ]; then
+  echo "No server hosts found, skipping cron setup"
+  exit 0
+fi
+
+# SSH command prefix (uses Kamal's SSH config)
+SSH_CMD="ssh -o StrictHostKeyChecking=no"
+
+for HOST in $SERVER_IP; do
+  echo "Configuring cron on $HOST..."
+
+  # Create the cron job (idempotent - replaces existing)
+  $SSH_CMD ubuntu@$HOST << 'REMOTE_SCRIPT'
+    # Backup cron: Daily at 3 AM UTC
+    CRON_JOB='0 3 * * * docker exec $(docker ps -q -f name=smartsuite-mcp-web) bin/backup-db >> /var/log/smartsuite-backup.log 2>&1'
+
+    # Check if cron job already exists
+    if crontab -l 2>/dev/null | grep -q "smartsuite-mcp-web.*backup-db"; then
+      echo "Backup cron job already exists"
+    else
+      # Add the cron job
+      (crontab -l 2>/dev/null || true; echo "$CRON_JOB") | crontab -
+      echo "Backup cron job installed"
+    fi
+
+    # Show current crontab
+    echo "Current crontab:"
+    crontab -l 2>/dev/null || echo "(empty)"
+REMOTE_SCRIPT
+
+done
+
+echo "Cron setup complete"

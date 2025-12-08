@@ -38,12 +38,12 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ruby smartsu
 │  SmartSuiteServer (smartsuite_server.rb)                        │
 │  └─ JSON-RPC protocol handler, routes to registries             │
 ├─────────────────────────────────────────────────────────────────┤
-│  MCP Layer (lib/smartsuite/mcp/)                                │
+│  MCP Layer (lib/smart_suite/mcp/)                                │
 │  ├─ ToolRegistry    (26 tools, schemas)                         │
 │  ├─ PromptRegistry  (8 filter examples)                         │
 │  └─ ResourceRegistry                                            │
 ├─────────────────────────────────────────────────────────────────┤
-│  API Layer (lib/smartsuite/api/)                                │
+│  API Layer (lib/smart_suite/api/)                                │
 │  ├─ HttpClient           - HTTP requests, auth                  │
 │  ├─ WorkspaceOperations  - Solutions, usage analysis            │
 │  ├─ TableOperations      - Table CRUD                           │
@@ -53,21 +53,21 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ruby smartsu
 │  ├─ CommentOperations    - Comments                             │
 │  └─ ViewOperations       - Views/reports                        │
 ├─────────────────────────────────────────────────────────────────┤
-│  Cache Layer (lib/smartsuite/cache/)                            │
+│  Cache Layer (lib/smart_suite/cache/)                            │
 │  ├─ Layer       - Core caching, dynamic tables                  │
 │  ├─ Metadata    - TTL config, schema management                 │
 │  ├─ Query       - Chainable SQL query builder                   │
 │  ├─ Performance - Hit/miss tracking                             │
 │  └─ Migrations  - Schema migrations                             │
 ├─────────────────────────────────────────────────────────────────┤
-│  Formatters (lib/smartsuite/formatters/)                        │
+│  Formatters (lib/smart_suite/formatters/)                        │
 │  └─ ResponseFormatter - Plain text output, field filtering      │
 ├─────────────────────────────────────────────────────────────────┤
 │  Supporting                                                     │
 │  ├─ SmartSuiteClient (lib/smartsuite_client.rb) - Includes all  │
 │  ├─ ApiStatsTracker  (lib/api_stats_tracker.rb) - Usage stats   │
-│  ├─ FilterBuilder    (lib/smartsuite/filter_builder.rb)         │
-│  └─ FuzzyMatcher     (lib/smartsuite/fuzzy_matcher.rb)          │
+│  ├─ FilterBuilder    (lib/smart_suite/filter_builder.rb)         │
+│  └─ FuzzyMatcher     (lib/smart_suite/fuzzy_matcher.rb)          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -75,9 +75,9 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ruby smartsu
 
 - `smartsuite_server.rb` - Main entry point
 - `lib/smartsuite_client.rb` - Thin wrapper including all API modules
-- `lib/smartsuite/mcp/tool_registry.rb` - All 26 tool definitions
-- `lib/smartsuite/api/*.rb` - API operations by domain
-- `lib/smartsuite/cache/*.rb` - Caching system components
+- `lib/smart_suite/mcp/tool_registry.rb` - All 26 tool definitions
+- `lib/smart_suite/api/*.rb` - API operations by domain
+- `lib/smart_suite/cache/*.rb` - Caching system components
 
 ---
 
@@ -182,9 +182,9 @@ Query → Check cache validity →
 
 ### Key Cache Files
 
-- `lib/smartsuite/cache/layer.rb` - Core interface
-- `lib/smartsuite/cache/query.rb` - SQL query builder
-- `lib/smartsuite/cache/metadata.rb` - TTL, schema tracking
+- `lib/smart_suite/cache/layer.rb` - Core interface
+- `lib/smart_suite/cache/query.rb` - SQL query builder
+- `lib/smart_suite/cache/metadata.rb` - TTL, schema tracking
 - Database: `~/.smartsuite_mcp_cache.db`
 
 ### Refresh Cache
@@ -200,15 +200,15 @@ refresh_cache('records', table_id: 'tbl_123')
 
 ### Adding a New Tool
 
-1. Add schema to `lib/smartsuite/mcp/tool_registry.rb`
+1. Add schema to `lib/smart_suite/mcp/tool_registry.rb`
 2. Add handler in `smartsuite_server.rb` → `handle_tool_call`
-3. Implement operation in appropriate `lib/smartsuite/api/*_operations.rb`
+3. Implement operation in appropriate `lib/smart_suite/api/*_operations.rb`
 4. Add tests in `test/test_*.rb`
 5. Update docs if user-facing
 
 ### Adding API Operations
 
-1. Create/edit module in `lib/smartsuite/api/`
+1. Create/edit module in `lib/smart_suite/api/`
 2. Ensure included in `SmartSuiteClient`
 3. Use `HttpClient` for requests
 4. Follow error handling pattern
@@ -314,16 +314,16 @@ Types: feat, fix, docs, style, refactor, test, chore
 
 ## File Reference
 
-| File                                         | Purpose                | Lines  |
-| -------------------------------------------- | ---------------------- | ------ |
-| `smartsuite_server.rb`                       | MCP server entry point | ~262   |
-| `lib/smartsuite_client.rb`                   | Client wrapper         | ~30    |
-| `lib/smartsuite/mcp/tool_registry.rb`        | Tool schemas           | ~633   |
-| `lib/smartsuite/mcp/prompt_registry.rb`      | Prompt templates       | ~447   |
-| `lib/smartsuite/api/record_operations.rb`    | Record CRUD            | ~528   |
-| `lib/smartsuite/api/workspace_operations.rb` | Solutions              | ~344   |
-| `lib/smartsuite/cache/layer.rb`              | Core caching           | varies |
-| `lib/smartsuite/cache/query.rb`              | SQL builder            | varies |
+| File                                          | Purpose                | Lines  |
+| --------------------------------------------- | ---------------------- | ------ |
+| `smartsuite_server.rb`                        | MCP server entry point | ~262   |
+| `lib/smartsuite_client.rb`                    | Client wrapper         | ~30    |
+| `lib/smart_suite/mcp/tool_registry.rb`        | Tool schemas           | ~633   |
+| `lib/smart_suite/mcp/prompt_registry.rb`      | Prompt templates       | ~447   |
+| `lib/smart_suite/api/record_operations.rb`    | Record CRUD            | ~528   |
+| `lib/smart_suite/api/workspace_operations.rb` | Solutions              | ~344   |
+| `lib/smart_suite/cache/layer.rb`              | Core caching           | varies |
+| `lib/smart_suite/cache/query.rb`              | SQL builder            | varies |
 
 ---
 

@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
-require 'digest'
-require 'time'
-require 'sqlite3'
-require_relative 'smartsuite/paths'
-require_relative 'smartsuite/cache/schema'
+require "digest"
+require "time"
+require "sqlite3"
+require_relative "smart_suite/paths"
+require_relative "smart_suite/cache/schema"
 
-# ApiStatsTracker tracks API usage statistics in SQLite database
+# APIStatsTracker tracks API usage statistics in SQLite database
 #
 # Stores aggregated statistics and individual API call records for analysis.
 # Now uses the same SQLite database as the cache layer for consolidated storage.
-class ApiStatsTracker
+class APIStatsTracker
   def initialize(api_key, db: nil, session_id: nil)
     @api_key = api_key
     @user_hash = Digest::SHA256.hexdigest(api_key)[0..7]
@@ -35,7 +35,7 @@ class ApiStatsTracker
 
   # Create required tables if they don't exist
   # These are normally created by CacheLayer.setup_metadata_tables, but we need them
-  # if ApiStatsTracker is used standalone without CacheLayer
+  # if APIStatsTracker is used standalone without CacheLayer
   def setup_tables
     # Use centralized schema definitions for API stats tables
     @db.execute_batch(SmartSuite::Cache::Schema.api_stats_tables_sql)
@@ -80,14 +80,14 @@ class ApiStatsTracker
     @db.execute(
       "INSERT INTO api_call_log (user_hash, session_id, method, endpoint, solution_id, table_id, timestamp)
        VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [@user_hash, @session_id, method_name, endpoint, solution_id, table_id, timestamp]
+      [ @user_hash, @session_id, method_name, endpoint, solution_id, table_id, timestamp ]
     )
 
     # Update aggregated stats
     update_aggregated_stats(method_name, endpoint, solution_id, table_id)
   rescue StandardError => e
     # Silently fail - stats tracking should never interrupt user work
-    warn "Stats tracking failed: #{e.message}" if ENV['DEBUG']
+    warn "Stats tracking failed: #{e.message}" if ENV["DEBUG"]
   end
 
   # Get API usage statistics
@@ -101,50 +101,50 @@ class ApiStatsTracker
   #   stats = get_stats(time_range: 'session')
   #   puts stats['summary']['total_calls'] #=> 42
   #   puts stats['cache_stats']['hit_rate'] #=> 85.5
-  def get_stats(time_range: 'all')
+  def get_stats(time_range: "all")
     # Validate time_range parameter
     valid_ranges = %w[session 7d all]
-    time_range = 'all' unless valid_ranges.include?(time_range)
+    time_range = "all" unless valid_ranges.include?(time_range)
 
     # Build time filter SQL
     time_filter = build_time_filter(time_range)
 
-    summary = @db.execute('SELECT * FROM api_stats_summary WHERE user_hash = ?', [@user_hash]).first
+    summary = @db.execute("SELECT * FROM api_stats_summary WHERE user_hash = ?", [ @user_hash ]).first
 
     unless summary
       return {
-        'time_range' => time_range,
-        'summary' => {
-          'total_calls' => 0,
-          'first_call' => nil,
-          'last_call' => nil,
-          'unique_users' => 0,
-          'unique_solutions' => 0,
-          'unique_tables' => 0
+        "time_range" => time_range,
+        "summary" => {
+          "total_calls" => 0,
+          "first_call" => nil,
+          "last_call" => nil,
+          "unique_users" => 0,
+          "unique_solutions" => 0,
+          "unique_tables" => 0
         },
-        'by_method' => {},
-        'by_solution' => {},
-        'by_table' => {},
-        'by_endpoint' => {},
-        'cache_stats' => get_cache_stats(time_filter)
+        "by_method" => {},
+        "by_solution" => {},
+        "by_table" => {},
+        "by_endpoint" => {},
+        "cache_stats" => get_cache_stats(time_filter)
       }
     end
 
     {
-      'time_range' => time_range,
-      'summary' => {
-        'total_calls' => get_call_count_filtered(time_filter),
-        'first_call' => summary['first_call'],
-        'last_call' => summary['last_call'],
-        'unique_users' => get_unique_count('user_hash', time_filter),
-        'unique_solutions' => get_unique_count('solution_id', time_filter),
-        'unique_tables' => get_unique_count('table_id', time_filter)
+      "time_range" => time_range,
+      "summary" => {
+        "total_calls" => get_call_count_filtered(time_filter),
+        "first_call" => summary["first_call"],
+        "last_call" => summary["last_call"],
+        "unique_users" => get_unique_count("user_hash", time_filter),
+        "unique_solutions" => get_unique_count("solution_id", time_filter),
+        "unique_tables" => get_unique_count("table_id", time_filter)
       },
-      'by_method' => get_breakdown_by('method', time_filter),
-      'by_solution' => get_breakdown_by('solution_id', time_filter),
-      'by_table' => get_breakdown_by('table_id', time_filter),
-      'by_endpoint' => get_breakdown_by('endpoint', time_filter),
-      'cache_stats' => get_cache_stats(time_filter)
+      "by_method" => get_breakdown_by("method", time_filter),
+      "by_solution" => get_breakdown_by("solution_id", time_filter),
+      "by_table" => get_breakdown_by("table_id", time_filter),
+      "by_endpoint" => get_breakdown_by("endpoint", time_filter),
+      "cache_stats" => get_cache_stats(time_filter)
     }
   end
 
@@ -159,17 +159,17 @@ class ApiStatsTracker
   # @example Error response
   #   reset_stats #=> {"status" => "error", "message" => "Failed to reset stats: ..."}
   def reset_stats
-    @db.execute('DELETE FROM api_call_log WHERE user_hash = ?', [@user_hash])
-    @db.execute('DELETE FROM api_stats_summary WHERE user_hash = ?', [@user_hash])
+    @db.execute("DELETE FROM api_call_log WHERE user_hash = ?", [ @user_hash ])
+    @db.execute("DELETE FROM api_stats_summary WHERE user_hash = ?", [ @user_hash ])
 
     {
-      'status' => 'success',
-      'message' => 'API statistics have been reset'
+      "status" => "success",
+      "message" => "API statistics have been reset"
     }
   rescue StandardError => e
     {
-      'status' => 'error',
-      'message' => "Failed to reset stats: #{e.message}"
+      "status" => "error",
+      "message" => "Failed to reset stats: #{e.message}"
     }
   end
 
@@ -199,19 +199,19 @@ class ApiStatsTracker
          total_calls = total_calls + 1,
          first_call = COALESCE(first_call, excluded.first_call),
          last_call = excluded.last_call",
-      [@user_hash, timestamp, timestamp]
+      [ @user_hash, timestamp, timestamp ]
     )
   end
 
   def build_time_filter(time_range)
     case time_range
-    when 'session'
+    when "session"
       "AND session_id = '#{@session_id}'"
-    when '7d'
+    when "7d"
       seven_days_ago = (Time.now.utc - (7 * 24 * 60 * 60)).iso8601
       "AND timestamp >= '#{seven_days_ago}'"
     else # 'all'
-      ''
+      ""
     end
   end
 
@@ -220,51 +220,51 @@ class ApiStatsTracker
       "SELECT COUNT(*) as count
        FROM api_call_log
        WHERE user_hash = ? #{time_filter}",
-      [@user_hash]
+      [ @user_hash ]
     ).first
 
-    result ? result['count'] : 0
+    result ? result["count"] : 0
   end
 
-  def get_unique_count(column, time_filter = '')
+  def get_unique_count(column, time_filter = "")
     return 0 if column.nil?
 
     result = @db.execute(
       "SELECT COUNT(DISTINCT #{column}) as count
        FROM api_call_log
        WHERE user_hash = ? AND #{column} IS NOT NULL #{time_filter}",
-      [@user_hash]
+      [ @user_hash ]
     ).first
 
-    result ? result['count'] : 0
+    result ? result["count"] : 0
   end
 
-  def get_breakdown_by(column, time_filter = '')
+  def get_breakdown_by(column, time_filter = "")
     results = @db.execute(
       "SELECT #{column}, COUNT(*) as count
        FROM api_call_log
        WHERE user_hash = ? AND #{column} IS NOT NULL #{time_filter}
        GROUP BY #{column}
        ORDER BY count DESC",
-      [@user_hash]
+      [ @user_hash ]
     )
 
     results.each_with_object({}) do |row, hash|
-      hash[row[column]] = row['count']
+      hash[row[column]] = row["count"]
     end
   end
 
   def get_cache_stats(time_filter)
     # Query cache_performance table for all tables
     perf_results = @db.execute(
-      'SELECT * FROM cache_performance ORDER BY table_id'
+      "SELECT * FROM cache_performance ORDER BY table_id"
     )
 
     return empty_cache_stats if perf_results.empty?
 
     # Calculate overall cache metrics
-    total_hits = perf_results.sum { |r| r['hit_count'] || 0 }
-    total_misses = perf_results.sum { |r| r['miss_count'] || 0 }
+    total_hits = perf_results.sum { |r| r["hit_count"] || 0 }
+    total_misses = perf_results.sum { |r| r["miss_count"] || 0 }
     total_operations = total_hits + total_misses
 
     # Calculate efficiency: cache hits saved API calls
@@ -286,51 +286,51 @@ class ApiStatsTracker
 
     # Build per-table breakdown
     by_table = perf_results.map do |row|
-      table_total = (row['hit_count'] || 0) + (row['miss_count'] || 0)
-      table_hit_rate = table_total.positive? ? ((row['hit_count'] || 0).to_f / table_total * 100).round(2) : 0.0
+      table_total = (row["hit_count"] || 0) + (row["miss_count"] || 0)
+      table_hit_rate = table_total.positive? ? ((row["hit_count"] || 0).to_f / table_total * 100).round(2) : 0.0
 
       {
-        'table_id' => row['table_id'],
-        'hit_count' => row['hit_count'] || 0,
-        'miss_count' => row['miss_count'] || 0,
-        'total_operations' => table_total,
-        'hit_rate' => table_hit_rate,
-        'record_count' => row['record_count'] || 0,
-        'cache_size_bytes' => row['cache_size_bytes'] || 0,
-        'last_access' => row['last_access_time']
+        "table_id" => row["table_id"],
+        "hit_count" => row["hit_count"] || 0,
+        "miss_count" => row["miss_count"] || 0,
+        "total_operations" => table_total,
+        "hit_rate" => table_hit_rate,
+        "record_count" => row["record_count"] || 0,
+        "cache_size_bytes" => row["cache_size_bytes"] || 0,
+        "last_access" => row["last_access_time"]
       }
     end
 
     {
-      'summary' => {
-        'total_cache_hits' => total_hits,
-        'total_cache_misses' => total_misses,
-        'total_cache_operations' => total_operations,
-        'overall_hit_rate' => hit_rate,
-        'api_calls_made' => api_calls_made,
-        'api_calls_saved' => api_calls_saved,
-        'api_calls_without_cache' => api_calls_without_cache,
-        'efficiency_ratio' => efficiency_ratio,
-        'estimated_tokens_saved' => estimated_tokens_saved
+      "summary" => {
+        "total_cache_hits" => total_hits,
+        "total_cache_misses" => total_misses,
+        "total_cache_operations" => total_operations,
+        "overall_hit_rate" => hit_rate,
+        "api_calls_made" => api_calls_made,
+        "api_calls_saved" => api_calls_saved,
+        "api_calls_without_cache" => api_calls_without_cache,
+        "efficiency_ratio" => efficiency_ratio,
+        "estimated_tokens_saved" => estimated_tokens_saved
       },
-      'by_table' => by_table
+      "by_table" => by_table
     }
   end
 
   def empty_cache_stats
     {
-      'summary' => {
-        'total_cache_hits' => 0,
-        'total_cache_misses' => 0,
-        'total_cache_operations' => 0,
-        'overall_hit_rate' => 0.0,
-        'api_calls_made' => 0,
-        'api_calls_saved' => 0,
-        'api_calls_without_cache' => 0,
-        'efficiency_ratio' => 0.0,
-        'estimated_tokens_saved' => 0
+      "summary" => {
+        "total_cache_hits" => 0,
+        "total_cache_misses" => 0,
+        "total_cache_operations" => 0,
+        "overall_hit_rate" => 0.0,
+        "api_calls_made" => 0,
+        "api_calls_saved" => 0,
+        "api_calls_without_cache" => 0,
+        "efficiency_ratio" => 0.0,
+        "estimated_tokens_saved" => 0
       },
-      'by_table' => []
+      "by_table" => []
     }
   end
 
