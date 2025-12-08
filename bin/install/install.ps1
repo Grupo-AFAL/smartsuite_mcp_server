@@ -240,8 +240,9 @@ function Configure-ClaudeDesktop {
             # Add/update smartsuite
             $existing['mcpServers']['smartsuite'] = $newConfig['mcpServers']['smartsuite']
 
-            # Write back with proper formatting
-            $existing | ConvertTo-Json -Depth 10 | Out-File -FilePath $configPath -Encoding utf8
+            # Write back with proper formatting (UTF8 without BOM)
+            $jsonContent = $existing | ConvertTo-Json -Depth 10
+            [System.IO.File]::WriteAllText($configPath, $jsonContent)
             Write-Success "Config updated: $configPath"
         } catch {
             Write-Error "Failed to merge config: $_"
@@ -250,8 +251,8 @@ function Configure-ClaudeDesktop {
             Write-Host $ConfigJson -ForegroundColor Gray
         }
     } else {
-        # File doesn't exist - create it
-        $ConfigJson | Out-File -FilePath $configPath -Encoding utf8
+        # File doesn't exist - create it (UTF8 without BOM)
+        [System.IO.File]::WriteAllText($configPath, $ConfigJson)
         Write-Success "Config created: $configPath"
     }
 }

@@ -23,7 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Uses `-ExecutionPolicy Bypass` to handle script execution policy
     - Uses `cmd.exe /c npx` wrapper to handle spaces in "Program Files" path
     - Passes `--header` and auth value as separate args for mcp-remote
+    - Uses `[System.IO.File]::WriteAllText()` to write UTF-8 without BOM (fixes JSON parsing errors)
   - Documentation: Added Windows troubleshooting section with common issues and solutions
+    - Added fix for "Unexpected token" BOM-related JSON parsing errors
 
 - **Sentry Error Monitoring** - Optional error monitoring integration for production deployments
   - `sentry-rails` gem for automatic error capturing and Rails-specific context
