@@ -1,0 +1,76 @@
+#!/bin/bash
+# Daily PostgreSQL backup to S3
+#
+# This script runs inside the Rails Docker container via Kamal.
+# Schedule with: kamal app exec --reuse "bin/backup-db"
+# Or set up a cron job on EC2 that calls this via docker exec.
+#
+# Required environment variables (BACKUP_ prefix for isolation):
+#   BACKUP_AWS_ACCESS_KEY_ID - AWS credentials for backup IAM user
+#   BACKUP_AWS_SECRET_ACCESS_KEY - AWS credentials for backup IAM user
+#   BACKUP_AWS_REGION - AWS region (e.g., us-east-2)
+#   BACKUP_S3_BUCKET - S3 bucket name for backups
+#   POSTGRES_PASSWORD - Database password
+
+# Export AWS credentials for aws CLI (use BACKUP_ prefixed vars)
+export AWS_ACCESS_KEY_ID="${BACKUP_AWS_ACCESS_KEY_ID}"
+export AWS_SECRET_ACCESS_KEY="${BACKUP_AWS_SECRET_ACCESS_KEY}"
+export AWS_DEFAULT_REGION="${BACKUP_AWS_REGION:-us-east-2}"
+
+set -e
+
+# Configuration
+BACKUP_BUCKET="${BACKUP_S3_BUCKET:-smartsuite-mcp-backups}"
+BACKUP_PREFIX="smartsuite-mcp"
+RETENTION_DAYS=7
+
+# Database connection (Docker network hostname for Kamal accessory)
+DB_HOST="${DB_HOST:-smartsuite-mcp-db}"
+DB_PORT="5432"
+DB_NAME="smartsuite_mcp_production"
+DB_USER="smartsuite_mcp"
+
+# Generate backup filename with timestamp
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="/tmp/${BACKUP_PREFIX}_${TIMESTAMP}.sql.gz"
+
+echo "[$(date)] Starting backup..."
+
+# Dump database (only important tables: users, api_keys, api_calls)
+# Skip cache tables since they can be rebuilt
+PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump \
+  -h "$DB_HOST" \
+  -p "$DB_PORT" \
+  -U "$DB_USER" \
+  -d "$DB_NAME" \
+  --table=users \
+  --table=api_keys \
+  --table=api_calls \
+  --table=schema_migrations \
+  --table=ar_internal_metadata \
+  | gzip > "$BACKUP_FILE"
+
+echo "[$(date)] Backup created: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
+
+# Upload to S3
+aws s3 cp "$BACKUP_FILE" "s3://${BACKUP_BUCKET}/${BACKUP_PREFIX}/${BACKUP_FILE##*/}"
+echo "[$(date)] Uploaded to s3://${BACKUP_BUCKET}/${BACKUP_PREFIX}/"
+
+# Clean up local file
+rm -f "$BACKUP_FILE"
+
+# Delete old backups from S3 (keep last N days)
+echo "[$(date)] Cleaning up backups older than ${RETENTION_DAYS} days..."
+aws s3 ls "s3://${BACKUP_BUCKET}/${BACKUP_PREFIX}/" | while read -r line; do
+  BACKUP_DATE=$(echo "$line" | awk '{print $1}')
+  BACKUP_NAME=$(echo "$line" | awk '{print $4}')
+  if [[ -n "$BACKUP_NAME" ]]; then
+    BACKUP_AGE=$(( ($(date +%s) - $(date -d "$BACKUP_DATE" +%s)) / 86400 ))
+    if [[ $BACKUP_AGE -gt $RETENTION_DAYS ]]; then
+      echo "[$(date)] Deleting old backup: $BACKUP_NAME (${BACKUP_AGE} days old)"
+      aws s3 rm "s3://${BACKUP_BUCKET}/${BACKUP_PREFIX}/${BACKUP_NAME}"
+    fi
+  fi
+done
+
+echo "[$(date)] Backup complete!"

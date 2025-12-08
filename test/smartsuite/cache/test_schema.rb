@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require_relative '../../test_helper'
-require 'sqlite3'
-require_relative '../../../lib/smartsuite/cache/schema'
+require_relative "../../test_helper"
+require "sqlite3"
+require_relative "../../../lib/smart_suite/cache/schema"
 
 # Tests for SmartSuite::Cache::Schema
 class TestCacheSchema < Minitest::Test
   def setup
-    @db = SQLite3::Database.new(':memory:')
+    @db = SQLite3::Database.new(":memory:")
     @db.results_as_hash = true
   end
 
@@ -44,11 +44,11 @@ class TestCacheSchema < Minitest::Test
     @db.execute_batch(SmartSuite::Cache::Schema.api_stats_tables_sql)
 
     indexes = @db.execute("SELECT name FROM sqlite_master WHERE type='index'")
-    index_names = indexes.map { |i| i['name'] }
+    index_names = indexes.map { |i| i["name"] }
 
-    assert_includes index_names, 'idx_api_call_log_user'
-    assert_includes index_names, 'idx_api_call_log_session'
-    assert_includes index_names, 'idx_api_call_log_timestamp'
+    assert_includes index_names, "idx_api_call_log_user"
+    assert_includes index_names, "idx_api_call_log_session"
+    assert_includes index_names, "idx_api_call_log_timestamp"
   end
 
   def test_api_stats_tables_sql_is_idempotent
@@ -134,13 +134,13 @@ class TestCacheSchema < Minitest::Test
     @db.execute_batch(SmartSuite::Cache::Schema.cached_data_tables_sql)
 
     indexes = @db.execute("SELECT name FROM sqlite_master WHERE type='index'")
-    index_names = indexes.map { |i| i['name'] }
+    index_names = indexes.map { |i| i["name"] }
 
-    assert_includes index_names, 'idx_cached_tables_solution'
-    assert_includes index_names, 'idx_cached_tables_expires'
-    assert_includes index_names, 'idx_cached_solutions_expires'
-    assert_includes index_names, 'idx_cached_members_expires'
-    assert_includes index_names, 'idx_cached_teams_expires'
+    assert_includes index_names, "idx_cached_tables_solution"
+    assert_includes index_names, "idx_cached_tables_expires"
+    assert_includes index_names, "idx_cached_solutions_expires"
+    assert_includes index_names, "idx_cached_members_expires"
+    assert_includes index_names, "idx_cached_teams_expires"
   end
 
   # ==============================================================================
@@ -151,23 +151,23 @@ class TestCacheSchema < Minitest::Test
     @db.execute_batch(SmartSuite::Cache::Schema.all_metadata_tables_sql)
 
     tables = @db.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    table_names = tables.map { |t| t['name'] }
+    table_names = tables.map { |t| t["name"] }
 
     # API stats tables
-    assert_includes table_names, 'api_call_log'
-    assert_includes table_names, 'api_stats_summary'
-    assert_includes table_names, 'cache_performance'
+    assert_includes table_names, "api_call_log"
+    assert_includes table_names, "api_stats_summary"
+    assert_includes table_names, "cache_performance"
 
     # Cache registry tables
-    assert_includes table_names, 'cache_table_registry'
-    assert_includes table_names, 'cache_ttl_config'
-    assert_includes table_names, 'cache_stats'
+    assert_includes table_names, "cache_table_registry"
+    assert_includes table_names, "cache_ttl_config"
+    assert_includes table_names, "cache_stats"
 
     # Cached data tables
-    assert_includes table_names, 'cached_solutions'
-    assert_includes table_names, 'cached_tables'
-    assert_includes table_names, 'cached_members'
-    assert_includes table_names, 'cached_teams'
+    assert_includes table_names, "cached_solutions"
+    assert_includes table_names, "cached_tables"
+    assert_includes table_names, "cached_members"
+    assert_includes table_names, "cached_teams"
   end
 
   def test_all_metadata_tables_sql_accepts_custom_ttl

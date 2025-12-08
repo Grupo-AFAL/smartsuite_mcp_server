@@ -671,7 +671,7 @@ deleted_by: user_def456
 
 ## restore_deleted_record
 
-Restore a soft-deleted record back to its table. The record title will have "(Restored)" appended.
+Restore a soft-deleted record back to its table.
 
 ### Parameters
 
@@ -700,7 +700,7 @@ restore_deleted_record(
 === RESTORED RECORD ===
 
 id: rec_68e3d5fb98c0282a4f1e2614
-title: Old Project (Restored)
+title: Old Project
 status: Active
 restored_at: 2025-11-17T12:00:00Z
 [... other fields]
@@ -708,7 +708,6 @@ restored_at: 2025-11-17T12:00:00Z
 
 ### Notes
 
-- **Title suffix:** "(Restored)" is automatically appended to the record title
 - **Full restoration:** All field values are preserved
 - **Cache not updated:** Restored record won't appear in cache until TTL expires
 - **Permissions:** Requires appropriate permissions on the table

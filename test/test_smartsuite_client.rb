@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require_relative 'test_helper'
-require_relative '../lib/smartsuite_client'
+require_relative "test_helper"
+require_relative "../lib/smart_suite_client"
 
 class SmartSuiteClientTest < Minitest::Test
   def setup
-    @api_key = 'test_api_key'
-    @account_id = 'test_account_id'
-    @test_cache_path = File.join(Dir.tmpdir, "smartsuite_client_test_#{Process.pid}_#{rand(10_000)}.db")
+    @api_key = "test_api_key"
+    @account_id = "test_account_id"
+    @test_cache_path = File.join(Dir.tmpdir, "smart_suite_client_test_#{Process.pid}_#{rand(10_000)}.db")
   end
 
   def teardown
@@ -51,11 +51,11 @@ class SmartSuiteClientTest < Minitest::Test
     client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
 
     assert client.stats_tracker
-    assert_instance_of ApiStatsTracker, client.stats_tracker
+    assert_instance_of APIStatsTracker, client.stats_tracker
   end
 
   def test_client_initializes_stats_tracker_with_external_tracker
-    external_tracker = ApiStatsTracker.new(@api_key)
+    external_tracker = APIStatsTracker.new(@api_key)
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false, stats_tracker: external_tracker)
 
     assert_equal external_tracker, client.stats_tracker
@@ -77,10 +77,10 @@ class SmartSuiteClientTest < Minitest::Test
   end
 
   def test_client_uses_custom_session_id
-    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path, session_id: 'custom_session')
+    client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path, session_id: "custom_session")
 
     session_id = client.stats_tracker.instance_variable_get(:@session_id)
-    assert_equal 'custom_session', session_id
+    assert_equal "custom_session", session_id
   end
 
   def test_client_uses_custom_cache_path

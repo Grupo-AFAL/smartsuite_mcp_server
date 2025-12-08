@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'aws-sdk-s3'
-require 'securerandom'
-require_relative 'smartsuite/logger'
+require "aws-sdk-s3"
+require "securerandom"
+require_relative "smart_suite/logger"
 
 # SecureFileAttacher provides a secure way to attach local files to SmartSuite records.
 #
@@ -55,7 +55,7 @@ class SecureFileAttacher
   DEFAULT_FETCH_TIMEOUT = 30
 
   # Default S3 region
-  DEFAULT_REGION = 'us-east-1'
+  DEFAULT_REGION = "us-east-1"
 
   # @return [SmartSuiteClient] the SmartSuite client instance
   attr_reader :client
@@ -93,8 +93,8 @@ class SecureFileAttacher
   #   )
   def initialize(smartsuite_client, bucket_name, region: DEFAULT_REGION, url_expires_in: DEFAULT_URL_EXPIRATION,
                  fetch_timeout: DEFAULT_FETCH_TIMEOUT, profile: nil)
-    raise ArgumentError, 'smartsuite_client cannot be nil' if smartsuite_client.nil?
-    raise ArgumentError, 'bucket_name cannot be nil' if bucket_name.nil?
+    raise ArgumentError, "smartsuite_client cannot be nil" if smartsuite_client.nil?
+    raise ArgumentError, "bucket_name cannot be nil" if bucket_name.nil?
 
     @client = smartsuite_client
     @bucket_name = bucket_name
@@ -155,7 +155,7 @@ class SecureFileAttacher
   def attach_file_securely(table_id, record_id, field_slug, file_paths)
     validate_parameters!(table_id, record_id, field_slug, file_paths)
 
-    file_paths = [file_paths] unless file_paths.is_a?(Array)
+    file_paths = [ file_paths ] unless file_paths.is_a?(Array)
     validate_files_exist!(file_paths)
 
     temp_urls = []
@@ -168,15 +168,15 @@ class SecureFileAttacher
         obj = @bucket.object(key)
         file_size = File.size(path)
 
-        log_s3('UPLOAD', "#{File.basename(path)} (#{format_size(file_size)}) -> s3://#{@bucket_name}/#{key}")
+        log_s3("UPLOAD", "#{File.basename(path)} (#{format_size(file_size)}) -> s3://#{@bucket_name}/#{key}")
 
         # Upload with server-side encryption
         # Using put with File.open instead of deprecated upload_file
-        File.open(path, 'rb') do |file|
-          obj.put(body: file, server_side_encryption: 'AES256')
+        File.open(path, "rb") do |file|
+          obj.put(body: file, server_side_encryption: "AES256")
         end
 
-        log_s3('UPLOAD_COMPLETE', "#{File.basename(path)} uploaded successfully")
+        log_s3("UPLOAD_COMPLETE", "#{File.basename(path)} uploaded successfully")
 
         # Generate short-lived pre-signed URL
         url = obj.presigned_url(:get, expires_in: @url_expires_in)
@@ -184,21 +184,21 @@ class SecureFileAttacher
         temp_urls << url
         temp_objects << obj
 
-        log_s3('PRESIGN', "Generated URL for #{File.basename(path)} (expires in #{@url_expires_in}s)")
+        log_s3("PRESIGN", "Generated URL for #{File.basename(path)} (expires in #{@url_expires_in}s)")
       end
 
-      log_s3('ATTACH', "Sending #{file_paths.length} file(s) to SmartSuite record #{record_id}")
+      log_s3("ATTACH", "Sending #{file_paths.length} file(s) to SmartSuite record #{record_id}")
 
       # Attach to SmartSuite
       result = @client.attach_file(table_id, record_id, field_slug, temp_urls)
 
-      log_s3('ATTACH_COMPLETE', "SmartSuite accepted #{file_paths.length} file(s)")
+      log_s3("ATTACH_COMPLETE", "SmartSuite accepted #{file_paths.length} file(s)")
 
       # Wait for SmartSuite to fetch files
-      log_s3('WAIT', "Waiting #{@fetch_timeout}s for SmartSuite to fetch files...")
+      log_s3("WAIT", "Waiting #{@fetch_timeout}s for SmartSuite to fetch files...")
       wait_for_fetch(temp_objects, timeout: @fetch_timeout)
 
-      log_s3('WAIT_COMPLETE', 'Fetch period complete')
+      log_s3("WAIT_COMPLETE", "Fetch period complete")
 
       result
     ensure
@@ -227,9 +227,9 @@ class SecureFileAttacher
     {
       rules: [
         {
-          id: 'Delete temporary uploads after 1 day',
-          status: 'Enabled',
-          prefix: 'temp-uploads/',
+          id: "Delete temporary uploads after 1 day",
+          status: "Enabled",
+          prefix: "temp-uploads/",
           expiration: {
             days: 1
           }
@@ -242,10 +242,10 @@ class SecureFileAttacher
 
   # Validate required parameters
   def validate_parameters!(table_id, record_id, field_slug, file_paths)
-    raise ArgumentError, 'table_id cannot be nil or empty' if table_id.nil? || table_id.empty?
-    raise ArgumentError, 'record_id cannot be nil or empty' if record_id.nil? || record_id.empty?
-    raise ArgumentError, 'field_slug cannot be nil or empty' if field_slug.nil? || field_slug.empty?
-    raise ArgumentError, 'file_paths cannot be nil or empty' if file_paths.nil? ||
+    raise ArgumentError, "table_id cannot be nil or empty" if table_id.nil? || table_id.empty?
+    raise ArgumentError, "record_id cannot be nil or empty" if record_id.nil? || record_id.empty?
+    raise ArgumentError, "field_slug cannot be nil or empty" if field_slug.nil? || field_slug.empty?
+    raise ArgumentError, "file_paths cannot be nil or empty" if file_paths.nil? ||
                                                                 (file_paths.is_a?(Array) && file_paths.empty?)
   end
 
@@ -297,35 +297,35 @@ class SecureFileAttacher
   def cleanup_temp_files(objects)
     return if objects.empty?
 
-    log_s3('CLEANUP', "Deleting #{objects.length} temporary file(s) from S3")
+    log_s3("CLEANUP", "Deleting #{objects.length} temporary file(s) from S3")
 
     objects.each do |obj|
       obj.delete
-      log_s3('DELETE', "Deleted s3://#{@bucket_name}/#{obj.key}")
+      log_s3("DELETE", "Deleted s3://#{@bucket_name}/#{obj.key}")
     rescue Aws::S3::Errors::NoSuchKey
       # Already deleted, ignore
-      log_s3('DELETE_SKIP', "Already deleted: #{obj.key}")
+      log_s3("DELETE_SKIP", "Already deleted: #{obj.key}")
     rescue Aws::S3::Errors::ServiceError => e
       # Log error but don't fail - lifecycle policy will clean up
       log_error("Failed to delete #{obj.key}: #{e.message}")
     end
 
-    log_s3('CLEANUP_COMPLETE', 'Temporary files cleaned up')
+    log_s3("CLEANUP_COMPLETE", "Temporary files cleaned up")
   end
 
   # Format file size in human-readable format
   def format_size(bytes)
-    return '0 B' if bytes.zero?
+    return "0 B" if bytes.zero?
 
     units = %w[B KB MB GB]
     exp = (Math.log(bytes) / Math.log(1024)).to_i
-    exp = [exp, units.length - 1].min
-    format('%<size>.1f %<unit>s', size: bytes.to_f / (1024**exp), unit: units[exp])
+    exp = [ exp, units.length - 1 ].min
+    format("%<size>.1f %<unit>s", size: bytes.to_f / (1024**exp), unit: units[exp])
   end
 
   # Simple debug logging (can be enhanced with proper logger)
   def log_debug(message)
-    return unless ENV['SECURE_FILE_ATTACHER_DEBUG']
+    return unless ENV["SECURE_FILE_ATTACHER_DEBUG"]
 
     warn "[SecureFileAttacher] #{message}"
   end

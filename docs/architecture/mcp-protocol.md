@@ -653,7 +653,7 @@ rescue => e
 end
 ```
 
-### Tool Registry (`lib/smartsuite/mcp/tool_registry.rb`)
+### Tool Registry (`lib/smart_suite/mcp/tool_registry.rb`)
 
 **Organization:**
 
@@ -700,7 +700,7 @@ end
 }
 ```
 
-### Prompt Registry (`lib/smartsuite/mcp/prompt_registry.rb`)
+### Prompt Registry (`lib/smart_suite/mcp/prompt_registry.rb`)
 
 **Prompt Categories:**
 

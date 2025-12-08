@@ -4,33 +4,33 @@ A Model Context Protocol (MCP) server for SmartSuite that enables AI assistants 
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue)]()
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-93.23%25-brightgreen)]()
-[![Ruby](https://img.shields.io/badge/ruby-3.0+-red)]()
+[![Coverage](https://img.shields.io/badge/coverage-92.78%25-brightgreen)]()
+[![Ruby](https://img.shields.io/badge/ruby-3.4.7-red)]()
+[![Rails](https://img.shields.io/badge/rails-8.1.1-red)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
 
 ## ✨ Features
 
 - **Comprehensive SmartSuite API Coverage** - Solutions, tables, records (including bulk operations), fields, members, comments, views, and deleted records management
-- **Aggressive SQLite Caching** - 4-hour TTL with cache-first strategy (75%+ API call reduction)
+- **Aggressive SQLite Caching** - 12-hour TTL with cache-first strategy (75%+ API call reduction)
 - **Token Optimization** - TOON format responses and filtered structures (60%+ token savings)
 - **Session Tracking** - Monitor API usage by user, solution, table, and endpoint
 - **Smart Filtering** - Local SQL queries on cached data with SmartSuite filter syntax support
+- **Dual Mode Operation** - Run as stdio MCP server or hosted Rails API server
 
 ## 🚀 Quick Start
 
-### One-Liner Installation (Easiest!)
+### Option 1: Stdio MCP Server (Claude Desktop)
 
-Install the SmartSuite MCP server with just one command:
+The traditional MCP server mode communicates via stdin/stdout with Claude Desktop.
 
-#### macOS / Linux
+#### One-Liner Installation (Easiest!)
 
 ```bash
+# macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/Grupo-AFAL/smartsuite_mcp_server/main/bootstrap.sh | bash
-```
 
-#### Windows (PowerShell)
-
-```powershell
+# Windows (PowerShell)
 irm https://raw.githubusercontent.com/Grupo-AFAL/smartsuite_mcp_server/main/bootstrap.ps1 | iex
 ```
 
@@ -45,9 +45,7 @@ irm https://raw.githubusercontent.com/Grupo-AFAL/smartsuite_mcp_server/main/boot
 
 Just restart Claude Desktop when done!
 
-### Alternative: Manual Clone + Script
-
-If you prefer to clone the repository yourself first:
+#### Alternative: Manual Clone + Script
 
 ```bash
 # Clone the repository
@@ -59,48 +57,70 @@ cd smartsuite_mcp_server
 .\install.ps1         # Windows
 ```
 
+### Option 2: Hosted Rails Server (Multi-User API)
+
+The hosted mode runs as a Rails API server with PostgreSQL, supporting multiple users and API key authentication.
+
+#### Prerequisites
+
+- Ruby 3.4.7+
+- PostgreSQL
+- Redis (optional, for caching)
+
+#### Setup
+
+```bash
+# Clone and install
+git clone https://github.com/Grupo-AFAL/smartsuite_mcp_server.git
+cd smartsuite_mcp_server
+bundle install
+
+# Setup database
+bin/rails db:create db:migrate
+
+# Start server
+bin/rails server
+```
+
+#### Environment Variables
+
+```bash
+# Required for hosted mode
+DATABASE_URL=postgres://user:pass@localhost/smartsuite_mcp
+RAILS_MASTER_KEY=your_master_key
+
+# SmartSuite credentials (can be per-user via API)
+SMARTSUITE_API_KEY=your_api_key
+SMARTSUITE_ACCOUNT_ID=your_account_id
+```
+
+#### Deployment with Kamal
+
+The server includes Kamal configuration for easy deployment:
+
+```bash
+# Copy example config
+cp config/deploy.yml.example config/deploy.yml
+
+# Edit with your settings
+# - DEPLOY_SERVER_IP
+# - DEPLOY_HOST
+# - KAMAL_REGISTRY_USERNAME
+
+# Deploy
+kamal setup
+kamal deploy
+```
+
+See [Deployment Guide](docs/deployment/kamal.md) for detailed instructions.
+
 ### Get API Credentials
 
-Before running the install script, get your SmartSuite credentials:
+Before installation, get your SmartSuite credentials:
 
 1. Log in to [SmartSuite](https://app.smartsuite.com)
 2. Go to Settings → API
 3. Generate an API key and note your Account ID
-
-### Manual Installation (Alternative)
-
-If you prefer to install manually or the automated script doesn't work for your setup:
-
-```bash
-# Clone the repository
-git clone https://github.com/Grupo-AFAL/smartsuite_mcp_server.git
-cd smartsuite_mcp_server
-
-# Install dependencies
-bundle install
-
-# Make server executable
-chmod +x smartsuite_server.rb
-```
-
-Then manually add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "smartsuite": {
-      "command": "ruby",
-      "args": ["/path/to/smartsuite_mcp_server/smartsuite_server.rb"],
-      "env": {
-        "SMARTSUITE_API_KEY": "your_api_key",
-        "SMARTSUITE_ACCOUNT_ID": "your_account_id"
-      }
-    }
-  }
-}
-```
-
-**Note:** Replace `/path/to/smartsuite_mcp_server/` with the actual path where you cloned the repository.
 
 ## 📚 Documentation
 
@@ -152,6 +172,19 @@ refresh_cache('records', table_id: 'table_abc123')
 
 See [examples/](docs/examples/) for more usage patterns.
 
+## 🧪 Testing
+
+```bash
+# Run all unit tests
+bundle exec rake test
+
+# Run integration tests (requires API credentials)
+bundle exec rake test:integration
+
+# Run with verbose output
+bundle exec rake test TESTOPTS="-v"
+```
+
 ## 🛠️ Utility Scripts
 
 The server includes CLI utility scripts for administrative and batch operations:
@@ -185,8 +218,9 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## 📋 Project Status
 
-- **Current Version:** 1.8.0
-- **Development:** v2.0 in progress (token optimization & installation ease)
+- **Current Version:** 2.0.0
+- **Ruby:** 3.4.7
+- **Rails:** 8.1.1 (hosted mode)
 - **Roadmap:** See [ROADMAP.md](ROADMAP.md)
 - **Changelog:** See [CHANGELOG.md](CHANGELOG.md)
 
