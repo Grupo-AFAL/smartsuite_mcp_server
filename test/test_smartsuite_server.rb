@@ -3183,36 +3183,36 @@ class SmartSuiteServerTest < Minitest::Test
       logo_color_param = logo_color
       format_param = format
       {
-        'id' => 'sol_new_123',
-        'name' => name,
-        'logo_icon' => logo_icon,
-        'logo_color' => logo_color
+        "id" => "sol_new_123",
+        "name" => name,
+        "logo_icon" => logo_icon,
+        "logo_color" => logo_color
       }
     end
 
     request = {
-      'id' => 200,
-      'method' => 'tools/call',
-      'params' => {
-        'name' => 'create_solution',
-        'arguments' => {
-          'name' => 'Test Solution',
-          'logo_icon' => 'folder',
-          'logo_color' => '#3A86FF'
+      "id" => 200,
+      "method" => "tools/call",
+      "params" => {
+        "name" => "create_solution",
+        "arguments" => {
+          "name" => "Test Solution",
+          "logo_icon" => "folder",
+          "logo_color" => "#3A86FF"
         }
       }
     }
 
     response = call_private_method(:handle_tool_call, request)
 
-    assert create_called, 'create_solution should be called'
-    assert_equal 'Test Solution', name_param
-    assert_equal 'folder', logo_icon_param
-    assert_equal '#3A86FF', logo_color_param
+    assert create_called, "create_solution should be called"
+    assert_equal "Test Solution", name_param
+    assert_equal "folder", logo_icon_param
+    assert_equal "#3A86FF", logo_color_param
     assert_equal :toon, format_param
-    assert_equal '2.0', response['jsonrpc']
-    assert_equal 200, response['id']
-    assert response['result']['content']
+    assert_equal "2.0", response["jsonrpc"]
+    assert_equal 200, response["id"]
+    assert response["result"]["content"]
   end
 
   def test_handle_tool_call_create_solution_with_json_format
@@ -3222,44 +3222,44 @@ class SmartSuiteServerTest < Minitest::Test
 
     client.define_singleton_method(:create_solution) do |_name, _logo_icon, _logo_color, format: :toon|
       format_param = format
-      { 'id' => 'sol_123', 'name' => 'Test' }
+      { "id" => "sol_123", "name" => "Test" }
     end
 
     request = {
-      'id' => 201,
-      'method' => 'tools/call',
-      'params' => {
-        'name' => 'create_solution',
-        'arguments' => {
-          'name' => 'Test',
-          'logo_icon' => 'star',
-          'logo_color' => '#FF5757',
-          'format' => 'json'
+      "id" => 201,
+      "method" => "tools/call",
+      "params" => {
+        "name" => "create_solution",
+        "arguments" => {
+          "name" => "Test",
+          "logo_icon" => "star",
+          "logo_color" => "#FF5757",
+          "format" => "json"
         }
       }
     }
 
     call_private_method(:handle_tool_call, request)
 
-    assert_equal :json, format_param, 'Should pass json format to client'
+    assert_equal :json, format_param, "Should pass json format to client"
   end
 
   def test_tools_list_includes_create_solution
     request = {
-      'id' => 202,
-      'method' => 'tools/list',
-      'params' => {}
+      "id" => 202,
+      "method" => "tools/list",
+      "params" => {}
     }
 
     response = call_private_method(:handle_tools_list, request)
 
-    tool_names = response['result']['tools'].map { |t| t['name'] }
-    assert_includes tool_names, 'create_solution', 'Should include create_solution tool'
+    tool_names = response["result"]["tools"].map { |t| t["name"] }
+    assert_includes tool_names, "create_solution", "Should include create_solution tool"
 
-    tool = response['result']['tools'].find { |t| t['name'] == 'create_solution' }
-    assert tool['inputSchema']['properties']['name'], 'Should have name parameter'
-    assert tool['inputSchema']['properties']['logo_icon'], 'Should have logo_icon parameter'
-    assert tool['inputSchema']['properties']['logo_color'], 'Should have logo_color parameter'
-    assert_equal %w[name logo_icon logo_color], tool['inputSchema']['required'], 'All three should be required'
+    tool = response["result"]["tools"].find { |t| t["name"] == "create_solution" }
+    assert tool["inputSchema"]["properties"]["name"], "Should have name parameter"
+    assert tool["inputSchema"]["properties"]["logo_icon"], "Should have logo_icon parameter"
+    assert tool["inputSchema"]["properties"]["logo_color"], "Should have logo_color parameter"
+    assert_equal %w[name logo_icon logo_color], tool["inputSchema"]["required"], "All three should be required"
   end
 end
