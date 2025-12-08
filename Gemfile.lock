@@ -380,6 +380,7 @@ DEPENDENCIES
   rubocop
   rubocop-rails-omakase
   sentry-rails
+  sentry-ruby
   simplecov
   sqlite3
   thruster
