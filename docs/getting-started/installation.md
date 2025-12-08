@@ -2,6 +2,69 @@
 
 Complete installation instructions for SmartSuite MCP Server.
 
+## Quick Install (Recommended)
+
+The easiest way to get started is using our automated installation scripts.
+
+### Option A: Connect to Hosted Server (Remote Mode)
+
+If you have access to a hosted SmartSuite MCP server, use this mode:
+
+**macOS/Linux:**
+
+```bash
+curl -fsSL 'https://your-server.com/install.sh' | bash -s -- remote 'https://your-server.com/mcp' 'YOUR_API_KEY'
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iwr -useb 'https://your-server.com/install.ps1' -OutFile install.ps1; .\install.ps1 remote 'https://your-server.com/mcp' 'YOUR_API_KEY'
+```
+
+### Option B: Run Server Locally (Local Mode)
+
+For full control or offline capability, run the server on your machine:
+
+**macOS/Linux:**
+
+```bash
+curl -fsSL 'https://your-server.com/install.sh' | bash -s -- local
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iwr -useb 'https://your-server.com/install.ps1' -OutFile install.ps1; .\install.ps1 local
+```
+
+The installer will:
+1. Check for and install Node.js (remote) or Ruby (local) if needed
+2. Download and configure the MCP server
+3. Generate Claude Desktop configuration
+4. Optionally create the config file for you
+
+### Web-Based Install Page
+
+If your server provides a web interface, visit `/install` for a guided setup experience with OS detection and copy-paste commands.
+
+### Local vs Remote Mode Comparison
+
+| Feature | Local Mode | Remote Mode |
+|---------|------------|-------------|
+| **Requirements** | Ruby 3.0+ | Node.js (npx) |
+| **SmartSuite credentials** | Your own API key | Server API key |
+| **Cache location** | Local SQLite | Server PostgreSQL |
+| **Offline support** | Yes (cached data) | No |
+| **Best for** | Single user, full control | Teams, managed setup |
+| **Setup complexity** | Medium | Easy |
+
+---
+
+## Manual Installation
+
+If you prefer manual installation or the scripts don't work for your environment, follow these steps.
+
 ## Prerequisites
 
 ### System Requirements
