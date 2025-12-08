@@ -170,6 +170,40 @@ module SmartSuite
             },
             "required" => [ "solution_id" ]
           }
+        },
+        {
+          'name' => 'create_solution',
+          'description' => 'Create a new solution (workspace container for tables) in SmartSuite.
+
+**Required Parameters:**
+- `name`: The name for the new solution
+- `logo_icon`: Material Design icon name (e.g., "folder", "calendar", "star", "home")
+- `logo_color`: Hex color from the valid colors list
+
+**Valid Solution Colors:**
+```
+Primary: #3A86FF (blue), #4ECCFD (light blue), #3EAC40 (green), #FF5757 (red), #FF9210 (orange), #FFB938 (yellow), #883CD0 (purple), #EC506E (pink), #17C4C4 (teal), #6A849B (grey)
+Dark: #0C41F3 (blue), #00B3FA (light blue), #199A27 (green), #F1273F (red), #FF702E (orange), #FDA80D (yellow), #673DB6 (purple), #CD286A (pink), #00B2A8 (teal), #50515B (grey)
+```',
+          'inputSchema' => {
+            'type' => 'object',
+            'properties' => {
+              'name' => {
+                'type' => 'string',
+                'description' => 'Name of the new solution'
+              },
+              'logo_icon' => {
+                'type' => 'string',
+                'description' => 'Material Design icon name (e.g., "folder", "calendar", "star", "home", "work", "settings")'
+              },
+              'logo_color' => {
+                'type' => 'string',
+                'description' => 'Hex color for the solution icon. Must be one of the valid colors: #3A86FF, #4ECCFD, #3EAC40, #FF5757, #FF9210, #FFB938, #883CD0, #EC506E, #17C4C4, #6A849B, #0C41F3, #00B3FA, #199A27, #F1273F, #FF702E, #FDA80D, #673DB6, #CD286A, #00B2A8, #50515B'
+              },
+              'format' => SCHEMA_FORMAT
+            },
+            'required' => %w[name logo_icon logo_color]
+          }
         }
       ].freeze
 
@@ -959,7 +993,7 @@ Output: {"data": {"type": "doc", "content": [...]}}
       ].freeze
 
       # All tools combined into a single array for MCP protocol responses
-      # Total: 35 tools across 9 categories (4 workspace, 3 table, 12 record, 4 field, 4 member, 2 comment, 2 view, 4 stats, 1 utility)
+      # Total: 36 tools across 9 categories (5 workspace, 3 table, 12 record, 4 field, 4 member, 2 comment, 2 view, 4 stats, 1 utility)
       ALL_TOOLS = (WORKSPACE_TOOLS + TABLE_TOOLS + RECORD_TOOLS + FIELD_TOOLS + MEMBER_TOOLS + COMMENT_TOOLS + VIEW_TOOLS + STATS_TOOLS + UTILITY_TOOLS).freeze
 
       # Generates a JSON-RPC 2.0 response for the tools/list MCP method.

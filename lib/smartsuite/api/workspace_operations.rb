@@ -18,6 +18,14 @@ module SmartSuite
     module WorkspaceOperations
       include Base
 
+      # Valid hex colors for solution logos (from SmartSuite API documentation)
+      VALID_SOLUTION_COLORS = %w[
+        #3A86FF #4ECCFD #3EAC40 #FF5757 #FF9210
+        #FFB938 #883CD0 #EC506E #17C4C4 #6A849B
+        #0C41F3 #00B3FA #199A27 #F1273F #FF702E
+        #FDA80D #673DB6 #CD286A #00B2A8 #50515B
+      ].freeze
+
       # Lists all solutions in the workspace.
       #
       # Filters response to only include essential fields (id, name, logo) by default.
@@ -154,6 +162,60 @@ module SmartSuite
 
         api_request(:get, "/solutions/#{solution_id}/")
       end
+
+      # Creates a new solution in the workspace.
+      #
+      # @param name [String] Name of the solution (required)
+      # @param logo_icon [String] Material Design icon name (required)
+      # @param logo_color [String] Hex color for the icon (required, must be from valid colors list)
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Hash] Created solution data in requested format
+      # @raise [ArgumentError] If required parameters are missing or logo_color is invalid
+      # @example Create a new solution
+      #   create_solution('My Project', 'folder', '#3A86FF')
+      #
+      # @example With explicit format
+      #   create_solution('My Project', 'folder', '#3A86FF', format: :json)
+      def create_solution(name, logo_icon, logo_color, format: :toon)
+        validate_required_parameter!('name', name)
+        validate_required_parameter!('logo_icon', logo_icon)
+        validate_required_parameter!('logo_color', logo_color)
+
+        # Normalize color format (ensure uppercase with #)
+        normalized_color = normalize_color(logo_color)
+
+        # Validate color is in allowed list
+        unless VALID_SOLUTION_COLORS.include?(normalized_color)
+          raise ArgumentError, "Invalid logo_color '#{logo_color}'. Must be one of: #{VALID_SOLUTION_COLORS.join(', ')}"
+        end
+
+        body = {
+          'name' => name,
+          'logo_icon' => logo_icon,
+          'logo_color' => normalized_color
+        }
+
+        response = api_request(:post, '/solutions/', body)
+
+        # Invalidate solutions cache since we created a new one
+        @cache.invalidate_solutions_cache if cache_enabled?
+
+        format_single_response(response, format)
+      end
+
+      private
+
+      # Normalizes a color string to uppercase hex format with # prefix.
+      #
+      # @param color [String] Color in various formats (with/without #, any case)
+      # @return [String] Normalized color (uppercase with #)
+      def normalize_color(color)
+        color = color.to_s.strip
+        color = "##{color}" unless color.start_with?('#')
+        color.upcase
+      end
+
+      public
 
       # Lists solutions owned by a specific user.
       #
