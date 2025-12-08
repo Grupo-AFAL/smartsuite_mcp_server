@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Generates Claude Desktop configuration automatically
   - Web-based installation page at `/install` with OS detection
   - Scripts available at `/install.sh` and `/install.ps1` endpoints
+  - Windows-specific fixes:
+    - Uses `-ExecutionPolicy Bypass` to handle script execution policy
+    - Uses `cmd.exe /c npx` wrapper to handle spaces in "Program Files" path
+    - Passes `--header` and auth value as separate args for mcp-remote
+  - Documentation: Added Windows troubleshooting section with common issues and solutions
 
 - **Sentry Error Monitoring** - Optional error monitoring integration for production deployments
   - `sentry-rails` gem for automatic error capturing and Rails-specific context
