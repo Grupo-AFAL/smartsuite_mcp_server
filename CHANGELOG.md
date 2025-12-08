@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Sentry Error Monitoring** - Optional error monitoring integration for production deployments
+  - `sentry-rails` gem for automatic error capturing and Rails-specific context
+  - Performance monitoring with configurable sample rates (10% by default)
+  - Breadcrumbs for ActiveSupport and HTTP requests
+  - Only enabled in production environment
+  - Configure via `SENTRY_DSN` environment variable
+
 - **Rails Hosted Server Mode** - New deployment option for multi-user hosted environments
 
   - Rails 8.0 API-only application for Streamable HTTP transport (MCP specification 2025-06-18)

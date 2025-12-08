@@ -60,6 +60,8 @@ env:
     - BACKUP_AWS_SECRET_ACCESS_KEY
     - BACKUP_AWS_REGION
     - BACKUP_S3_BUCKET
+    # Error monitoring (optional)
+    - SENTRY_DSN
 
 # SSH configuration
 ssh:

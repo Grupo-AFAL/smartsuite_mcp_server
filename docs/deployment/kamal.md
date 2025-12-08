@@ -108,6 +108,9 @@ BACKUP_AWS_ACCESS_KEY_ID=<backup_iam_user_key>
 BACKUP_AWS_SECRET_ACCESS_KEY=<backup_iam_user_secret>
 BACKUP_AWS_REGION=us-east-2
 BACKUP_S3_BUCKET=<your_backup_bucket>
+
+# Error Monitoring (optional)
+SENTRY_DSN=https://xxxx@xxxx.ingest.sentry.io/xxxx
 ```
 
 Generate a secure password:
