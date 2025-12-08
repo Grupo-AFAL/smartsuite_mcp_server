@@ -51,11 +51,11 @@ class SmartSuiteClientTest < Minitest::Test
     client = SmartSuiteClient.new(@api_key, @account_id, cache_path: @test_cache_path)
 
     assert client.stats_tracker
-    assert_instance_of ApiStatsTracker, client.stats_tracker
+    assert_instance_of APIStatsTracker, client.stats_tracker
   end
 
   def test_client_initializes_stats_tracker_with_external_tracker
-    external_tracker = ApiStatsTracker.new(@api_key)
+    external_tracker = APIStatsTracker.new(@api_key)
     client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false, stats_tracker: external_tracker)
 
     assert_equal external_tracker, client.stats_tracker

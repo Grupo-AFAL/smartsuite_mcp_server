@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class ApiCall < ApplicationRecord
+class APICall < ApplicationRecord
   belongs_to :user
 
   validates :tool_name, presence: true

@@ -66,7 +66,7 @@ class SmartSuiteClient
   #     client.cache.cache_valid?('tbl_123')
   #
   # @!attribute [r] stats_tracker
-  #   @return [ApiStatsTracker, nil] API statistics tracker instance
+  #   @return [APIStatsTracker, nil] API statistics tracker instance
   #   @example Get API stats
   #     stats = client.stats_tracker.get_api_stats
   attr_reader :cache, :stats_tracker
@@ -79,7 +79,7 @@ class SmartSuiteClient
   #
   # @param api_key [String] SmartSuite API key for authentication
   # @param account_id [String] SmartSuite account ID
-  # @param stats_tracker [ApiStatsTracker, nil] Optional external stats tracker (used when cache disabled)
+  # @param stats_tracker [APIStatsTracker, nil] Optional external stats tracker (used when cache disabled)
   # @param cache_enabled [Boolean] Enable SQLite-based caching (default: true)
   # @param cache_path [String, nil] Custom path for cache database (default: ~/.smartsuite_mcp_cache.db)
   # @param cache [Object, nil] Custom cache adapter instance (overrides cache_enabled/cache_path)
@@ -122,7 +122,7 @@ class SmartSuiteClient
       SmartSuite::Logger.metric("✓ Session ID: #{@session_id}")
 
       # Initialize stats tracker to use same database as cache with session tracking
-      @stats_tracker = ApiStatsTracker.new(api_key, db: @cache.db, session_id: @session_id)
+      @stats_tracker = APIStatsTracker.new(api_key, db: @cache.db, session_id: @session_id)
       SmartSuite::Logger.metric("✓ Stats tracker sharing cache database")
     else
       @cache = nil

@@ -4,7 +4,7 @@ require_relative "test_helper"
 require_relative "../lib/api_stats_tracker"
 require "fileutils"
 
-class TestApiStatsTracker < Minitest::Test
+class TestAPIStatsTracker < Minitest::Test
   def setup
     @test_db_path = File.join(Dir.tmpdir, "test_stats_tracker_#{rand(100_000)}.db")
     @db = SQLite3::Database.new(@test_db_path)
@@ -53,7 +53,7 @@ class TestApiStatsTracker < Minitest::Test
   # ========== Initialization tests ==========
 
   def test_initialization_with_shared_db
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     assert tracker.instance_variable_get(:@db), "Should have database"
     refute tracker.instance_variable_get(:@owns_db), "Should not own shared db"
@@ -64,7 +64,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_initialization_with_own_db
-    tracker = ApiStatsTracker.new("test_key")
+    tracker = APIStatsTracker.new("test_key")
 
     assert tracker.instance_variable_get(:@db), "Should have database"
     assert tracker.instance_variable_get(:@owns_db), "Should own db"
@@ -73,7 +73,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_initialization_with_custom_session_id
-    tracker = ApiStatsTracker.new("test_key", db: @db, session_id: "custom_session")
+    tracker = APIStatsTracker.new("test_key", db: @db, session_id: "custom_session")
 
     assert_equal "custom_session", tracker.instance_variable_get(:@session_id)
   end
@@ -81,7 +81,7 @@ class TestApiStatsTracker < Minitest::Test
   # ========== Session ID generation tests ==========
 
   def test_generate_session_id_format
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
     session_id = tracker.generate_session_id
 
     # Should match format: YYYYMMDD_HHMMSS_random
@@ -89,7 +89,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_generate_session_id_uniqueness
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     ids = 10.times.map { tracker.generate_session_id }
 
@@ -100,7 +100,7 @@ class TestApiStatsTracker < Minitest::Test
   # ========== Tracking tests ==========
 
   def test_track_api_call_stores_data
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     tracker.track_api_call(:get, "/api/v1/solutions/")
 
@@ -112,7 +112,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_track_api_call_extracts_solution_id
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     tracker.track_api_call(:get, "/api/v1/solutions/sol_abc123/")
 
@@ -121,7 +121,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_track_api_call_extracts_table_id
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     tracker.track_api_call(:post, "/api/v1/applications/tbl_xyz789/records/list/")
 
@@ -130,7 +130,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_track_api_call_updates_summary
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     tracker.track_api_call(:get, "/api/v1/solutions/")
     tracker.track_api_call(:post, "/api/v1/solutions/")
@@ -144,7 +144,7 @@ class TestApiStatsTracker < Minitest::Test
   # ========== Get stats tests ==========
 
   def test_get_stats_empty
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     stats = tracker.get_stats
 
@@ -154,7 +154,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_get_stats_with_data
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     tracker.track_api_call(:get, "/api/v1/solutions/")
     tracker.track_api_call(:post, "/api/v1/applications/tbl_1/records/")
@@ -169,7 +169,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_get_stats_with_session_filter
-    tracker = ApiStatsTracker.new("test_key", db: @db, session_id: "session_1")
+    tracker = APIStatsTracker.new("test_key", db: @db, session_id: "session_1")
 
     tracker.track_api_call(:get, "/api/v1/solutions/")
 
@@ -180,7 +180,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_get_stats_with_7d_filter
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     tracker.track_api_call(:get, "/api/v1/solutions/")
 
@@ -192,7 +192,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_get_stats_with_invalid_time_range
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     stats = tracker.get_stats(time_range: "invalid")
 
@@ -203,7 +203,7 @@ class TestApiStatsTracker < Minitest::Test
   # ========== Reset stats tests ==========
 
   def test_reset_stats_success
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     tracker.track_api_call(:get, "/api/v1/solutions/")
     result = tracker.reset_stats
@@ -217,7 +217,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_reset_stats_handles_errors
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     # Drop tables to cause an error
     @db.execute("DROP TABLE api_call_log")
@@ -231,7 +231,7 @@ class TestApiStatsTracker < Minitest::Test
   # ========== Cache stats tests ==========
 
   def test_get_cache_stats_empty
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     stats = tracker.get_stats
 
@@ -244,7 +244,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_get_cache_stats_with_data
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     # Insert cache performance data
     @db.execute(
@@ -272,7 +272,7 @@ class TestApiStatsTracker < Minitest::Test
   # ========== Close tests ==========
 
   def test_close_closes_owned_db
-    tracker = ApiStatsTracker.new("test_key")
+    tracker = APIStatsTracker.new("test_key")
     tracker.instance_variable_get(:@db)
 
     tracker.close
@@ -282,7 +282,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_close_does_not_close_shared_db
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     tracker.close
 
@@ -294,7 +294,7 @@ class TestApiStatsTracker < Minitest::Test
   # ========== Error handling tests ==========
 
   def test_track_api_call_handles_errors_silently
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     # Drop the table to cause an error
     @db.execute("DROP TABLE api_call_log")
@@ -306,8 +306,8 @@ class TestApiStatsTracker < Minitest::Test
   # ========== User hash tests ==========
 
   def test_user_hash_is_consistent
-    tracker1 = ApiStatsTracker.new("same_key", db: @db)
-    tracker2 = ApiStatsTracker.new("same_key", db: @db)
+    tracker1 = APIStatsTracker.new("same_key", db: @db)
+    tracker2 = APIStatsTracker.new("same_key", db: @db)
 
     hash1 = tracker1.instance_variable_get(:@user_hash)
     hash2 = tracker2.instance_variable_get(:@user_hash)
@@ -316,8 +316,8 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_user_hash_is_different_for_different_keys
-    tracker1 = ApiStatsTracker.new("key_one", db: @db)
-    tracker2 = ApiStatsTracker.new("key_two", db: @db)
+    tracker1 = APIStatsTracker.new("key_one", db: @db)
+    tracker2 = APIStatsTracker.new("key_two", db: @db)
 
     hash1 = tracker1.instance_variable_get(:@user_hash)
     hash2 = tracker2.instance_variable_get(:@user_hash)
@@ -328,7 +328,7 @@ class TestApiStatsTracker < Minitest::Test
   # ========== Extract ID tests ==========
 
   def test_extract_solution_id_from_endpoint
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     # Test various endpoint patterns
     assert_equal "sol_123", tracker.send(:extract_solution_id, "/solutions/sol_123/")
@@ -338,7 +338,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_extract_table_id_from_endpoint
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     # Test various endpoint patterns
     assert_equal "tbl_123", tracker.send(:extract_table_id, "/applications/tbl_123/")
@@ -350,7 +350,7 @@ class TestApiStatsTracker < Minitest::Test
   # ========== Breakdown tests ==========
 
   def test_get_breakdown_by_with_multiple_values
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     # Track multiple calls
     tracker.track_api_call(:get, "/api/v1/solutions/sol_1/")
@@ -365,7 +365,7 @@ class TestApiStatsTracker < Minitest::Test
   end
 
   def test_get_unique_count
-    tracker = ApiStatsTracker.new("test_key", db: @db)
+    tracker = APIStatsTracker.new("test_key", db: @db)
 
     # Track calls with different solutions
     tracker.track_api_call(:get, "/api/v1/solutions/sol_1/")

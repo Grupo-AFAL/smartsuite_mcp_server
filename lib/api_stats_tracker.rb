@@ -6,11 +6,11 @@ require "sqlite3"
 require_relative "smart_suite/paths"
 require_relative "smart_suite/cache/schema"
 
-# ApiStatsTracker tracks API usage statistics in SQLite database
+# APIStatsTracker tracks API usage statistics in SQLite database
 #
 # Stores aggregated statistics and individual API call records for analysis.
 # Now uses the same SQLite database as the cache layer for consolidated storage.
-class ApiStatsTracker
+class APIStatsTracker
   def initialize(api_key, db: nil, session_id: nil)
     @api_key = api_key
     @user_hash = Digest::SHA256.hexdigest(api_key)[0..7]
@@ -35,7 +35,7 @@ class ApiStatsTracker
 
   # Create required tables if they don't exist
   # These are normally created by CacheLayer.setup_metadata_tables, but we need them
-  # if ApiStatsTracker is used standalone without CacheLayer
+  # if APIStatsTracker is used standalone without CacheLayer
   def setup_tables
     # Use centralized schema definitions for API stats tables
     @db.execute_batch(SmartSuite::Cache::Schema.api_stats_tables_sql)

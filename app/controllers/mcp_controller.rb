@@ -6,7 +6,7 @@
 # Supports two authentication modes (configured via AUTH_MODE env var):
 # - "remote": API key authentication via database (multi-user hosted mode)
 # - "local": Environment variable authentication (single-user standalone mode)
-class McpController < ApplicationController
+class MCPController < ApplicationController
   include ActionController::Live
 
   before_action :authenticate!
@@ -19,7 +19,7 @@ class McpController < ApplicationController
     request_body = JSON.parse(request.body.read)
 
     start_time = Time.current
-    handler = McpHandler.new(current_user)
+    handler = MCPHandler.new(current_user)
     result = handler.process(request_body)
     duration_ms = ((Time.current - start_time) * 1000).round
 
@@ -90,7 +90,7 @@ class McpController < ApplicationController
   # Used for multi-user hosted deployments
   def authenticate_remote!
     token = extract_token
-    api_key = ApiKey.authenticate(token)
+    api_key = APIKey.authenticate(token)
 
     unless api_key
       render json: { error: "Invalid or missing API key" }, status: :unauthorized
@@ -150,7 +150,7 @@ class McpController < ApplicationController
     # Get cache hit status from thread-local tracking in PostgresLayer
     cache_hit = Cache::PostgresLayer.cache_hit_for_request?
 
-    ApiCall.create(
+    APICall.create(
       user: current_user,
       tool_name: tool_name,
       cache_hit: cache_hit,
