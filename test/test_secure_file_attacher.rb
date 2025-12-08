@@ -3,7 +3,7 @@
 require_relative "test_helper"
 require "webmock/minitest"
 require "tempfile"
-require_relative "../lib/smartsuite_client"
+require_relative "../lib/smart_suite_client"
 
 # Try to load SecureFileAttacher - skip all tests if aws-sdk-s3 not installed
 begin
@@ -56,7 +56,7 @@ class TestSecureFileAttacher < Minitest::Test
   # Initialization tests
   # ==============================================================================
 
-  def test_initialize_requires_smartsuite_client
+  def test_initialize_requires_smart_suite_client
     error = assert_raises(ArgumentError) do
       SecureFileAttacher.new(nil, @bucket_name)
     end

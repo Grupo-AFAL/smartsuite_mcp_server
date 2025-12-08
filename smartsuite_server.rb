@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 require 'json'
-require_relative 'lib/smartsuite_client'
+require_relative 'lib/smart_suite_client'
 require_relative 'lib/api_stats_tracker'
 require_relative 'lib/smartsuite/logger'
 require_relative 'lib/smartsuite/mcp/tool_registry'

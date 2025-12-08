@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../test_helper"
-require_relative "../../../lib/smartsuite_client"
+require_relative "../../../lib/smart_suite_client"
 
 class TestFieldOperations < Minitest::Test
   def setup

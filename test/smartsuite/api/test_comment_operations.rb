@@ -2,7 +2,7 @@
 
 require_relative "../../test_helper"
 require "net/http"
-require_relative "../../../lib/smartsuite_client"
+require_relative "../../../lib/smart_suite_client"
 
 class TestCommentOperations < Minitest::Test
   def setup

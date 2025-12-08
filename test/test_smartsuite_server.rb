@@ -3,7 +3,7 @@
 require_relative "test_helper"
 require "webmock/minitest"
 require_relative "../smartsuite_server"
-require_relative "../lib/smartsuite_client"
+require_relative "../lib/smart_suite_client"
 require_relative "../lib/api_stats_tracker"
 
 class SmartSuiteServerTest < Minitest::Test
