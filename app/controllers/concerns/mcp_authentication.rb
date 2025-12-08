@@ -14,14 +14,6 @@ module MCPAuthentication
   private
 
   def authenticate!
-    begin
-      1 / 0
-    rescue ZeroDivisionError => exception
-      Sentry.capture_exception(exception)
-    end
-
-    Sentry.capture_message("test message")
-
     if auth_mode == :local
       authenticate_local!
     else
