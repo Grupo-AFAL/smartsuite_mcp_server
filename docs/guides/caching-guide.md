@@ -154,7 +154,7 @@ Returns:
 Monitor your logs for cache performance:
 
 ```
-~/.smartsuite_mcp_metrics.log
+~/.smartsuite_mcp.log
 ```
 
 Look for:
