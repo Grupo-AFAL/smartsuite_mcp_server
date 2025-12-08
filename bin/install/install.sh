@@ -245,37 +245,65 @@ generate_local_config() {
 EOF
 }
 
-show_config_instructions() {
+configure_claude_desktop() {
     local config_json="$1"
     local config_path=$(get_config_path)
     local config_dir=$(dirname "$config_path")
 
     echo ""
-    print_step "Configuration for Claude Desktop"
-    echo ""
+    print_step "Configuring Claude Desktop"
+
+    # Create directory if it doesn't exist
+    mkdir -p "$config_dir"
 
     if [ -f "$config_path" ]; then
-        print_warning "Config file exists: $config_path"
-        echo ""
-        echo "Add this to your existing 'mcpServers' section:"
-        echo ""
-        echo "$config_json" | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d['mcpServers']['smartsuite'], indent=2))" 2>/dev/null || echo "$config_json"
-    else
-        echo "Create the config file at:"
-        echo "  $config_path"
-        echo ""
-        echo "With this content:"
-        echo ""
-        echo "$config_json"
+        # File exists - merge smartsuite into existing config
+        print_step "Existing config found, merging smartsuite server..."
 
-        echo ""
-        read -p "Create this file now? [y/N] " -n 1 -r
-        echo ""
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            mkdir -p "$config_dir"
-            echo "$config_json" > "$config_path"
-            print_success "Config file created: $config_path"
+        # Use Python to merge JSON (available on macOS and most Linux)
+        if command -v python3 &> /dev/null; then
+            python3 << PYTHON
+import json
+import sys
+
+# Read existing config
+with open('$config_path', 'r') as f:
+    try:
+        existing = json.load(f)
+    except json.JSONDecodeError:
+        existing = {}
+
+# Parse new config
+new_config = json.loads('''$config_json''')
+
+# Ensure mcpServers exists
+if 'mcpServers' not in existing:
+    existing['mcpServers'] = {}
+
+# Add/update smartsuite
+existing['mcpServers']['smartsuite'] = new_config['mcpServers']['smartsuite']
+
+# Write back
+with open('$config_path', 'w') as f:
+    json.dump(existing, f, indent=2)
+
+print("OK")
+PYTHON
+            if [ $? -eq 0 ]; then
+                print_success "Config updated: $config_path"
+            else
+                print_error "Failed to merge config. Please add manually:"
+                echo "$config_json"
+            fi
+        else
+            print_warning "Python3 not found. Please add this to your config manually:"
+            echo ""
+            echo "$config_json"
         fi
+    else
+        # File doesn't exist - create it
+        echo "$config_json" > "$config_path"
+        print_success "Config created: $config_path"
     fi
 }
 
@@ -308,8 +336,8 @@ install_remote() {
     npx -y mcp-remote --version &> /dev/null || true
     print_success "mcp-remote ready"
 
-    # Step 3: Show configuration
-    show_config_instructions "$(generate_remote_config)"
+    # Step 3: Configure Claude Desktop automatically
+    configure_claude_desktop "$(generate_remote_config)"
 
     echo ""
     echo "╔═══════════════════════════════════════════════════════════╗"
@@ -360,8 +388,8 @@ install_local() {
 
     print_success "Server installed at: $INSTALL_DIR"
 
-    # Step 4: Show configuration
-    show_config_instructions "$(generate_local_config "$INSTALL_DIR")"
+    # Step 4: Configure Claude Desktop automatically
+    configure_claude_desktop "$(generate_local_config "$INSTALL_DIR")"
 
     echo ""
     echo "╔═══════════════════════════════════════════════════════════╗"
