@@ -272,7 +272,7 @@
             <% if @os == :windows %>
             <div class="code-block">
               <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-              <code id="remote-cmd-windows">powershell -c "iwr -useb '<%= @base_url %>/install.ps1' -OutFile install.ps1; .\install.ps1 remote '<%= @mcp_url %>' 'YOUR_API_KEY'"</code>
+              <code id="remote-cmd-windows">powershell -ExecutionPolicy Bypass -c "iwr -useb '<%= @base_url %>/install.ps1' -OutFile install.ps1; .\install.ps1 remote '<%= @mcp_url %>' 'YOUR_API_KEY'"</code>
             </div>
             <% else %>
             <div class="code-block">
@@ -313,7 +313,7 @@
             <% if @os == :windows %>
             <div class="code-block">
               <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-              <code>powershell -c "iwr -useb '<%= @base_url %>/install.ps1' -OutFile install.ps1; .\install.ps1 local"</code>
+              <code>powershell -ExecutionPolicy Bypass -c "iwr -useb '<%= @base_url %>/install.ps1' -OutFile install.ps1; .\install.ps1 local"</code>
             </div>
             <% else %>
             <div class="code-block">
@@ -445,7 +445,7 @@
 
       const winCmd = document.getElementById('remote-cmd-windows');
       if (winCmd) {
-        winCmd.textContent = `powershell -c "iwr -useb '<%= @base_url %>/install.ps1' -OutFile install.ps1; .\\install.ps1 remote '<%= @mcp_url %>' '${apiKey}'"`;
+        winCmd.textContent = `powershell -ExecutionPolicy Bypass -c "iwr -useb '<%= @base_url %>/install.ps1' -OutFile install.ps1; .\\install.ps1 remote '<%= @mcp_url %>' '${apiKey}'"`;
       }
 
       // Update config JSON

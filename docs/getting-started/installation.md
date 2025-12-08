@@ -19,7 +19,7 @@ curl -fsSL 'https://your-server.com/install.sh' | bash -s -- remote 'https://you
 **Windows (PowerShell):**
 
 ```powershell
-iwr -useb 'https://your-server.com/install.ps1' -OutFile install.ps1; .\install.ps1 remote 'https://your-server.com/mcp' 'YOUR_API_KEY'
+powershell -ExecutionPolicy Bypass -c "iwr -useb 'https://your-server.com/install.ps1' -OutFile install.ps1; .\install.ps1 remote 'https://your-server.com/mcp' 'YOUR_API_KEY'"
 ```
 
 ### Option B: Run Server Locally (Local Mode)
@@ -35,7 +35,7 @@ curl -fsSL 'https://your-server.com/install.sh' | bash -s -- local
 **Windows (PowerShell):**
 
 ```powershell
-iwr -useb 'https://your-server.com/install.ps1' -OutFile install.ps1; .\install.ps1 local
+powershell -ExecutionPolicy Bypass -c "iwr -useb 'https://your-server.com/install.ps1' -OutFile install.ps1; .\install.ps1 local"
 ```
 
 The installer will:
