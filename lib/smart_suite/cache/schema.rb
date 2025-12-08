@@ -5,14 +5,14 @@ module SmartSuite
     # Centralized schema definitions for all SQLite tables
     #
     # This module provides SQL CREATE TABLE statements used by both
-    # Cache::Layer and ApiStatsTracker to ensure consistent schema
+    # Cache::Layer and APIStatsTracker to ensure consistent schema
     # definitions across the codebase.
     module Schema
       # Default TTL for cache entries (4 hours)
       DEFAULT_TTL = 4 * 60 * 60
 
       class << self
-        # SQL for API stats tables (used by both ApiStatsTracker and Cache::Layer)
+        # SQL for API stats tables (used by both APIStatsTracker and Cache::Layer)
         #
         # @return [String] SQL statements for api_call_log, api_stats_summary, and cache_performance
         def api_stats_tables_sql

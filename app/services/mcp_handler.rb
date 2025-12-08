@@ -9,7 +9,7 @@ require_relative "../../lib/smart_suite/formatters/markdown_to_smartdoc"
 # MCP message handler for the Rails hosted server
 # Each user gets their own SmartSuiteClient with their credentials
 # but shares the PostgreSQL cache across all users
-class McpHandler
+class MCPHandler
   # Shared cache instance for all users (thread-safe via PostgreSQL)
   def self.shared_cache
     @shared_cache ||= ::Cache::PostgresLayer.new
@@ -307,10 +307,10 @@ class McpHandler
         sharing: arguments["sharing"]
       )
     when "get_api_stats"
-      # In hosted mode, use Rails ApiCall model instead of stats_tracker
+      # In hosted mode, use Rails APICall model instead of stats_tracker
       get_api_stats_from_rails(arguments["time_range"] || "all")
     when "reset_api_stats"
-      # In hosted mode, use Rails ApiCall model
+      # In hosted mode, use Rails APICall model
       reset_api_stats_in_rails
     when "get_cache_status"
       if @client.cache_enabled?
@@ -356,13 +356,13 @@ class McpHandler
     }
   end
 
-  # Get API stats from Rails ApiCall model (hosted mode)
+  # Get API stats from Rails APICall model (hosted mode)
   # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
   def get_api_stats_from_rails(time_range)
     user_id = @user.respond_to?(:id) ? @user.id : nil
     return { "error" => "Stats not available in local mode" } unless user_id
 
-    scope = ApiCall.where(user_id: user_id)
+    scope = APICall.where(user_id: user_id)
 
     # Apply time range filter
     scope = case time_range
@@ -392,7 +392,7 @@ class McpHandler
     user_id = @user.respond_to?(:id) ? @user.id : nil
     return { "error" => "Stats not available in local mode" } unless user_id
 
-    deleted_count = ApiCall.where(user_id: user_id).delete_all
+    deleted_count = APICall.where(user_id: user_id).delete_all
     { "success" => true, "deleted_count" => deleted_count }
   end
 end

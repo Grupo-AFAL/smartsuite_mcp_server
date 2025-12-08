@@ -199,7 +199,7 @@ class SmartSuiteServerTest < Minitest::Test
 
   # Test API statistics tracking
   def test_stats_tracker_initialization
-    tracker = ApiStatsTracker.new("test_key")
+    tracker = APIStatsTracker.new("test_key")
 
     # Reset stats first to ensure clean slate (previous tests may have left data)
     tracker.reset_stats
@@ -213,7 +213,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_stats_tracker_tracks_calls
-    tracker = ApiStatsTracker.new("test_key")
+    tracker = APIStatsTracker.new("test_key")
 
     # Reset stats first to ensure clean slate (important if real-world testing was done)
     tracker.reset_stats
@@ -232,7 +232,7 @@ class SmartSuiteServerTest < Minitest::Test
   end
 
   def test_stats_tracker_reset
-    tracker = ApiStatsTracker.new("test_key")
+    tracker = APIStatsTracker.new("test_key")
 
     # Track some calls
     tracker.track_api_call(:get, "/solutions/")

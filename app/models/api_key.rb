@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class ApiKey < ApplicationRecord
+class APIKey < ApplicationRecord
   belongs_to :user
 
   before_create :generate_token
