@@ -242,8 +242,8 @@ Integration tests create minimal test data but you may want to:
 # Clear cache after tests
 rm ~/.smartsuite_mcp_cache.db
 
-# View test metrics
-cat ~/.smartsuite_mcp_metrics.log | tail -100
+# View logs
+cat ~/.smartsuite_mcp.log | tail -100
 ```
 
 ## CI/CD Integration (Future)
