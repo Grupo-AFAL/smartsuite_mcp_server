@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../../lib/smartsuite_client"
+require_relative "../../lib/smart_suite_client"
 require_relative "../../lib/smartsuite/mcp/tool_registry"
 require_relative "../../lib/smartsuite/mcp/prompt_registry"
 require_relative "../../lib/smartsuite/mcp/resource_registry"

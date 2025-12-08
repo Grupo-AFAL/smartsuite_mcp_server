@@ -2,7 +2,7 @@
 
 require "minitest/autorun"
 require "tmpdir"
-require_relative "../../lib/smartsuite_client"
+require_relative "../../lib/smart_suite_client"
 
 # Integration tests for SmartSuite MCP Server
 #

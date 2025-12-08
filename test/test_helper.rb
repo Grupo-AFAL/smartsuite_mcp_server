@@ -11,7 +11,7 @@ SimpleCov.start do
   add_filter "/vendor/"
 
   add_group "Server", "smartsuite_server.rb"
-  add_group "Client", "lib/smartsuite_client.rb"
+  add_group "Client", "lib/smart_suite_client.rb"
   add_group "Cache", "lib/smartsuite/cache"
   add_group "API", "lib/smartsuite/api"
   add_group "MCP", "lib/smartsuite/mcp"

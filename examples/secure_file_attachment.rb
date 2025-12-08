@@ -13,7 +13,7 @@
 # 3. SmartSuite API credentials
 # 4. aws-sdk-s3 gem installed: gem install aws-sdk-s3
 
-require_relative '../lib/smartsuite_client'
+require_relative '../lib/smart_suite_client'
 require_relative '../lib/secure_file_attacher'
 
 # Configuration
