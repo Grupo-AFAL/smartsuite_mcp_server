@@ -210,37 +210,49 @@ function Get-LocalConfig {
 "@
 }
 
-function Show-ConfigInstructions {
+function Configure-ClaudeDesktop {
     param([string]$ConfigJson)
 
     $configPath = Get-ClaudeConfigPath
     $configDir = Split-Path $configPath -Parent
 
     Write-Host ""
-    Write-Step "Configuration for Claude Desktop"
-    Write-Host ""
+    Write-Step "Configuring Claude Desktop"
+
+    # Create directory if it doesn't exist
+    if (-not (Test-Path $configDir)) {
+        New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+    }
 
     if (Test-Path $configPath) {
-        Write-Warning "Config file exists: $configPath"
-        Write-Host ""
-        Write-Host "Add this to your existing 'mcpServers' section:"
-        Write-Host ""
-        Write-Host $ConfigJson -ForegroundColor Gray
-    } else {
-        Write-Host "Create the config file at:"
-        Write-Host "  $configPath" -ForegroundColor Cyan
-        Write-Host ""
-        Write-Host "With this content:"
-        Write-Host ""
-        Write-Host $ConfigJson -ForegroundColor Gray
+        # File exists - merge smartsuite into existing config
+        Write-Step "Existing config found, merging smartsuite server..."
 
-        Write-Host ""
-        $response = Read-Host "Create this file now? [y/N]"
-        if ($response -eq 'y' -or $response -eq 'Y') {
-            New-Item -ItemType Directory -Path $configDir -Force | Out-Null
-            $ConfigJson | Out-File -FilePath $configPath -Encoding utf8
-            Write-Success "Config file created: $configPath"
+        try {
+            $existing = Get-Content $configPath -Raw | ConvertFrom-Json -AsHashtable
+            $newConfig = $ConfigJson | ConvertFrom-Json -AsHashtable
+
+            # Ensure mcpServers exists
+            if (-not $existing.ContainsKey('mcpServers')) {
+                $existing['mcpServers'] = @{}
+            }
+
+            # Add/update smartsuite
+            $existing['mcpServers']['smartsuite'] = $newConfig['mcpServers']['smartsuite']
+
+            # Write back with proper formatting
+            $existing | ConvertTo-Json -Depth 10 | Out-File -FilePath $configPath -Encoding utf8
+            Write-Success "Config updated: $configPath"
+        } catch {
+            Write-Error "Failed to merge config: $_"
+            Write-Host ""
+            Write-Host "Please add this to your config manually:"
+            Write-Host $ConfigJson -ForegroundColor Gray
         }
+    } else {
+        # File doesn't exist - create it
+        $ConfigJson | Out-File -FilePath $configPath -Encoding utf8
+        Write-Success "Config created: $configPath"
     }
 }
 
@@ -273,8 +285,8 @@ function Install-Remote {
     }
     Write-Success "mcp-remote ready"
 
-    # Step 3: Show configuration
-    Show-ConfigInstructions (Get-RemoteConfig)
+    # Step 3: Configure Claude Desktop automatically
+    Configure-ClaudeDesktop (Get-RemoteConfig)
 
     Write-Host ""
     Write-Host "================================================================" -ForegroundColor Green
@@ -323,8 +335,8 @@ function Install-Local {
 
     Write-Success "Server installed at: $installDir"
 
-    # Step 4: Show configuration
-    Show-ConfigInstructions (Get-LocalConfig $installDir)
+    # Step 4: Configure Claude Desktop automatically
+    Configure-ClaudeDesktop (Get-LocalConfig $installDir)
 
     Write-Host ""
     Write-Host "================================================================" -ForegroundColor Green
