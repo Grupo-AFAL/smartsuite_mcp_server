@@ -355,6 +355,25 @@ If you see the server connecting successfully in logs but then timing out:
 
 Node.js v24+ may have compatibility issues with some npm packages. If you encounter `ERR_MODULE_NOT_FOUND` errors, consider installing Node.js LTS (v22.x) from https://nodejs.org/
 
+#### "Unexpected token" or JSON parsing errors
+
+If Claude Desktop shows `Could not load app settings - Unexpected token '' is not valid JSON`:
+
+This is caused by a **BOM (Byte Order Mark)** at the start of the config file. PowerShell's `Out-File -Encoding utf8` command adds a hidden BOM character that JSON parsers can't handle.
+
+**Fix - Option 1 (Notepad):**
+1. Open `%APPDATA%\Claude\claude_desktop_config.json` in Notepad
+2. Select All (Ctrl+A) and Copy (Ctrl+C)
+3. Create a new file, Paste (Ctrl+V)
+4. Save As → select "UTF-8" encoding (NOT "UTF-8 with BOM")
+5. Replace the original file
+
+**Fix - Option 2 (PowerShell):**
+```powershell
+$content = Get-Content "$env:APPDATA\Claude\claude_desktop_config.json" -Raw
+[System.IO.File]::WriteAllText("$env:APPDATA\Claude\claude_desktop_config.json", $content)
+```
+
 ### macOS/Linux Remote Mode Issues
 
 If `npx` command not found after installing Node.js via fnm:
