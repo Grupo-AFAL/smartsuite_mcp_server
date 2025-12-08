@@ -177,15 +177,14 @@ function Get-ClaudeConfigPath {
 }
 
 function Get-RemoteConfig {
+    # Use cmd.exe wrapper to handle spaces in "Program Files" path
+    # Pass --header and Authorization as separate args for proper parsing
     return @"
 {
   "mcpServers": {
     "smartsuite": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "$McpUrl"],
-      "env": {
-        "API_KEY": "$ApiKey"
-      }
+      "command": "cmd.exe",
+      "args": ["/c", "npx", "-y", "mcp-remote", "$McpUrl", "--header", "Authorization: Bearer $ApiKey"]
     }
   }
 }

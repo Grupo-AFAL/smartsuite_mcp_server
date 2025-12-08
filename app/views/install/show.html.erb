@@ -354,16 +354,16 @@
       </div>
 
       <div id="config-remote" class="tab-content active">
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+          <strong>Windows note:</strong> Uses cmd.exe wrapper to handle spaces in "Program Files" path.
+        </p>
         <div class="code-block">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <code id="config-remote-json">{
   "mcpServers": {
     "smartsuite": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "<%= @mcp_url %>"],
-      "env": {
-        "API_KEY": "YOUR_API_KEY"
-      }
+      "command": "cmd.exe",
+      "args": ["/c", "npx", "-y", "mcp-remote", "<%= @mcp_url %>", "--header", "Authorization: Bearer YOUR_API_KEY"]
     }
   }
 }</code>
@@ -454,11 +454,8 @@
         configJson.textContent = `{
   "mcpServers": {
     "smartsuite": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "<%= @mcp_url %>"],
-      "env": {
-        "API_KEY": "${apiKey}"
-      }
+      "command": "cmd.exe",
+      "args": ["/c", "npx", "-y", "mcp-remote", "<%= @mcp_url %>", "--header", "Authorization: Bearer ${apiKey}"]
     }
   }
 }`;

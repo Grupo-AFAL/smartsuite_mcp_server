@@ -214,15 +214,13 @@ get_config_path() {
 }
 
 generate_remote_config() {
+    # Pass --header and Authorization as separate args for proper parsing
     cat << EOF
 {
   "mcpServers": {
     "smartsuite": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "$MCP_URL"],
-      "env": {
-        "API_KEY": "$API_KEY"
-      }
+      "args": ["-y", "mcp-remote", "$MCP_URL", "--header", "Authorization: Bearer $API_KEY"]
     }
   }
 }

@@ -318,6 +318,55 @@ rbenv install 3.4.7
 rbenv global 3.4.7
 ```
 
+### Windows-Specific Issues (Remote Mode)
+
+#### "Running scripts is disabled on this system"
+
+PowerShell's execution policy blocks scripts by default. Use the bypass flag:
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "iwr -useb 'https://your-server.com/install.ps1' -OutFile install.ps1; .\install.ps1 remote 'URL' 'KEY'"
+```
+
+#### "'C:\Program' is not recognized as an internal or external command"
+
+This happens when Node.js is installed in `C:\Program Files\nodejs\` (path with spaces). The solution is to use `cmd.exe` as a wrapper:
+
+```json
+{
+  "mcpServers": {
+    "smartsuite": {
+      "command": "cmd.exe",
+      "args": ["/c", "npx", "-y", "mcp-remote", "https://your-server.com/mcp", "--header", "Authorization: Bearer YOUR_API_KEY"]
+    }
+  }
+}
+```
+
+#### "Server disconnected" or Timeout errors
+
+If you see the server connecting successfully in logs but then timing out:
+
+1. **Check the logs** - Look for "Connected successfully!" followed by timeout
+2. **The connection works** - If tools list appears in logs, the issue is on the client side
+3. **Try restarting Claude Desktop** - Sometimes the first connection is slow due to npm caching
+
+#### Node.js version issues
+
+Node.js v24+ may have compatibility issues with some npm packages. If you encounter `ERR_MODULE_NOT_FOUND` errors, consider installing Node.js LTS (v22.x) from https://nodejs.org/
+
+### macOS/Linux Remote Mode Issues
+
+If `npx` command not found after installing Node.js via fnm:
+
+```bash
+# Add fnm to your shell profile
+eval "$(fnm env)"
+
+# Verify
+npx --version
+```
+
 ## Optional Configuration
 
 ### Using .env File (Alternative)
