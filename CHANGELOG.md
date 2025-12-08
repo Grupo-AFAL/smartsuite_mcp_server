@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **pg_trgm Extension for Fuzzy Search** - PostgreSQL trigram-based fuzzy matching
+  - Enables typo-tolerant search for solutions and members
+  - Uses `%` operator for similarity matching (threshold 0.3)
+  - Combined with ILIKE for partial match fallback
+  - New migration: `EnablePgTrgmExtension`
+
 - **Installation Scripts** - Cross-platform installers for easy MCP client setup
   - Unix installer (`bin/install/install.sh`) for macOS and Linux
   - Windows installer (`bin/install/install.ps1`) for PowerShell
