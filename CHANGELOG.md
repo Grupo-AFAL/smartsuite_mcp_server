@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Rails Hosted Server Mode** - New deployment option for multi-user hosted environments
+
   - Rails 8.0 API-only application for Streamable HTTP transport (MCP specification 2025-06-18)
   - PostgreSQL-based cache layer (`Cache::PostgresLayer`) replaces SQLite for shared multi-tenant caching
   - Dual authentication modes via `AUTH_MODE` environment variable:
@@ -27,6 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `format_api_error` method extracts structured error details from SmartSuite API responses
   - New `extract_field_errors` method parses field-specific validation errors
   - Error messages now include actionable guidance (e.g., "Check the field data and try again")
+- **Create Solution Tool** - New MCP tool for creating SmartSuite solutions
+
+  - New `create_solution` method in `WorkspaceOperations` module
+  - New `create_solution` MCP tool accessible via AI assistants
+  - Parameters: `name` (required), `logo_icon` (Material Design icon name), `logo_color` (hex color from predefined palette)
+  - Validates colors against SmartSuite's 20 valid solution colors
+  - Normalizes color input (handles missing `#` prefix and case variations)
+  - Automatically invalidates solutions cache after creation
+  - Comprehensive test suite with 9 new tests
 
 - **Markdown to SmartDoc Converter** - New formatter module and MCP tool for converting markdown text to SmartSuite's SmartDoc format
   - New `SmartSuite::Formatters::MarkdownToSmartdoc` class (`lib/smartsuite/formatters/markdown_to_smartdoc.rb`)
@@ -59,15 +69,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Field operations require params field** - SmartSuite API requires `params` field in field data
+
   - `add_field` now automatically adds `params: {}` if not provided
   - `bulk_add_fields` now adds `params: {}` to each field if not provided
   - Prevents API errors when creating fields without explicit params
 
 - **View operations boolean field handling** - Fixed nil boolean values causing API errors
+
   - `create_view` now explicitly sets boolean fields to defaults when nil
   - `autosave`, `is_locked`, `is_private`, `is_password_protected` now default correctly
 
 - **Logger Rails detection** - Fixed crash when Rails module is defined but not fully initialized
+
   - `rails_logger` method now safely checks for `Rails.respond_to?(:logger)` before accessing
   - Prevents `NoMethodError: undefined method 'logger' for module Rails` during test execution
 
