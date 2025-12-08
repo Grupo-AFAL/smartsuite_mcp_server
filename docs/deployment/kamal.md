@@ -194,26 +194,26 @@ curl -X POST "https://<your_domain>/mcp" \
 1. Create IAM user: `smartsuite-mcp-backup`
 2. Attach custom policy (replace bucket name):
 
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "s3:PutObject",
-                "s3:GetObject",
-                "s3:DeleteObject",
-                "s3:ListBucket"
-            ],
-            "Resource": [
-                "arn:aws:s3:::your-backup-bucket",
-                "arn:aws:s3:::your-backup-bucket/*"
-            ]
-        }
-    ]
-}
-```
+   ```json
+   {
+       "Version": "2012-10-17",
+       "Statement": [
+           {
+               "Effect": "Allow",
+               "Action": [
+                   "s3:PutObject",
+                   "s3:GetObject",
+                   "s3:DeleteObject",
+                   "s3:ListBucket"
+               ],
+               "Resource": [
+                   "arn:aws:s3:::your-backup-bucket",
+                   "arn:aws:s3:::your-backup-bucket/*"
+               ]
+           }
+       ]
+   }
+   ```
 
 3. Create access key and add to `.env` as `BACKUP_AWS_*` variables
 4. Redeploy: `kamal deploy`
