@@ -40,9 +40,9 @@ ruby --version  # Should be 3.0+
 # Install rbenv
 brew install rbenv
 
-# Install Ruby 3.3.7
-rbenv install 3.3.7
-rbenv global 3.3.7
+# Install Ruby 3.4.7
+rbenv install 3.4.7
+rbenv global 3.4.7
 
 # Verify installation
 ruby --version
@@ -112,16 +112,19 @@ chmod +x smartsuite_server.rb
 #### Locate Config File
 
 **macOS:**
+
 ```
 ~/Library/Application Support/Claude/claude_desktop_config.json
 ```
 
 **Windows:**
+
 ```
 %APPDATA%\Claude\claude_desktop_config.json
 ```
 
 **Linux:**
+
 ```
 ~/.config/Claude/claude_desktop_config.json
 ```
@@ -146,6 +149,7 @@ Add the SmartSuite server to your config:
 ```
 
 **Critical:**
+
 - Use the **absolute path** to `smartsuite_server.rb`
 - Replace `your_api_key_here` with your actual API key
 - Replace `your_account_id_here` with your actual Account ID
@@ -157,7 +161,9 @@ Add the SmartSuite server to your config:
   "mcpServers": {
     "smartsuite": {
       "command": "ruby",
-      "args": ["/Users/yourname/projects/smartsuite_mcp_server/smartsuite_server.rb"],
+      "args": [
+        "/Users/yourname/projects/smartsuite_mcp_server/smartsuite_server.rb"
+      ],
       "env": {
         "SMARTSUITE_API_KEY": "sk_live_abc123...",
         "SMARTSUITE_ACCOUNT_ID": "acc_xyz789..."
@@ -201,16 +207,19 @@ If successful, you'll see your SmartSuite workspaces!
 **Check Claude Desktop Logs:**
 
 **macOS:**
+
 ```bash
 tail -f ~/Library/Logs/Claude/mcp*.log
 ```
 
 **Windows:**
+
 ```powershell
 Get-Content "$env:APPDATA\Claude\logs\mcp*.log" -Wait
 ```
 
 **Common issues:**
+
 - ❌ Relative path used → Use absolute path
 - ❌ Wrong Ruby version → Must be 3.0+
 - ❌ Missing `bundle install` → Run it
@@ -219,6 +228,7 @@ Get-Content "$env:APPDATA\Claude\logs\mcp*.log" -Wait
 ### Connection Errors?
 
 **Check API Credentials:**
+
 ```bash
 # Test API key manually
 curl -H "Authorization: Token YOUR_API_KEY" \
@@ -229,6 +239,7 @@ curl -H "Authorization: Token YOUR_API_KEY" \
 Should return JSON (not 401 Unauthorized).
 
 **Common issues:**
+
 - ❌ Wrong API key → Regenerate in SmartSuite
 - ❌ Wrong Account ID → Check Settings > API
 - ❌ API access disabled → Contact SmartSuite support
@@ -240,8 +251,8 @@ Should return JSON (not 401 Unauthorized).
 ruby --version
 
 # If < 3.0, install newer version
-rbenv install 3.3.7
-rbenv global 3.3.7
+rbenv install 3.4.7
+rbenv global 3.4.7
 ```
 
 ## Optional Configuration
@@ -277,6 +288,7 @@ Then reference in Claude config:
 ### Cache Location
 
 Default cache location:
+
 ```
 ~/.smartsuite_mcp_cache.db
 ```
