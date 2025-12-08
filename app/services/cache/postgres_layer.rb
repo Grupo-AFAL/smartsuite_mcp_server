@@ -256,8 +256,9 @@ module Cache
       params = [ Time.current ]
 
       if name
-        sql += " AND fuzzy_match(data->>'name', $2)"
-        params << name
+        # Use ILIKE for case-insensitive search (replaces fuzzy_match function)
+        sql += " AND data->>'name' ILIKE $2"
+        params << "%#{name}%"
       end
 
       results = execute_sql(sql, params)
@@ -428,8 +429,12 @@ module Cache
       end
 
       if query
-        sql += " AND (fuzzy_match(data->>'full_name', $#{params.size + 1}) OR data->>'email' ILIKE $#{params.size + 2})"
-        params << query
+        # Use ILIKE for case-insensitive search on full_name, first_name, last_name, and email
+        # This replaces SQLite's fuzzy_match function
+        sql += " AND (data->>'full_name' ILIKE $#{params.size + 1}" \
+               " OR data->>'first_name' ILIKE $#{params.size + 1}" \
+               " OR data->>'last_name' ILIKE $#{params.size + 1}" \
+               " OR data->>'email' ILIKE $#{params.size + 1})"
         params << "%#{query}%"
       end
 
