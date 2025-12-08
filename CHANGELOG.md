@@ -62,6 +62,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Refactored MCP Controller** - Extracted responsibilities into focused components for better maintainability
+  - `MCPAuthentication` concern: Handles local/remote authentication modes
+  - `SSEStreaming` concern: Manages Server-Sent Events response format
+  - `APICallTracker` service: Tracks API calls for analytics
+  - Controller reduced from 190 lines to 65 lines (66% reduction)
+
 - **SmartDoc Format Documentation** - Added comprehensive documentation about SmartSuite's rich text format
   - New section in CLAUDE.md documenting snake_case type name requirements
   - Type conversion table: `bulletList` → `bullet_list`, `listItem` → `list_item`, etc.
