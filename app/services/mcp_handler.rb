@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 require_relative "../../lib/smart_suite_client"
-require_relative "../../lib/smartsuite/mcp/tool_registry"
-require_relative "../../lib/smartsuite/mcp/prompt_registry"
-require_relative "../../lib/smartsuite/mcp/resource_registry"
-require_relative "../../lib/smartsuite/formatters/markdown_to_smartdoc"
+require_relative "../../lib/smart_suite/mcp/tool_registry"
+require_relative "../../lib/smart_suite/mcp/prompt_registry"
+require_relative "../../lib/smart_suite/mcp/resource_registry"
+require_relative "../../lib/smart_suite/formatters/markdown_to_smartdoc"
 
 # MCP message handler for the Rails hosted server
 # Each user gets their own SmartSuiteClient with their credentials

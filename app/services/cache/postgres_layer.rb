@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../../../lib/smartsuite/logger"
+require_relative "../../../lib/smart_suite/logger"
 
 module Cache
   # PostgreSQL-based cache layer for the hosted SmartSuite MCP server.

@@ -3,8 +3,8 @@
 require "digest"
 require "time"
 require "sqlite3"
-require_relative "smartsuite/paths"
-require_relative "smartsuite/cache/schema"
+require_relative "smart_suite/paths"
+require_relative "smart_suite/cache/schema"
 
 # ApiStatsTracker tracks API usage statistics in SQLite database
 #

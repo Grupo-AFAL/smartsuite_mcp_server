@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../test_helper"
-require_relative "../../../lib/smartsuite/formatters/toon_formatter"
+require_relative "../../../lib/smart_suite/formatters/toon_formatter"
 require "json"
 
 class ToonFormatterTest < Minitest::Test

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../test_helper"
-require_relative "../../../lib/smartsuite/formatters/markdown_to_smartdoc"
+require_relative "../../../lib/smart_suite/formatters/markdown_to_smartdoc"
 
 class TestMarkdownToSmartdoc < Minitest::Test
   def test_convert_empty_string
