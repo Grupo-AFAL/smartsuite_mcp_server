@@ -177,9 +177,9 @@ module SmartSuite
       # @example With explicit format
       #   create_solution('My Project', 'folder', '#3A86FF', format: :json)
       def create_solution(name, logo_icon, logo_color, format: :toon)
-        validate_required_parameter!('name', name)
-        validate_required_parameter!('logo_icon', logo_icon)
-        validate_required_parameter!('logo_color', logo_color)
+        validate_required_parameter!("name", name)
+        validate_required_parameter!("logo_icon", logo_icon)
+        validate_required_parameter!("logo_color", logo_color)
 
         # Normalize color format (ensure uppercase with #)
         normalized_color = normalize_color(logo_color)
@@ -190,12 +190,12 @@ module SmartSuite
         end
 
         body = {
-          'name' => name,
-          'logo_icon' => logo_icon,
-          'logo_color' => normalized_color
+          "name" => name,
+          "logo_icon" => logo_icon,
+          "logo_color" => normalized_color
         }
 
-        response = api_request(:post, '/solutions/', body)
+        response = api_request(:post, "/solutions/", body)
 
         # Invalidate solutions cache since we created a new one
         @cache.invalidate_solutions_cache if cache_enabled?
@@ -211,7 +211,7 @@ module SmartSuite
       # @return [String] Normalized color (uppercase with #)
       def normalize_color(color)
         color = color.to_s.strip
-        color = "##{color}" unless color.start_with?('#')
+        color = "##{color}" unless color.start_with?("#")
         color.upcase
       end
 
