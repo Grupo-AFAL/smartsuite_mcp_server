@@ -37,6 +37,10 @@ gem "thruster", require: false
 # CORS for cross-origin requests (needed for SSE from different domains)
 gem "rack-cors"
 
+# Error monitoring
+gem "sentry-ruby"
+gem "sentry-rails"
+
 group :development do
   gem "reek", require: false
   gem "rubocop", require: false
