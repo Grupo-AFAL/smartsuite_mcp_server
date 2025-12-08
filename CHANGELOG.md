@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Combined with ILIKE for partial match fallback
   - New migration: `EnablePgTrgmExtension`
 
+### Fixed
+
+- **Sentry error reporting** - MCP handler errors now properly reported to Sentry
+  - Added `Sentry.capture_exception` calls to both `process` and `handle_tool_call` rescue blocks
+  - Includes context: method/tool name, arguments, and user_id for debugging
+
 - **Installation Scripts** - Cross-platform installers for easy MCP client setup
   - Unix installer (`bin/install/install.sh`) for macOS and Linux
   - Windows installer (`bin/install/install.ps1`) for PowerShell
