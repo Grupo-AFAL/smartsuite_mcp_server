@@ -221,17 +221,18 @@ curl -X POST "https://<your_domain>/mcp" \
 kamal app exec --reuse "bin/backup-db"
 ```
 
-### Schedule Automatic Backups
+### Automatic Backup Scheduling
 
-SSH into EC2 and add cron job:
+The backup cron job is automatically configured by the Kamal post-deploy hook (`.kamal/hooks/post-deploy`). After each deploy, it ensures the cron job is set up to run daily at 3 AM UTC.
 
+To verify cron is configured:
 ```bash
-crontab -e
+ssh -i ~/.ssh/smartsuite-mcp-key.pem ubuntu@<YOUR_IP> "crontab -l"
 ```
 
-Add (runs daily at 3 AM UTC):
-```
-0 3 * * * docker exec $(docker ps -q -f name=smartsuite-mcp-web) bin/backup-db >> /var/log/smartsuite-backup.log 2>&1
+To manually trigger the hook:
+```bash
+kamal deploy
 ```
 
 ## Common Commands

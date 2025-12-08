@@ -54,8 +54,12 @@ env:
   secret:
     - RAILS_MASTER_KEY
     - DATABASE_URL
-    # Optional: If using AWS RDS
-    # - DB_PASSWORD
+    - POSTGRES_PASSWORD
+    # AWS credentials for S3 backups (use separate IAM user)
+    - BACKUP_AWS_ACCESS_KEY_ID
+    - BACKUP_AWS_SECRET_ACCESS_KEY
+    - BACKUP_AWS_REGION
+    - BACKUP_S3_BUCKET
 
 # SSH configuration
 ssh:
@@ -98,5 +102,3 @@ accessories:
         - POSTGRES_PASSWORD
     directories:
       - data:/var/lib/postgresql/data
-    options:
-      restart: unless-stopped
