@@ -14,6 +14,9 @@ Rails.application.routes.draw do
   # Health check for load balancers and Kamal
   get "up" => "rails/health#show", as: :rails_health_check
 
+  # Root redirects to install page for easy onboarding
+  root to: redirect("/install")
+
   # Silence Action Cable connection attempts (disabled in this API-only app)
   # These requests come from browser dev tools or extensions
   get "cable", to: proc { [ 204, {}, [] ] }
