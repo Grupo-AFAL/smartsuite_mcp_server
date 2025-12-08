@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
 # Serves installation instructions and scripts for MCP client setup
-class InstallController < ApplicationController
-  skip_before_action :verify_authenticity_token, only: [ :script ]
-
+# Inherits from ActionController::Base instead of API for view rendering support
+class InstallController < ActionController::Base
   # GET /install - Installation page with OS detection
   def show
     @os = detect_os
