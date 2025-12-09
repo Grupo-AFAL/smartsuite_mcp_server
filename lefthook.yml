@@ -1,0 +1,71 @@
+# Lefthook configuration
+# https://github.com/evilmartians/lefthook
+#
+# Install: brew install lefthook (or gem install lefthook)
+# Setup:   lefthook install
+#
+# These hooks mirror the GitHub Actions CI checks to catch issues locally.
+
+pre-commit:
+  parallel: true
+  commands:
+    # ============================================================
+    # Branch Protection - Prevent direct commits to main
+    # ============================================================
+    no-direct-main:
+      priority: 1
+      run: |
+        branch=$(git rev-parse --abbrev-ref HEAD)
+        if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
+          echo ""
+          echo "❌ ERROR: Direct commits to '$branch' are not allowed!"
+          echo ""
+          echo "Create a feature branch first:"
+          echo "  git checkout -b feature/your-feature-name"
+          echo "  git checkout -b fix/your-fix-name"
+          echo "  git checkout -b docs/your-docs-name"
+          echo ""
+          exit 1
+        fi
+
+    # ============================================================
+    # RuboCop - Ruby linting (mirrors .github/workflows/rubocop.yml)
+    # ============================================================
+    rubocop:
+      glob: "*.rb"
+      run: bundle exec rubocop --force-exclusion {staged_files}
+      skip:
+        - merge
+        - rebase
+
+    # ============================================================
+    # Reek - Code smell detection (mirrors .github/workflows/code-quality.yml)
+    # Warning only - doesn't block commit
+    # ============================================================
+    reek:
+      glob: "*.rb"
+      run: bundle exec reek {staged_files} || echo "⚠️  Code smells detected - consider refactoring"
+      skip:
+        - merge
+        - rebase
+
+    # ============================================================
+    # Markdownlint - Markdown linting (mirrors .github/workflows/docs.yml)
+    # Uses .markdownlint.json for configuration
+    # ============================================================
+    markdownlint:
+      glob: "*.md"
+      run: npx markdownlint-cli2 {staged_files}
+      skip:
+        - merge
+        - rebase
+
+    # ============================================================
+    # YAML Lint - YAML validation
+    # ============================================================
+    yamllint:
+      glob: "*.{yml,yaml}"
+      run: npx yaml-lint {staged_files}
+      skip:
+        - merge
+        - rebase
