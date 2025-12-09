@@ -40,6 +40,9 @@ ruby test/test_smartsuite_server.rb
 # Install dependencies
 bundle install
 
+# Install git hooks (REQUIRED - blocks commits to main)
+bundle exec lefthook install
+
 # Make server executable
 chmod +x smartsuite_server.rb
 
