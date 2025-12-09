@@ -39,6 +39,17 @@ pre-commit:
         - rebase
 
     # ============================================================
+    # Reek - Code smell detection (mirrors .github/workflows/code-quality.yml)
+    # Warning only - doesn't block commit
+    # ============================================================
+    reek:
+      glob: "*.rb"
+      run: bundle exec reek {staged_files} || echo "⚠️  Code smells detected - consider refactoring"
+      skip:
+        - merge
+        - rebase
+
+    # ============================================================
     # Markdownlint - Markdown linting (mirrors .github/workflows/docs.yml)
     # Uses .markdownlint.json for configuration
     # ============================================================
