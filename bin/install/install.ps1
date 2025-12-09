@@ -229,16 +229,23 @@ function Configure-ClaudeDesktop {
         Write-Step "Existing config found, merging smartsuite server..."
 
         try {
-            $existing = Get-Content $configPath -Raw | ConvertFrom-Json -AsHashtable
-            $newConfig = $ConfigJson | ConvertFrom-Json -AsHashtable
+            # PowerShell 5.1 compatible: ConvertFrom-Json returns PSCustomObject, not Hashtable
+            $existingJson = Get-Content $configPath -Raw
+            $existing = $existingJson | ConvertFrom-Json
+            $newConfig = $ConfigJson | ConvertFrom-Json
 
-            # Ensure mcpServers exists
-            if (-not $existing.ContainsKey('mcpServers')) {
-                $existing['mcpServers'] = @{}
+            # Ensure mcpServers exists (PSCustomObject property access)
+            if (-not (Get-Member -InputObject $existing -Name 'mcpServers' -MemberType Properties)) {
+                $existing | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue (New-Object PSObject)
             }
 
-            # Add/update smartsuite
-            $existing['mcpServers']['smartsuite'] = $newConfig['mcpServers']['smartsuite']
+            # Add/update smartsuite server
+            $smartsuiteConfig = $newConfig.mcpServers.smartsuite
+            if (Get-Member -InputObject $existing.mcpServers -Name 'smartsuite' -MemberType Properties) {
+                $existing.mcpServers.smartsuite = $smartsuiteConfig
+            } else {
+                $existing.mcpServers | Add-Member -NotePropertyName 'smartsuite' -NotePropertyValue $smartsuiteConfig
+            }
 
             # Write back with proper formatting (UTF8 without BOM)
             $jsonContent = $existing | ConvertTo-Json -Depth 10
