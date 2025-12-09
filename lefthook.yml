@@ -1,0 +1,29 @@
+# Lefthook configuration
+# https://github.com/evilmartians/lefthook
+#
+# Install: brew install lefthook (or gem install lefthook)
+# Setup:   lefthook install
+
+pre-commit:
+  commands:
+    no-direct-main:
+      run: |
+        branch=$(git rev-parse --abbrev-ref HEAD)
+        if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
+          echo ""
+          echo "❌ ERROR: Direct commits to '$branch' are not allowed!"
+          echo ""
+          echo "Create a feature branch first:"
+          echo "  git checkout -b feature/your-feature-name"
+          echo "  git checkout -b fix/your-fix-name"
+          echo "  git checkout -b docs/your-docs-name"
+          echo ""
+          exit 1
+        fi
+
+    rubocop:
+      glob: "*.rb"
+      run: bundle exec rubocop --force-exclusion {staged_files}
+      skip:
+        - merge
+        - rebase

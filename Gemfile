@@ -42,6 +42,7 @@ gem "sentry-ruby"
 gem "sentry-rails"
 
 group :development do
+  gem "lefthook", require: false
   gem "reek", require: false
   gem "rubocop", require: false
   gem "rubocop-rails-omakase", require: false
