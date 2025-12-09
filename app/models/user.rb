@@ -1,13 +1,21 @@
 # frozen_string_literal: true
 
 class User < ApplicationRecord
+  has_secure_password validations: false
   has_many :api_keys, dependent: :destroy
   has_many :api_calls, dependent: :destroy
+  has_many :access_grants, class_name: "Doorkeeper::AccessGrant",
+                           foreign_key: :resource_owner_id,
+                           dependent: :destroy
+  has_many :access_tokens, class_name: "Doorkeeper::AccessToken",
+                           foreign_key: :resource_owner_id,
+                           dependent: :destroy
 
   validates :name, presence: true
   validates :email, presence: true, uniqueness: true
   validates :smartsuite_api_key, presence: true
   validates :smartsuite_account_id, presence: true
+  validates :password, length: { minimum: 8 }, allow_nil: true
 
   # Usage statistics
   def api_calls_today

@@ -37,6 +37,12 @@ gem "thruster", require: false
 # CORS for cross-origin requests (needed for SSE from different domains)
 gem "rack-cors"
 
+# OAuth 2.0 provider for Claude Desktop Custom Connectors
+gem "doorkeeper"
+
+# Secure password hashing for user authentication
+gem "bcrypt", "~> 3.1"
+
 # Error monitoring
 gem "sentry-ruby"
 gem "sentry-rails"

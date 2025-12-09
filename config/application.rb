@@ -40,5 +40,11 @@ module SmartsuiteMcp
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # Add session and flash middleware for OAuth authorization flow
+    # These are needed by Doorkeeper for the authorization code grant
+    config.middleware.use ActionDispatch::Cookies
+    config.middleware.use ActionDispatch::Session::CookieStore, key: "_smartsuite_mcp_session"
+    config.middleware.use ActionDispatch::Flash
   end
 end

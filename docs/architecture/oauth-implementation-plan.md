@@ -292,26 +292,26 @@ Response:
 ## Implementation Checklist
 
 ### Phase 1: Basic OAuth Setup
-- [ ] Add `doorkeeper` gem
-- [ ] Run Doorkeeper migrations
-- [ ] Configure Doorkeeper initializer
-- [ ] Create login/authorization views
-- [ ] Add OAuth metadata endpoint (`.well-known/oauth-authorization-server`)
+- [x] Add `doorkeeper` gem
+- [x] Run Doorkeeper migrations
+- [x] Configure Doorkeeper initializer
+- [x] Create login/authorization views
+- [x] Add OAuth metadata endpoint (`.well-known/oauth-authorization-server`)
 
 ### Phase 2: Integration
-- [ ] Update MCP authentication to support OAuth tokens
-- [ ] Add OAuth token validation to `McpAuthentication` concern
+- [x] Update MCP authentication to support OAuth tokens
+- [x] Add OAuth token validation to `McpAuthentication` concern
 - [ ] Test with MCP Inspector tool
 
 ### Phase 3: DCR Support (Optional)
-- [ ] Implement `/oauth/register` endpoint
-- [ ] Handle DCR client registration from Claude
+- [x] Implement `/oauth/register` endpoint
+- [x] Handle DCR client registration from Claude
 - [ ] Handle `invalid_client` error for client deletion signal
 
 ### Phase 4: User Experience
-- [ ] Create nice authorization screen (branded)
+- [x] Create nice authorization screen (branded)
 - [ ] Add scope descriptions
-- [ ] Handle token refresh gracefully
+- [x] Handle token refresh gracefully
 - [ ] Add admin UI for managing OAuth applications
 
 ## Estimated Effort
@@ -349,6 +349,12 @@ Use the [MCP Inspector](https://github.com/anthropics/mcp-inspector) tool to val
 
 ## Current Status
 
-**Not Implemented** - This document serves as a plan for future implementation.
+**Implemented** - Core OAuth functionality is complete as of December 2024.
 
-Current workaround: Use `mcp-remote` proxy with Bearer token authentication.
+Remaining items:
+- Test with MCP Inspector tool
+- Handle `invalid_client` error for client deletion signal
+- Add scope descriptions in UI
+- Add admin UI for managing OAuth applications
+
+Current workaround for users without password: Use `mcp-remote` proxy with API key authentication.
