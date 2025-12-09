@@ -282,14 +282,27 @@ Dark: #0C41F3 (blue), #00B3FA (light blue), #199A27 (green), #F1273F (red), #FF7
       RECORD_TOOLS = [
         {
           "name" => "list_records",
-          "description" => 'List records from a SmartSuite table with filtering, sorting, and field selection. ⚠️ CRITICAL FOR EFFICIENCY: (1) ALWAYS use filter parameter to request only relevant records - do NOT fetch all records and filter manually! (2) ALWAYS specify MINIMAL fields - only request fields you actually need. Field values are NOT truncated, so requesting unnecessary fields wastes tokens. (3) Use small limit values (5-10) initially to preview data, then increase if needed. Returns plain text format showing "X of Y filtered records (Z total)" to help you understand the data. REQUIRED: Must specify fields parameter.',
+          "description" => 'List records from a SmartSuite table with filtering, sorting, and field selection.
+
+**⚠️ PAGINATION RULES - CRITICAL:**
+- The response shows "X of Y filtered records (Z total)" - ALWAYS check if you got ALL needed records
+- For ANALYSIS tasks (cross-references, finding missing data, reports, validations): You MUST fetch ALL records by paginating until you have them all. Use limit=100 and increment offset until you reach the total.
+- For PREVIEW tasks (showing examples, sampling data): Small limits (5-10) are OK
+- NEVER give incomplete analysis - if the task requires complete data, PAGINATE!
+
+**EFFICIENCY RULES:**
+(1) ALWAYS use filter parameter when possible - do NOT fetch all records and filter manually
+(2) ALWAYS specify MINIMAL fields - only request fields you actually need (values are NOT truncated)
+(3) Check "X of Y" in response - if X < Y and you need complete data, make additional requests with offset
+
+REQUIRED: Must specify fields parameter.',
           "inputSchema" => {
             "type" => "object",
             "properties" => {
               "table_id" => SCHEMA_TABLE_ID,
               "limit" => {
                 "type" => "number",
-                "description" => "Maximum number of records to return (default: 10). ⚠️ START SMALL: Use 5-10 initially to preview data efficiently, only increase if more records are needed after reviewing results. Applied after filtering."
+                "description" => "Maximum records per request (default: 10). For ANALYSIS requiring complete data, use limit=100 and paginate with offset. For previews, use 5-10."
               },
               "offset" => {
                 "type" => "number",

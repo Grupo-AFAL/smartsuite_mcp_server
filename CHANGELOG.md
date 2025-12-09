@@ -9,7 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **pg_trgm Extension for Fuzzy Search** - PostgreSQL trigram-based fuzzy matching
+  - Enables typo-tolerant search for solutions and members
+  - Uses `similarity()` function for matching (threshold 0.3)
+  - Combined with ILIKE for partial match fallback
+  - New migration: `EnablePgTrgmExtension`
+
+### Fixed
+
+- **Improved list_records pagination guidance** - Tool description now clearly explains when to paginate
+
+  - For analysis tasks (cross-references, reports, validations): MUST fetch ALL records
+  - For preview tasks: Small limits (5-10) are OK
+  - Emphasizes checking "X of Y filtered records" response to know if more data exists
+
+- **Sentry error reporting** - All caught exceptions now reported to Sentry
+
+  - MCP handler: `process` and `handle_tool_call` errors with tool/method context
+  - API call tracker: tracking failures and solution_id lookup errors
+  - MCP controller: JSON parse errors with client IP
+  - Authentication: local mode errors with IP and auth_mode context
+  - Timezone configuration failures
+
 - **Installation Scripts** - Cross-platform installers for easy MCP client setup
+
   - Unix installer (`bin/install/install.sh`) for macOS and Linux
   - Windows installer (`bin/install/install.ps1`) for PowerShell
   - Two installation modes:
@@ -19,8 +42,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Generates Claude Desktop configuration automatically
   - Web-based installation page at `/install` with OS detection
   - Scripts available at `/install.sh` and `/install.ps1` endpoints
+  - Windows-specific fixes:
+    - Uses `-ExecutionPolicy Bypass` to handle script execution policy
+    - Uses `cmd.exe /c npx` wrapper to handle spaces in "Program Files" path
+    - Passes `--header` and auth value as separate args for mcp-remote
+    - Uses `[System.IO.File]::WriteAllText()` to write UTF-8 without BOM (fixes JSON parsing errors)
+  - Documentation: Added Windows troubleshooting section with common issues and solutions
+    - Added fix for "Unexpected token" BOM-related JSON parsing errors
 
 - **Sentry Error Monitoring** - Optional error monitoring integration for production deployments
+
   - `sentry-rails` gem for automatic error capturing and Rails-specific context
   - Performance monitoring with configurable sample rates (10% by default)
   - Breadcrumbs for ActiveSupport and HTTP requests
@@ -70,28 +101,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Dry-run mode, progress indicators, smart skipping (already converted, empty, etc.)
   - Comprehensive guide: `docs/guides/markdown-batch-conversion.md`
   - Use case: Automated webhook data (e.g., Read.ai meeting transcripts) → formatted SmartDoc
-
-### Changed
-
-- **Refactored MCP Controller** - Extracted responsibilities into focused components for better maintainability
-  - `MCPAuthentication` concern: Handles local/remote authentication modes
-  - `SSEStreaming` concern: Manages Server-Sent Events response format
-  - `APICallTracker` service: Tracks API calls for analytics
-  - Controller reduced from 190 lines to 65 lines (66% reduction)
-
-- **SmartDoc Format Documentation** - Added comprehensive documentation about SmartSuite's rich text format
-  - New section in CLAUDE.md documenting snake_case type name requirements
-  - Type conversion table: `bulletList` → `bullet_list`, `listItem` → `list_item`, etc.
-  - Updated `create_record` and `update_record` tool descriptions with SmartDoc format guidance
-- **Network access requirements documentation** - Added comprehensive documentation of all domains required for installation
-  - Lists all external services needed (GitHub, RubyGems, SmartSuite API)
-  - Windows-specific domains (WinGet CDN, Microsoft CDN)
-  - macOS-specific domains (Homebrew)
-  - DNS resolution error troubleshooting with solutions
-  - Proxy configuration instructions for corporate environments
-
-### Fixed
-
 - **Field operations require params field** - SmartSuite API requires `params` field in field data
 
   - `add_field` now automatically adds `params: {}` if not provided
@@ -183,6 +192,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - On large workspaces (500+ members), this took ~9 seconds causing Claude Desktop to timeout
   - Server now starts immediately and configures timezone in the background on first tool request
   - Timezone configuration errors are logged but don't prevent server operation
+
+### Changed
+
+- **Refactored MCP Controller** - Extracted responsibilities into focused components for better maintainability
+
+  - `MCPAuthentication` concern: Handles local/remote authentication modes
+  - `SSEStreaming` concern: Manages Server-Sent Events response format
+  - `APICallTracker` service: Tracks API calls for analytics
+  - Controller reduced from 190 lines to 65 lines (66% reduction)
+
+- **SmartDoc Format Documentation** - Added comprehensive documentation about SmartSuite's rich text format
+  - New section in CLAUDE.md documenting snake_case type name requirements
+  - Type conversion table: `bulletList` → `bullet_list`, `listItem` → `list_item`, etc.
+  - Updated `create_record` and `update_record` tool descriptions with SmartDoc format guidance
+- **Network access requirements documentation** - Added comprehensive documentation of all domains required for installation
+  - Lists all external services needed (GitHub, RubyGems, SmartSuite API)
+  - Windows-specific domains (WinGet CDN, Microsoft CDN)
+  - macOS-specific domains (Homebrew)
+  - DNS resolution error troubleshooting with solutions
+  - Proxy configuration instructions for corporate environments
 
 ## [2.0.0] - 2025-11-24
 

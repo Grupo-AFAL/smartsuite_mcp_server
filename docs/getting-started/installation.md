@@ -2,6 +2,69 @@
 
 Complete installation instructions for SmartSuite MCP Server.
 
+## Quick Install (Recommended)
+
+The easiest way to get started is using our automated installation scripts.
+
+### Option A: Connect to Hosted Server (Remote Mode)
+
+If you have access to a hosted SmartSuite MCP server, use this mode:
+
+**macOS/Linux:**
+
+```bash
+curl -fsSL 'https://your-server.com/install.sh' | bash -s -- remote 'https://your-server.com/mcp' 'YOUR_API_KEY'
+```
+
+**Windows (PowerShell):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "iwr -useb 'https://your-server.com/install.ps1' -OutFile install.ps1; .\install.ps1 remote 'https://your-server.com/mcp' 'YOUR_API_KEY'"
+```
+
+### Option B: Run Server Locally (Local Mode)
+
+For full control or offline capability, run the server on your machine:
+
+**macOS/Linux:**
+
+```bash
+curl -fsSL 'https://your-server.com/install.sh' | bash -s -- local
+```
+
+**Windows (PowerShell):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "iwr -useb 'https://your-server.com/install.ps1' -OutFile install.ps1; .\install.ps1 local"
+```
+
+The installer will:
+1. Check for and install Node.js (remote) or Ruby (local) if needed
+2. Download and configure the MCP server
+3. Generate Claude Desktop configuration
+4. Optionally create the config file for you
+
+### Web-Based Install Page
+
+If your server provides a web interface, visit `/install` for a guided setup experience with OS detection and copy-paste commands.
+
+### Local vs Remote Mode Comparison
+
+| Feature | Local Mode | Remote Mode |
+|---------|------------|-------------|
+| **Requirements** | Ruby 3.0+ | Node.js (npx) |
+| **SmartSuite credentials** | Your own API key | Server API key |
+| **Cache location** | Local SQLite | Server PostgreSQL |
+| **Offline support** | Yes (cached data) | No |
+| **Best for** | Single user, full control | Teams, managed setup |
+| **Setup complexity** | Medium | Easy |
+
+---
+
+## Manual Installation
+
+If you prefer manual installation or the scripts don't work for your environment, follow these steps.
+
 ## Prerequisites
 
 ### System Requirements
@@ -253,6 +316,74 @@ ruby --version
 # If < 3.0, install newer version
 rbenv install 3.4.7
 rbenv global 3.4.7
+```
+
+### Windows-Specific Issues (Remote Mode)
+
+#### "Running scripts is disabled on this system"
+
+PowerShell's execution policy blocks scripts by default. Use the bypass flag:
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "iwr -useb 'https://your-server.com/install.ps1' -OutFile install.ps1; .\install.ps1 remote 'URL' 'KEY'"
+```
+
+#### "'C:\Program' is not recognized as an internal or external command"
+
+This happens when Node.js is installed in `C:\Program Files\nodejs\` (path with spaces). The solution is to use `cmd.exe` as a wrapper:
+
+```json
+{
+  "mcpServers": {
+    "smartsuite": {
+      "command": "cmd.exe",
+      "args": ["/c", "npx", "-y", "mcp-remote", "https://your-server.com/mcp", "--header", "Authorization: Bearer YOUR_API_KEY"]
+    }
+  }
+}
+```
+
+#### "Server disconnected" or Timeout errors
+
+If you see the server connecting successfully in logs but then timing out:
+
+1. **Check the logs** - Look for "Connected successfully!" followed by timeout
+2. **The connection works** - If tools list appears in logs, the issue is on the client side
+3. **Try restarting Claude Desktop** - Sometimes the first connection is slow due to npm caching
+
+#### Node.js version issues
+
+Node.js v24+ may have compatibility issues with some npm packages. If you encounter `ERR_MODULE_NOT_FOUND` errors, consider installing Node.js LTS (v22.x) from https://nodejs.org/
+
+#### "Unexpected token" or JSON parsing errors
+
+If Claude Desktop shows `Could not load app settings - Unexpected token '' is not valid JSON`:
+
+This is caused by a **BOM (Byte Order Mark)** at the start of the config file. PowerShell's `Out-File -Encoding utf8` command adds a hidden BOM character that JSON parsers can't handle.
+
+**Fix - Option 1 (Notepad):**
+1. Open `%APPDATA%\Claude\claude_desktop_config.json` in Notepad
+2. Select All (Ctrl+A) and Copy (Ctrl+C)
+3. Create a new file, Paste (Ctrl+V)
+4. Save As → select "UTF-8" encoding (NOT "UTF-8 with BOM")
+5. Replace the original file
+
+**Fix - Option 2 (PowerShell):**
+```powershell
+$content = Get-Content "$env:APPDATA\Claude\claude_desktop_config.json" -Raw
+[System.IO.File]::WriteAllText("$env:APPDATA\Claude\claude_desktop_config.json", $content)
+```
+
+### macOS/Linux Remote Mode Issues
+
+If `npx` command not found after installing Node.js via fnm:
+
+```bash
+# Add fnm to your shell profile
+eval "$(fnm env)"
+
+# Verify
+npx --version
 ```
 
 ## Optional Configuration
