@@ -345,6 +345,7 @@ class MCPHandler
     @client.configure_user_timezone
   rescue StandardError => e
     Rails.logger.warn("Failed to configure timezone: #{e.message}")
+    Sentry.capture_exception(e, extra: { user_id: @user&.id }, level: :warning)
   end
 
   def error_response(id, code, message)

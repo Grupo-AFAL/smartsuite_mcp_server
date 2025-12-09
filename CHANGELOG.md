@@ -17,9 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Sentry error reporting** - MCP handler errors now properly reported to Sentry
-  - Added `Sentry.capture_exception` calls to both `process` and `handle_tool_call` rescue blocks
-  - Includes context: method/tool name, arguments, and user_id for debugging
+- **Sentry error reporting** - All caught exceptions now reported to Sentry
+  - MCP handler: `process` and `handle_tool_call` errors with tool/method context
+  - API call tracker: tracking failures and solution_id lookup errors
+  - MCP controller: JSON parse errors with client IP
+  - Authentication: local mode errors with IP and auth_mode context
+  - Timezone configuration failures
 
 - **Installation Scripts** - Cross-platform installers for easy MCP client setup
   - Unix installer (`bin/install/install.sh`) for macOS and Linux
