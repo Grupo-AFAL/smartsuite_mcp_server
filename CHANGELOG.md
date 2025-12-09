@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Lefthook Git Hooks** - Pre-commit hooks to enforce development workflow
   - Blocks direct commits to `main` branch
-  - Runs RuboCop on staged Ruby files
+  - Runs RuboCop on staged Ruby files (mirrors CI)
+  - Runs markdownlint on staged Markdown files (mirrors CI)
+  - Runs yaml-lint on staged YAML files
+  - Hooks run in parallel for speed
   - Install with `bundle exec lefthook install`
 
 - **pg_trgm Extension for Fuzzy Search** - PostgreSQL trigram-based fuzzy matching
