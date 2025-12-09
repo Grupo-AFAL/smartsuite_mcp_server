@@ -177,15 +177,14 @@ function Get-ClaudeConfigPath {
 }
 
 function Get-RemoteConfig {
+    # Use cmd.exe wrapper to handle spaces in "Program Files" path
+    # Pass --header and Authorization as separate args for proper parsing
     return @"
 {
   "mcpServers": {
     "smartsuite": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "$McpUrl"],
-      "env": {
-        "API_KEY": "$ApiKey"
-      }
+      "command": "cmd.exe",
+      "args": ["/c", "npx", "-y", "mcp-remote", "$McpUrl", "--header", "Authorization: Bearer $ApiKey"]
     }
   }
 }
@@ -211,37 +210,57 @@ function Get-LocalConfig {
 "@
 }
 
-function Show-ConfigInstructions {
+function Configure-ClaudeDesktop {
     param([string]$ConfigJson)
 
     $configPath = Get-ClaudeConfigPath
     $configDir = Split-Path $configPath -Parent
 
     Write-Host ""
-    Write-Step "Configuration for Claude Desktop"
-    Write-Host ""
+    Write-Step "Configuring Claude Desktop"
+
+    # Create directory if it doesn't exist
+    if (-not (Test-Path $configDir)) {
+        New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+    }
 
     if (Test-Path $configPath) {
-        Write-Warning "Config file exists: $configPath"
-        Write-Host ""
-        Write-Host "Add this to your existing 'mcpServers' section:"
-        Write-Host ""
-        Write-Host $ConfigJson -ForegroundColor Gray
-    } else {
-        Write-Host "Create the config file at:"
-        Write-Host "  $configPath" -ForegroundColor Cyan
-        Write-Host ""
-        Write-Host "With this content:"
-        Write-Host ""
-        Write-Host $ConfigJson -ForegroundColor Gray
+        # File exists - merge smartsuite into existing config
+        Write-Step "Existing config found, merging smartsuite server..."
 
-        Write-Host ""
-        $response = Read-Host "Create this file now? [y/N]"
-        if ($response -eq 'y' -or $response -eq 'Y') {
-            New-Item -ItemType Directory -Path $configDir -Force | Out-Null
-            $ConfigJson | Out-File -FilePath $configPath -Encoding utf8
-            Write-Success "Config file created: $configPath"
+        try {
+            # PowerShell 5.1 compatible: ConvertFrom-Json returns PSCustomObject, not Hashtable
+            $existingJson = Get-Content $configPath -Raw
+            $existing = $existingJson | ConvertFrom-Json
+            $newConfig = $ConfigJson | ConvertFrom-Json
+
+            # Ensure mcpServers exists (PSCustomObject property access)
+            if (-not (Get-Member -InputObject $existing -Name 'mcpServers' -MemberType Properties)) {
+                $existing | Add-Member -NotePropertyName 'mcpServers' -NotePropertyValue (New-Object PSObject)
+            }
+
+            # Add/update smartsuite server
+            $smartsuiteConfig = $newConfig.mcpServers.smartsuite
+            if (Get-Member -InputObject $existing.mcpServers -Name 'smartsuite' -MemberType Properties) {
+                $existing.mcpServers.smartsuite = $smartsuiteConfig
+            } else {
+                $existing.mcpServers | Add-Member -NotePropertyName 'smartsuite' -NotePropertyValue $smartsuiteConfig
+            }
+
+            # Write back with proper formatting (UTF8 without BOM)
+            $jsonContent = $existing | ConvertTo-Json -Depth 10
+            [System.IO.File]::WriteAllText($configPath, $jsonContent)
+            Write-Success "Config updated: $configPath"
+        } catch {
+            Write-Error "Failed to merge config: $_"
+            Write-Host ""
+            Write-Host "Please add this to your config manually:"
+            Write-Host $ConfigJson -ForegroundColor Gray
         }
+    } else {
+        # File doesn't exist - create it (UTF8 without BOM)
+        [System.IO.File]::WriteAllText($configPath, $ConfigJson)
+        Write-Success "Config created: $configPath"
     }
 }
 
@@ -274,8 +293,8 @@ function Install-Remote {
     }
     Write-Success "mcp-remote ready"
 
-    # Step 3: Show configuration
-    Show-ConfigInstructions (Get-RemoteConfig)
+    # Step 3: Configure Claude Desktop automatically
+    Configure-ClaudeDesktop (Get-RemoteConfig)
 
     Write-Host ""
     Write-Host "================================================================" -ForegroundColor Green
@@ -324,8 +343,8 @@ function Install-Local {
 
     Write-Success "Server installed at: $installDir"
 
-    # Step 4: Show configuration
-    Show-ConfigInstructions (Get-LocalConfig $installDir)
+    # Step 4: Configure Claude Desktop automatically
+    Configure-ClaudeDesktop (Get-LocalConfig $installDir)
 
     Write-Host ""
     Write-Host "================================================================" -ForegroundColor Green

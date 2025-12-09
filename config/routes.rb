@@ -6,12 +6,16 @@ Rails.application.routes.draw do
   get "mcp", to: "mcp#stream"
 
   # Installation page and scripts
+  # Script routes must be defined first with format: false to prevent format matching
+  get "install.sh", to: "install#script_sh", format: false
+  get "install.ps1", to: "install#script_ps1", format: false
   get "install", to: "install#show"
-  get "install.sh", to: "install#script_sh"
-  get "install.ps1", to: "install#script_ps1"
 
   # Health check for load balancers and Kamal
   get "up" => "rails/health#show", as: :rails_health_check
+
+  # Root redirects to install page for easy onboarding
+  root to: redirect("/install")
 
   # Silence Action Cable connection attempts (disabled in this API-only app)
   # These requests come from browser dev tools or extensions

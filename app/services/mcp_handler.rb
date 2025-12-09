@@ -63,6 +63,7 @@ class MCPHandler
     result.merge("id" => id)
   rescue StandardError => e
     Rails.logger.error("MCP Handler error: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
+    Sentry.capture_exception(e, extra: { method: method, user_id: @user&.id })
     error_response(id, -32_603, "Internal error: #{e.message}")
   end
 
@@ -129,6 +130,7 @@ class MCPHandler
     }
   rescue StandardError => e
     Rails.logger.error("Tool execution failed: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
+    Sentry.capture_exception(e, extra: { tool_name: tool_name, arguments: arguments, user_id: @user&.id })
     error_response(request["id"], -32_603, "Tool execution failed: #{e.message}")
   end
 
@@ -343,6 +345,7 @@ class MCPHandler
     @client.configure_user_timezone
   rescue StandardError => e
     Rails.logger.warn("Failed to configure timezone: #{e.message}")
+    Sentry.capture_exception(e, extra: { user_id: @user&.id }, level: :warning)
   end
 
   def error_response(id, code, message)

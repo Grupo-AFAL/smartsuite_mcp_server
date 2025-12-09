@@ -36,6 +36,7 @@ module MCPAuthentication
 
     @current_user = LocalUser.from_env
   rescue StandardError => e
+    Sentry.capture_exception(e, extra: { ip: request.remote_ip, auth_mode: :local })
     render json: { error: e.message }, status: :unauthorized
   end
 

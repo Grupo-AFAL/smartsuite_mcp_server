@@ -104,12 +104,13 @@
       border-radius: 8px;
       overflow-x: auto;
       font-family: 'Monaco', 'Menlo', monospace;
-      font-size: 0.875rem;
+      font-size: 0.8rem;
       position: relative;
     }
 
     .code-block code {
-      white-space: pre;
+      white-space: pre-wrap;
+      word-break: break-all;
     }
 
     .copy-btn {
@@ -272,7 +273,7 @@
             <% if @os == :windows %>
             <div class="code-block">
               <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-              <code id="remote-cmd-windows">powershell -c "iwr -useb '<%= @base_url %>/install.ps1' -OutFile install.ps1; .\install.ps1 remote '<%= @mcp_url %>' 'YOUR_API_KEY'"</code>
+              <code id="remote-cmd-windows">powershell -ExecutionPolicy Bypass -c "iwr -useb '<%= @base_url %>/install.ps1' -OutFile install.ps1; .\install.ps1 remote '<%= @mcp_url %>' 'YOUR_API_KEY'"</code>
             </div>
             <% else %>
             <div class="code-block">
@@ -287,7 +288,7 @@
           <div class="step-number">2</div>
           <div class="step-content">
             <h3>Restart Claude Desktop</h3>
-            <p>The installer will configure Claude Desktop automatically.</p>
+            <p>The installer automatically configures Claude Desktop for you.</p>
           </div>
         </div>
 
@@ -313,7 +314,7 @@
             <% if @os == :windows %>
             <div class="code-block">
               <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-              <code>powershell -c "iwr -useb '<%= @base_url %>/install.ps1' -OutFile install.ps1; .\install.ps1 local"</code>
+              <code>powershell -ExecutionPolicy Bypass -c "iwr -useb '<%= @base_url %>/install.ps1' -OutFile install.ps1; .\install.ps1 local"</code>
             </div>
             <% else %>
             <div class="code-block">
@@ -354,16 +355,16 @@
       </div>
 
       <div id="config-remote" class="tab-content active">
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+          <strong>Windows note:</strong> Uses cmd.exe wrapper to handle spaces in "Program Files" path.
+        </p>
         <div class="code-block">
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
           <code id="config-remote-json">{
   "mcpServers": {
     "smartsuite": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "<%= @mcp_url %>"],
-      "env": {
-        "API_KEY": "YOUR_API_KEY"
-      }
+      "command": "cmd.exe",
+      "args": ["/c", "npx", "-y", "mcp-remote", "<%= @mcp_url %>", "--header", "Authorization: Bearer YOUR_API_KEY"]
     }
   }
 }</code>
@@ -445,7 +446,7 @@
 
       const winCmd = document.getElementById('remote-cmd-windows');
       if (winCmd) {
-        winCmd.textContent = `powershell -c "iwr -useb '<%= @base_url %>/install.ps1' -OutFile install.ps1; .\\install.ps1 remote '<%= @mcp_url %>' '${apiKey}'"`;
+        winCmd.textContent = `powershell -ExecutionPolicy Bypass -c "iwr -useb '<%= @base_url %>/install.ps1' -OutFile install.ps1; .\\install.ps1 remote '<%= @mcp_url %>' '${apiKey}'"`;
       }
 
       // Update config JSON
@@ -454,11 +455,8 @@
         configJson.textContent = `{
   "mcpServers": {
     "smartsuite": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "<%= @mcp_url %>"],
-      "env": {
-        "API_KEY": "${apiKey}"
-      }
+      "command": "cmd.exe",
+      "args": ["/c", "npx", "-y", "mcp-remote", "<%= @mcp_url %>", "--header", "Authorization: Bearer ${apiKey}"]
     }
   }
 }`;

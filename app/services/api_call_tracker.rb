@@ -25,6 +25,7 @@ class APICallTracker
     )
   rescue StandardError => e
     Rails.logger.warn("Failed to track API call: #{e.message}")
+    Sentry.capture_exception(e, extra: { tool_name: tool_name, table_id: table_id })
   end
 
   private
@@ -74,6 +75,7 @@ class APICallTracker
     result&.fetch("solution_id", nil)
   rescue StandardError => e
     Rails.logger.debug("Failed to lookup solution_id for table #{table_id}: #{e.message}")
+    Sentry.capture_exception(e, extra: { table_id: table_id }, level: :warning)
     nil
   end
 end

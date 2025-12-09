@@ -256,8 +256,11 @@ module Cache
       params = [ Time.current ]
 
       if name
-        sql += " AND fuzzy_match(data->>'name', $2)"
+        # Use pg_trgm similarity for fuzzy search with typo tolerance
+        # similarity() returns 0-1, we accept matches > 0.3 or ILIKE fallback
+        sql += " AND (similarity(data->>'name', $2) > 0.3 OR data->>'name' ILIKE $3)"
         params << name
+        params << "%#{name}%"
       end
 
       results = execute_sql(sql, params)
@@ -428,7 +431,15 @@ module Cache
       end
 
       if query
-        sql += " AND (fuzzy_match(data->>'full_name', $#{params.size + 1}) OR data->>'email' ILIKE $#{params.size + 2})"
+        # Use pg_trgm similarity for fuzzy search with typo tolerance
+        # similarity() returns 0-1, we accept matches > 0.3 or ILIKE fallback
+        param_idx = params.size + 1
+        like_idx = params.size + 2
+        sql += " AND (" \
+               "similarity(data->>'full_name', $#{param_idx}) > 0.3 OR data->>'full_name' ILIKE $#{like_idx}" \
+               " OR similarity(data->>'first_name', $#{param_idx}) > 0.3 OR data->>'first_name' ILIKE $#{like_idx}" \
+               " OR similarity(data->>'last_name', $#{param_idx}) > 0.3 OR data->>'last_name' ILIKE $#{like_idx}" \
+               " OR data->>'email' ILIKE $#{like_idx})"
         params << query
         params << "%#{query}%"
       end
