@@ -257,8 +257,8 @@ module Cache
 
       if name
         # Use pg_trgm similarity for fuzzy search with typo tolerance
-        # Returns results where similarity > 0.3 (default threshold), ordered by relevance
-        sql += " AND (data->>'name' % $2 OR data->>'name' ILIKE $3)"
+        # similarity() returns 0-1, we accept matches > 0.3 or ILIKE fallback
+        sql += " AND (similarity(data->>'name', $2) > 0.3 OR data->>'name' ILIKE $3)"
         params << name
         params << "%#{name}%"
       end
@@ -432,14 +432,13 @@ module Cache
 
       if query
         # Use pg_trgm similarity for fuzzy search with typo tolerance
-        # The % operator returns true if similarity > threshold (default 0.3)
-        # Also include ILIKE as fallback for partial matches
+        # similarity() returns 0-1, we accept matches > 0.3 or ILIKE fallback
         param_idx = params.size + 1
         like_idx = params.size + 2
         sql += " AND (" \
-               "data->>'full_name' % $#{param_idx} OR data->>'full_name' ILIKE $#{like_idx}" \
-               " OR data->>'first_name' % $#{param_idx} OR data->>'first_name' ILIKE $#{like_idx}" \
-               " OR data->>'last_name' % $#{param_idx} OR data->>'last_name' ILIKE $#{like_idx}" \
+               "similarity(data->>'full_name', $#{param_idx}) > 0.3 OR data->>'full_name' ILIKE $#{like_idx}" \
+               " OR similarity(data->>'first_name', $#{param_idx}) > 0.3 OR data->>'first_name' ILIKE $#{like_idx}" \
+               " OR similarity(data->>'last_name', $#{param_idx}) > 0.3 OR data->>'last_name' ILIKE $#{like_idx}" \
                " OR data->>'email' ILIKE $#{like_idx})"
         params << query
         params << "%#{query}%"
