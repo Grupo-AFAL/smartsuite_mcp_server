@@ -1,4 +1,18 @@
 Rails.application.routes.draw do
+  # OAuth 2.0 Provider (Doorkeeper)
+  use_doorkeeper
+
+  # OAuth Dynamic Client Registration (RFC 7591)
+  post "oauth/register", to: "oauth_registrations#create"
+
+  # OAuth Authorization Server Metadata (RFC 8414)
+  get ".well-known/oauth-authorization-server", to: "oauth_metadata#show"
+
+  # Authentication routes for OAuth flow
+  get "login", to: "sessions#new"
+  post "login", to: "sessions#create", as: :sessions
+  delete "logout", to: "sessions#destroy"
+
   # MCP Streamable HTTP transport endpoints
   # POST /mcp - Handle JSON-RPC messages
   # GET /mcp - SSE stream for server-initiated messages (optional)
