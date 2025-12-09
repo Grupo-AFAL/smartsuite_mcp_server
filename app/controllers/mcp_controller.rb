@@ -29,6 +29,7 @@ class MCPController < ApplicationController
   def parse_request_body
     JSON.parse(request.body.read)
   rescue JSON::ParserError => e
+    Sentry.capture_exception(e, extra: { ip: request.remote_ip })
     render json: json_rpc_error(-32700, "Parse error: #{e.message}"), status: :bad_request
     nil
   end
