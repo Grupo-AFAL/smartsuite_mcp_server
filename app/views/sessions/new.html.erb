@@ -1,0 +1,30 @@
+<div class="logo">
+  <h1>SmartSuite MCP</h1>
+  <% if @oauth_flow %>
+    <p>Sign in to connect your SmartSuite workspace</p>
+  <% else %>
+    <p>Sign in to your account</p>
+  <% end %>
+</div>
+
+<% if flash[:alert] %>
+  <div class="alert alert-error"><%= flash[:alert] %></div>
+<% end %>
+
+<% if flash[:notice] %>
+  <div class="alert alert-notice"><%= flash[:notice] %></div>
+<% end %>
+
+<%= form_tag sessions_path, method: :post do %>
+  <div class="form-group">
+    <%= label_tag :email, "Email" %>
+    <%= email_field_tag :email, params[:email], placeholder: "you@example.com", required: true, autofocus: true %>
+  </div>
+
+  <div class="form-group">
+    <%= label_tag :password, "Password" %>
+    <%= password_field_tag :password, nil, placeholder: "Your password", required: true %>
+  </div>
+
+  <%= submit_tag "Sign In", class: "btn btn-primary" %>
+<% end %>

@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OAuth 2.0 Authentication** - Native Claude Desktop Custom Connector support via OAuth
+  - **Doorkeeper OAuth Provider** - Full OAuth 2.0 authorization server implementation
+    - Authorization Code grant flow with PKCE support
+    - Refresh token support for long-lived sessions
+    - 2-hour access token expiration with automatic refresh
+    - Scopes: `read` (default), `write` (optional)
+  - **Dynamic Client Registration (RFC 7591)** - Claude Desktop can auto-register as OAuth client
+    - POST `/oauth/register` endpoint
+    - Idempotent registration (returns existing credentials if already registered)
+    - Supports `client_name`, `redirect_uris`, `grant_types`, `response_types`
+  - **OAuth Server Metadata (RFC 8414)** - Discovery endpoint for OAuth clients
+    - GET `/.well-known/oauth-authorization-server`
+    - Advertises all supported endpoints, scopes, and grant types
+  - **User Authentication** - Password-based login for OAuth flows
+    - `has_secure_password` with bcrypt
+    - Session-based authentication for authorization flow
+    - OAuth params preserved through login redirect
+    - Clean, responsive login UI
+  - **Updated MCP Authentication** - Now supports both OAuth tokens and API keys
+    - OAuth tokens (from Claude Desktop) take priority
+    - Falls back to API keys (from Claude Code)
+    - Seamless backward compatibility with existing clients
+  - **Database Migrations**
+    - Doorkeeper tables: `oauth_applications`, `oauth_access_grants`, `oauth_access_tokens`
+    - User additions: `password_digest`, `admin` flag
+  - **New Dependencies**: `doorkeeper`, `bcrypt`
+
 - **Lefthook Git Hooks** - Pre-commit hooks to enforce development workflow
   - Blocks direct commits to `main` branch
   - Runs RuboCop on staged Ruby files (mirrors CI)
