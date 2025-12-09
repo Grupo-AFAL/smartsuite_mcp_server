@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Improved list_records pagination guidance** - Tool description now clearly explains when to paginate
+  - For analysis tasks (cross-references, reports, validations): MUST fetch ALL records
+  - For preview tasks: Small limits (5-10) are OK
+  - Emphasizes checking "X of Y filtered records" response to know if more data exists
+
 - **Sentry error reporting** - All caught exceptions now reported to Sentry
   - MCP handler: `process` and `handle_tool_call` errors with tool/method context
   - API call tracker: tracking failures and solution_id lookup errors
