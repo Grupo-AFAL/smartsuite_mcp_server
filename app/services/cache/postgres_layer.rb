@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../../lib/smart_suite/logger"
+require_relative "../../../lib/smart_suite/date_mode_resolver"
 
 module Cache
   # PostgreSQL-based cache layer for the hosted SmartSuite MCP server.
@@ -713,12 +714,14 @@ module Cache
 
     def build_single_jsonb_condition(field, comparison, value, param_num)
       field_accessor = "data->>'#{sanitize_field_name(field)}'"
+      # For status/single select fields that store value in nested object
+      select_field_accessor = select_field_value_accessor(field)
 
       case comparison
       when "is"
-        [ "#{field_accessor} = $#{param_num}", [ value.to_s ] ]
+        [ "#{select_field_accessor} = $#{param_num}", [ value.to_s ] ]
       when "is_not"
-        [ "#{field_accessor} != $#{param_num}", [ value.to_s ] ]
+        [ "#{select_field_accessor} != $#{param_num}", [ value.to_s ] ]
       when "contains"
         [ "#{field_accessor} ILIKE $#{param_num}", [ "%#{value}%" ] ]
       when "is_greater_than"
@@ -745,10 +748,20 @@ module Cache
         end
       when "is_before"
         date_value = extract_date_value(value)
-        [ "#{field_accessor} < $#{param_num}", [ date_value ] ] if date_value
+        date_accessor = date_field_accessor(field)
+        [ "#{date_accessor} < $#{param_num}", [ date_value ] ] if date_value
       when "is_after"
         date_value = extract_date_value(value)
-        [ "#{field_accessor} > $#{param_num}", [ date_value ] ] if date_value
+        date_accessor = date_field_accessor(field)
+        [ "#{date_accessor} > $#{param_num}", [ date_value ] ] if date_value
+      when "is_on_or_before"
+        date_value = extract_date_value(value)
+        date_accessor = date_field_accessor(field)
+        [ "#{date_accessor} <= $#{param_num}", [ date_value ] ] if date_value
+      when "is_on_or_after"
+        date_value = extract_date_value(value)
+        date_accessor = date_field_accessor(field)
+        [ "#{date_accessor} >= $#{param_num}", [ date_value ] ] if date_value
       else
         # Default to equality
         [ "#{field_accessor} = $#{param_num}", [ value.to_s ] ]
@@ -756,11 +769,40 @@ module Cache
     end
 
     def extract_date_value(value)
-      if value.is_a?(Hash)
-        value["date_mode_value"] || value["date"]
-      else
-        value.to_s
-      end
+      SmartSuite::DateModeResolver.extract_date_value(value)
+    end
+
+    # Creates a PostgreSQL accessor for status/single select fields that handles both:
+    # - Simple values: "in_progress" (stored as string)
+    # - Object values: {"value": "in_progress", "updated_on": "..."} (statusfield format)
+    #
+    # Uses COALESCE to try the nested object format first, then falls back to simple string.
+    def select_field_value_accessor(field)
+      sanitized = sanitize_field_name(field)
+      <<~SQL.squish
+        COALESCE(
+          data->'#{sanitized}'->>'value',
+          data->>'#{sanitized}'
+        )
+      SQL
+    end
+
+    # Creates a PostgreSQL accessor for date fields that handles both:
+    # - Simple date fields: "2024-06-24" (stored as string)
+    # - Date Range fields: {"to_date": {"date": "2024-06-24T00:00:00Z", ...}, ...}
+    #
+    # For Date Range fields, we extract the date from to_date.date and normalize
+    # it to YYYY-MM-DD format for comparison.
+    def date_field_accessor(field)
+      sanitized = sanitize_field_name(field)
+      # COALESCE tries Date Range format first (to_date.date), then falls back to simple date
+      # SUBSTRING extracts just the date part (YYYY-MM-DD) from ISO timestamps
+      <<~SQL.squish
+        COALESCE(
+          SUBSTRING(data->'#{sanitized}'->'to_date'->>'date' FROM 1 FOR 10),
+          SUBSTRING(data->>'#{sanitized}' FROM 1 FOR 10)
+        )
+      SQL
     end
 
     def get_cache_count_status(table_name, now)
@@ -856,6 +898,11 @@ module Cache
             when :lte then "is_equal_or_less_than"
             when :contains then "contains"
             when :has_any_of then "has_any_of"
+            # Date operators - preserve for date_field_accessor handling
+            when :is_before then "is_before"
+            when :is_after then "is_after"
+            when :is_on_or_before then "is_on_or_before"
+            when :is_on_or_after then "is_on_or_after"
             else "is"
             end
             @filter["fields"] << { "field" => field.to_s, "comparison" => comparison, "value" => v }
