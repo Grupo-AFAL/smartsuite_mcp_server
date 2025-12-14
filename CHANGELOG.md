@@ -26,6 +26,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Status/Single Select field filter not matching** - Cache filter fix
+  - Status fields store value as `{"value": "in_progress", "updated_on": "..."}` object
+  - Filter was comparing against full JSON object instead of nested `value`
+  - Added `select_field_value_accessor` with COALESCE for both formats
+  - Now `is` and `is_not` operators correctly match status/select field values
+
+- **Date Range field comparison crash** - Fixes SMARTSUITE-MCP-5
+  - Date Range fields (with `to_date`/`from_date` structure) now filter correctly
+  - Added `date_field_accessor` that handles both simple dates and Date Range objects
+  - Uses COALESCE to try Date Range format first, then fall back to simple date
+  - Added support for `is_on_or_before` and `is_on_or_after` operators
+
+- **Date filter crash with dynamic date_mode values** - Fixes SMARTSUITE-MCP-9
+  - Filters like `{"date_mode": "today"}` now resolve correctly instead of causing `NoMethodError`
+  - Extracted `DateModeResolver` module for testable date mode resolution
+  - Supports: `today`, `yesterday`, `tomorrow`, `one_week_ago`, `one_week_from_now`,
+    `one_month_ago`, `one_month_from_now`, `start_of_week`, `end_of_week`,
+    `start_of_month`, `end_of_month`
+  - Fixed FilterBuilder.extract_date_value to use DateModeResolver for cache queries
+
 - **Improved list_records pagination guidance** - Tool description now clearly explains when to paginate
 
   - For analysis tasks (cross-references, reports, validations): MUST fetch ALL records
