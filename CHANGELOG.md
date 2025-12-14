@@ -58,6 +58,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - API call tracker: tracking failures and solution_id lookup errors
   - MCP controller: JSON parse errors with client IP
   - Authentication: local mode errors with IP and auth_mode context
+
+- **is_empty/is_not_empty filters now handle all SmartSuite field types**
+  - SmartSuite stores empty values differently: `NULL`, `''`, `[]`, `{}`, `'null'`
+  - Fixed SQL conditions to check all empty representations
+  - Now correctly filters linked records, multi-select, and other array/object fields
   - Timezone configuration failures
 
 - **Installation Scripts** - Cross-platform installers for easy MCP client setup
