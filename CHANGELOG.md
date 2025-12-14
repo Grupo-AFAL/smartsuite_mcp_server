@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **PostgreSQL Integration Tests** - Comprehensive integration tests with real PostgreSQL database
+  - 61 tests covering all SmartSuite field types and filter operators
+  - Tests run against actual PostgreSQL JSONB queries (not just SQL generation)
+  - Coverage includes: Status, SingleSelect, Text, Number, Date, MultiSelect, User, LinkedRecord, Boolean fields
+  - Tests all comparison operators: `is`, `is_not`, `contains`, `is_empty`, `is_not_empty`, `has_any_of`, date comparisons, numeric comparisons
+  - Tests AND/OR logic with multiple conditions and complex nested filters
+  - Test fixtures mimic real SmartSuite data structures (nested objects, Date Range format, etc.)
+  - Located in `test/integration/postgres/`
+
 - **Lefthook Git Hooks** - Pre-commit hooks to enforce development workflow
   - Blocks direct commits to `main` branch
   - Runs RuboCop on staged Ruby files (mirrors CI)
@@ -25,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New migration: `EnablePgTrgmExtension`
 
 ### Fixed
+
+- **has_any_of filter with empty array returned all records** - Bug discovered by integration tests
+  - `has_any_of` with empty `[]` was returning `[nil, []]` which caused no WHERE clause
+  - Now correctly returns `["FALSE", []]` which adds `WHERE FALSE` = no matches
+  - "Has any of nothing" should logically match nothing
 
 - **Status/Single Select field filter not matching** - Cache filter fix
   - Status fields store value as `{"value": "in_progress", "updated_on": "..."}` object
@@ -63,6 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - SmartSuite stores empty values differently: `NULL`, `''`, `[]`, `{}`, `'null'`
   - Fixed SQL conditions to check all empty representations
   - Now correctly filters linked records, multi-select, and other array/object fields
+  - Date Range fields with `{"from_date": null, "to_date": null}` now correctly considered empty
+  - Status fields with `{"value": null}` now correctly considered empty
+  - Added `build_is_empty_condition` and `build_is_not_empty_condition` helper methods
   - Timezone configuration failures
 
 - **Installation Scripts** - Cross-platform installers for easy MCP client setup

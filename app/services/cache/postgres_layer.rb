@@ -733,30 +733,9 @@ module Cache
       when "is_equal_or_less_than"
         [ "(#{field_accessor})::numeric <= $#{param_num}", [ value.to_f ] ]
       when "is_empty"
-        # Handle multiple empty representations:
-        # - NULL value
-        # - Empty string ''
-        # - Empty JSON array '[]'
-        # - Empty JSON object '{}'
-        # - JSON null 'null'
-        sanitized = sanitize_field_name(field)
-        [
-          "(#{field_accessor} IS NULL OR #{field_accessor} = '' OR " \
-          "data->'#{sanitized}' = '[]'::jsonb OR data->'#{sanitized}' = '{}'::jsonb OR " \
-          "data->'#{sanitized}' = 'null'::jsonb OR " \
-          "(jsonb_typeof(data->'#{sanitized}') = 'array' AND jsonb_array_length(data->'#{sanitized}') = 0))",
-          []
-        ]
+        build_is_empty_condition(field, field_accessor)
       when "is_not_empty"
-        # Inverse of is_empty - must have non-null, non-empty content
-        sanitized = sanitize_field_name(field)
-        [
-          "(#{field_accessor} IS NOT NULL AND #{field_accessor} != '' AND " \
-          "data->'#{sanitized}' != '[]'::jsonb AND data->'#{sanitized}' != '{}'::jsonb AND " \
-          "data->'#{sanitized}' != 'null'::jsonb AND " \
-          "NOT (jsonb_typeof(data->'#{sanitized}') = 'array' AND jsonb_array_length(data->'#{sanitized}') = 0))",
-          []
-        ]
+        build_is_not_empty_condition(field, field_accessor)
       when "has_any_of"
         if value.is_a?(Array) && value.any?
           # For JSON arrays, check if any value is present
@@ -765,7 +744,8 @@ module Cache
           end
           [ "(#{or_conditions.join(' OR ')})", value.map { |v| "[\"#{v}\"]" } ]
         else
-          [ nil, [] ]
+          # Empty array means "has any of nothing" = always false = no matches
+          [ "FALSE", [] ]
         end
       when "is_before"
         date_value = extract_date_value(value)
@@ -902,6 +882,50 @@ module Cache
       end
 
       info
+    end
+
+    # Build is_empty condition that handles all SmartSuite field types:
+    # - NULL/empty/null JSON for simple fields
+    # - Date Range fields: {"from_date": null, "to_date": null} should be empty
+    # - Status fields: {"value": null} should be empty
+    # - Arrays and objects
+    def build_is_empty_condition(field, field_accessor)
+      sanitized = sanitize_field_name(field)
+      date_accessor = date_field_accessor(field)
+
+      # A field is empty if:
+      # 1. Basic empty checks: NULL, '', [], {}, JSON null
+      # 2. Date Range format with null to_date: {"from_date": ..., "to_date": null}
+      # 3. Date Range format with to_date object that has null date: {"to_date": {"date": null}}
+      # 4. Status/select format with null value: {"value": null}
+      [
+        "(#{field_accessor} IS NULL OR #{field_accessor} = '' OR " \
+        "data->'#{sanitized}' = '[]'::jsonb OR data->'#{sanitized}' = '{}'::jsonb OR " \
+        "data->'#{sanitized}' = 'null'::jsonb OR " \
+        "(jsonb_typeof(data->'#{sanitized}') = 'array' AND jsonb_array_length(data->'#{sanitized}') = 0) OR " \
+        "(jsonb_typeof(data->'#{sanitized}') = 'object' AND #{date_accessor} IS NULL AND data->'#{sanitized}'->'value' IS NULL))",
+        []
+      ]
+    end
+
+    # Build is_not_empty condition - inverse of is_empty
+    def build_is_not_empty_condition(field, field_accessor)
+      sanitized = sanitize_field_name(field)
+      date_accessor = date_field_accessor(field)
+
+      # A field is NOT empty if it has actual usable content:
+      # - Not NULL/empty string
+      # - Not empty array/object
+      # - For Date Range: has a valid to_date with actual date value
+      # - For Status: has a valid value
+      [
+        "(#{field_accessor} IS NOT NULL AND #{field_accessor} != '' AND " \
+        "data->'#{sanitized}' != '[]'::jsonb AND data->'#{sanitized}' != '{}'::jsonb AND " \
+        "data->'#{sanitized}' != 'null'::jsonb AND " \
+        "NOT (jsonb_typeof(data->'#{sanitized}') = 'array' AND jsonb_array_length(data->'#{sanitized}') = 0) AND " \
+        "(jsonb_typeof(data->'#{sanitized}') != 'object' OR #{date_accessor} IS NOT NULL OR data->'#{sanitized}'->'value' IS NOT NULL))",
+        []
+      ]
     end
   end
 
