@@ -746,10 +746,20 @@ module Cache
         end
       when "is_before"
         date_value = extract_date_value(value)
-        [ "#{field_accessor} < $#{param_num}", [ date_value ] ] if date_value
+        date_accessor = date_field_accessor(field)
+        [ "#{date_accessor} < $#{param_num}", [ date_value ] ] if date_value
       when "is_after"
         date_value = extract_date_value(value)
-        [ "#{field_accessor} > $#{param_num}", [ date_value ] ] if date_value
+        date_accessor = date_field_accessor(field)
+        [ "#{date_accessor} > $#{param_num}", [ date_value ] ] if date_value
+      when "is_on_or_before"
+        date_value = extract_date_value(value)
+        date_accessor = date_field_accessor(field)
+        [ "#{date_accessor} <= $#{param_num}", [ date_value ] ] if date_value
+      when "is_on_or_after"
+        date_value = extract_date_value(value)
+        date_accessor = date_field_accessor(field)
+        [ "#{date_accessor} >= $#{param_num}", [ date_value ] ] if date_value
       else
         # Default to equality
         [ "#{field_accessor} = $#{param_num}", [ value.to_s ] ]
@@ -758,6 +768,24 @@ module Cache
 
     def extract_date_value(value)
       SmartSuite::DateModeResolver.extract_date_value(value)
+    end
+
+    # Creates a PostgreSQL accessor for date fields that handles both:
+    # - Simple date fields: "2024-06-24" (stored as string)
+    # - Date Range fields: {"to_date": {"date": "2024-06-24T00:00:00Z", ...}, ...}
+    #
+    # For Date Range fields, we extract the date from to_date.date and normalize
+    # it to YYYY-MM-DD format for comparison.
+    def date_field_accessor(field)
+      sanitized = sanitize_field_name(field)
+      # COALESCE tries Date Range format first (to_date.date), then falls back to simple date
+      # SUBSTRING extracts just the date part (YYYY-MM-DD) from ISO timestamps
+      <<~SQL.squish
+        COALESCE(
+          SUBSTRING(data->'#{sanitized}'->'to_date'->>'date' FROM 1 FOR 10),
+          SUBSTRING(data->>'#{sanitized}' FROM 1 FOR 10)
+        )
+      SQL
     end
 
     def get_cache_count_status(table_name, now)

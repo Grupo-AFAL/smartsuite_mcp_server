@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Date Range field comparison crash** - Fixes SMARTSUITE-MCP-5
+  - Date Range fields (with `to_date`/`from_date` structure) now filter correctly
+  - Added `date_field_accessor` that handles both simple dates and Date Range objects
+  - Uses COALESCE to try Date Range format first, then fall back to simple date
+  - Added support for `is_on_or_before` and `is_on_or_after` operators
+
 - **Date filter crash with dynamic date_mode values** - Fixes SMARTSUITE-MCP-9
   - Filters like `{"date_mode": "today"}` now resolve correctly instead of causing `NoMethodError`
   - Extracted `DateModeResolver` module for testable date mode resolution
