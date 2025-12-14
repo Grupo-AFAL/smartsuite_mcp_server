@@ -2,6 +2,7 @@
 
 require "time"
 require_relative "date_formatter"
+require_relative "date_mode_resolver"
 
 module SmartSuite
   # FilterBuilder converts SmartSuite API filter syntax to cache query conditions.
@@ -162,9 +163,10 @@ module SmartSuite
 
     # Extract date value from SmartSuite date object format and convert to UTC.
     #
-    # SmartSuite date filters can come in two formats:
+    # SmartSuite date filters can come in several formats:
     # 1. Simple string: "2025-01-01"
-    # 2. Date object: {"date_mode" => "exact_date", "date_mode_value" => "2025-01-01"}
+    # 2. Date object with exact date: {"date_mode" => "exact_date", "date_mode_value" => "2025-01-01"}
+    # 3. Date object with dynamic mode: {"date_mode" => "today"} (no date_mode_value)
     #
     # For date-only values (no time component), the date represents a calendar day
     # in the user's local timezone. This method converts it to a UTC timestamp
@@ -178,12 +180,14 @@ module SmartSuite
     # @example With time already specified
     #   extract_date_value("2025-06-15T14:30:00Z")
     #   #=> "2025-06-15T14:30:00Z" (unchanged)
+    # @example Dynamic date mode
+    #   extract_date_value({"date_mode" => "today"})
+    #   #=> "2025-12-13T08:00:00Z" (today's date in UTC)
     def self.extract_date_value(value)
-      date_str = if value.is_a?(Hash) && value["date_mode_value"]
-                   value["date_mode_value"]
-      else
-                   value
-      end
+      return nil if value.nil?
+
+      # Use DateModeResolver to handle all date value formats including dynamic modes
+      date_str = SmartSuite::DateModeResolver.extract_date_value(value)
 
       convert_to_utc_for_filter(date_str)
     end

@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports: `today`, `yesterday`, `tomorrow`, `one_week_ago`, `one_week_from_now`,
     `one_month_ago`, `one_month_from_now`, `start_of_week`, `end_of_week`,
     `start_of_month`, `end_of_month`
+  - Fixed FilterBuilder.extract_date_value to use DateModeResolver for cache queries
 
 - **Improved list_records pagination guidance** - Tool description now clearly explains when to paginate
 
