@@ -790,17 +790,31 @@ module Cache
     # Creates a PostgreSQL accessor for date fields that handles both:
     # - Simple date fields: "2024-06-24" (stored as string)
     # - Date Range fields: {"to_date": {"date": "2024-06-24T00:00:00Z", ...}, ...}
+    # - Due Date fields: {"to_date": "2024-06-24", ...} (date as string, not nested object)
     #
-    # For Date Range fields, we extract the date from to_date.date and normalize
+    # For Date Range/Due Date fields, we extract the date from to_date and normalize
     # it to YYYY-MM-DD format for comparison.
+    # Returns NULL when no valid date is present to avoid incorrect string comparisons.
     def date_field_accessor(field)
       sanitized = sanitize_field_name(field)
-      # COALESCE tries Date Range format first (to_date.date), then falls back to simple date
-      # SUBSTRING extracts just the date part (YYYY-MM-DD) from ISO timestamps
+      # COALESCE tries multiple formats:
+      # 1. Date Range format: to_date.date (nested object with date key)
+      # 2. Due Date format: to_date (string date directly)
+      # 3. Simple date format: field value is a date string
+      # Only returns value if it matches YYYY-MM-DD pattern to avoid JSON string comparison bugs
       <<~SQL.squish
         COALESCE(
           SUBSTRING(data->'#{sanitized}'->'to_date'->>'date' FROM 1 FOR 10),
-          SUBSTRING(data->>'#{sanitized}' FROM 1 FOR 10)
+          CASE
+            WHEN data->'#{sanitized}'->>'to_date' ~ '^\\d{4}-\\d{2}-\\d{2}'
+            THEN SUBSTRING(data->'#{sanitized}'->>'to_date' FROM 1 FOR 10)
+            ELSE NULL
+          END,
+          CASE
+            WHEN data->>'#{sanitized}' ~ '^\\d{4}-\\d{2}-\\d{2}'
+            THEN SUBSTRING(data->>'#{sanitized}' FROM 1 FOR 10)
+            ELSE NULL
+          END
         )
       SQL
     end
