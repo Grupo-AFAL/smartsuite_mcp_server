@@ -130,9 +130,9 @@ module SmartSuite
 
       # Null check operators
       when "is_empty"
-        nil
+        { is_empty: true }
       when "is_not_empty"
-        { is_not_null: true }
+        { is_not_empty: true }
 
       # Array operators (multi-select, linked records, tags)
       when "has_any_of"
