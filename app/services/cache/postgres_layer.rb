@@ -733,9 +733,30 @@ module Cache
       when "is_equal_or_less_than"
         [ "(#{field_accessor})::numeric <= $#{param_num}", [ value.to_f ] ]
       when "is_empty"
-        [ "(#{field_accessor} IS NULL OR #{field_accessor} = '')", [] ]
+        # Handle multiple empty representations:
+        # - NULL value
+        # - Empty string ''
+        # - Empty JSON array '[]'
+        # - Empty JSON object '{}'
+        # - JSON null 'null'
+        sanitized = sanitize_field_name(field)
+        [
+          "(#{field_accessor} IS NULL OR #{field_accessor} = '' OR " \
+          "data->'#{sanitized}' = '[]'::jsonb OR data->'#{sanitized}' = '{}'::jsonb OR " \
+          "data->'#{sanitized}' = 'null'::jsonb OR " \
+          "(jsonb_typeof(data->'#{sanitized}') = 'array' AND jsonb_array_length(data->'#{sanitized}') = 0))",
+          []
+        ]
       when "is_not_empty"
-        [ "(#{field_accessor} IS NOT NULL AND #{field_accessor} != '')", [] ]
+        # Inverse of is_empty - must have non-null, non-empty content
+        sanitized = sanitize_field_name(field)
+        [
+          "(#{field_accessor} IS NOT NULL AND #{field_accessor} != '' AND " \
+          "data->'#{sanitized}' != '[]'::jsonb AND data->'#{sanitized}' != '{}'::jsonb AND " \
+          "data->'#{sanitized}' != 'null'::jsonb AND " \
+          "NOT (jsonb_typeof(data->'#{sanitized}') = 'array' AND jsonb_array_length(data->'#{sanitized}') = 0))",
+          []
+        ]
       when "has_any_of"
         if value.is_a?(Array) && value.any?
           # For JSON arrays, check if any value is present
