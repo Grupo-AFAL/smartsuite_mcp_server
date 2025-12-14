@@ -68,11 +68,11 @@ class TestFilterBuilder < Minitest::Test
 
   # Test null operators
   def test_convert_comparison_is_empty
-    assert_nil SmartSuite::FilterBuilder.convert_comparison("is_empty", nil)
+    assert_equal({ is_empty: true }, SmartSuite::FilterBuilder.convert_comparison("is_empty", nil))
   end
 
   def test_convert_comparison_is_not_empty
-    assert_equal({ is_not_null: true }, SmartSuite::FilterBuilder.convert_comparison("is_not_empty", nil))
+    assert_equal({ is_not_empty: true }, SmartSuite::FilterBuilder.convert_comparison("is_not_empty", nil))
   end
 
   # Test array operators
@@ -183,7 +183,7 @@ class TestFilterBuilder < Minitest::Test
     assert_equal({ tags: { has_any_of: %w[urgent critical] } }, @query.conditions[1])
     # Date-only values are converted to UTC timestamp (date operators preserve type)
     assert_equal({ due_date: { is_on_or_after: "2025-01-01T00:00:00Z" } }, @query.conditions[2])
-    assert_equal({ assigned_to: { is_not_null: true } }, @query.conditions[3])
+    assert_equal({ assigned_to: { is_not_empty: true } }, @query.conditions[3])
   end
 
   # Test that field names are converted to symbols
@@ -251,17 +251,19 @@ class TestFilterBuilder < Minitest::Test
   def test_is_not_empty_returns_correct_operator
     result = SmartSuite::FilterBuilder.convert_comparison("is_not_empty", nil)
 
-    # CRITICAL: Must be :is_not_null, not :not_null
+    # Returns {is_not_empty: true} which maps to "is_not_empty" comparison in postgres_layer
     assert result.is_a?(Hash), "Should return Hash"
-    assert result.key?(:is_not_null), "Should have :is_not_null key"
-    refute result.key?(:not_null), "Should NOT have :not_null key (causes SQL binding error)"
-    assert_equal true, result[:is_not_null], "Value should be true"
+    assert result.key?(:is_not_empty), "Should have :is_not_empty key"
+    assert_equal true, result[:is_not_empty], "Value should be true"
   end
 
-  # Test that is_empty still works correctly
-  def test_is_empty_returns_nil
+  # Test that is_empty returns correct operator
+  def test_is_empty_returns_correct_operator
     result = SmartSuite::FilterBuilder.convert_comparison("is_empty", nil)
-    assert_nil result, "is_empty should return nil"
+    # Returns {is_empty: true} which maps to "is_empty" comparison in postgres_layer
+    assert result.is_a?(Hash), "Should return Hash"
+    assert result.key?(:is_empty), "Should have :is_empty key"
+    assert_equal true, result[:is_empty], "Value should be true"
   end
 
   # Test comprehensive filter operator integration to prevent similar bugs
@@ -282,9 +284,9 @@ class TestFilterBuilder < Minitest::Test
       "contains" => { contains: "text" },
       "not_contains" => { not_contains: "text" },
 
-      # Null operators (CRITICAL for regression)
-      "is_empty" => nil,
-      "is_not_empty" => { is_not_null: true },
+      # Null operators - return explicit operator hashes for postgres_layer mapping
+      "is_empty" => { is_empty: true },
+      "is_not_empty" => { is_not_empty: true },
 
       # Array operators
       "has_any_of" => { has_any_of: [ "a" ] },
