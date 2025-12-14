@@ -912,6 +912,9 @@ module Cache
             when :lte then "is_equal_or_less_than"
             when :contains then "contains"
             when :has_any_of then "has_any_of"
+            # Null check operators
+            when :is_empty then "is_empty"
+            when :is_not_empty then "is_not_empty"
             # Date operators - preserve for date_field_accessor handling
             when :is_before then "is_before"
             when :is_after then "is_after"
