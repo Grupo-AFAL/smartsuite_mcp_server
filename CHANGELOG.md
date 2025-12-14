@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Status/Single Select field filter not matching** - Cache filter fix
+  - Status fields store value as `{"value": "in_progress", "updated_on": "..."}` object
+  - Filter was comparing against full JSON object instead of nested `value`
+  - Added `select_field_value_accessor` with COALESCE for both formats
+  - Now `is` and `is_not` operators correctly match status/select field values
+
 - **Date Range field comparison crash** - Fixes SMARTSUITE-MCP-5
   - Date Range fields (with `to_date`/`from_date` structure) now filter correctly
   - Added `date_field_accessor` that handles both simple dates and Date Range objects
