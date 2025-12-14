@@ -144,16 +144,16 @@ module SmartSuite
       when "has_none_of"
         { has_none_of: value }
 
-      # Date operators (map to numeric comparisons)
-      # Extract actual date value if value is a hash with date_mode_value
+      # Date operators - preserve operator type and extract date value
+      # These need special handling in postgres_layer for date field accessors
       when "is_before"
-        { lt: extract_date_value(value) }
+        { is_before: extract_date_value(value) }
       when "is_after"
-        { gt: extract_date_value(value) }
+        { is_after: extract_date_value(value) }
       when "is_on_or_before"
-        { lte: extract_date_value(value) }
+        { is_on_or_before: extract_date_value(value) }
       when "is_on_or_after"
-        { gte: extract_date_value(value) }
+        { is_on_or_after: extract_date_value(value) }
 
       # Default: equality
       else

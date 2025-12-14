@@ -898,6 +898,11 @@ module Cache
             when :lte then "is_equal_or_less_than"
             when :contains then "contains"
             when :has_any_of then "has_any_of"
+            # Date operators - preserve for date_field_accessor handling
+            when :is_before then "is_before"
+            when :is_after then "is_after"
+            when :is_on_or_before then "is_on_or_before"
+            when :is_on_or_after then "is_on_or_after"
             else "is"
             end
             @filter["fields"] << { "field" => field.to_s, "comparison" => comparison, "value" => v }
