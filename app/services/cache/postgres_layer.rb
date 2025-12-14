@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../../lib/smart_suite/logger"
+require_relative "../../../lib/smart_suite/date_mode_resolver"
 
 module Cache
   # PostgreSQL-based cache layer for the hosted SmartSuite MCP server.
@@ -756,11 +757,7 @@ module Cache
     end
 
     def extract_date_value(value)
-      if value.is_a?(Hash)
-        value["date_mode_value"] || value["date"]
-      else
-        value.to_s
-      end
+      SmartSuite::DateModeResolver.extract_date_value(value)
     end
 
     def get_cache_count_status(table_name, now)
