@@ -714,12 +714,14 @@ module Cache
 
     def build_single_jsonb_condition(field, comparison, value, param_num)
       field_accessor = "data->>'#{sanitize_field_name(field)}'"
+      # For status/single select fields that store value in nested object
+      select_field_accessor = select_field_value_accessor(field)
 
       case comparison
       when "is"
-        [ "#{field_accessor} = $#{param_num}", [ value.to_s ] ]
+        [ "#{select_field_accessor} = $#{param_num}", [ value.to_s ] ]
       when "is_not"
-        [ "#{field_accessor} != $#{param_num}", [ value.to_s ] ]
+        [ "#{select_field_accessor} != $#{param_num}", [ value.to_s ] ]
       when "contains"
         [ "#{field_accessor} ILIKE $#{param_num}", [ "%#{value}%" ] ]
       when "is_greater_than"
@@ -768,6 +770,21 @@ module Cache
 
     def extract_date_value(value)
       SmartSuite::DateModeResolver.extract_date_value(value)
+    end
+
+    # Creates a PostgreSQL accessor for status/single select fields that handles both:
+    # - Simple values: "in_progress" (stored as string)
+    # - Object values: {"value": "in_progress", "updated_on": "..."} (statusfield format)
+    #
+    # Uses COALESCE to try the nested object format first, then falls back to simple string.
+    def select_field_value_accessor(field)
+      sanitized = sanitize_field_name(field)
+      <<~SQL.squish
+        COALESCE(
+          data->'#{sanitized}'->>'value',
+          data->>'#{sanitized}'
+        )
+      SQL
     end
 
     # Creates a PostgreSQL accessor for date fields that handles both:
