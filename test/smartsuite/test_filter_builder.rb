@@ -92,6 +92,25 @@ class TestFilterBuilder < Minitest::Test
     assert_equal({ has_none_of: %w[a b] }, SmartSuite::FilterBuilder.convert_comparison("has_none_of", %w[a b]))
   end
 
+  # Single select array operators (is_any_of, is_none_of)
+  def test_convert_comparison_is_any_of_with_array
+    assert_equal({ is_any_of: %w[a b] }, SmartSuite::FilterBuilder.convert_comparison("is_any_of", %w[a b]))
+  end
+
+  def test_convert_comparison_is_any_of_with_single_value
+    # Single value should be wrapped in array
+    assert_equal({ is_any_of: [ "a" ] }, SmartSuite::FilterBuilder.convert_comparison("is_any_of", "a"))
+  end
+
+  def test_convert_comparison_is_none_of_with_array
+    assert_equal({ is_none_of: %w[a b] }, SmartSuite::FilterBuilder.convert_comparison("is_none_of", %w[a b]))
+  end
+
+  def test_convert_comparison_is_none_of_with_single_value
+    # Single value should be wrapped in array
+    assert_equal({ is_none_of: [ "a" ] }, SmartSuite::FilterBuilder.convert_comparison("is_none_of", "a"))
+  end
+
   # Test date operators
   # Note: Date-only strings are converted to UTC timestamps (start of day)
   # Date operators preserve their type for proper handling in postgres_layer
@@ -100,9 +119,8 @@ class TestFilterBuilder < Minitest::Test
     assert_equal({ is_before: "2025-01-01T00:00:00Z" }, SmartSuite::FilterBuilder.convert_comparison("is_before", "2025-01-01"))
   end
 
-  def test_convert_comparison_is_after
-    assert_equal({ is_after: "2025-01-01T00:00:00Z" }, SmartSuite::FilterBuilder.convert_comparison("is_after", "2025-01-01"))
-  end
+  # Note: is_after does NOT exist in SmartSuite API - use is_on_or_after instead
+  # The API only supports: is_before, is_on_or_before, is_on_or_after
 
   def test_convert_comparison_is_on_or_before
     assert_equal({ is_on_or_before: "2025-01-01T00:00:00Z" }, SmartSuite::FilterBuilder.convert_comparison("is_on_or_before", "2025-01-01"))
@@ -288,31 +306,47 @@ class TestFilterBuilder < Minitest::Test
       "is_empty" => { is_empty: true },
       "is_not_empty" => { is_not_empty: true },
 
-      # Array operators
+      # Array operators (multi-select fields)
       "has_any_of" => { has_any_of: [ "a" ] },
       "has_all_of" => { has_all_of: [ "a" ] },
       "is_exactly" => { is_exactly: [ "a" ] },
       "has_none_of" => { has_none_of: [ "a" ] },
 
+      # Single select array operators
+      "is_any_of" => { is_any_of: [ "a" ] },
+      "is_none_of" => { is_none_of: [ "a" ] },
+
       # Date operators (preserve type for proper handling in postgres_layer)
+      # Note: is_after does NOT exist in SmartSuite API
       "is_before" => { is_before: "2025-01-01T00:00:00Z" },
-      "is_after" => { is_after: "2025-01-01T00:00:00Z" },
       "is_on_or_before" => { is_on_or_before: "2025-01-01T00:00:00Z" },
-      "is_on_or_after" => { is_on_or_after: "2025-01-01T00:00:00Z" }
+      "is_on_or_after" => { is_on_or_after: "2025-01-01T00:00:00Z" },
+
+      # Due Date special operators (duedatefield only)
+      "is_overdue" => { is_overdue: true },
+      "is_not_overdue" => { is_not_overdue: true },
+
+      # File field operators (filefield only)
+      "file_name_contains" => { file_name_contains: "report" },
+      "file_type_is" => { file_type_is: "pdf" }
     }
 
     test_cases.each do |operator, expected|
       value = case operator
       when "is_greater_than", "is_less_than", "is_equal_or_greater_than", "is_equal_or_less_than"
                 5
-      when "has_any_of", "has_all_of", "is_exactly", "has_none_of"
+      when "has_any_of", "has_all_of", "is_exactly", "has_none_of", "is_any_of", "is_none_of"
                 [ "a" ]
-      when "is_before", "is_after", "is_on_or_before", "is_on_or_after"
+      when "is_before", "is_on_or_before", "is_on_or_after"
                 "2025-01-01"
-      when "is_empty", "is_not_empty"
+      when "is_empty", "is_not_empty", "is_overdue", "is_not_overdue"
                 nil
       when "contains", "not_contains"
                 "text"
+      when "file_name_contains"
+                "report"
+      when "file_type_is"
+                "pdf"
       else
                 "value"
       end
@@ -335,7 +369,8 @@ class TestFilterBuilder < Minitest::Test
     all_operators = %w[
       is is_not is_greater_than is_less_than is_equal_or_greater_than is_equal_or_less_than
       contains not_contains is_empty is_not_empty has_any_of has_all_of is_exactly has_none_of
-      is_before is_after is_on_or_before is_on_or_after
+      is_any_of is_none_of is_before is_on_or_before is_on_or_after
+      is_overdue is_not_overdue file_name_contains file_type_is
     ]
 
     all_operators.each do |operator|
@@ -349,8 +384,9 @@ class TestFilterBuilder < Minitest::Test
       # These are the operator symbols Cache::Query.build_complex_condition recognizes
       valid_operators = %i[eq ne gt gte lt lte contains not_contains starts_with ends_with
                            in not_in between is_null is_not_null is_empty is_not_empty
-                           has_any_of has_all_of is_exactly has_none_of
-                           is_before is_after is_on_or_before is_on_or_after]
+                           has_any_of has_all_of is_exactly has_none_of is_any_of is_none_of
+                           is_before is_on_or_before is_on_or_after
+                           is_overdue is_not_overdue file_name_contains file_type_is]
 
       result.each_key do |key|
         assert valid_operators.include?(key),
@@ -390,12 +426,8 @@ class TestFilterBuilder < Minitest::Test
 
   # Test convert_comparison with nested date hash for all date operators
   # Note: Date-only strings are converted to UTC timestamps
-  def test_is_after_with_nested_date_hash
-    date_value = { "date_mode" => "exact_date", "date_mode_value" => "2025-11-18" }
-    result = SmartSuite::FilterBuilder.convert_comparison("is_after", date_value)
-    # CRITICAL: Should extract the date string, convert to UTC, and preserve operator type
-    assert_equal({ is_after: "2025-11-18T00:00:00Z" }, result)
-  end
+  # Note: is_after does NOT exist in SmartSuite API - removed test
+  # Use is_on_or_after instead
 
   def test_is_before_with_nested_date_hash
     date_value = { "date_mode" => "exact_date", "date_mode_value" => "2025-11-18" }
@@ -416,10 +448,7 @@ class TestFilterBuilder < Minitest::Test
   end
 
   # Test that simple date strings still work (converted to UTC)
-  def test_is_after_with_simple_date_string
-    result = SmartSuite::FilterBuilder.convert_comparison("is_after", "2025-11-18")
-    assert_equal({ is_after: "2025-11-18T00:00:00Z" }, result)
-  end
+  # Note: is_after does NOT exist in SmartSuite API - removed test
 
   def test_is_before_with_simple_date_string
     result = SmartSuite::FilterBuilder.convert_comparison("is_before", "2025-11-18")
@@ -427,13 +456,14 @@ class TestFilterBuilder < Minitest::Test
   end
 
   # Integration test: apply_to_query with nested date filter
+  # Note: Changed from is_after to is_on_or_after (is_after doesn't exist in SmartSuite API)
   def test_apply_to_query_with_nested_date_filter
     filter = {
       "operator" => "and",
       "fields" => [
         {
           "field" => "due_date",
-          "comparison" => "is_after",
+          "comparison" => "is_on_or_after",
           "value" => { "date_mode" => "exact_date", "date_mode_value" => "2025-11-18" }
         }
       ]
@@ -443,7 +473,7 @@ class TestFilterBuilder < Minitest::Test
     assert_equal @query, result
     assert_equal 1, @query.conditions.size
     # Should extract date string from nested hash, convert to UTC, and preserve operator type
-    assert_equal({ due_date: { is_after: "2025-11-18T00:00:00Z" } }, @query.conditions.first)
+    assert_equal({ due_date: { is_on_or_after: "2025-11-18T00:00:00Z" } }, @query.conditions.first)
   end
 
   # Integration test: multiple date filters with mixed formats
@@ -489,5 +519,75 @@ class TestFilterBuilder < Minitest::Test
 
     # Restore UTC for other tests
     SmartSuite::DateFormatter.timezone = :utc
+  end
+
+  # ============================================================================
+  # NEW OPERATORS: Due Date Special (is_overdue, is_not_overdue)
+  # ============================================================================
+
+  def test_convert_comparison_is_overdue
+    result = SmartSuite::FilterBuilder.convert_comparison("is_overdue", nil)
+    assert_equal({ is_overdue: true }, result)
+  end
+
+  def test_convert_comparison_is_not_overdue
+    result = SmartSuite::FilterBuilder.convert_comparison("is_not_overdue", nil)
+    assert_equal({ is_not_overdue: true }, result)
+  end
+
+  # ============================================================================
+  # NEW OPERATORS: File Field (file_name_contains, file_type_is)
+  # ============================================================================
+
+  def test_convert_comparison_file_name_contains
+    result = SmartSuite::FilterBuilder.convert_comparison("file_name_contains", "report")
+    assert_equal({ file_name_contains: "report" }, result)
+  end
+
+  def test_convert_comparison_file_type_is
+    result = SmartSuite::FilterBuilder.convert_comparison("file_type_is", "pdf")
+    assert_equal({ file_type_is: "pdf" }, result)
+  end
+
+  # Test that file_type_is works with all valid file types
+  def test_file_type_is_valid_types
+    valid_types = %w[archive image music pdf powerpoint spreadsheet video word other]
+
+    valid_types.each do |file_type|
+      result = SmartSuite::FilterBuilder.convert_comparison("file_type_is", file_type)
+      assert_equal({ file_type_is: file_type }, result, "Failed for file type: #{file_type}")
+    end
+  end
+
+  # Integration test: apply_to_query with due date overdue filter
+  def test_apply_to_query_with_is_overdue_filter
+    filter = {
+      "operator" => "and",
+      "fields" => [
+        { "field" => "due_date", "comparison" => "is_overdue", "value" => nil }
+      ]
+    }
+
+    result = SmartSuite::FilterBuilder.apply_to_query(@query, filter)
+    assert_equal @query, result
+    assert_equal 1, @query.conditions.size
+    assert_equal({ due_date: { is_overdue: true } }, @query.conditions.first)
+  end
+
+  # Integration test: apply_to_query with file filter
+  def test_apply_to_query_with_file_filter
+    filter = {
+      "operator" => "and",
+      "fields" => [
+        { "field" => "attachments", "comparison" => "file_type_is", "value" => "pdf" },
+        { "field" => "attachments", "comparison" => "file_name_contains", "value" => "invoice" }
+      ]
+    }
+
+    result = SmartSuite::FilterBuilder.apply_to_query(@query, filter)
+    assert_equal @query, result
+    assert_equal 2, @query.conditions.size
+    assert_equal({ attachments: { file_type_is: "pdf" } }, @query.conditions[0])
+    assert_equal({ attachments: { file_name_contains: "invoice" } }, @query.conditions[1])
   end
 end

@@ -144,16 +144,32 @@ module SmartSuite
       when "has_none_of"
         { has_none_of: value }
 
+      # Single select array operators (matches any/none of the values)
+      when "is_any_of"
+        { is_any_of: Array(value) }
+      when "is_none_of"
+        { is_none_of: Array(value) }
+
       # Date operators - preserve operator type and extract date value
       # These need special handling in postgres_layer for date field accessors
       when "is_before"
         { is_before: extract_date_value(value) }
-      when "is_after"
-        { is_after: extract_date_value(value) }
       when "is_on_or_before"
         { is_on_or_before: extract_date_value(value) }
       when "is_on_or_after"
         { is_on_or_after: extract_date_value(value) }
+
+      # Due Date special operators (duedatefield only)
+      when "is_overdue"
+        { is_overdue: true }
+      when "is_not_overdue"
+        { is_not_overdue: true }
+
+      # File field operators (filefield only)
+      when "file_name_contains"
+        { file_name_contains: value }
+      when "file_type_is"
+        { file_type_is: value }
 
       # Default: equality
       else
