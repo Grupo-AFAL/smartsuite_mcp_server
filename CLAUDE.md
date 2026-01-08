@@ -681,8 +681,8 @@ Each prompt generates a complete example with the correct filter structure, oper
 
 **Yes/No (Boolean)**:
 
-- Operators: `is`, `is_empty`, `is_not_empty`
-- Value: Boolean or null
+- Operators: `is` (only)
+- Value: Boolean (true/false)
 
 **Important notes:**
 
@@ -690,6 +690,9 @@ Each prompt generates a complete example with the correct filter structure, oper
 - For empty checks, use `nil` or `null` as value
 - Date Range fields reference dates as `[field_slug].from_date` and `[field_slug].to_date`
 - Formula and Lookup fields inherit operators from their return types
+- **`is_after` does NOT exist** in SmartSuite API - use `is_on_or_after` instead
+- Yes/No fields only support `is` (not `is_empty`/`is_not_empty`)
+- Auto Number and Sub-Items fields do NOT support `is_empty`/`is_not_empty`
 
 ### Response Filtering in ResponseFormatter
 

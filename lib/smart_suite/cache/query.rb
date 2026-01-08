@@ -24,6 +24,8 @@ module SmartSuite
         userfield
         multipleselectfield
         linkedrecordfield
+        filefield
+        tagsfield
       ].freeze
 
       TEXT_FIELD_TYPES = %w[
@@ -426,10 +428,10 @@ module SmartSuite
           [ "#{col_name} LIKE ?", [ "#{value}%" ] ]
         when :ends_with
           [ "#{col_name} LIKE ?", [ "%#{value}" ] ]
-        when :in
+        when :in, :is_any_of
           placeholders = value.map { "?" }.join(",")
           [ "#{col_name} IN (#{placeholders})", value ]
-        when :not_in
+        when :not_in, :is_none_of
           placeholders = value.map { "?" }.join(",")
           [ "#{col_name} NOT IN (#{placeholders})", value ]
         when :between
@@ -481,6 +483,28 @@ module SmartSuite
           all_conditions = [ length_check ] + value_checks
           params = [ value.length ] + value.map { |v| "%\"#{v}\"%" }
           [ "(#{all_conditions.join(' AND ')})", params ]
+
+        # Due Date special operators (duedatefield only)
+        # These check the _is_overdue column that's stored alongside the date
+        when :is_overdue
+          # Derive the is_overdue column name from the date column
+          # e.g., "due_date_to" -> "due_date_is_overdue"
+          is_overdue_col = col_name.sub(/_(?:to|from)$/, "") + "_is_overdue"
+          [ "#{is_overdue_col} = 1", [] ]
+        when :is_not_overdue
+          is_overdue_col = col_name.sub(/_(?:to|from)$/, "") + "_is_overdue"
+          [ "(#{is_overdue_col} = 0 OR #{is_overdue_col} IS NULL)", [] ]
+
+        # File field operators (filefield only)
+        # Files are stored as JSON array: [{"name": "file.pdf", "type": "pdf", ...}, ...]
+        when :file_name_contains
+          # Search for filename in JSON array
+          [ "#{col_name} LIKE ?", [ "%\"name\":%#{value}%" ] ]
+        when :file_type_is
+          # Search for file type in JSON array
+          # Valid types: archive, image, music, pdf, powerpoint, spreadsheet, video, word, other
+          [ "#{col_name} LIKE ?", [ "%\"type\":\"#{value}\"%" ] ]
+
         else
           # Fallback: treat as equality
           [ "#{col_name} = ?", [ value ] ]
