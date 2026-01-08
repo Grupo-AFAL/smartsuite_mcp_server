@@ -1,0 +1,172 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Script to convert SmartSuite HTML documentation to Markdown
+# Usage: bin/convert_html_to_markdown [--dry-run]
+
+require 'nokogiri'
+require 'reverse_markdown'
+require 'fileutils'
+
+SOURCE_DIR = File.expand_path('../docs/reference/smartsuite_html_docs', __dir__)
+OUTPUT_DIR = File.expand_path('../docs/reference/smartsuite_api', __dir__)
+
+class HtmlToMarkdownConverter
+  def initialize(dry_run: false)
+    @dry_run = dry_run
+  end
+
+  def convert_all
+    html_files = Dir.glob(File.join(SOURCE_DIR, '*.html'))
+
+    puts "Found #{html_files.length} HTML files to convert"
+    puts "Output directory: #{OUTPUT_DIR}"
+    puts "Mode: #{@dry_run ? 'DRY RUN' : 'CONVERTING'}"
+    puts '-' * 60
+
+    FileUtils.mkdir_p(OUTPUT_DIR) unless @dry_run
+
+    html_files.each do |html_file|
+      convert_file(html_file)
+    end
+
+    puts '-' * 60
+    puts "Done! Converted #{html_files.length} files."
+  end
+
+  private
+
+  def convert_file(html_path)
+    filename = File.basename(html_path, '.html')
+    output_path = File.join(OUTPUT_DIR, "#{filename}.md")
+
+    print "Converting #{filename}... "
+
+    html_content = File.read(html_path)
+    doc = Nokogiri::HTML(html_content)
+
+    # Extract the main content - try different structures
+    content_div = doc.at_css('div.theme-doc-markdown.markdown') ||  # Docusaurus
+                  doc.at_css('div.article_body') ||                  # Intercom
+                  doc.at_css('div.article.intercom-force-break')     # Intercom alternate
+
+    unless content_div
+      puts "SKIPPED (no content div found)"
+      return
+    end
+
+    # Clean up the HTML before conversion
+    clean_html(content_div)
+
+    # Convert to Markdown
+    markdown = ReverseMarkdown.convert(content_div.to_html, unknown_tags: :bypass, github_flavored: true)
+
+    # Post-process the Markdown
+    markdown = post_process_markdown(markdown, filename)
+
+    if @dry_run
+      puts "OK (would write #{markdown.length} chars)"
+    else
+      File.write(output_path, markdown)
+      puts "OK (#{markdown.length} chars)"
+    end
+  end
+
+  def clean_html(content_div)
+    # Remove navigation elements
+    content_div.css('nav.breadcrumbs, .tocCollapsible_ETCw, .hash-link').each(&:remove)
+
+    # Remove Docusaurus-specific elements
+    content_div.css('.theme-doc-footer, .pagination-nav').each(&:remove)
+
+    # Clean up admonition blocks - convert to blockquotes with headers
+    content_div.css('.theme-admonition').each do |admonition|
+      type = extract_admonition_type(admonition)
+      heading = admonition.at_css('.admonitionHeading_Gvgb')&.text&.strip || type.upcase
+      content = admonition.at_css('.admonitionContent_BuS1')
+
+      if content
+        # Replace with a simpler structure
+        new_html = "<blockquote><p><strong>#{heading}</strong></p>#{content.inner_html}</blockquote>"
+        admonition.replace(Nokogiri::HTML.fragment(new_html))
+      end
+    end
+
+    # Clean up code blocks - extract just the code
+    content_div.css('.codeBlockContainer_Ckt0').each do |code_block|
+      code_element = code_block.at_css('code')
+      if code_element
+        # Get the language from the class
+        lang_class = code_block['class']&.match(/language-(\w+)/)
+        lang = lang_class ? lang_class[1] : ''
+
+        code_text = code_element.text
+        code_block.replace("<pre><code class=\"language-#{lang}\">#{code_text}</code></pre>")
+      end
+    end
+
+    # Remove SVG icons
+    content_div.css('svg').each(&:remove)
+
+    # Remove empty spans and divs
+    content_div.css('span:empty, div:empty').each(&:remove)
+  end
+
+  def extract_admonition_type(admonition)
+    classes = admonition['class'] || ''
+    if classes.include?('admonition-tip')
+      'note'
+    elsif classes.include?('admonition-danger')
+      'warning'
+    elsif classes.include?('admonition-info')
+      'info'
+    elsif classes.include?('admonition-caution')
+      'caution'
+    else
+      'note'
+    end
+  end
+
+  def post_process_markdown(markdown, filename)
+    lines = markdown.lines
+
+    # Remove excessive blank lines (more than 2 consecutive)
+    cleaned_lines = []
+    blank_count = 0
+
+    lines.each do |line|
+      if line.strip.empty?
+        blank_count += 1
+        cleaned_lines << line if blank_count <= 2
+      else
+        blank_count = 0
+        cleaned_lines << line
+      end
+    end
+
+    markdown = cleaned_lines.join
+
+    # Clean up anchor links (the weird unicode character)
+    markdown = markdown.gsub(/\[​\]\([^)]+\)/, '')
+    markdown = markdown.gsub(/​/, '')
+
+    # Clean up header anchors
+    markdown = markdown.gsub(/^(#+\s+.+?)\s*\[?\]?\([^)]*\)\s*$/, '\1')
+
+    # Remove trailing whitespace
+    markdown = markdown.lines.map(&:rstrip).join("\n")
+
+    # Ensure file ends with newline
+    markdown = markdown.strip + "\n"
+
+    markdown
+  end
+end
+
+# Main execution
+if __FILE__ == $PROGRAM_NAME
+  dry_run = ARGV.include?('--dry-run')
+
+  converter = HtmlToMarkdownConverter.new(dry_run: dry_run)
+  converter.convert_all
+end

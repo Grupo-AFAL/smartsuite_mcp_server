@@ -318,6 +318,12 @@ class SmartSuiteServer
                  arguments['message'],
                  arguments['assigned_to']
                )
+    when 'list_views'
+               @client.list_views(
+                 table_id: arguments['table_id'],
+                 solution_id: arguments['solution_id'],
+                 format: (arguments['format'] || 'toon').to_sym
+               )
     when 'get_view_records'
                @client.get_view_records(
                  arguments['table_id'],
