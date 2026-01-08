@@ -3,6 +3,7 @@
 require "time"
 require_relative "date_formatter"
 require_relative "date_mode_resolver"
+require_relative "filter_validator"
 
 module SmartSuite
   # FilterBuilder converts SmartSuite API filter syntax to cache query conditions.
@@ -36,30 +37,105 @@ module SmartSuite
     #
     # Iterates through filter fields and applies each condition to the query builder.
     # Handles conversion from SmartSuite comparison operators to cache query format.
+    # Supports nested AND/OR filter groups for complex queries.
     #
     # @param query [SmartSuite::Cache::Query] Cache query builder instance
     # @param filter [Hash] SmartSuite filter hash with 'operator' and 'fields' keys
     # @return [SmartSuite::Cache::Query] Query with filters applied
-    # @example
+    # @example Simple filter
     #   filter = {"operator" => "and", "fields" => [{"field" => "status", "comparison" => "is", "value" => "Active"}]}
     #   query = FilterBuilder.apply_to_query(cache.query(table_id), filter)
     #   results = query.execute
+    #
+    # @example Nested filter with OR
+    #   filter = {
+    #     "operator" => "or",
+    #     "fields" => [
+    #       {"operator" => "and", "fields" => [
+    #         {"field" => "status", "comparison" => "is", "value" => "active"},
+    #         {"field" => "priority", "comparison" => "is", "value" => "high"}
+    #       ]},
+    #       {"field" => "overdue", "comparison" => "is", "value" => true}
+    #     ]
+    #   }
     def self.apply_to_query(query, filter)
       return query unless filter && filter["fields"]
 
-      filter["fields"].each do |field_filter|
-        field_slug = field_filter["field"]
-        comparison = field_filter["comparison"]
-        value = field_filter["value"]
+      # Check if this filter has nested groups (items with their own operator/fields)
+      has_nested = filter["fields"].any? { |f| f["operator"] && f["fields"] }
+      filter_operator = (filter["operator"] || "and").downcase
 
-        # Convert SmartSuite comparison operator to cache query condition
-        condition = convert_comparison(comparison, value)
+      if has_nested || filter_operator == "or"
+        # Build a composite SQL clause for the entire filter group
+        clause, params = build_filter_group_sql(query, filter)
+        query = query.where_raw(clause, params) if clause && !clause.empty?
+      else
+        # Simple flat AND filter - use efficient where() chaining
+        filter["fields"].each do |field_filter|
+          field_slug = field_filter["field"]
+          comparison = field_filter["comparison"]
+          value = field_filter["value"]
 
-        # Apply filter to query
-        query = query.where(field_slug.to_sym => condition)
+          # Validate operator is compatible with field type
+          validate_filter_operator(query, field_slug, comparison)
+
+          # Convert SmartSuite comparison operator to cache query condition
+          condition = convert_comparison(comparison, value)
+
+          # Apply filter to query
+          query = query.where(field_slug.to_sym => condition)
+        end
       end
 
       query
+    end
+
+    # Build SQL clause for a filter group (supports nested AND/OR logic)
+    #
+    # @param query [SmartSuite::Cache::Query] Query instance for building SQL
+    # @param filter [Hash] Filter group with 'operator' and 'fields'
+    # @return [Array<String, Array>] [sql_clause, params]
+    def self.build_filter_group_sql(query, filter)
+      return [ nil, [] ] unless filter && filter["fields"]
+
+      operator = (filter["operator"] || "and").upcase
+      clauses = []
+      all_params = []
+
+      filter["fields"].each do |field_filter|
+        if field_filter["operator"] && field_filter["fields"]
+          # Nested group - recurse
+          nested_clause, nested_params = build_filter_group_sql(query, field_filter)
+          if nested_clause && !nested_clause.empty?
+            clauses << "(#{nested_clause})"
+            all_params.concat(nested_params)
+          end
+        else
+          # Leaf condition
+          field_slug = field_filter["field"]
+          comparison = field_filter["comparison"]
+          value = field_filter["value"]
+
+          # Validate operator is compatible with field type
+          validate_filter_operator(query, field_slug, comparison)
+
+          # Convert to cache query format
+          condition = convert_comparison(comparison, value)
+
+          # Build SQL using query's method
+          clause, params = query.build_condition_sql(field_slug.to_sym, condition)
+          if clause
+            clauses << clause
+            all_params.concat(params)
+          end
+        end
+      end
+
+      return [ nil, [] ] if clauses.empty?
+
+      # Join clauses with the appropriate operator
+      combined = clauses.join(" #{operator} ")
+      [ combined, all_params ]
     end
 
     # Convert SmartSuite comparison operator to cache query condition format.
@@ -110,6 +186,10 @@ module SmartSuite
 
         value
       when "is_not", "is_not_equal_to"
+        # Check if this is a date-only value that needs NOT IN range conversion
+        date_not_range = convert_date_to_not_range(value)
+        return date_not_range if date_not_range
+
         { ne: value }
 
       # Numeric comparison operators
@@ -267,6 +347,61 @@ module SmartSuite
       end_of_day_utc = end_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
 
       { between: { min: start_of_day_utc, max: end_of_day_utc } }
+    end
+
+    # Convert a date-only value to a NOT IN range condition for "is_not" operator.
+    #
+    # When filtering with "is_not" on a date field, we need to exclude all times
+    # within that calendar day in the user's local timezone.
+    #
+    # @param value [String, Hash] Date value (simple string or nested hash with date_mode_value)
+    # @return [Hash, nil] Not-range condition {not_between: {min:, max:}} or nil if not a date-only value
+    # @example
+    #   convert_date_to_not_range("2026-06-15")  # In -0700 timezone
+    #   #=> {not_between: {min: "2026-06-15T07:00:00Z", max: "2026-06-16T06:59:59Z"}}
+    def self.convert_date_to_not_range(value)
+      # Extract date string from nested hash if needed
+      date_str = if value.is_a?(Hash) && value["date_mode_value"]
+                   value["date_mode_value"]
+      elsif value.is_a?(String)
+                   value
+      end
+
+      return nil unless date_str.is_a?(String)
+
+      # Only convert date-only format (YYYY-MM-DD)
+      return nil unless date_str.match?(/\A\d{4}-\d{2}-\d{2}\z/)
+
+      # Get timezone offset for the specific date (handles DST correctly)
+      offset = local_timezone_offset(date_str)
+
+      # Calculate start of day (midnight local) in UTC
+      start_of_day_local = Time.parse("#{date_str}T00:00:00#{offset}")
+      start_of_day_utc = start_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+      # Calculate end of day (23:59:59 local) in UTC
+      end_of_day_local = Time.parse("#{date_str}T23:59:59#{offset}")
+      end_of_day_utc = end_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+      { not_between: { min: start_of_day_utc, max: end_of_day_utc } }
+    end
+
+    # Validate that a filter operator is compatible with the field type.
+    #
+    # Uses the query's schema to look up the field type and validates the operator.
+    # Logs a warning if the operator is invalid (non-strict mode by default).
+    #
+    # @param query [SmartSuite::Cache::Query] Query instance with schema access
+    # @param field_slug [String] Field identifier
+    # @param operator [String] Filter comparison operator
+    # @return [Boolean] true if valid, false otherwise
+    def self.validate_filter_operator(query, field_slug, operator)
+      return true unless query.respond_to?(:get_field_type)
+
+      field_type = query.get_field_type(field_slug)
+      return true if field_type.nil? # Can't validate without field type info
+
+      FilterValidator.validate!(field_slug, operator, field_type, strict: false)
     end
 
     # Get the local timezone offset string for the configured timezone.
