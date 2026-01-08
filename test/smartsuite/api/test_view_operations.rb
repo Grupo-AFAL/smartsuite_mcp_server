@@ -7,7 +7,8 @@ class TestViewOperations < Minitest::Test
   def setup
     @api_key = "test_api_key"
     @account_id = "test_account_id"
-    @client = SmartSuiteClient.new(@api_key, @account_id)
+    # Disable cache for unit tests to avoid state between tests
+    @client = SmartSuiteClient.new(@api_key, @account_id, cache_enabled: false)
   end
 
   # ========== get_view_records tests ==========
@@ -274,5 +275,131 @@ class TestViewOperations < Minitest::Test
     assert_equal 3, captured_body["order"]
     refute captured_body.key?("state")
     refute captured_body.key?("map_state")
+  end
+
+  # ========== list_views tests ==========
+
+  def test_list_views_success
+    expected_response = [
+      { "id" => "view_1", "label" => "View 1", "view_mode" => "grid", "application" => "tbl_123", "solution" => "sol_456" },
+      { "id" => "view_2", "label" => "View 2", "view_mode" => "kanban", "application" => "tbl_789", "solution" => "sol_456" }
+    ]
+
+    captured_args = {}
+    @client.define_singleton_method(:api_request) do |method, endpoint, _body = nil|
+      captured_args[:method] = method
+      captured_args[:endpoint] = endpoint
+      expected_response
+    end
+
+    result = @client.list_views(format: :json)
+
+    assert_equal :get, captured_args[:method]
+    assert_equal "/reports/", captured_args[:endpoint]
+    assert_equal 2, result.length
+    assert_equal "view_1", result[0]["id"]
+    assert_equal "View 1", result[0]["label"]
+  end
+
+  def test_list_views_filter_by_table_id
+    expected_response = [
+      { "id" => "view_1", "label" => "View 1", "view_mode" => "grid", "application" => "tbl_123", "solution" => "sol_456" },
+      { "id" => "view_2", "label" => "View 2", "view_mode" => "kanban", "application" => "tbl_789", "solution" => "sol_456" },
+      { "id" => "view_3", "label" => "View 3", "view_mode" => "calendar", "application" => "tbl_123", "solution" => "sol_456" }
+    ]
+
+    @client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      expected_response
+    end
+
+    result = @client.list_views(table_id: "tbl_123", format: :json)
+
+    assert_equal 2, result.length
+    assert result.all? { |v| v["application"] == "tbl_123" }
+  end
+
+  def test_list_views_filter_by_solution_id
+    expected_response = [
+      { "id" => "view_1", "label" => "View 1", "view_mode" => "grid", "application" => "tbl_123", "solution" => "sol_456" },
+      { "id" => "view_2", "label" => "View 2", "view_mode" => "kanban", "application" => "tbl_789", "solution" => "sol_789" },
+      { "id" => "view_3", "label" => "View 3", "view_mode" => "calendar", "application" => "tbl_000", "solution" => "sol_456" }
+    ]
+
+    @client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      expected_response
+    end
+
+    result = @client.list_views(solution_id: "sol_456", format: :json)
+
+    assert_equal 2, result.length
+    assert result.all? { |v| v["solution"] == "sol_456" }
+  end
+
+  def test_list_views_empty_result
+    @client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      []
+    end
+
+    result = @client.list_views(format: :json)
+
+    assert_equal [], result
+  end
+
+  def test_list_views_toon_format
+    expected_response = [
+      { "id" => "view_1", "label" => "View 1", "view_mode" => "grid", "application" => "tbl_123", "solution" => "sol_456" }
+    ]
+
+    @client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      expected_response
+    end
+
+    result = @client.list_views(format: :toon)
+
+    assert_instance_of String, result
+    assert_includes result, "views[1]"
+    assert_includes result, "View 1"
+  end
+
+  def test_list_views_returns_simplified_fields
+    expected_response = [
+      {
+        "id" => "view_1",
+        "label" => "View 1",
+        "description" => "My view",
+        "view_mode" => "grid",
+        "application" => "tbl_123",
+        "solution" => "sol_456",
+        "is_locked" => false,
+        "is_private" => true,
+        "order" => 1,
+        "extra_field" => "should_be_excluded",
+        "state" => { "filter" => {} }
+      }
+    ]
+
+    @client.define_singleton_method(:api_request) do |_method, _endpoint, _body = nil|
+      expected_response
+    end
+
+    result = @client.list_views(format: :json)
+
+    assert_equal 1, result.length
+    view = result[0]
+
+    # Check included fields
+    assert_equal "view_1", view["id"]
+    assert_equal "View 1", view["label"]
+    assert_equal "My view", view["description"]
+    assert_equal "grid", view["view_mode"]
+    assert_equal "tbl_123", view["application"]
+    assert_equal "sol_456", view["solution"]
+    assert_equal false, view["is_locked"]
+    assert_equal true, view["is_private"]
+    assert_equal 1, view["order"]
+
+    # Check excluded fields
+    refute view.key?("extra_field")
+    refute view.key?("state")
   end
 end

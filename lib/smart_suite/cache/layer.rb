@@ -1236,6 +1236,113 @@ module SmartSuite
         invalidate_simple_cache("cached_teams", "teams")
       end
 
+      # ========== Views (Reports) Caching ==========
+
+      # Cache views list
+      #
+      # @param views [Array<Hash>] Array of view hashes from API
+      # @param ttl [Integer] Time-to-live in seconds (default: 4 hours)
+      # @return [Integer] Number of views cached
+      def cache_views(views, ttl: 4 * 3600)
+        expires_at = (Time.now + ttl).utc.iso8601
+        cached_at = Time.now.utc.iso8601
+
+        # Clear existing cache
+        db_execute("DELETE FROM cached_views")
+
+        # Insert all views
+        views.each do |view|
+          db_execute(
+            <<-SQL,
+              INSERT OR REPLACE INTO cached_views
+              (id, label, description, view_mode, solution, application,
+               is_locked, is_private, view_order, cached_at, expires_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            SQL
+            view["id"],
+            view["label"],
+            view["description"],
+            view["view_mode"],
+            view["solution"],
+            view["application"],
+            view["is_locked"] ? 1 : 0,
+            view["is_private"] ? 1 : 0,
+            view["order"],
+            cached_at,
+            expires_at
+          )
+        end
+
+        record_stat("views_cached", "insert", "all", { count: views.size, ttl: ttl })
+        SmartSuite::Logger.cache("insert", "views", count: views.size, ttl: ttl)
+
+        views.size
+      end
+
+      # Get cached views list with optional filtering
+      #
+      # @param table_id [String, nil] Optional table ID to filter by
+      # @param solution_id [String, nil] Optional solution ID to filter by
+      # @return [Array<Hash>, nil] Array of views or nil if cache invalid
+      def get_cached_views(table_id: nil, solution_id: nil)
+        return nil unless views_cache_valid?
+
+        # Build query with optional filters
+        query = "SELECT * FROM cached_views WHERE expires_at > ?"
+        params = [ Time.now.utc.iso8601 ]
+
+        if table_id
+          query += " AND application = ?"
+          params << table_id
+        elsif solution_id
+          query += " AND solution = ?"
+          params << solution_id
+        end
+
+        results = db_execute(query, *params)
+        return nil if results.empty?
+
+        # Reconstruct view hashes from columns
+        views = results.map do |row|
+          {
+            "id" => row["id"],
+            "label" => row["label"],
+            "description" => row["description"],
+            "view_mode" => row["view_mode"],
+            "solution" => row["solution"],
+            "application" => row["application"],
+            "is_locked" => row["is_locked"] == 1,
+            "is_private" => row["is_private"] == 1,
+            "order" => row["view_order"]
+          }
+        end
+
+        SmartSuite::Logger.cache("hit", "views", count: views.size)
+
+        views
+      end
+
+      # Check if views cache is valid (not expired)
+      #
+      # @return [Boolean] true if cache is valid
+      def views_cache_valid?
+        result = db_execute(
+          "SELECT COUNT(*) as count FROM cached_views WHERE expires_at > ?",
+          Time.now.utc.iso8601
+        ).first
+
+        valid = result && result["count"].to_i.positive?
+
+        SmartSuite::Logger.cache(valid ? "valid" : "expired", "views")
+
+        valid
+      end
+
+      # Invalidate views cache
+      def invalidate_views_cache
+        invalidate_simple_cache("cached_views", "views")
+      end
+
       # ========== Deleted Records Caching ==========
 
       # Cache deleted records for a solution

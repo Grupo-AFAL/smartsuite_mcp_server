@@ -192,6 +192,21 @@ module SmartSuite
               expires_at TEXT NOT NULL
             );
 
+            -- Cache for views (reports) list
+            CREATE TABLE IF NOT EXISTS cached_views (
+              id TEXT PRIMARY KEY,
+              label TEXT,
+              description TEXT,
+              view_mode TEXT,
+              solution TEXT,
+              application TEXT,
+              is_locked INTEGER DEFAULT 0,
+              is_private INTEGER DEFAULT 0,
+              view_order INTEGER,
+              cached_at TEXT NOT NULL,
+              expires_at TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_cached_tables_solution ON cached_tables(solution_id);
             CREATE INDEX IF NOT EXISTS idx_cached_tables_expires ON cached_tables(expires_at);
             CREATE INDEX IF NOT EXISTS idx_cached_solutions_expires ON cached_solutions(expires_at);
@@ -199,6 +214,9 @@ module SmartSuite
             CREATE INDEX IF NOT EXISTS idx_cached_teams_expires ON cached_teams(expires_at);
             CREATE INDEX IF NOT EXISTS idx_cached_deleted_records_solution ON cached_deleted_records(solution);
             CREATE INDEX IF NOT EXISTS idx_cached_deleted_records_expires ON cached_deleted_records(expires_at);
+            CREATE INDEX IF NOT EXISTS idx_cached_views_application ON cached_views(application);
+            CREATE INDEX IF NOT EXISTS idx_cached_views_solution ON cached_views(solution);
+            CREATE INDEX IF NOT EXISTS idx_cached_views_expires ON cached_views(expires_at);
           SQL
         end
 
