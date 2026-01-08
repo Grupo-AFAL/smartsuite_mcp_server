@@ -1088,6 +1088,186 @@ class TestCacheQuery < Minitest::Test
     assert_equal "Presentación de Comité de TI", results[0]["title"]
   end
 
+  # ============================================================================
+  # NEW: where_raw Method Tests
+  # ============================================================================
+  # Enables complex SQL conditions for nested AND/OR filter groups
+
+  def test_where_raw_basic
+    query = @cache.query("tbl_test_123")
+                  .where_raw("status = ?", [ "active" ])
+
+    results = query.execute
+
+    assert results.all? { |r| r["status"] == "active" }, "Should filter by raw SQL"
+  end
+
+  def test_where_raw_with_or_condition
+    query = @cache.query("tbl_test_123")
+                  .where_raw("(status = ? OR status = ?)", %w[active pending])
+
+    results = query.execute
+
+    assert results.all? { |r| %w[active pending].include?(r["status"]) },
+           "Should match OR condition"
+  end
+
+  def test_where_raw_combined_with_where
+    query = @cache.query("tbl_test_123")
+                  .where(priority: { gte: 2 })
+                  .where_raw("(status = ? OR status = ?)", %w[active pending])
+
+    results = query.execute
+
+    assert results.all? { |r|
+      r["priority"] >= 2 && %w[active pending].include?(r["status"])
+    }, "Should combine where and where_raw"
+  end
+
+  def test_where_raw_empty_params
+    query = @cache.query("tbl_test_123")
+                  .where_raw("priority > 0")
+
+    results = query.execute
+
+    assert results.all? { |r| r["priority"] > 0 }, "Should work without params"
+  end
+
+  # ============================================================================
+  # NEW: build_condition_sql Method Tests
+  # ============================================================================
+  # Builds SQL clause for a condition without adding to query
+
+  def test_build_condition_sql_simple_equality
+    query = @cache.query("tbl_test_123")
+    clause, params = query.build_condition_sql(:status, "active")
+
+    assert_match(/status\S* = \?/, clause, "Should build equality clause")
+    assert_equal [ "active" ], params
+  end
+
+  def test_build_condition_sql_with_operator
+    query = @cache.query("tbl_test_123")
+    clause, params = query.build_condition_sql(:priority, { gt: 3 })
+
+    assert_match(/priority\S* > \?/, clause, "Should build greater than clause")
+    assert_equal [ 3 ], params
+  end
+
+  def test_build_condition_sql_unknown_field
+    query = @cache.query("tbl_test_123")
+    clause, params = query.build_condition_sql(:nonexistent, "value")
+
+    assert_nil clause, "Should return nil for unknown field"
+    assert_equal [], params
+  end
+
+  def test_build_condition_sql_id_field
+    query = @cache.query("tbl_test_123")
+    clause, params = query.build_condition_sql(:id, "rec_123")
+
+    assert_equal "id = ?", clause, "Should handle id field specially"
+    assert_equal [ "rec_123" ], params
+  end
+
+  # ============================================================================
+  # NEW: not_between Operator Tests
+  # ============================================================================
+  # Used for "is_not" on date fields - excludes values within a range
+
+  def test_not_between_operator
+    # Create table with date field (use daterangefield which handles not_between properly)
+    table_id = "tbl_not_between"
+    structure = {
+      "name" => "Not Between Test",
+      "structure" => [
+        { "slug" => "title", "label" => "Title", "field_type" => "textfield" },
+        { "slug" => "event_date", "label" => "Event Date", "field_type" => "daterangefield" }
+      ]
+    }
+
+    # Create cache table
+    sql_table_name = @cache.create_cache_table(table_id, structure)
+
+    # Insert records with different dates
+    now = Time.now.to_i
+    expires = now + 3600
+
+    records_data = [
+      [ "rec_1", "Day Before", "2025-01-14T12:00:00Z", "2025-01-14T12:00:00Z" ],
+      [ "rec_2", "Target Day", "2025-01-15T12:00:00Z", "2025-01-15T12:00:00Z" ],
+      [ "rec_3", "Day After", "2025-01-16T12:00:00Z", "2025-01-16T12:00:00Z" ]
+    ]
+
+    records_data.each do |id, title, from_date, to_date|
+      @cache.db.execute(
+        "INSERT INTO #{sql_table_name} (id, title, event_date_from, event_date_to, cached_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, ?)",
+        [ id, title, from_date, to_date, now, expires ]
+      )
+    end
+
+    # not_between should exclude records within the range (i.e., NOT on Jan 15)
+    results = @cache.query(table_id)
+                    .where(event_date: { not_between: { min: "2025-01-15T00:00:00Z", max: "2025-01-15T23:59:59Z" } })
+                    .execute
+
+    assert_equal 2, results.size, "Should exclude record on target day"
+    ids = results.map { |r| r["id"] }
+    assert_includes ids, "rec_1", "Should include Day Before"
+    assert_includes ids, "rec_3", "Should include Day After"
+    refute_includes ids, "rec_2", "Should NOT include Target Day"
+  end
+
+  # ============================================================================
+  # NEW: contains Operator with JSON Array Fields
+  # ============================================================================
+  # Field-type aware: uses json_extract for JSON arrays, LIKE for text
+
+  def test_contains_for_text_field
+    query = @cache.query("tbl_test_123")
+                  .where(name: { contains: "Task" })
+
+    results = query.execute
+
+    assert results.all? { |r| r["name"].include?("Task") },
+           "Text field contains should use standard LIKE"
+  end
+
+  def test_contains_for_json_array_field
+    # Create table with linked records (JSON array)
+    table_id = "tbl_json_contains"
+    structure = {
+      "structure" => [
+        { "slug" => "title", "label" => "Title", "field_type" => "textfield" },
+        { "slug" => "linked", "label" => "Linked", "field_type" => "linkedrecordfield" }
+      ]
+    }
+
+    records = [
+      { "id" => "rec_1", "title" => "Has Alpha", "linked" => [ "rec_alpha_123", "rec_beta_456" ] },
+      { "id" => "rec_2", "title" => "Has Gamma", "linked" => [ "rec_gamma_789" ] },
+      { "id" => "rec_3", "title" => "Empty", "linked" => [] }
+    ]
+    @cache.cache_table_records(table_id, structure, records)
+
+    # contains on linked records searches within JSON array
+    # Note: This searches IDs, not display values (documented limitation)
+    results = @cache.query(table_id)
+                    .where(linked: { contains: "alpha" })
+                    .execute
+
+    assert_equal 1, results.size, "Should find record with ID containing 'alpha'"
+    assert_equal "rec_1", results[0]["id"]
+
+    # Should not match unrelated records
+    results = @cache.query(table_id)
+                    .where(linked: { contains: "delta" })
+                    .execute
+
+    assert_equal 0, results.size, "Should not find records without matching ID"
+  end
+
   private
 
   # Create test table and populate with sample data
@@ -1128,5 +1308,99 @@ class TestCacheQuery < Minitest::Test
         data + [ now, expires ]
       )
     end
+  end
+
+  # ============================================================================
+  # get_field_type Tests
+  # ============================================================================
+
+  def test_get_field_type_returns_field_type_for_known_field
+    table_id = "tbl_field_type_test"
+    setup_test_table_with_fields(table_id)
+
+    query = @cache.query(table_id)
+
+    assert_equal "textfield", query.get_field_type("name")
+    assert_equal "statusfield", query.get_field_type("status")
+    assert_equal "numberfield", query.get_field_type("priority")
+    assert_equal "textareafield", query.get_field_type("description")
+    assert_equal "multipleselectfield", query.get_field_type("tags")
+  end
+
+  def test_get_field_type_returns_nil_for_unknown_field
+    table_id = "tbl_field_type_unknown"
+    setup_test_table_with_fields(table_id)
+
+    query = @cache.query(table_id)
+
+    assert_nil query.get_field_type("unknown_field")
+    assert_nil query.get_field_type("not_a_real_field")
+  end
+
+  def test_get_field_type_accepts_symbol
+    table_id = "tbl_field_type_symbol"
+    setup_test_table_with_fields(table_id)
+
+    query = @cache.query(table_id)
+
+    assert_equal "textfield", query.get_field_type(:name)
+    assert_equal "statusfield", query.get_field_type(:status)
+  end
+
+  def test_get_field_type_returns_nil_when_table_not_cached
+    query = @cache.query("tbl_not_cached")
+
+    assert_nil query.get_field_type("any_field")
+  end
+
+  def test_get_field_type_handles_daterange_subfields
+    table_id = "tbl_daterange_subfields"
+    structure = {
+      "name" => "Test Table",
+      "structure" => [
+        { "slug" => "period", "label" => "Period", "field_type" => "daterangefield" },
+        { "slug" => "created", "label" => "Created", "field_type" => "datefield" }
+      ]
+    }
+    @cache.create_cache_table(table_id, structure)
+
+    query = @cache.query(table_id)
+
+    # Base field
+    assert_equal "daterangefield", query.get_field_type("period")
+    # Subfields should resolve to the base field type
+    assert_equal "daterangefield", query.get_field_type("period.from_date")
+    assert_equal "daterangefield", query.get_field_type("period.to_date")
+    # Regular date field
+    assert_equal "datefield", query.get_field_type("created")
+  end
+
+  def test_get_field_type_normalizes_to_lowercase
+    table_id = "tbl_field_type_case"
+    structure = {
+      "name" => "Test Table",
+      "structure" => [
+        { "slug" => "myfield", "label" => "My Field", "field_type" => "TextField" }
+      ]
+    }
+    @cache.create_cache_table(table_id, structure)
+
+    query = @cache.query(table_id)
+
+    assert_equal "textfield", query.get_field_type("myfield")
+  end
+
+  def setup_test_table_with_fields(table_id)
+    structure = {
+      "name" => "Test Table",
+      "structure" => [
+        { "slug" => "name", "label" => "Name", "field_type" => "textfield" },
+        { "slug" => "status", "label" => "Status", "field_type" => "statusfield" },
+        { "slug" => "priority", "label" => "Priority", "field_type" => "numberfield" },
+        { "slug" => "description", "label" => "Description", "field_type" => "textareafield" },
+        { "slug" => "tags", "label" => "Tags", "field_type" => "multipleselectfield" }
+      ]
+    }
+    @cache.create_cache_table(table_id, structure)
   end
 end

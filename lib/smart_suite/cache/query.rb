@@ -106,6 +106,93 @@ module SmartSuite
         self
       end
 
+      # Add a raw SQL WHERE clause
+      #
+      # This is useful for complex conditions like nested AND/OR groups
+      # that can't be expressed through the standard `where` interface.
+      #
+      # @param clause [String] Raw SQL clause (e.g., "(status = ? OR priority = ?)")
+      # @param params [Array] Parameters to bind to the clause
+      # @return [CacheQuery] self for chaining
+      #
+      # @example
+      #   .where_raw("(status = ? OR priority > ?)", ["Active", 5])
+      def where_raw(clause, params = [])
+        @where_clauses << clause
+        @params.concat(params)
+        self
+      end
+
+      # Build SQL clause for a single condition (without adding to query)
+      #
+      # This is useful for constructing complex nested filter groups.
+      # Returns the SQL fragment and params that would be generated for a condition.
+      #
+      # @param field_slug [String, Symbol] Field to filter on
+      # @param condition [Object] Condition value or operator hash
+      # @return [Array<String, Array>] [sql_clause, params] or [nil, []] if field not found
+      #
+      # @example
+      #   clause, params = query.build_condition_sql(:status, "Active")
+      #   #=> ["status_col = ?", ["Active"]]
+      #   clause, params = query.build_condition_sql(:priority, {gt: 5})
+      #   #=> ["priority_col > ?", [5]]
+      def build_condition_sql(field_slug, condition)
+        schema = @cache.get_cached_table_schema(@table_id)
+        return [ nil, [] ] unless schema
+
+        field_mapping = schema["field_mapping"]
+        structure = schema["structure"]
+        fields_info = structure["structure"] || []
+        field_slug_str = field_slug.to_s
+
+        # Special handling for built-in 'id' field
+        if field_slug_str == "id"
+          return [ "id = ?", [ condition ] ]
+        end
+
+        # For daterangefield and duedatefield sub-fields
+        base_field_slug = field_slug_str.sub(/\.(from_date|to_date)$/, "")
+
+        # Find field info using base slug
+        field_info = fields_info.find { |f| f["slug"] == base_field_slug }
+        return [ nil, [] ] unless field_info
+
+        # Get SQL column name(s)
+        columns = field_mapping[base_field_slug]
+        return [ nil, [] ] unless columns
+
+        # Build and return the condition
+        build_condition(field_info, columns, condition, field_slug_str)
+      end
+
+      # Get the field type for a given field slug.
+      #
+      # This is useful for filter validation to check operator compatibility.
+      #
+      # @param field_slug [String, Symbol] Field slug to look up
+      # @return [String, nil] Field type (lowercase) or nil if not found
+      #
+      # @example
+      #   query.get_field_type("status")  #=> "statusfield"
+      #   query.get_field_type("amount")  #=> "numberfield"
+      def get_field_type(field_slug)
+        schema = @cache.get_cached_table_schema(@table_id)
+        return nil unless schema
+
+        structure = schema["structure"]
+        fields_info = structure["structure"] || []
+        field_slug_str = field_slug.to_s
+
+        # Handle daterangefield sub-fields (e.g., "s31437fa81.to_date")
+        base_field_slug = field_slug_str.sub(/\.(from_date|to_date)$/, "")
+
+        field_info = fields_info.find { |f| f["slug"] == base_field_slug }
+        return nil unless field_info
+
+        field_info["field_type"]&.downcase
+      end
+
       # Add ORDER BY clause
       #
       # Can be called multiple times to add additional sort criteria.
@@ -423,7 +510,17 @@ module SmartSuite
         when :lte
           [ "#{col_name} <= ?", [ value ] ]
         when :contains
-          [ "#{col_name} LIKE ?", [ "%#{value}%" ] ]
+          if json_array_field?(field_type)
+            # For JSON array fields (linked records, multi-select, etc.):
+            # Search within JSON array using json_extract
+            # NOTE: For linked records, this searches record IDs, not display values.
+            # SmartSuite API's `contains` searches display fields, but cache layer
+            # only has IDs. Use `has_any_of` with record IDs for exact matching.
+            [ "json_extract(#{col_name}, '$') LIKE ?", [ "%#{value}%" ] ]
+          else
+            # For text fields: standard case-insensitive LIKE search
+            [ "#{col_name} LIKE ?", [ "%#{value}%" ] ]
+          end
         when :starts_with
           [ "#{col_name} LIKE ?", [ "#{value}%" ] ]
         when :ends_with
@@ -436,6 +533,9 @@ module SmartSuite
           [ "#{col_name} NOT IN (#{placeholders})", value ]
         when :between
           [ "#{col_name} BETWEEN ? AND ?", [ value[:min], value[:max] ] ]
+        when :not_between
+          # Date is NOT within the range (for "is_not" on date fields)
+          [ "(#{col_name} < ? OR #{col_name} > ?)", [ value[:min], value[:max] ] ]
         when :is_null
           [ "#{col_name} IS NULL", [] ]
         when :is_not_null
