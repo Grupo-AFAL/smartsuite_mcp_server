@@ -87,8 +87,18 @@ module SmartSuite
         # Build query with filters
         query = @cache.query(table_id)
 
-        # Apply filters if provided
-        query = apply_filters_to_query(query, filter) if filter && filter["fields"]&.any?
+        # Start collecting filter validation warnings
+        SmartSuite::FilterValidator.start_collecting_warnings
+
+        begin
+          # Apply filters if provided
+          query = apply_filters_to_query(query, filter) if filter && filter["fields"]&.any?
+
+          # Capture any validation warnings
+          filter_warnings = SmartSuite::FilterValidator.collected_warnings.dup
+        ensure
+          SmartSuite::FilterValidator.stop_collecting_warnings
+        end
 
         # Apply sorting if provided
         query = apply_sorting_to_query(query, sort) if sort.is_a?(Array) && sort.any?
@@ -110,6 +120,9 @@ module SmartSuite
           "total_count" => grand_total,
           "filtered_count" => total_count
         }
+
+        # Add warnings if any
+        response["warnings"] = filter_warnings if filter_warnings.any?
 
         # Apply filtering and formatting with counts
         format_options = format_to_options(format)

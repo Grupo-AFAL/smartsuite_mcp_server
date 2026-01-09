@@ -6,6 +6,12 @@ module SmartSuite
   # This module provides validation to catch invalid operator-field type combinations
   # early with clear error messages, rather than silently failing or returning wrong results.
   #
+  # Warnings can be collected using the warning collection mechanism:
+  #   FilterValidator.start_collecting_warnings
+  #   # ... perform validations ...
+  #   warnings = FilterValidator.collected_warnings
+  #   FilterValidator.stop_collecting_warnings
+  #
   # @example Valid usage
   #   FilterValidator.validate!("status", "is", "statusfield")  # OK
   #   FilterValidator.validate!("amount", "is_greater_than", "numberfield")  # OK
@@ -15,6 +21,37 @@ module SmartSuite
   #   # => ArgumentError: Invalid operator 'contains' for field type 'numberfield'.
   #   #    Valid operators: is, is_not, is_equal_to, is_not_equal_to, is_greater_than, ...
   module FilterValidator
+    # Thread-local warning collection
+    WARNINGS_KEY = :smartsuite_filter_warnings
+
+    # Start collecting warnings for this thread
+    def self.start_collecting_warnings
+      Thread.current[WARNINGS_KEY] = []
+    end
+
+    # Stop collecting warnings and clear the collection
+    def self.stop_collecting_warnings
+      Thread.current[WARNINGS_KEY] = nil
+    end
+
+    # Get collected warnings for this thread
+    # @return [Array<String>] List of warning messages, or empty array if not collecting
+    def self.collected_warnings
+      Thread.current[WARNINGS_KEY] || []
+    end
+
+    # Check if warning collection is active
+    def self.collecting_warnings?
+      !Thread.current[WARNINGS_KEY].nil?
+    end
+
+    # Add a warning to the collection (if collecting)
+    def self.add_warning(message)
+      if collecting_warnings?
+        Thread.current[WARNINGS_KEY] << message
+      end
+    end
+
     # Operators valid for text-based fields
     TEXT_OPERATORS = %w[
       is is_not is_empty is_not_empty contains not_contains does_not_contain
@@ -35,7 +72,7 @@ module SmartSuite
 
     # Operators valid for date fields
     DATE_OPERATORS = %w[
-      is is_not is_before is_on_or_before is_on_or_after is_empty is_not_empty
+      is is_not is_before is_after is_on_or_before is_on_or_after is_empty is_not_empty
     ].freeze
 
     # Additional operators for due date fields
@@ -132,6 +169,8 @@ module SmartSuite
             raise ArgumentError, message
           else
             SmartSuite::Logger.warn(message) if defined?(SmartSuite::Logger)
+            # Also add to warning collection if active
+            FilterValidator.add_warning(message)
             false
           end
         end

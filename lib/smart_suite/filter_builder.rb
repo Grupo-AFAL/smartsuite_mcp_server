@@ -79,8 +79,11 @@ module SmartSuite
           # Validate operator is compatible with field type
           validate_filter_operator(query, field_slug, comparison)
 
+          # Get include_time setting for date fields (affects timezone handling)
+          include_time = get_field_include_time(query, field_slug)
+
           # Convert SmartSuite comparison operator to cache query condition
-          condition = convert_comparison(comparison, value)
+          condition = convert_comparison(comparison, value, include_time: include_time)
 
           # Apply filter to query
           query = query.where(field_slug.to_sym => condition)
@@ -119,8 +122,11 @@ module SmartSuite
           # Validate operator is compatible with field type
           validate_filter_operator(query, field_slug, comparison)
 
+          # Get include_time setting for date fields (affects timezone handling)
+          include_time = get_field_include_time(query, field_slug)
+
           # Convert to cache query format
-          condition = convert_comparison(comparison, value)
+          condition = convert_comparison(comparison, value, include_time: include_time)
 
           # Build SQL using query's method
           clause, params = query.build_condition_sql(field_slug.to_sym, condition)
@@ -145,6 +151,7 @@ module SmartSuite
     #
     # @param comparison [String] SmartSuite comparison operator
     # @param value [Object] Filter value (String, Integer, Array, Hash, etc.)
+    # @param include_time [Boolean] For date fields, whether the field includes time (default: false)
     # @return [Object] Condition in cache query format (value or hash with operator key)
     #
     # @example Equality operators
@@ -176,18 +183,18 @@ module SmartSuite
     #   convert_comparison("is_after", "2025-01-01")  #=> {gt: "2025-01-01"}
     #   convert_comparison("is_on_or_before", "2025-01-01") #=> {lte: "2025-01-01"}
     #   convert_comparison("is_on_or_after", "2025-01-01")  #=> {gte: "2025-01-01"}
-    def self.convert_comparison(comparison, value)
+    def self.convert_comparison(comparison, value, include_time: false)
       case comparison
       # Equality operators
       when "is", "is_equal_to"
         # Check if this is a date-only value that needs range conversion
-        date_range = convert_date_to_range(value)
+        date_range = convert_date_to_range(value, include_time: include_time)
         return date_range if date_range
 
         value
       when "is_not", "is_not_equal_to"
         # Check if this is a date-only value that needs NOT IN range conversion
-        date_not_range = convert_date_to_not_range(value)
+        date_not_range = convert_date_to_not_range(value, include_time: include_time)
         return date_not_range if date_not_range
 
         { ne: value }
@@ -234,6 +241,8 @@ module SmartSuite
       # These need special handling in postgres_layer for date field accessors
       when "is_before"
         { is_before: extract_date_value(value) }
+      when "is_after"
+        { is_after: extract_date_value(value) }
       when "is_on_or_before"
         { is_on_or_before: extract_date_value(value) }
       when "is_on_or_after"
@@ -314,16 +323,23 @@ module SmartSuite
 
     # Convert a date-only value to a range condition for "is" operator.
     #
-    # SmartSuite stores date-only fields as UTC timestamps (e.g., "2025-06-05T00:00:00Z").
-    # This method converts a date-only filter value to a range that covers the entire day
-    # in UTC to match stored timestamps.
+    # SmartSuite stores dates differently based on field configuration:
+    # - include_time: false - stored at UTC midnight (e.g., "2025-06-05T00:00:00Z")
+    # - include_time: true - stored with actual time (e.g., "2025-06-05T15:30:00Z")
+    #
+    # For date-only fields, we use UTC day bounds.
+    # For datetime fields, we use local timezone day bounds to match the user's perspective.
     #
     # @param value [String, Hash] Date value (simple string or nested hash with date_mode_value)
+    # @param include_time [Boolean] Whether the field includes time (default: false)
     # @return [Hash, nil] Range condition {between: {min:, max:}} or nil if not a date-only value
-    # @example
+    # @example Date-only field (include_time: false)
     #   convert_date_to_range("2026-06-15")
     #   #=> {between: {min: "2026-06-15T00:00:00Z", max: "2026-06-15T23:59:59Z"}}
-    def self.convert_date_to_range(value)
+    # @example Datetime field (include_time: true, -0700 timezone)
+    #   convert_date_to_range("2026-06-15", include_time: true)
+    #   #=> {between: {min: "2026-06-15T07:00:00Z", max: "2026-06-16T06:59:59Z"}}
+    def self.convert_date_to_range(value, include_time: false)
       # Extract date string from nested hash if needed
       date_str = if value.is_a?(Hash) && value["date_mode_value"]
                    value["date_mode_value"]
@@ -336,22 +352,44 @@ module SmartSuite
       # Only convert date-only format (YYYY-MM-DD)
       return nil unless date_str.match?(/\A\d{4}-\d{2}-\d{2}\z/)
 
-      # SmartSuite stores date-only fields as UTC timestamps at midnight.
-      # Use a range covering the entire day to match any time on that date.
-      { between: { min: "#{date_str}T00:00:00Z", max: "#{date_str}T23:59:59Z" } }
+      if include_time
+        # Datetime field: use local timezone day bounds
+        # The user expects "January 14" to match all records from their local Jan 14
+        offset = local_timezone_offset(date_str)
+
+        start_of_day_local = Time.parse("#{date_str}T00:00:00#{offset}")
+        start_of_day_utc = start_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        end_of_day_local = Time.parse("#{date_str}T23:59:59#{offset}")
+        end_of_day_utc = end_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        { between: { min: start_of_day_utc, max: end_of_day_utc } }
+      else
+        # Date-only field: use UTC day bounds
+        # SmartSuite stores these at UTC midnight, so UTC day bounds work correctly
+        { between: { min: "#{date_str}T00:00:00Z", max: "#{date_str}T23:59:59Z" } }
+      end
     end
 
     # Convert a date-only value to a NOT IN range condition for "is_not" operator.
     #
-    # SmartSuite stores date-only fields as UTC timestamps (e.g., "2025-06-05T00:00:00Z").
-    # This method converts a date-only filter value to exclude the entire day in UTC.
+    # SmartSuite stores dates differently based on field configuration:
+    # - include_time: false - stored at UTC midnight (e.g., "2025-06-05T00:00:00Z")
+    # - include_time: true - stored with actual time (e.g., "2025-06-05T15:30:00Z")
+    #
+    # For date-only fields, we use UTC day bounds.
+    # For datetime fields, we use local timezone day bounds to match the user's perspective.
     #
     # @param value [String, Hash] Date value (simple string or nested hash with date_mode_value)
+    # @param include_time [Boolean] Whether the field includes time (default: false)
     # @return [Hash, nil] Not-range condition {not_between: {min:, max:}} or nil if not a date-only value
-    # @example
+    # @example Date-only field (include_time: false)
     #   convert_date_to_not_range("2026-06-15")
     #   #=> {not_between: {min: "2026-06-15T00:00:00Z", max: "2026-06-15T23:59:59Z"}}
-    def self.convert_date_to_not_range(value)
+    # @example Datetime field (include_time: true, -0700 timezone)
+    #   convert_date_to_not_range("2026-06-15", include_time: true)
+    #   #=> {not_between: {min: "2026-06-15T07:00:00Z", max: "2026-06-16T06:59:59Z"}}
+    def self.convert_date_to_not_range(value, include_time: false)
       # Extract date string from nested hash if needed
       date_str = if value.is_a?(Hash) && value["date_mode_value"]
                    value["date_mode_value"]
@@ -364,9 +402,21 @@ module SmartSuite
       # Only convert date-only format (YYYY-MM-DD)
       return nil unless date_str.match?(/\A\d{4}-\d{2}-\d{2}\z/)
 
-      # SmartSuite stores date-only fields as UTC timestamps.
-      # Use a range covering the entire day to exclude any time on that date.
-      { not_between: { min: "#{date_str}T00:00:00Z", max: "#{date_str}T23:59:59Z" } }
+      if include_time
+        # Datetime field: use local timezone day bounds
+        offset = local_timezone_offset(date_str)
+
+        start_of_day_local = Time.parse("#{date_str}T00:00:00#{offset}")
+        start_of_day_utc = start_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        end_of_day_local = Time.parse("#{date_str}T23:59:59#{offset}")
+        end_of_day_utc = end_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        { not_between: { min: start_of_day_utc, max: end_of_day_utc } }
+      else
+        # Date-only field: use UTC day bounds
+        { not_between: { min: "#{date_str}T00:00:00Z", max: "#{date_str}T23:59:59Z" } }
+      end
     end
 
     # Validate that a filter operator is compatible with the field type.
@@ -385,6 +435,23 @@ module SmartSuite
       return true if field_type.nil? # Can't validate without field type info
 
       FilterValidator.validate!(field_slug, operator, field_type, strict: false)
+    end
+
+    # Get the include_time setting for a date field.
+    #
+    # For date fields (datefield, duedatefield, daterangefield), this returns whether
+    # the field includes time. When true, timezone-aware filtering is needed.
+    #
+    # @param query [SmartSuite::Cache::Query] Query instance with schema access
+    # @param field_slug [String] Field identifier
+    # @return [Boolean] true if include_time is enabled, false otherwise
+    def self.get_field_include_time(query, field_slug)
+      return false unless query.respond_to?(:get_field_params)
+
+      params = query.get_field_params(field_slug)
+      return false if params.nil?
+
+      params["include_time"] == true
     end
 
     # Get the local timezone offset string for the configured timezone.

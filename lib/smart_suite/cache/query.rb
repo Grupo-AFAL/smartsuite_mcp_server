@@ -193,6 +193,32 @@ module SmartSuite
         field_info["field_type"]&.downcase
       end
 
+      # Get the field params for a given field slug.
+      #
+      # This is useful for checking field-specific settings like include_time for date fields.
+      #
+      # @param field_slug [String, Symbol] Field slug to look up
+      # @return [Hash, nil] Field params hash or nil if not found
+      #
+      # @example
+      #   query.get_field_params("due_date")  #=> {"include_time" => true, ...}
+      def get_field_params(field_slug)
+        schema = @cache.get_cached_table_schema(@table_id)
+        return nil unless schema
+
+        structure = schema["structure"]
+        fields_info = structure["structure"] || []
+        field_slug_str = field_slug.to_s
+
+        # Handle daterangefield sub-fields (e.g., "s31437fa81.to_date")
+        base_field_slug = field_slug_str.sub(/\.(from_date|to_date)$/, "")
+
+        field_info = fields_info.find { |f| f["slug"] == base_field_slug }
+        return nil unless field_info
+
+        field_info["params"]
+      end
+
       # Add ORDER BY clause
       #
       # Can be called multiple times to add additional sort criteria.
@@ -588,6 +614,8 @@ module SmartSuite
         # These work with date-only strings (YYYY-MM-DD) or ISO timestamps
         when :is_before
           [ "#{col_name} < ?", [ value ] ]
+        when :is_after
+          [ "#{col_name} > ?", [ value ] ]
         when :is_on_or_before
           [ "#{col_name} <= ?", [ value ] ]
         when :is_on_or_after
