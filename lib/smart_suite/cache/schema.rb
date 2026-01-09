@@ -91,8 +91,18 @@ module SmartSuite
               metadata TEXT
             );
 
+            -- Key-value metadata store with TTL support
+            -- Used for flags like "overdue_populated_[table]_[field]" with expiration
+            CREATE TABLE IF NOT EXISTS cache_metadata (
+              key TEXT PRIMARY KEY,
+              value TEXT,
+              expires_at TEXT,
+              updated_at TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON cache_stats(timestamp);
             CREATE INDEX IF NOT EXISTS idx_stats_category ON cache_stats(category);
+            CREATE INDEX IF NOT EXISTS idx_cache_metadata_expires ON cache_metadata(expires_at);
           SQL
         end
 

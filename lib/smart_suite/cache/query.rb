@@ -584,8 +584,20 @@ module SmartSuite
           params = [ value.length ] + value.map { |v| "%\"#{v}\"%" }
           [ "(#{all_conditions.join(' AND ')})", params ]
 
+        # Date comparison operators
+        # These work with date-only strings (YYYY-MM-DD) or ISO timestamps
+        when :is_before
+          [ "#{col_name} < ?", [ value ] ]
+        when :is_on_or_before
+          [ "#{col_name} <= ?", [ value ] ]
+        when :is_on_or_after
+          [ "#{col_name} >= ?", [ value ] ]
+
         # Due Date special operators (duedatefield only)
-        # These check the _is_overdue column that's stored alongside the date
+        # Uses the cached is_overdue flag from SmartSuite API.
+        # Note: SmartSuite's overdue logic is complex - it considers if completion
+        # happened after the due date, not just current completion status.
+        # Refresh cache to get updated is_overdue values.
         when :is_overdue
           # Derive the is_overdue column name from the date column
           # e.g., "due_date_to" -> "due_date_is_overdue"
