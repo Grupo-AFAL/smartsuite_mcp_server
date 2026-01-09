@@ -1557,6 +1557,74 @@ module SmartSuite
         }
       end
 
+      # Get a metadata value from key-value store
+      #
+      # @param key [String] Metadata key
+      # @return [Object, nil] Stored value or nil if not found/expired
+      def metadata_get(key)
+        result = @db.execute(
+          "SELECT value, expires_at FROM cache_metadata WHERE key = ?",
+          [ key ]
+        ).first
+
+        return nil unless result
+
+        # Check if expired
+        if result["expires_at"]
+          expires_at = Time.parse(result["expires_at"])
+          return nil if expires_at < Time.now.utc
+        end
+
+        result["value"]
+      end
+
+      # Set a metadata value in key-value store
+      #
+      # @param key [String] Metadata key
+      # @param value [Object] Value to store (will be converted to string)
+      # @param ttl [Integer, nil] Time-to-live in seconds (nil = no expiration)
+      def metadata_set(key, value, ttl: nil)
+        expires_at = ttl ? (Time.now.utc + ttl).iso8601 : nil
+
+        @db.execute(
+          "INSERT OR REPLACE INTO cache_metadata (key, value, expires_at, updated_at)
+           VALUES (?, ?, ?, ?)",
+          [ key, value.to_s, expires_at, Time.now.utc.iso8601 ]
+        )
+      end
+
+      # Update is_overdue flags for specific records in cache
+      #
+      # @param table_id [String] SmartSuite table ID
+      # @param field_slug [String] DueDateField slug
+      # @param overdue_ids [Array<String>] Record IDs that are overdue
+      def update_overdue_flags(table_id, field_slug, overdue_ids)
+        schema = get_cached_table_schema(table_id)
+        return unless schema
+
+        sql_table_name = schema["sql_table_name"]
+        field_mapping = schema["field_mapping"]
+
+        # Get the is_overdue column name for this field
+        columns = field_mapping[field_slug]
+        return unless columns
+
+        is_overdue_col = columns.keys.find { |c| c.end_with?("_is_overdue") }
+        return unless is_overdue_col
+
+        # First, reset all to 0 (not overdue)
+        @db.execute("UPDATE #{sql_table_name} SET #{is_overdue_col} = 0")
+
+        # Then mark the overdue ones as 1
+        return if overdue_ids.empty?
+
+        placeholders = overdue_ids.map { "?" }.join(",")
+        @db.execute(
+          "UPDATE #{sql_table_name} SET #{is_overdue_col} = 1 WHERE id IN (#{placeholders})",
+          overdue_ids
+        )
+      end
+
       private
 
       # Insert a single table row into cached_tables

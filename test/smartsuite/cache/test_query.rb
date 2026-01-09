@@ -1268,6 +1268,125 @@ class TestCacheQuery < Minitest::Test
     assert_equal 0, results.size, "Should not find records without matching ID"
   end
 
+  # ============================================================================
+  # REGRESSION: is_overdue and is_not_overdue Operators for DueDateField
+  # ============================================================================
+  # Bug: SmartSuite API returns is_overdue as nil in record data, but the filter
+  # works correctly. Solution: Lazy-load overdue IDs when filter is used.
+  # These tests verify the SQL generation for querying the cached is_overdue flag.
+
+  def test_is_overdue_operator
+    table_id = "tbl_overdue_test"
+    structure = {
+      "name" => "Overdue Test",
+      "structure" => [
+        { "slug" => "title", "label" => "Title", "field_type" => "textfield" },
+        { "slug" => "due_date", "label" => "Due Date", "field_type" => "duedatefield" }
+      ]
+    }
+
+    sql_table_name = @cache.create_cache_table(table_id, structure)
+
+    now = Time.now.to_i
+    expires = now + 3600
+
+    # Insert records with different is_overdue values
+    # duedatefield creates columns: due_date_from, due_date_to, due_date_is_overdue, due_date_is_completed
+    @cache.db.execute(
+      "INSERT INTO #{sql_table_name} (id, title, due_date_from, due_date_to, due_date_is_overdue, due_date_is_completed, cached_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [ "rec_1", "Overdue Task", "2024-01-01T00:00:00Z", "2024-01-15T00:00:00Z", 1, 0, now, expires ]
+    )
+    @cache.db.execute(
+      "INSERT INTO #{sql_table_name} (id, title, due_date_from, due_date_to, due_date_is_overdue, due_date_is_completed, cached_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [ "rec_2", "On Time Task", "2024-01-01T00:00:00Z", "2025-12-31T00:00:00Z", 0, 0, now, expires ]
+    )
+    @cache.db.execute(
+      "INSERT INTO #{sql_table_name} (id, title, due_date_from, due_date_to, due_date_is_overdue, due_date_is_completed, cached_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [ "rec_3", "Completed Late", "2024-01-01T00:00:00Z", "2024-06-30T00:00:00Z", 1, 1, now, expires ]
+    )
+
+    # Test is_overdue: true - should return records where is_overdue = 1
+    results = @cache.query(table_id)
+                    .where(due_date: { is_overdue: true })
+                    .execute
+
+    assert_equal 2, results.size, "Should find 2 overdue records"
+    ids = results.map { |r| r["id"] }
+    assert_includes ids, "rec_1", "Should include Overdue Task"
+    assert_includes ids, "rec_3", "Should include Completed Late (still considered overdue)"
+    refute_includes ids, "rec_2", "Should NOT include On Time Task"
+  end
+
+  def test_is_not_overdue_operator
+    table_id = "tbl_not_overdue_test"
+    structure = {
+      "name" => "Not Overdue Test",
+      "structure" => [
+        { "slug" => "title", "label" => "Title", "field_type" => "textfield" },
+        { "slug" => "due_date", "label" => "Due Date", "field_type" => "duedatefield" }
+      ]
+    }
+
+    sql_table_name = @cache.create_cache_table(table_id, structure)
+
+    now = Time.now.to_i
+    expires = now + 3600
+
+    @cache.db.execute(
+      "INSERT INTO #{sql_table_name} (id, title, due_date_from, due_date_to, due_date_is_overdue, due_date_is_completed, cached_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [ "rec_1", "Overdue", "2024-01-01T00:00:00Z", "2024-01-15T00:00:00Z", 1, 0, now, expires ]
+    )
+    @cache.db.execute(
+      "INSERT INTO #{sql_table_name} (id, title, due_date_from, due_date_to, due_date_is_overdue, due_date_is_completed, cached_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [ "rec_2", "On Time", "2024-01-01T00:00:00Z", "2025-12-31T00:00:00Z", 0, 0, now, expires ]
+    )
+    @cache.db.execute(
+      "INSERT INTO #{sql_table_name} (id, title, due_date_from, due_date_to, due_date_is_overdue, due_date_is_completed, cached_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      [ "rec_3", "No Due Date", nil, nil, nil, nil, now, expires ]
+    )
+
+    # Test is_not_overdue - should return records where is_overdue = 0 OR is_overdue IS NULL
+    results = @cache.query(table_id)
+                    .where(due_date: { is_not_overdue: true })
+                    .execute
+
+    assert_equal 2, results.size, "Should find 2 not-overdue records"
+    ids = results.map { |r| r["id"] }
+    assert_includes ids, "rec_2", "Should include On Time"
+    assert_includes ids, "rec_3", "Should include No Due Date (NULL treated as not overdue)"
+    refute_includes ids, "rec_1", "Should NOT include Overdue"
+  end
+
+  def test_is_overdue_sql_generation
+    table_id = "tbl_overdue_sql"
+    structure = {
+      "name" => "SQL Test",
+      "structure" => [
+        { "slug" => "title", "label" => "Title", "field_type" => "textfield" },
+        { "slug" => "deadline", "label" => "Deadline", "field_type" => "duedatefield" }
+      ]
+    }
+    @cache.create_cache_table(table_id, structure)
+
+    query = @cache.query(table_id)
+
+    # Test SQL generation for is_overdue
+    clause, params = query.build_condition_sql(:deadline, { is_overdue: true })
+    assert_equal "deadline_is_overdue = 1", clause
+    assert_equal [], params
+
+    # Test SQL generation for is_not_overdue
+    clause, params = query.build_condition_sql(:deadline, { is_not_overdue: true })
+    assert_equal "(deadline_is_overdue = 0 OR deadline_is_overdue IS NULL)", clause
+    assert_equal [], params
+  end
+
   private
 
   # Create test table and populate with sample data

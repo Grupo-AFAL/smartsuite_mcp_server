@@ -1672,4 +1672,116 @@ class TestRecordOperations < Minitest::Test
       FileUtils.rm_f(test_cache_path)
     end
   end
+
+  # ============================================================================
+  # REGRESSION: Lazy-loading for is_overdue filter
+  # ============================================================================
+  # Bug: SmartSuite API returns is_overdue as nil in record data, but the filter
+  # works correctly. Solution: When is_overdue filter is used, fetch overdue IDs
+  # from API and populate cache.
+
+  def test_filter_uses_overdue_operator_detects_is_overdue
+    client = create_client
+
+    filter_with_overdue = {
+      "operator" => "and",
+      "fields" => [
+        { "field" => "due_date", "comparison" => "is_overdue", "value" => nil }
+      ]
+    }
+
+    filter_without_overdue = {
+      "operator" => "and",
+      "fields" => [
+        { "field" => "status", "comparison" => "is", "value" => "Active" }
+      ]
+    }
+
+    assert client.send(:filter_uses_overdue_operator?, filter_with_overdue),
+           "Should detect is_overdue filter"
+    refute client.send(:filter_uses_overdue_operator?, filter_without_overdue),
+           "Should not detect non-overdue filter"
+  end
+
+  def test_filter_uses_overdue_operator_detects_is_not_overdue
+    client = create_client
+
+    filter_with_not_overdue = {
+      "operator" => "and",
+      "fields" => [
+        { "field" => "deadline", "comparison" => "is_not_overdue", "value" => nil }
+      ]
+    }
+
+    assert client.send(:filter_uses_overdue_operator?, filter_with_not_overdue),
+           "Should detect is_not_overdue filter"
+  end
+
+  def test_filter_uses_overdue_operator_returns_false_for_nil_filter
+    client = create_client
+
+    refute client.send(:filter_uses_overdue_operator?, nil),
+           "Should return false for nil filter"
+    refute client.send(:filter_uses_overdue_operator?, {}),
+           "Should return false for empty filter"
+    refute client.send(:filter_uses_overdue_operator?, { "operator" => "and" }),
+           "Should return false for filter without fields"
+  end
+
+  def test_filter_uses_overdue_operator_with_nested_filters
+    client = create_client
+
+    nested_filter = {
+      "operator" => "or",
+      "fields" => [
+        {
+          "operator" => "and",
+          "fields" => [
+            { "field" => "status", "comparison" => "is", "value" => "Active" }
+          ]
+        },
+        { "field" => "due_date", "comparison" => "is_overdue", "value" => nil }
+      ]
+    }
+
+    # Note: Current implementation only checks top-level fields
+    # Nested is_overdue may not be detected - this tests current behavior
+    result = client.send(:filter_uses_overdue_operator?, nested_filter)
+    # Top-level has is_overdue, so should be detected
+    assert result, "Should detect is_overdue at top level of nested filter"
+  end
+
+  def test_sanitize_filter_for_api_handles_is_overdue
+    client = create_client
+
+    # is_overdue should use null value (not true/false)
+    filter = {
+      "operator" => "and",
+      "fields" => [
+        { "field" => "due_date", "comparison" => "is_overdue", "value" => true }
+      ]
+    }
+
+    sanitized = client.send(:sanitize_filter_for_api, filter)
+
+    # Value should be converted to null for API
+    assert_nil sanitized["fields"][0]["value"],
+               "is_overdue filter value should be null for API"
+  end
+
+  def test_sanitize_filter_for_api_handles_is_not_overdue
+    client = create_client
+
+    filter = {
+      "operator" => "and",
+      "fields" => [
+        { "field" => "deadline", "comparison" => "is_not_overdue", "value" => "anything" }
+      ]
+    }
+
+    sanitized = client.send(:sanitize_filter_for_api, filter)
+
+    assert_nil sanitized["fields"][0]["value"],
+               "is_not_overdue filter value should be null for API"
+  end
 end

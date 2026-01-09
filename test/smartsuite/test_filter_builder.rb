@@ -253,7 +253,7 @@ class TestFilterBuilder < Minitest::Test
   def test_convert_comparison_with_nested_hash
     date_value = { "date_mode" => "exact_date", "date_mode_value" => "2025-01-01" }
     result = SmartSuite::FilterBuilder.convert_comparison("is", date_value)
-    # With UTC timezone, date-only becomes a range covering the whole day
+    # SmartSuite stores dates as UTC timestamps, so we match with a day range
     expected = { between: { min: "2025-01-01T00:00:00Z", max: "2025-01-01T23:59:59Z" } }
     assert_equal expected, result
   end
@@ -564,7 +564,7 @@ class TestFilterBuilder < Minitest::Test
   # ============================================================================
 
   def test_convert_comparison_is_not_with_date_string
-    # Date-only string should be converted to not_between range
+    # Date-only string should be converted to not_between range (using UTC timestamps)
     result = SmartSuite::FilterBuilder.convert_comparison("is_not", "2025-01-15")
     expected = { not_between: { min: "2025-01-15T00:00:00Z", max: "2025-01-15T23:59:59Z" } }
     assert_equal expected, result
@@ -591,6 +591,7 @@ class TestFilterBuilder < Minitest::Test
 
   def test_convert_date_to_not_range_simple_date
     result = SmartSuite::FilterBuilder.convert_date_to_not_range("2025-03-10")
+    # Uses UTC timestamps to match how SmartSuite stores dates
     expected = { not_between: { min: "2025-03-10T00:00:00Z", max: "2025-03-10T23:59:59Z" } }
     assert_equal expected, result
   end
@@ -610,12 +611,12 @@ class TestFilterBuilder < Minitest::Test
   end
 
   def test_convert_date_to_not_range_with_timezone
-    # Test with non-UTC timezone
+    # Date conversion uses UTC timestamps regardless of local timezone
     SmartSuite::DateFormatter.timezone = "-0700"
 
     result = SmartSuite::FilterBuilder.convert_date_to_not_range("2026-06-15")
-    # Midnight in -0700 is 07:00 UTC, 23:59:59 -0700 is 06:59:59 UTC next day
-    expected = { not_between: { min: "2026-06-15T07:00:00Z", max: "2026-06-16T06:59:59Z" } }
+    # UTC timestamps are used to match SmartSuite storage format
+    expected = { not_between: { min: "2026-06-15T00:00:00Z", max: "2026-06-15T23:59:59Z" } }
     assert_equal expected, result
 
     # Restore UTC

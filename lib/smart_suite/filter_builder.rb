@@ -314,14 +314,15 @@ module SmartSuite
 
     # Convert a date-only value to a range condition for "is" operator.
     #
-    # When filtering with "is" on a date field, we need to match all times
-    # within that calendar day in the user's local timezone.
+    # SmartSuite stores date-only fields as UTC timestamps (e.g., "2025-06-05T00:00:00Z").
+    # This method converts a date-only filter value to a range that covers the entire day
+    # in UTC to match stored timestamps.
     #
     # @param value [String, Hash] Date value (simple string or nested hash with date_mode_value)
     # @return [Hash, nil] Range condition {between: {min:, max:}} or nil if not a date-only value
     # @example
-    #   convert_date_to_range("2026-06-15")  # In -0700 timezone
-    #   #=> {between: {min: "2026-06-15T07:00:00Z", max: "2026-06-16T06:59:59Z"}}
+    #   convert_date_to_range("2026-06-15")
+    #   #=> {between: {min: "2026-06-15T00:00:00Z", max: "2026-06-15T23:59:59Z"}}
     def self.convert_date_to_range(value)
       # Extract date string from nested hash if needed
       date_str = if value.is_a?(Hash) && value["date_mode_value"]
@@ -335,30 +336,21 @@ module SmartSuite
       # Only convert date-only format (YYYY-MM-DD)
       return nil unless date_str.match?(/\A\d{4}-\d{2}-\d{2}\z/)
 
-      # Get timezone offset for the specific date (handles DST correctly)
-      offset = local_timezone_offset(date_str)
-
-      # Calculate start of day (midnight local) in UTC
-      start_of_day_local = Time.parse("#{date_str}T00:00:00#{offset}")
-      start_of_day_utc = start_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-      # Calculate end of day (23:59:59 local) in UTC
-      end_of_day_local = Time.parse("#{date_str}T23:59:59#{offset}")
-      end_of_day_utc = end_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-      { between: { min: start_of_day_utc, max: end_of_day_utc } }
+      # SmartSuite stores date-only fields as UTC timestamps at midnight.
+      # Use a range covering the entire day to match any time on that date.
+      { between: { min: "#{date_str}T00:00:00Z", max: "#{date_str}T23:59:59Z" } }
     end
 
     # Convert a date-only value to a NOT IN range condition for "is_not" operator.
     #
-    # When filtering with "is_not" on a date field, we need to exclude all times
-    # within that calendar day in the user's local timezone.
+    # SmartSuite stores date-only fields as UTC timestamps (e.g., "2025-06-05T00:00:00Z").
+    # This method converts a date-only filter value to exclude the entire day in UTC.
     #
     # @param value [String, Hash] Date value (simple string or nested hash with date_mode_value)
     # @return [Hash, nil] Not-range condition {not_between: {min:, max:}} or nil if not a date-only value
     # @example
-    #   convert_date_to_not_range("2026-06-15")  # In -0700 timezone
-    #   #=> {not_between: {min: "2026-06-15T07:00:00Z", max: "2026-06-16T06:59:59Z"}}
+    #   convert_date_to_not_range("2026-06-15")
+    #   #=> {not_between: {min: "2026-06-15T00:00:00Z", max: "2026-06-15T23:59:59Z"}}
     def self.convert_date_to_not_range(value)
       # Extract date string from nested hash if needed
       date_str = if value.is_a?(Hash) && value["date_mode_value"]
@@ -372,18 +364,9 @@ module SmartSuite
       # Only convert date-only format (YYYY-MM-DD)
       return nil unless date_str.match?(/\A\d{4}-\d{2}-\d{2}\z/)
 
-      # Get timezone offset for the specific date (handles DST correctly)
-      offset = local_timezone_offset(date_str)
-
-      # Calculate start of day (midnight local) in UTC
-      start_of_day_local = Time.parse("#{date_str}T00:00:00#{offset}")
-      start_of_day_utc = start_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-      # Calculate end of day (23:59:59 local) in UTC
-      end_of_day_local = Time.parse("#{date_str}T23:59:59#{offset}")
-      end_of_day_utc = end_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-      { not_between: { min: start_of_day_utc, max: end_of_day_utc } }
+      # SmartSuite stores date-only fields as UTC timestamps.
+      # Use a range covering the entire day to exclude any time on that date.
+      { not_between: { min: "#{date_str}T00:00:00Z", max: "#{date_str}T23:59:59Z" } }
     end
 
     # Validate that a filter operator is compatible with the field type.
