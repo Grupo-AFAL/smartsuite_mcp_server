@@ -635,19 +635,30 @@ Each prompt generates a complete example with the correct filter structure, oper
 **Single Select/Status fields**:
 
 - Operators: `is`, `is_not`, `is_any_of`, `is_none_of`, `is_empty`, `is_not_empty`
-- Value: String or array
+- Value: String or array of **choice values (UUIDs)**, NOT labels
+
+**IMPORTANT**: Use `get_table` to retrieve the field's `choices` which shows `{label, value}` pairs. Always use the `value` (UUID) in filters, not the human-readable `label`.
 
 ```ruby
-{"field" => "status", "comparison" => "is_any_of", "value" => ["Active", "Pending"]}
+# First, get_table returns choices like:
+#   choices[3]{label,value}:
+#     "2024",a4e555ac-0d42-40a7-aa79-6e0be94c6e45
+#     "2025",32f5a0fb-bb0c-4975-8dac-275e50f8a8e2
+
+# CORRECT - use the value (UUID):
+{"field" => "year", "comparison" => "is", "value" => "a4e555ac-0d42-40a7-aa79-6e0be94c6e45"}
+
+# WRONG - using the label will return 0 results:
+{"field" => "year", "comparison" => "is", "value" => "2024"}
 ```
 
 **Multiple Select/Tag fields**:
 
 - Operators: `has_any_of`, `has_all_of`, `is_exactly`, `has_none_of`, `is_empty`, `is_not_empty`
-- Value: Array
+- Value: Array of **choice values (UUIDs)**, NOT labels (same as Single Select)
 
 ```ruby
-{"field" => "tags", "comparison" => "has_any_of", "value" => ["urgent", "bug"]}
+{"field" => "tags", "comparison" => "has_any_of", "value" => ["uuid_1", "uuid_2"]}
 ```
 
 **Linked Record fields**:
