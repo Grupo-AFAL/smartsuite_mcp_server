@@ -119,8 +119,10 @@ class TestFilterBuilder < Minitest::Test
     assert_equal({ is_before: "2025-01-01T00:00:00Z" }, SmartSuite::FilterBuilder.convert_comparison("is_before", "2025-01-01"))
   end
 
-  # Note: is_after does NOT exist in SmartSuite API - use is_on_or_after instead
-  # The API only supports: is_before, is_on_or_before, is_on_or_after
+  def test_convert_comparison_is_after
+    # With UTC timezone, 2025-01-01 becomes 2025-01-01T00:00:00Z
+    assert_equal({ is_after: "2025-01-01T00:00:00Z" }, SmartSuite::FilterBuilder.convert_comparison("is_after", "2025-01-01"))
+  end
 
   def test_convert_comparison_is_on_or_before
     assert_equal({ is_on_or_before: "2025-01-01T00:00:00Z" }, SmartSuite::FilterBuilder.convert_comparison("is_on_or_before", "2025-01-01"))
@@ -317,8 +319,8 @@ class TestFilterBuilder < Minitest::Test
       "is_none_of" => { is_none_of: [ "a" ] },
 
       # Date operators (preserve type for proper handling in postgres_layer)
-      # Note: is_after does NOT exist in SmartSuite API
       "is_before" => { is_before: "2025-01-01T00:00:00Z" },
+      "is_after" => { is_after: "2025-01-01T00:00:00Z" },
       "is_on_or_before" => { is_on_or_before: "2025-01-01T00:00:00Z" },
       "is_on_or_after" => { is_on_or_after: "2025-01-01T00:00:00Z" },
 
@@ -337,7 +339,7 @@ class TestFilterBuilder < Minitest::Test
                 5
       when "has_any_of", "has_all_of", "is_exactly", "has_none_of", "is_any_of", "is_none_of"
                 [ "a" ]
-      when "is_before", "is_on_or_before", "is_on_or_after"
+      when "is_before", "is_after", "is_on_or_before", "is_on_or_after"
                 "2025-01-01"
       when "is_empty", "is_not_empty", "is_overdue", "is_not_overdue"
                 nil
@@ -369,7 +371,7 @@ class TestFilterBuilder < Minitest::Test
     all_operators = %w[
       is is_not is_greater_than is_less_than is_equal_or_greater_than is_equal_or_less_than
       contains not_contains is_empty is_not_empty has_any_of has_all_of is_exactly has_none_of
-      is_any_of is_none_of is_before is_on_or_before is_on_or_after
+      is_any_of is_none_of is_before is_after is_on_or_before is_on_or_after
       is_overdue is_not_overdue file_name_contains file_type_is
     ]
 
@@ -385,7 +387,7 @@ class TestFilterBuilder < Minitest::Test
       valid_operators = %i[eq ne gt gte lt lte contains not_contains starts_with ends_with
                            in not_in between is_null is_not_null is_empty is_not_empty
                            has_any_of has_all_of is_exactly has_none_of is_any_of is_none_of
-                           is_before is_on_or_before is_on_or_after
+                           is_before is_after is_on_or_before is_on_or_after
                            is_overdue is_not_overdue file_name_contains file_type_is]
 
       result.each_key do |key|
@@ -426,8 +428,12 @@ class TestFilterBuilder < Minitest::Test
 
   # Test convert_comparison with nested date hash for all date operators
   # Note: Date-only strings are converted to UTC timestamps
-  # Note: is_after does NOT exist in SmartSuite API - removed test
-  # Use is_on_or_after instead
+
+  def test_is_after_with_nested_date_hash
+    date_value = { "date_mode" => "exact_date", "date_mode_value" => "2025-11-18" }
+    result = SmartSuite::FilterBuilder.convert_comparison("is_after", date_value)
+    assert_equal({ is_after: "2025-11-18T00:00:00Z" }, result)
+  end
 
   def test_is_before_with_nested_date_hash
     date_value = { "date_mode" => "exact_date", "date_mode_value" => "2025-11-18" }
@@ -448,7 +454,10 @@ class TestFilterBuilder < Minitest::Test
   end
 
   # Test that simple date strings still work (converted to UTC)
-  # Note: is_after does NOT exist in SmartSuite API - removed test
+  def test_is_after_with_simple_date_string
+    result = SmartSuite::FilterBuilder.convert_comparison("is_after", "2025-11-18")
+    assert_equal({ is_after: "2025-11-18T00:00:00Z" }, result)
+  end
 
   def test_is_before_with_simple_date_string
     result = SmartSuite::FilterBuilder.convert_comparison("is_before", "2025-11-18")
@@ -922,6 +931,7 @@ class TestFilterBuilder < Minitest::Test
 
     assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "is")
     assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "is_before")
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "is_after")
     assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "is_on_or_after")
     refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "contains")
   end

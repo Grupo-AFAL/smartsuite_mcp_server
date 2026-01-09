@@ -109,11 +109,12 @@ module SmartSuite
         original_tokens = estimate_tokens(JSON.generate(response))
         filtered_items = filter_items(response["items"], fields)
         filtered_count = response["filtered_count"] || response["total_count"]
+        warnings = response["warnings"] || []
 
         if toon
-          format_as_toon_response(filtered_items, response, original_tokens, filtered_count)
+          format_as_toon_response(filtered_items, response, original_tokens, filtered_count, warnings)
         else
-          format_as_json_response(filtered_items, response, original_tokens)
+          format_as_json_response(filtered_items, response, original_tokens, warnings)
         end
       end
 
@@ -128,20 +129,32 @@ module SmartSuite
       end
 
       # Format response as TOON
-      def format_as_toon_response(items, response, original_tokens, filtered_count)
+      def format_as_toon_response(items, response, original_tokens, filtered_count, warnings = [])
         result = ToonFormatter.format_records(items, total_count: response["total_count"], filtered_count: filtered_count)
+        # Prepend warnings to the result if any
+        result = format_warnings_prefix(warnings) + result if warnings.any?
         log_format_metrics(items.size, response["total_count"], filtered_count, original_tokens, result, "TOON")
         result
       end
 
       # Format response as JSON
-      def format_as_json_response(items, response, _original_tokens)
+      def format_as_json_response(items, response, _original_tokens, warnings = [])
         result = { "items" => items, "total_count" => response["total_count"], "count" => items.size }
+        result["warnings"] = warnings if warnings.any?
         tokens = estimate_tokens(JSON.generate(result))
         total_tokens = update_token_usage(tokens)
         total_records = response["total_count"] || items.size
         log_metric("✓ #{items.size} of #{total_records} records | +#{tokens} tokens (Total: #{total_tokens})")
         result
+      end
+
+      # Format warnings as a prefix string
+      def format_warnings_prefix(warnings)
+        return "" if warnings.empty?
+
+        header = "⚠️  FILTER WARNINGS:\n"
+        warning_lines = warnings.map { |w| "  • #{w}" }.join("\n")
+        "#{header}#{warning_lines}\n\n"
       end
 
       # Log format metrics consistently

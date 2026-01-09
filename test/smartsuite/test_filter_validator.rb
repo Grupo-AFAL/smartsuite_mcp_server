@@ -51,6 +51,7 @@ class TestFilterValidator < Minitest::Test
     assert_includes operators, "is"
     assert_includes operators, "is_not"
     assert_includes operators, "is_before"
+    assert_includes operators, "is_after"
     assert_includes operators, "is_on_or_before"
     assert_includes operators, "is_on_or_after"
     assert_includes operators, "is_empty"
@@ -308,5 +309,85 @@ class TestFilterValidator < Minitest::Test
       refute SmartSuite::FilterValidator.valid?("is", field_type),
              "Expected 'is' to be invalid for #{field_type}"
     end
+  end
+
+  # ============================================================================
+  # Warning Collection Tests
+  # ============================================================================
+
+  def test_warning_collection_not_active_by_default
+    refute SmartSuite::FilterValidator.collecting_warnings?
+    assert_equal [], SmartSuite::FilterValidator.collected_warnings
+  end
+
+  def test_start_collecting_warnings
+    SmartSuite::FilterValidator.start_collecting_warnings
+    assert SmartSuite::FilterValidator.collecting_warnings?
+    assert_equal [], SmartSuite::FilterValidator.collected_warnings
+  ensure
+    SmartSuite::FilterValidator.stop_collecting_warnings
+  end
+
+  def test_stop_collecting_warnings
+    SmartSuite::FilterValidator.start_collecting_warnings
+    SmartSuite::FilterValidator.stop_collecting_warnings
+    refute SmartSuite::FilterValidator.collecting_warnings?
+  end
+
+  def test_add_warning_when_collecting
+    SmartSuite::FilterValidator.start_collecting_warnings
+    SmartSuite::FilterValidator.add_warning("Test warning")
+    assert_equal [ "Test warning" ], SmartSuite::FilterValidator.collected_warnings
+  ensure
+    SmartSuite::FilterValidator.stop_collecting_warnings
+  end
+
+  def test_add_warning_when_not_collecting
+    SmartSuite::FilterValidator.add_warning("Test warning")
+    # Should not raise, just ignored
+    assert_equal [], SmartSuite::FilterValidator.collected_warnings
+  end
+
+  def test_validate_adds_warning_when_collecting
+    SmartSuite::FilterValidator.start_collecting_warnings
+
+    # Invalid combination should add warning
+    refute SmartSuite::FilterValidator.validate!("amount", "contains", "numberfield")
+
+    warnings = SmartSuite::FilterValidator.collected_warnings
+    assert_equal 1, warnings.size
+    assert_match(/Invalid operator 'contains'/, warnings.first)
+  ensure
+    SmartSuite::FilterValidator.stop_collecting_warnings
+  end
+
+  def test_validate_does_not_add_warning_for_valid_combination
+    SmartSuite::FilterValidator.start_collecting_warnings
+
+    # Valid combination should not add warning
+    assert SmartSuite::FilterValidator.validate!("status", "is", "statusfield")
+
+    assert_equal [], SmartSuite::FilterValidator.collected_warnings
+  ensure
+    SmartSuite::FilterValidator.stop_collecting_warnings
+  end
+
+  def test_warning_collection_is_thread_local
+    warnings_from_thread = nil
+
+    SmartSuite::FilterValidator.start_collecting_warnings
+    SmartSuite::FilterValidator.add_warning("Main thread warning")
+
+    thread = Thread.new do
+      # New thread should not see main thread's warnings
+      refute SmartSuite::FilterValidator.collecting_warnings?
+      warnings_from_thread = SmartSuite::FilterValidator.collected_warnings
+    end
+    thread.join
+
+    assert_equal [], warnings_from_thread
+    assert_equal [ "Main thread warning" ], SmartSuite::FilterValidator.collected_warnings
+  ensure
+    SmartSuite::FilterValidator.stop_collecting_warnings
   end
 end
