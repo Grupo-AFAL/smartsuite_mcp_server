@@ -3,6 +3,7 @@
 require "time"
 require_relative "date_formatter"
 require_relative "date_mode_resolver"
+require_relative "filter_validator"
 
 module SmartSuite
   # FilterBuilder converts SmartSuite API filter syntax to cache query conditions.
@@ -36,30 +37,111 @@ module SmartSuite
     #
     # Iterates through filter fields and applies each condition to the query builder.
     # Handles conversion from SmartSuite comparison operators to cache query format.
+    # Supports nested AND/OR filter groups for complex queries.
     #
     # @param query [SmartSuite::Cache::Query] Cache query builder instance
     # @param filter [Hash] SmartSuite filter hash with 'operator' and 'fields' keys
     # @return [SmartSuite::Cache::Query] Query with filters applied
-    # @example
+    # @example Simple filter
     #   filter = {"operator" => "and", "fields" => [{"field" => "status", "comparison" => "is", "value" => "Active"}]}
     #   query = FilterBuilder.apply_to_query(cache.query(table_id), filter)
     #   results = query.execute
+    #
+    # @example Nested filter with OR
+    #   filter = {
+    #     "operator" => "or",
+    #     "fields" => [
+    #       {"operator" => "and", "fields" => [
+    #         {"field" => "status", "comparison" => "is", "value" => "active"},
+    #         {"field" => "priority", "comparison" => "is", "value" => "high"}
+    #       ]},
+    #       {"field" => "overdue", "comparison" => "is", "value" => true}
+    #     ]
+    #   }
     def self.apply_to_query(query, filter)
       return query unless filter && filter["fields"]
 
-      filter["fields"].each do |field_filter|
-        field_slug = field_filter["field"]
-        comparison = field_filter["comparison"]
-        value = field_filter["value"]
+      # Check if this filter has nested groups (items with their own operator/fields)
+      has_nested = filter["fields"].any? { |f| f["operator"] && f["fields"] }
+      filter_operator = (filter["operator"] || "and").downcase
 
-        # Convert SmartSuite comparison operator to cache query condition
-        condition = convert_comparison(comparison, value)
+      if has_nested || filter_operator == "or"
+        # Build a composite SQL clause for the entire filter group
+        clause, params = build_filter_group_sql(query, filter)
+        query = query.where_raw(clause, params) if clause && !clause.empty?
+      else
+        # Simple flat AND filter - use efficient where() chaining
+        filter["fields"].each do |field_filter|
+          field_slug = field_filter["field"]
+          comparison = field_filter["comparison"]
+          value = field_filter["value"]
 
-        # Apply filter to query
-        query = query.where(field_slug.to_sym => condition)
+          # Validate operator is compatible with field type
+          validate_filter_operator(query, field_slug, comparison)
+
+          # Get include_time setting for date fields (affects timezone handling)
+          include_time = get_field_include_time(query, field_slug)
+
+          # Convert SmartSuite comparison operator to cache query condition
+          condition = convert_comparison(comparison, value, include_time: include_time)
+
+          # Apply filter to query
+          query = query.where(field_slug.to_sym => condition)
+        end
       end
 
       query
+    end
+
+    # Build SQL clause for a filter group (supports nested AND/OR logic)
+    #
+    # @param query [SmartSuite::Cache::Query] Query instance for building SQL
+    # @param filter [Hash] Filter group with 'operator' and 'fields'
+    # @return [Array<String, Array>] [sql_clause, params]
+    def self.build_filter_group_sql(query, filter)
+      return [ nil, [] ] unless filter && filter["fields"]
+
+      operator = (filter["operator"] || "and").upcase
+      clauses = []
+      all_params = []
+
+      filter["fields"].each do |field_filter|
+        if field_filter["operator"] && field_filter["fields"]
+          # Nested group - recurse
+          nested_clause, nested_params = build_filter_group_sql(query, field_filter)
+          if nested_clause && !nested_clause.empty?
+            clauses << "(#{nested_clause})"
+            all_params.concat(nested_params)
+          end
+        else
+          # Leaf condition
+          field_slug = field_filter["field"]
+          comparison = field_filter["comparison"]
+          value = field_filter["value"]
+
+          # Validate operator is compatible with field type
+          validate_filter_operator(query, field_slug, comparison)
+
+          # Get include_time setting for date fields (affects timezone handling)
+          include_time = get_field_include_time(query, field_slug)
+
+          # Convert to cache query format
+          condition = convert_comparison(comparison, value, include_time: include_time)
+
+          # Build SQL using query's method
+          clause, params = query.build_condition_sql(field_slug.to_sym, condition)
+          if clause
+            clauses << clause
+            all_params.concat(params)
+          end
+        end
+      end
+
+      return [ nil, [] ] if clauses.empty?
+
+      # Join clauses with the appropriate operator
+      combined = clauses.join(" #{operator} ")
+      [ combined, all_params ]
     end
 
     # Convert SmartSuite comparison operator to cache query condition format.
@@ -69,6 +151,7 @@ module SmartSuite
     #
     # @param comparison [String] SmartSuite comparison operator
     # @param value [Object] Filter value (String, Integer, Array, Hash, etc.)
+    # @param include_time [Boolean] For date fields, whether the field includes time (default: false)
     # @return [Object] Condition in cache query format (value or hash with operator key)
     #
     # @example Equality operators
@@ -100,16 +183,20 @@ module SmartSuite
     #   convert_comparison("is_after", "2025-01-01")  #=> {gt: "2025-01-01"}
     #   convert_comparison("is_on_or_before", "2025-01-01") #=> {lte: "2025-01-01"}
     #   convert_comparison("is_on_or_after", "2025-01-01")  #=> {gte: "2025-01-01"}
-    def self.convert_comparison(comparison, value)
+    def self.convert_comparison(comparison, value, include_time: false)
       case comparison
       # Equality operators
       when "is", "is_equal_to"
         # Check if this is a date-only value that needs range conversion
-        date_range = convert_date_to_range(value)
+        date_range = convert_date_to_range(value, include_time: include_time)
         return date_range if date_range
 
         value
       when "is_not", "is_not_equal_to"
+        # Check if this is a date-only value that needs NOT IN range conversion
+        date_not_range = convert_date_to_not_range(value, include_time: include_time)
+        return date_not_range if date_not_range
+
         { ne: value }
 
       # Numeric comparison operators
@@ -144,6 +231,12 @@ module SmartSuite
       when "has_none_of"
         { has_none_of: value }
 
+      # Single select array operators (matches any/none of the values)
+      when "is_any_of"
+        { is_any_of: Array(value) }
+      when "is_none_of"
+        { is_none_of: Array(value) }
+
       # Date operators - preserve operator type and extract date value
       # These need special handling in postgres_layer for date field accessors
       when "is_before"
@@ -154,6 +247,18 @@ module SmartSuite
         { is_on_or_before: extract_date_value(value) }
       when "is_on_or_after"
         { is_on_or_after: extract_date_value(value) }
+
+      # Due Date special operators (duedatefield only)
+      when "is_overdue"
+        { is_overdue: true }
+      when "is_not_overdue"
+        { is_not_overdue: true }
+
+      # File field operators (filefield only)
+      when "file_name_contains"
+        { file_name_contains: value }
+      when "file_type_is"
+        { file_type_is: value }
 
       # Default: equality
       else
@@ -218,15 +323,23 @@ module SmartSuite
 
     # Convert a date-only value to a range condition for "is" operator.
     #
-    # When filtering with "is" on a date field, we need to match all times
-    # within that calendar day in the user's local timezone.
+    # SmartSuite stores dates differently based on field configuration:
+    # - include_time: false - stored at UTC midnight (e.g., "2025-06-05T00:00:00Z")
+    # - include_time: true - stored with actual time (e.g., "2025-06-05T15:30:00Z")
+    #
+    # For date-only fields, we use UTC day bounds.
+    # For datetime fields, we use local timezone day bounds to match the user's perspective.
     #
     # @param value [String, Hash] Date value (simple string or nested hash with date_mode_value)
+    # @param include_time [Boolean] Whether the field includes time (default: false)
     # @return [Hash, nil] Range condition {between: {min:, max:}} or nil if not a date-only value
-    # @example
-    #   convert_date_to_range("2026-06-15")  # In -0700 timezone
+    # @example Date-only field (include_time: false)
+    #   convert_date_to_range("2026-06-15")
+    #   #=> {between: {min: "2026-06-15T00:00:00Z", max: "2026-06-15T23:59:59Z"}}
+    # @example Datetime field (include_time: true, -0700 timezone)
+    #   convert_date_to_range("2026-06-15", include_time: true)
     #   #=> {between: {min: "2026-06-15T07:00:00Z", max: "2026-06-16T06:59:59Z"}}
-    def self.convert_date_to_range(value)
+    def self.convert_date_to_range(value, include_time: false)
       # Extract date string from nested hash if needed
       date_str = if value.is_a?(Hash) && value["date_mode_value"]
                    value["date_mode_value"]
@@ -239,18 +352,106 @@ module SmartSuite
       # Only convert date-only format (YYYY-MM-DD)
       return nil unless date_str.match?(/\A\d{4}-\d{2}-\d{2}\z/)
 
-      # Get timezone offset for the specific date (handles DST correctly)
-      offset = local_timezone_offset(date_str)
+      if include_time
+        # Datetime field: use local timezone day bounds
+        # The user expects "January 14" to match all records from their local Jan 14
+        offset = local_timezone_offset(date_str)
 
-      # Calculate start of day (midnight local) in UTC
-      start_of_day_local = Time.parse("#{date_str}T00:00:00#{offset}")
-      start_of_day_utc = start_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+        start_of_day_local = Time.parse("#{date_str}T00:00:00#{offset}")
+        start_of_day_utc = start_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-      # Calculate end of day (23:59:59 local) in UTC
-      end_of_day_local = Time.parse("#{date_str}T23:59:59#{offset}")
-      end_of_day_utc = end_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+        end_of_day_local = Time.parse("#{date_str}T23:59:59#{offset}")
+        end_of_day_utc = end_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-      { between: { min: start_of_day_utc, max: end_of_day_utc } }
+        { between: { min: start_of_day_utc, max: end_of_day_utc } }
+      else
+        # Date-only field: use UTC day bounds
+        # SmartSuite stores these at UTC midnight, so UTC day bounds work correctly
+        { between: { min: "#{date_str}T00:00:00Z", max: "#{date_str}T23:59:59Z" } }
+      end
+    end
+
+    # Convert a date-only value to a NOT IN range condition for "is_not" operator.
+    #
+    # SmartSuite stores dates differently based on field configuration:
+    # - include_time: false - stored at UTC midnight (e.g., "2025-06-05T00:00:00Z")
+    # - include_time: true - stored with actual time (e.g., "2025-06-05T15:30:00Z")
+    #
+    # For date-only fields, we use UTC day bounds.
+    # For datetime fields, we use local timezone day bounds to match the user's perspective.
+    #
+    # @param value [String, Hash] Date value (simple string or nested hash with date_mode_value)
+    # @param include_time [Boolean] Whether the field includes time (default: false)
+    # @return [Hash, nil] Not-range condition {not_between: {min:, max:}} or nil if not a date-only value
+    # @example Date-only field (include_time: false)
+    #   convert_date_to_not_range("2026-06-15")
+    #   #=> {not_between: {min: "2026-06-15T00:00:00Z", max: "2026-06-15T23:59:59Z"}}
+    # @example Datetime field (include_time: true, -0700 timezone)
+    #   convert_date_to_not_range("2026-06-15", include_time: true)
+    #   #=> {not_between: {min: "2026-06-15T07:00:00Z", max: "2026-06-16T06:59:59Z"}}
+    def self.convert_date_to_not_range(value, include_time: false)
+      # Extract date string from nested hash if needed
+      date_str = if value.is_a?(Hash) && value["date_mode_value"]
+                   value["date_mode_value"]
+      elsif value.is_a?(String)
+                   value
+      end
+
+      return nil unless date_str.is_a?(String)
+
+      # Only convert date-only format (YYYY-MM-DD)
+      return nil unless date_str.match?(/\A\d{4}-\d{2}-\d{2}\z/)
+
+      if include_time
+        # Datetime field: use local timezone day bounds
+        offset = local_timezone_offset(date_str)
+
+        start_of_day_local = Time.parse("#{date_str}T00:00:00#{offset}")
+        start_of_day_utc = start_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        end_of_day_local = Time.parse("#{date_str}T23:59:59#{offset}")
+        end_of_day_utc = end_of_day_local.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        { not_between: { min: start_of_day_utc, max: end_of_day_utc } }
+      else
+        # Date-only field: use UTC day bounds
+        { not_between: { min: "#{date_str}T00:00:00Z", max: "#{date_str}T23:59:59Z" } }
+      end
+    end
+
+    # Validate that a filter operator is compatible with the field type.
+    #
+    # Uses the query's schema to look up the field type and validates the operator.
+    # Logs a warning if the operator is invalid (non-strict mode by default).
+    #
+    # @param query [SmartSuite::Cache::Query] Query instance with schema access
+    # @param field_slug [String] Field identifier
+    # @param operator [String] Filter comparison operator
+    # @return [Boolean] true if valid, false otherwise
+    def self.validate_filter_operator(query, field_slug, operator)
+      return true unless query.respond_to?(:get_field_type)
+
+      field_type = query.get_field_type(field_slug)
+      return true if field_type.nil? # Can't validate without field type info
+
+      FilterValidator.validate!(field_slug, operator, field_type, strict: false)
+    end
+
+    # Get the include_time setting for a date field.
+    #
+    # For date fields (datefield, duedatefield, daterangefield), this returns whether
+    # the field includes time. When true, timezone-aware filtering is needed.
+    #
+    # @param query [SmartSuite::Cache::Query] Query instance with schema access
+    # @param field_slug [String] Field identifier
+    # @return [Boolean] true if include_time is enabled, false otherwise
+    def self.get_field_include_time(query, field_slug)
+      return false unless query.respond_to?(:get_field_params)
+
+      params = query.get_field_params(field_slug)
+      return false if params.nil?
+
+      params["include_time"] == true
     end
 
     # Get the local timezone offset string for the configured timezone.

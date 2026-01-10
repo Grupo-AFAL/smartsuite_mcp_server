@@ -80,11 +80,25 @@ module SmartSuite
         # Ensure cache is populated
         ensure_records_cached(table_id)
 
+        # If filter uses is_overdue/is_not_overdue, ensure overdue flags are populated
+        # This is done lazily - only when these filters are actually used
+        ensure_overdue_flags_populated(table_id, filter) if filter_uses_overdue_operator?(filter)
+
         # Build query with filters
         query = @cache.query(table_id)
 
-        # Apply filters if provided
-        query = apply_filters_to_query(query, filter) if filter && filter["fields"]&.any?
+        # Start collecting filter validation warnings
+        SmartSuite::FilterValidator.start_collecting_warnings
+
+        begin
+          # Apply filters if provided
+          query = apply_filters_to_query(query, filter) if filter && filter["fields"]&.any?
+
+          # Capture any validation warnings
+          filter_warnings = SmartSuite::FilterValidator.collected_warnings.dup
+        ensure
+          SmartSuite::FilterValidator.stop_collecting_warnings
+        end
 
         # Apply sorting if provided
         query = apply_sorting_to_query(query, sort) if sort.is_a?(Array) && sort.any?
@@ -106,6 +120,9 @@ module SmartSuite
           "total_count" => grand_total,
           "filtered_count" => total_count
         }
+
+        # Add warnings if any
+        response["warnings"] = filter_warnings if filter_warnings.any?
 
         # Apply filtering and formatting with counts
         format_options = format_to_options(format)
@@ -177,10 +194,106 @@ module SmartSuite
         end
       end
 
+      # Check if filter contains is_overdue or is_not_overdue operators.
+      #
+      # @param filter [Hash] Filter criteria
+      # @return [Boolean] true if filter uses overdue operators
+      def filter_uses_overdue_operator?(filter)
+        return false unless filter.is_a?(Hash) && filter["fields"]
+
+        filter["fields"].any? do |field_filter|
+          %w[is_overdue is_not_overdue].include?(field_filter["comparison"])
+        end
+      end
+
+      # Ensure overdue flags are populated in the cache for DueDateFields.
+      #
+      # SmartSuite's API doesn't populate is_overdue in record responses (always nil),
+      # but the is_overdue filter works correctly. This method:
+      # 1. Finds DueDateFields in the filter
+      # 2. Makes an API call with is_overdue filter to get overdue record IDs
+      # 3. Updates the cache to mark those records as is_overdue: true
+      #
+      # This is called lazily - only when is_overdue/is_not_overdue filters are used.
+      #
+      # @param table_id [String] Table identifier
+      # @param filter [Hash] Filter containing overdue operators
+      def ensure_overdue_flags_populated(table_id, filter)
+        return unless filter.is_a?(Hash) && filter["fields"]
+
+        # Find fields using overdue operators
+        overdue_fields = filter["fields"].select do |f|
+          %w[is_overdue is_not_overdue].include?(f["comparison"])
+        end
+
+        overdue_fields.each do |field_filter|
+          field_slug = field_filter["field"]
+          populate_overdue_flags_for_field(table_id, field_slug)
+        end
+      end
+
+      # Populate overdue flags for a specific DueDateField.
+      #
+      # @param table_id [String] Table identifier
+      # @param field_slug [String] DueDateField slug
+      def populate_overdue_flags_for_field(table_id, field_slug)
+        # Check if we've already populated overdue flags for this field
+        cache_key = "overdue_populated_#{table_id}_#{field_slug}"
+        return if @cache.metadata_get(cache_key)
+
+        SmartSuite::Logger.info("Populating is_overdue flags for field #{field_slug} in table #{table_id}")
+
+        # Fetch all overdue record IDs from API
+        overdue_filter = {
+          "operator" => "and",
+          "fields" => [ { "field" => field_slug, "comparison" => "is_overdue", "value" => nil } ]
+        }
+
+        overdue_ids = fetch_all_record_ids_with_filter(table_id, overdue_filter)
+
+        # Update cache to mark these records as overdue
+        @cache.update_overdue_flags(table_id, field_slug, overdue_ids) if overdue_ids.any?
+
+        # Mark as populated (with 1 hour TTL - overdue status can change)
+        @cache.metadata_set(cache_key, Time.now.to_i, ttl: 3600)
+
+        SmartSuite::Logger.info("Marked #{overdue_ids.length} records as overdue for field #{field_slug}")
+      end
+
+      # Fetch all record IDs matching a filter (paginated).
+      #
+      # @param table_id [String] Table identifier
+      # @param filter [Hash] Filter criteria
+      # @return [Array<String>] Array of record IDs
+      def fetch_all_record_ids_with_filter(table_id, filter)
+        all_ids = []
+        offset = 0
+        limit = 1000
+
+        loop do
+          endpoint = "/applications/#{table_id}/records/list/?limit=#{limit}&offset=#{offset}"
+          response = api_request(:post, endpoint, { filter: filter })
+
+          items = response["items"] || []
+          break if items.empty?
+
+          all_ids.concat(items.map { |item| item["id"] })
+
+          # Check if we've fetched all
+          total = response["total"] || 0
+          break if all_ids.length >= total
+
+          offset += limit
+        end
+
+        all_ids
+      end
+
       # Sanitize filter before sending to SmartSuite API.
       #
       # The SmartSuite API has specific requirements for certain comparison operators:
       # - is_empty and is_not_empty must have null value (not empty string)
+      # - is_overdue and is_not_overdue must have null value
       #
       # @param filter [Hash] Filter criteria
       # @return [Hash] Sanitized filter
@@ -192,8 +305,9 @@ module SmartSuite
           sanitized_field = field_filter.dup
           comparison = sanitized_field["comparison"]
 
-          # For empty check operators, ensure value is null
-          sanitized_field["value"] = nil if %w[is_empty is_not_empty].include?(comparison)
+          # These operators require value: null
+          null_value_operators = %w[is_empty is_not_empty is_overdue is_not_overdue]
+          sanitized_field["value"] = nil if null_value_operators.include?(comparison)
 
           sanitized_field
         end

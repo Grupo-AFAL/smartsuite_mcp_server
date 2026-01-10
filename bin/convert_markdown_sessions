@@ -25,8 +25,8 @@
 require 'bundler/setup'
 require 'json'
 require 'optparse'
-require_relative '../lib/smartsuite_client'
-require_relative '../lib/smartsuite/formatters/markdown_to_smartdoc'
+require_relative '../lib/smart_suite_client'
+require_relative '../lib/smart_suite/formatters/markdown_to_smartdoc'
 
 # Default configuration
 DEFAULT_CONFIG = {
@@ -126,7 +126,8 @@ end
 # Initialize client
 client = SmartSuiteClient.new(
   ENV.fetch('SMARTSUITE_API_KEY'),
-  ENV.fetch('SMARTSUITE_ACCOUNT_ID')
+  ENV.fetch('SMARTSUITE_ACCOUNT_ID'),
+  cache_enabled: false
 )
 
 puts '=== SmartSuite Markdown to SmartDoc Batch Converter ==='

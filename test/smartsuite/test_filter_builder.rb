@@ -92,6 +92,25 @@ class TestFilterBuilder < Minitest::Test
     assert_equal({ has_none_of: %w[a b] }, SmartSuite::FilterBuilder.convert_comparison("has_none_of", %w[a b]))
   end
 
+  # Single select array operators (is_any_of, is_none_of)
+  def test_convert_comparison_is_any_of_with_array
+    assert_equal({ is_any_of: %w[a b] }, SmartSuite::FilterBuilder.convert_comparison("is_any_of", %w[a b]))
+  end
+
+  def test_convert_comparison_is_any_of_with_single_value
+    # Single value should be wrapped in array
+    assert_equal({ is_any_of: [ "a" ] }, SmartSuite::FilterBuilder.convert_comparison("is_any_of", "a"))
+  end
+
+  def test_convert_comparison_is_none_of_with_array
+    assert_equal({ is_none_of: %w[a b] }, SmartSuite::FilterBuilder.convert_comparison("is_none_of", %w[a b]))
+  end
+
+  def test_convert_comparison_is_none_of_with_single_value
+    # Single value should be wrapped in array
+    assert_equal({ is_none_of: [ "a" ] }, SmartSuite::FilterBuilder.convert_comparison("is_none_of", "a"))
+  end
+
   # Test date operators
   # Note: Date-only strings are converted to UTC timestamps (start of day)
   # Date operators preserve their type for proper handling in postgres_layer
@@ -101,6 +120,7 @@ class TestFilterBuilder < Minitest::Test
   end
 
   def test_convert_comparison_is_after
+    # With UTC timezone, 2025-01-01 becomes 2025-01-01T00:00:00Z
     assert_equal({ is_after: "2025-01-01T00:00:00Z" }, SmartSuite::FilterBuilder.convert_comparison("is_after", "2025-01-01"))
   end
 
@@ -235,7 +255,7 @@ class TestFilterBuilder < Minitest::Test
   def test_convert_comparison_with_nested_hash
     date_value = { "date_mode" => "exact_date", "date_mode_value" => "2025-01-01" }
     result = SmartSuite::FilterBuilder.convert_comparison("is", date_value)
-    # With UTC timezone, date-only becomes a range covering the whole day
+    # SmartSuite stores dates as UTC timestamps, so we match with a day range
     expected = { between: { min: "2025-01-01T00:00:00Z", max: "2025-01-01T23:59:59Z" } }
     assert_equal expected, result
   end
@@ -288,31 +308,47 @@ class TestFilterBuilder < Minitest::Test
       "is_empty" => { is_empty: true },
       "is_not_empty" => { is_not_empty: true },
 
-      # Array operators
+      # Array operators (multi-select fields)
       "has_any_of" => { has_any_of: [ "a" ] },
       "has_all_of" => { has_all_of: [ "a" ] },
       "is_exactly" => { is_exactly: [ "a" ] },
       "has_none_of" => { has_none_of: [ "a" ] },
 
+      # Single select array operators
+      "is_any_of" => { is_any_of: [ "a" ] },
+      "is_none_of" => { is_none_of: [ "a" ] },
+
       # Date operators (preserve type for proper handling in postgres_layer)
       "is_before" => { is_before: "2025-01-01T00:00:00Z" },
       "is_after" => { is_after: "2025-01-01T00:00:00Z" },
       "is_on_or_before" => { is_on_or_before: "2025-01-01T00:00:00Z" },
-      "is_on_or_after" => { is_on_or_after: "2025-01-01T00:00:00Z" }
+      "is_on_or_after" => { is_on_or_after: "2025-01-01T00:00:00Z" },
+
+      # Due Date special operators (duedatefield only)
+      "is_overdue" => { is_overdue: true },
+      "is_not_overdue" => { is_not_overdue: true },
+
+      # File field operators (filefield only)
+      "file_name_contains" => { file_name_contains: "report" },
+      "file_type_is" => { file_type_is: "pdf" }
     }
 
     test_cases.each do |operator, expected|
       value = case operator
       when "is_greater_than", "is_less_than", "is_equal_or_greater_than", "is_equal_or_less_than"
                 5
-      when "has_any_of", "has_all_of", "is_exactly", "has_none_of"
+      when "has_any_of", "has_all_of", "is_exactly", "has_none_of", "is_any_of", "is_none_of"
                 [ "a" ]
       when "is_before", "is_after", "is_on_or_before", "is_on_or_after"
                 "2025-01-01"
-      when "is_empty", "is_not_empty"
+      when "is_empty", "is_not_empty", "is_overdue", "is_not_overdue"
                 nil
       when "contains", "not_contains"
                 "text"
+      when "file_name_contains"
+                "report"
+      when "file_type_is"
+                "pdf"
       else
                 "value"
       end
@@ -335,7 +371,8 @@ class TestFilterBuilder < Minitest::Test
     all_operators = %w[
       is is_not is_greater_than is_less_than is_equal_or_greater_than is_equal_or_less_than
       contains not_contains is_empty is_not_empty has_any_of has_all_of is_exactly has_none_of
-      is_before is_after is_on_or_before is_on_or_after
+      is_any_of is_none_of is_before is_after is_on_or_before is_on_or_after
+      is_overdue is_not_overdue file_name_contains file_type_is
     ]
 
     all_operators.each do |operator|
@@ -349,8 +386,9 @@ class TestFilterBuilder < Minitest::Test
       # These are the operator symbols Cache::Query.build_complex_condition recognizes
       valid_operators = %i[eq ne gt gte lt lte contains not_contains starts_with ends_with
                            in not_in between is_null is_not_null is_empty is_not_empty
-                           has_any_of has_all_of is_exactly has_none_of
-                           is_before is_after is_on_or_before is_on_or_after]
+                           has_any_of has_all_of is_exactly has_none_of is_any_of is_none_of
+                           is_before is_after is_on_or_before is_on_or_after
+                           is_overdue is_not_overdue file_name_contains file_type_is]
 
       result.each_key do |key|
         assert valid_operators.include?(key),
@@ -390,10 +428,10 @@ class TestFilterBuilder < Minitest::Test
 
   # Test convert_comparison with nested date hash for all date operators
   # Note: Date-only strings are converted to UTC timestamps
+
   def test_is_after_with_nested_date_hash
     date_value = { "date_mode" => "exact_date", "date_mode_value" => "2025-11-18" }
     result = SmartSuite::FilterBuilder.convert_comparison("is_after", date_value)
-    # CRITICAL: Should extract the date string, convert to UTC, and preserve operator type
     assert_equal({ is_after: "2025-11-18T00:00:00Z" }, result)
   end
 
@@ -427,13 +465,14 @@ class TestFilterBuilder < Minitest::Test
   end
 
   # Integration test: apply_to_query with nested date filter
+  # Note: Changed from is_after to is_on_or_after (is_after doesn't exist in SmartSuite API)
   def test_apply_to_query_with_nested_date_filter
     filter = {
       "operator" => "and",
       "fields" => [
         {
           "field" => "due_date",
-          "comparison" => "is_after",
+          "comparison" => "is_on_or_after",
           "value" => { "date_mode" => "exact_date", "date_mode_value" => "2025-11-18" }
         }
       ]
@@ -443,7 +482,7 @@ class TestFilterBuilder < Minitest::Test
     assert_equal @query, result
     assert_equal 1, @query.conditions.size
     # Should extract date string from nested hash, convert to UTC, and preserve operator type
-    assert_equal({ due_date: { is_after: "2025-11-18T00:00:00Z" } }, @query.conditions.first)
+    assert_equal({ due_date: { is_on_or_after: "2025-11-18T00:00:00Z" } }, @query.conditions.first)
   end
 
   # Integration test: multiple date filters with mixed formats
@@ -489,5 +528,488 @@ class TestFilterBuilder < Minitest::Test
 
     # Restore UTC for other tests
     SmartSuite::DateFormatter.timezone = :utc
+  end
+
+  # ============================================================================
+  # NEW OPERATORS: Due Date Special (is_overdue, is_not_overdue)
+  # ============================================================================
+
+  def test_convert_comparison_is_overdue
+    result = SmartSuite::FilterBuilder.convert_comparison("is_overdue", nil)
+    assert_equal({ is_overdue: true }, result)
+  end
+
+  def test_convert_comparison_is_not_overdue
+    result = SmartSuite::FilterBuilder.convert_comparison("is_not_overdue", nil)
+    assert_equal({ is_not_overdue: true }, result)
+  end
+
+  # ============================================================================
+  # NEW OPERATORS: File Field (file_name_contains, file_type_is)
+  # ============================================================================
+
+  def test_convert_comparison_file_name_contains
+    result = SmartSuite::FilterBuilder.convert_comparison("file_name_contains", "report")
+    assert_equal({ file_name_contains: "report" }, result)
+  end
+
+  def test_convert_comparison_file_type_is
+    result = SmartSuite::FilterBuilder.convert_comparison("file_type_is", "pdf")
+    assert_equal({ file_type_is: "pdf" }, result)
+  end
+
+  # Test that file_type_is works with all valid file types
+  def test_file_type_is_valid_types
+    valid_types = %w[archive image music pdf powerpoint spreadsheet video word other]
+
+    valid_types.each do |file_type|
+      result = SmartSuite::FilterBuilder.convert_comparison("file_type_is", file_type)
+      assert_equal({ file_type_is: file_type }, result, "Failed for file type: #{file_type}")
+    end
+  end
+
+  # ============================================================================
+  # NEW: is_not for Date Fields (Issue #1)
+  # ============================================================================
+
+  def test_convert_comparison_is_not_with_date_string
+    # Date-only string should be converted to not_between range (using UTC timestamps)
+    result = SmartSuite::FilterBuilder.convert_comparison("is_not", "2025-01-15")
+    expected = { not_between: { min: "2025-01-15T00:00:00Z", max: "2025-01-15T23:59:59Z" } }
+    assert_equal expected, result
+  end
+
+  def test_convert_comparison_is_not_with_nested_date_hash
+    date_value = { "date_mode" => "exact_date", "date_mode_value" => "2025-06-20" }
+    result = SmartSuite::FilterBuilder.convert_comparison("is_not", date_value)
+    expected = { not_between: { min: "2025-06-20T00:00:00Z", max: "2025-06-20T23:59:59Z" } }
+    assert_equal expected, result
+  end
+
+  def test_convert_comparison_is_not_with_non_date_value
+    # Non-date values should return simple ne operator
+    result = SmartSuite::FilterBuilder.convert_comparison("is_not", "Active")
+    assert_equal({ ne: "Active" }, result)
+  end
+
+  def test_convert_comparison_is_not_with_numeric_value
+    # Numeric values should return simple ne operator
+    result = SmartSuite::FilterBuilder.convert_comparison("is_not", 42)
+    assert_equal({ ne: 42 }, result)
+  end
+
+  def test_convert_date_to_not_range_simple_date
+    result = SmartSuite::FilterBuilder.convert_date_to_not_range("2025-03-10")
+    # Uses UTC timestamps to match how SmartSuite stores dates
+    expected = { not_between: { min: "2025-03-10T00:00:00Z", max: "2025-03-10T23:59:59Z" } }
+    assert_equal expected, result
+  end
+
+  def test_convert_date_to_not_range_nested_hash
+    date_value = { "date_mode" => "exact_date", "date_mode_value" => "2025-12-25" }
+    result = SmartSuite::FilterBuilder.convert_date_to_not_range(date_value)
+    expected = { not_between: { min: "2025-12-25T00:00:00Z", max: "2025-12-25T23:59:59Z" } }
+    assert_equal expected, result
+  end
+
+  def test_convert_date_to_not_range_returns_nil_for_non_date
+    assert_nil SmartSuite::FilterBuilder.convert_date_to_not_range("Active")
+    assert_nil SmartSuite::FilterBuilder.convert_date_to_not_range(42)
+    assert_nil SmartSuite::FilterBuilder.convert_date_to_not_range(nil)
+    assert_nil SmartSuite::FilterBuilder.convert_date_to_not_range({})
+  end
+
+  def test_convert_date_to_not_range_with_timezone
+    # Date conversion uses UTC timestamps regardless of local timezone
+    SmartSuite::DateFormatter.timezone = "-0700"
+
+    result = SmartSuite::FilterBuilder.convert_date_to_not_range("2026-06-15")
+    # UTC timestamps are used to match SmartSuite storage format
+    expected = { not_between: { min: "2026-06-15T00:00:00Z", max: "2026-06-15T23:59:59Z" } }
+    assert_equal expected, result
+
+    # Restore UTC
+    SmartSuite::DateFormatter.timezone = :utc
+  end
+
+  # Integration test: apply_to_query with due date overdue filter
+  def test_apply_to_query_with_is_overdue_filter
+    filter = {
+      "operator" => "and",
+      "fields" => [
+        { "field" => "due_date", "comparison" => "is_overdue", "value" => nil }
+      ]
+    }
+
+    result = SmartSuite::FilterBuilder.apply_to_query(@query, filter)
+    assert_equal @query, result
+    assert_equal 1, @query.conditions.size
+    assert_equal({ due_date: { is_overdue: true } }, @query.conditions.first)
+  end
+
+  # Integration test: apply_to_query with file filter
+  def test_apply_to_query_with_file_filter
+    filter = {
+      "operator" => "and",
+      "fields" => [
+        { "field" => "attachments", "comparison" => "file_type_is", "value" => "pdf" },
+        { "field" => "attachments", "comparison" => "file_name_contains", "value" => "invoice" }
+      ]
+    }
+
+    result = SmartSuite::FilterBuilder.apply_to_query(@query, filter)
+    assert_equal @query, result
+    assert_equal 2, @query.conditions.size
+    assert_equal({ attachments: { file_type_is: "pdf" } }, @query.conditions[0])
+    assert_equal({ attachments: { file_name_contains: "invoice" } }, @query.conditions[1])
+  end
+
+  # ============================================================================
+  # NEW: Nested Filter Support (Issue #3)
+  # ============================================================================
+
+  # Test detection of nested filters
+  def test_nested_filter_detection_with_flat_filter
+    filter = {
+      "operator" => "and",
+      "fields" => [
+        { "field" => "status", "comparison" => "is", "value" => "Active" },
+        { "field" => "priority", "comparison" => "is_greater_than", "value" => 3 }
+      ]
+    }
+
+    # Flat filter should use normal where() chain, not where_raw()
+    result = SmartSuite::FilterBuilder.apply_to_query(@query, filter)
+    assert_equal @query, result
+    assert_equal 2, @query.conditions.size
+    assert_equal({ status: "Active" }, @query.conditions[0])
+    assert_equal({ priority: { gt: 3 } }, @query.conditions[1])
+  end
+
+  def test_nested_filter_structure_detected
+    # Create a mock query that tracks where_raw calls
+    mock_query = Object.new
+    mock_query.define_singleton_method(:where_raw_calls) { @where_raw_calls ||= [] }
+    mock_query.define_singleton_method(:where_raw) do |clause, params|
+      @where_raw_calls ||= []
+      @where_raw_calls << { clause: clause, params: params }
+      self
+    end
+    mock_query.define_singleton_method(:build_condition_sql) do |field_slug, condition|
+      # Return mock SQL for testing
+      [ "#{field_slug} = ?", [ condition.is_a?(Hash) ? condition.values.first : condition ] ]
+    end
+
+    filter = {
+      "operator" => "or",
+      "fields" => [
+        {
+          "operator" => "and",
+          "fields" => [
+            { "field" => "status", "comparison" => "is", "value" => "active" },
+            { "field" => "priority", "comparison" => "is", "value" => "high" }
+          ]
+        },
+        { "field" => "overdue", "comparison" => "is", "value" => true }
+      ]
+    }
+
+    result = SmartSuite::FilterBuilder.apply_to_query(mock_query, filter)
+    assert_equal mock_query, result
+
+    # Should have called where_raw (nested filter detected)
+    assert_equal 1, mock_query.where_raw_calls.size
+
+    # The clause should use OR operator
+    clause = mock_query.where_raw_calls.first[:clause]
+    assert_includes clause, " OR "
+  end
+
+  def test_build_filter_group_sql_flat_and
+    mock_query = Object.new
+    mock_query.define_singleton_method(:build_condition_sql) do |field_slug, condition|
+      [ "#{field_slug}_col = ?", [ condition.is_a?(Hash) ? condition.values.first : condition ] ]
+    end
+
+    filter = {
+      "operator" => "and",
+      "fields" => [
+        { "field" => "status", "comparison" => "is", "value" => "Active" },
+        { "field" => "priority", "comparison" => "is", "value" => "High" }
+      ]
+    }
+
+    clause, params = SmartSuite::FilterBuilder.build_filter_group_sql(mock_query, filter)
+
+    assert_equal "status_col = ? AND priority_col = ?", clause
+    assert_equal %w[Active High], params
+  end
+
+  def test_build_filter_group_sql_flat_or
+    mock_query = Object.new
+    mock_query.define_singleton_method(:build_condition_sql) do |field_slug, condition|
+      [ "#{field_slug}_col = ?", [ condition.is_a?(Hash) ? condition.values.first : condition ] ]
+    end
+
+    filter = {
+      "operator" => "or",
+      "fields" => [
+        { "field" => "status", "comparison" => "is", "value" => "Active" },
+        { "field" => "status", "comparison" => "is", "value" => "Pending" }
+      ]
+    }
+
+    clause, params = SmartSuite::FilterBuilder.build_filter_group_sql(mock_query, filter)
+
+    assert_equal "status_col = ? OR status_col = ?", clause
+    assert_equal %w[Active Pending], params
+  end
+
+  def test_build_filter_group_sql_nested_and_or
+    mock_query = Object.new
+    mock_query.define_singleton_method(:build_condition_sql) do |field_slug, condition|
+      [ "#{field_slug}_col = ?", [ condition.is_a?(Hash) ? condition.values.first : condition ] ]
+    end
+
+    # "(status=Active AND priority=High) OR (overdue=true)"
+    filter = {
+      "operator" => "or",
+      "fields" => [
+        {
+          "operator" => "and",
+          "fields" => [
+            { "field" => "status", "comparison" => "is", "value" => "Active" },
+            { "field" => "priority", "comparison" => "is", "value" => "High" }
+          ]
+        },
+        { "field" => "overdue", "comparison" => "is", "value" => true }
+      ]
+    }
+
+    clause, params = SmartSuite::FilterBuilder.build_filter_group_sql(mock_query, filter)
+
+    # Nested AND group should be wrapped in parentheses
+    assert_equal "(status_col = ? AND priority_col = ?) OR overdue_col = ?", clause
+    assert_equal [ "Active", "High", true ], params
+  end
+
+  def test_build_filter_group_sql_deeply_nested
+    mock_query = Object.new
+    mock_query.define_singleton_method(:build_condition_sql) do |field_slug, condition|
+      [ "#{field_slug} = ?", [ condition.is_a?(Hash) ? condition.values.first : condition ] ]
+    end
+
+    # ((A AND B) OR (C AND D)) AND E
+    filter = {
+      "operator" => "and",
+      "fields" => [
+        {
+          "operator" => "or",
+          "fields" => [
+            {
+              "operator" => "and",
+              "fields" => [
+                { "field" => "a", "comparison" => "is", "value" => "A" },
+                { "field" => "b", "comparison" => "is", "value" => "B" }
+              ]
+            },
+            {
+              "operator" => "and",
+              "fields" => [
+                { "field" => "c", "comparison" => "is", "value" => "C" },
+                { "field" => "d", "comparison" => "is", "value" => "D" }
+              ]
+            }
+          ]
+        },
+        { "field" => "e", "comparison" => "is", "value" => "E" }
+      ]
+    }
+
+    clause, params = SmartSuite::FilterBuilder.build_filter_group_sql(mock_query, filter)
+
+    # Verify structure: ((A AND B) OR (C AND D)) AND E
+    assert_includes clause, "((a = ? AND b = ?) OR (c = ? AND d = ?))"
+    assert_includes clause, " AND e = ?"
+    assert_equal %w[A B C D E], params
+  end
+
+  def test_build_filter_group_sql_empty_fields
+    mock_query = Object.new
+
+    filter = { "operator" => "and", "fields" => [] }
+    clause, params = SmartSuite::FilterBuilder.build_filter_group_sql(mock_query, filter)
+
+    assert_nil clause
+    assert_equal [], params
+  end
+
+  def test_build_filter_group_sql_nil_filter
+    mock_query = Object.new
+
+    clause, params = SmartSuite::FilterBuilder.build_filter_group_sql(mock_query, nil)
+
+    assert_nil clause
+    assert_equal [], params
+  end
+
+  def test_build_filter_group_sql_default_operator_is_and
+    mock_query = Object.new
+    mock_query.define_singleton_method(:build_condition_sql) do |field_slug, condition|
+      [ "#{field_slug} = ?", [ condition ] ]
+    end
+
+    # No operator specified - should default to AND
+    filter = {
+      "fields" => [
+        { "field" => "a", "comparison" => "is", "value" => "1" },
+        { "field" => "b", "comparison" => "is", "value" => "2" }
+      ]
+    }
+
+    clause, params = SmartSuite::FilterBuilder.build_filter_group_sql(mock_query, filter)
+
+    assert_equal "a = ? AND b = ?", clause
+    assert_equal %w[1 2], params
+  end
+
+  # ============================================================================
+  # Filter Validation Tests
+  # ============================================================================
+
+  def test_validate_filter_operator_returns_true_for_valid_combination
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "textfield" }
+
+    result = SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "name", "contains")
+    assert result, "Expected 'contains' to be valid for textfield"
+  end
+
+  def test_validate_filter_operator_returns_false_for_invalid_combination
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "numberfield" }
+
+    result = SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "amount", "contains")
+    refute result, "Expected 'contains' to be invalid for numberfield"
+  end
+
+  def test_validate_filter_operator_returns_true_when_query_has_no_get_field_type
+    mock_query = Object.new
+    # No get_field_type method
+
+    result = SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "field", "contains")
+    assert result, "Expected true when query doesn't support get_field_type"
+  end
+
+  def test_validate_filter_operator_returns_true_when_field_type_is_nil
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| nil }
+
+    result = SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "unknown_field", "contains")
+    assert result, "Expected true when field type is nil (unknown field)"
+  end
+
+  def test_validate_filter_operator_with_numeric_operators_on_textfield
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "textfield" }
+
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "name", "is_greater_than")
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "name", "is_less_than")
+  end
+
+  def test_validate_filter_operator_with_text_operators_on_numberfield
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "numberfield" }
+
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "amount", "contains")
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "amount", "not_contains")
+  end
+
+  def test_validate_filter_operator_with_date_operators
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "datefield" }
+
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "is")
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "is_before")
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "is_after")
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "is_on_or_after")
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "contains")
+  end
+
+  def test_validate_filter_operator_with_duedate_special_operators
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "duedatefield" }
+
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "is_overdue")
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "is_not_overdue")
+    # Regular date operators should also work
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "due", "is_before")
+  end
+
+  def test_validate_filter_operator_with_single_select_operators
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "statusfield" }
+
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "status", "is")
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "status", "is_any_of")
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "status", "has_any_of")
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "status", "contains")
+  end
+
+  def test_validate_filter_operator_with_multiple_select_operators
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "multipleselectfield" }
+
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "tags", "has_any_of")
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "tags", "has_all_of")
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "tags", "is_exactly")
+    # 'is' is NOT valid for multiple select
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "tags", "is")
+  end
+
+  def test_validate_filter_operator_with_linked_record_operators
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "linkedrecordfield" }
+
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "project", "has_any_of")
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "project", "contains")
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "project", "is")
+  end
+
+  def test_validate_filter_operator_with_user_field_operators
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "assignedtofield" }
+
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "assigned", "has_any_of")
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "assigned", "is")
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "assigned", "contains")
+  end
+
+  def test_validate_filter_operator_with_file_field_operators
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "filefield" }
+
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "attachments", "file_name_contains")
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "attachments", "file_type_is")
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "attachments", "is_empty")
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "attachments", "contains")
+  end
+
+  def test_validate_filter_operator_with_yesno_field_operators
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "yesnofield" }
+
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "active", "is")
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "active", "contains")
+    refute SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "active", "is_greater_than")
+  end
+
+  def test_validate_filter_operator_with_formula_field_skips_validation
+    mock_query = Object.new
+    mock_query.define_singleton_method(:get_field_type) { |_slug| "formulafield" }
+
+    # Formula fields can't be validated without knowing return type
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "calculated", "contains")
+    assert SmartSuite::FilterBuilder.validate_filter_operator(mock_query, "calculated", "is_greater_than")
   end
 end

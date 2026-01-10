@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **list_views MCP Tool** - List all views (reports) in the workspace
+  - Cache-first strategy with aggressive SQLite caching (4-hour TTL)
+  - Filter views by `table_id` or `solution_id`
+  - Output in TOON or JSON format
+  - Performance: ~6.7s (API) → ~1ms (cached) = 13,247x faster
+
+- **Filter Operator Validation** - Validates filter operators against field types
+  - New `FilterValidator` module with operator-to-field-type mappings
+  - Integrated into `FilterBuilder.apply_to_query` and `build_filter_group_sql`
+  - New `Query.get_field_type` method for schema lookups
+  - Supports all field types: text, numeric, date, due date, single/multiple select, linked record, user, file, yes/no, auto number
+  - Logs warnings for invalid combinations (non-strict mode by default)
+  - Provides operator suggestions for common mistakes (e.g., "Did you mean 'has_any_of'?")
+  - Skips validation for formula fields (inherit from return type)
+
+- **Nested Filter Support** - Full support for nested AND/OR filter groups
+  - New `build_filter_group_sql` method handles recursive filter structures
+  - New `Query.where_raw` method for complex SQL clauses
+  - New `Query.build_condition_sql` public method for building SQL fragments
+  - Enables complex filters like `(A AND B) OR (C AND D)`
+
 - **PostgreSQL Integration Tests** - Comprehensive integration tests with real PostgreSQL database
   - 61 tests covering all SmartSuite field types and filter operators
   - Tests run against actual PostgreSQL JSONB queries (not just SQL generation)
@@ -34,6 +55,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New migration: `EnablePgTrgmExtension`
 
 ### Fixed
+
+- **`is_not` for Date Fields** - Now correctly handles date-only values
+  - Date-only values (e.g., "2025-01-15") are converted to NOT IN range with timezone awareness
+  - New `convert_date_to_not_range` method mirrors `convert_date_to_range` logic
+  - New `not_between` operator in Query for date exclusion ranges
+
+- **Linked Record `contains` Operator** - Now field-type aware
+  - Uses `json_extract` for JSON array fields (linked records, multi-select, user fields)
+  - Standard LIKE search for text fields
+  - Prevents incorrect searches against raw JSON strings
 
 - **has_any_of filter with empty array returned all records** - Bug discovered by integration tests
   - `has_any_of` with empty `[]` was returning `[nil, []]` which caused no WHERE clause
