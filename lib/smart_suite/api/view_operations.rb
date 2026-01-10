@@ -45,7 +45,109 @@ module SmartSuite
         format_view_records_output(response, format)
       end
 
+      # Lists all views (reports) for the account, optionally filtered by table or solution.
+      #
+      # Returns views with their configuration including filters, sorting, grouping,
+      # and display settings.
+      #
+      # @param table_id [String, nil] Optional table ID to filter views
+      # @param solution_id [String, nil] Optional solution ID to filter views
+      # @param format [Symbol] Output format: :toon (default) or :json
+      # @return [String, Array] TOON string or JSON array depending on format
+      # @example List all views
+      #   list_views
+      #
+      # @example List views for a specific table
+      #   list_views(table_id: "tbl_123")
+      #
+      # @example List views for a solution
+      #   list_views(solution_id: "sol_456")
+      def list_views(table_id: nil, solution_id: nil, format: :toon)
+        # Try cache first if enabled
+        cached_views = with_cache_check("views", "table:#{table_id}|solution:#{solution_id}") do
+          @cache.get_cached_views(table_id: table_id, solution_id: solution_id)
+        end
+
+        if cached_views
+          return format_views_output(cached_views, format)
+        end
+
+        # Fetch from API
+        response = api_request(:get, "/reports/")
+        return response unless response.is_a?(Array)
+
+        # Cache the full response (before filtering)
+        cache_views_response(response) if cache_enabled?
+
+        # Filter by table or solution if specified
+        views = filter_views(response, table_id: table_id, solution_id: solution_id)
+
+        # Extract essential fields for each view
+        simplified_views = simplify_views(views)
+
+        format_views_output(simplified_views, format)
+      end
+
       private
+
+      # Filter views by table_id or solution_id
+      #
+      # @param views [Array<Hash>] All views
+      # @param table_id [String, nil] Optional table ID filter
+      # @param solution_id [String, nil] Optional solution ID filter
+      # @return [Array<Hash>] Filtered views
+      def filter_views(views, table_id: nil, solution_id: nil)
+        if table_id
+          views.select { |v| v["application"] == table_id }
+        elsif solution_id
+          views.select { |v| v["solution"] == solution_id }
+        else
+          views
+        end
+      end
+
+      # Extract essential fields from views
+      #
+      # @param views [Array<Hash>] Views with full data
+      # @return [Array<Hash>] Simplified views
+      def simplify_views(views)
+        views.map do |view|
+          {
+            "id" => view["id"],
+            "label" => view["label"],
+            "description" => view["description"],
+            "view_mode" => view["view_mode"],
+            "solution" => view["solution"],
+            "application" => view["application"],
+            "is_locked" => view["is_locked"],
+            "is_private" => view["is_private"],
+            "order" => view["order"]
+          }
+        end
+      end
+
+      # Format views output based on format parameter
+      #
+      # @param views [Array<Hash>] Views to format
+      # @param format [Symbol] Output format (:toon or :json)
+      # @return [String, Array] Formatted output
+      def format_views_output(views, format)
+        case format
+        when :toon
+          SmartSuite::Formatters::ToonFormatter.format({ "views" => views })
+        else
+          views
+        end
+      end
+
+      # Cache views response
+      #
+      # @param views [Array<Hash>] Views from API
+      def cache_views_response(views)
+        @cache.cache_views(views)
+      rescue StandardError => e
+        SmartSuite::Logger.error("Failed to cache views", error: e)
+      end
 
       # Format view records output based on format parameter
       #

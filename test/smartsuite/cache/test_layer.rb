@@ -985,6 +985,67 @@ class TestCacheLayer < Minitest::Test
     refute @cache.send(:teams_cache_valid?)
   end
 
+  # ========== Views Caching Tests ==========
+
+  def test_cache_views
+    views = create_test_views
+    count = @cache.cache_views(views)
+    assert_equal 3, count
+  end
+
+  def test_get_cached_views
+    views = create_test_views
+    @cache.cache_views(views)
+
+    cached = @cache.get_cached_views
+    assert cached.is_a?(Array)
+    assert_equal 3, cached.size
+    assert_equal "view_1", cached[0]["id"]
+    assert_equal "Grid View", cached[0]["label"]
+  end
+
+  def test_get_cached_views_filter_by_table
+    views = create_test_views
+    @cache.cache_views(views)
+
+    cached = @cache.get_cached_views(table_id: "tbl_123")
+    assert_equal 2, cached.size
+    assert cached.all? { |v| v["application"] == "tbl_123" }
+  end
+
+  def test_get_cached_views_filter_by_solution
+    views = create_test_views
+    @cache.cache_views(views)
+
+    cached = @cache.get_cached_views(solution_id: "sol_456")
+    assert_equal 2, cached.size
+    assert cached.all? { |v| v["solution"] == "sol_456" }
+  end
+
+  def test_get_cached_views_when_expired
+    views = create_test_views
+    @cache.cache_views(views, ttl: -1)
+
+    cached = @cache.get_cached_views
+    assert_nil cached
+  end
+
+  def test_views_cache_valid
+    views = create_test_views
+    @cache.cache_views(views)
+
+    assert @cache.send(:views_cache_valid?)
+  end
+
+  def test_invalidate_views_cache
+    views = create_test_views
+    @cache.cache_views(views)
+
+    @cache.send(:invalidate_views_cache)
+
+    refute @cache.send(:views_cache_valid?)
+  end
+
   # ========== db_execute Error Handling Tests ==========
 
   def test_db_execute_logs_and_reraises_errors
@@ -1625,6 +1686,17 @@ class TestCacheLayer < Minitest::Test
     [
       { "id" => "team_1", "name" => "Team One", "description" => "First team", "members" => %w[user_1 user_2] },
       { "id" => "team_2", "name" => "Team Two", "description" => "Second team", "members" => [ "user_3" ] }
+    ]
+  end
+
+  def create_test_views
+    [
+      { "id" => "view_1", "label" => "Grid View", "description" => "Main grid", "view_mode" => "grid",
+        "solution" => "sol_456", "application" => "tbl_123", "is_locked" => false, "is_private" => false, "order" => 1 },
+      { "id" => "view_2", "label" => "Kanban View", "description" => "Kanban board", "view_mode" => "kanban",
+        "solution" => "sol_456", "application" => "tbl_123", "is_locked" => true, "is_private" => false, "order" => 2 },
+      { "id" => "view_3", "label" => "Calendar View", "description" => "Calendar", "view_mode" => "calendar",
+        "solution" => "sol_789", "application" => "tbl_456", "is_locked" => false, "is_private" => true, "order" => 3 }
     ]
   end
 end

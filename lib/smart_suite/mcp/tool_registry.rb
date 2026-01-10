@@ -882,8 +882,27 @@ See `add_field` tool description for complete example.',
       ].freeze
 
       # View operation tools for view/report management
-      # Includes: get_view_records, create_view
+      # Includes: list_views, get_view_records, create_view
       VIEW_TOOLS = [
+        {
+          "name" => "list_views",
+          "description" => "List all views (reports) in the account. Views can be filtered by table or solution. Returns view names, types, and configuration summary. Use this to discover available views before using get_view_records.",
+          "inputSchema" => {
+            "type" => "object",
+            "properties" => {
+              "table_id" => {
+                "type" => "string",
+                "description" => "Optional: Filter views by table ID"
+              },
+              "solution_id" => {
+                "type" => "string",
+                "description" => "Optional: Filter views by solution ID"
+              },
+              "format" => SCHEMA_FORMAT
+            },
+            "required" => []
+          }
+        },
         {
           "name" => "get_view_records",
           "description" => "Get records for a specified view (report) with the view's filters, sorting, and field visibility applied. Views define which records are shown based on filters and how they are displayed.",
