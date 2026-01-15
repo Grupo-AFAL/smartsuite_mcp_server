@@ -22,6 +22,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Uses stub pattern for testing without PostgreSQL connection
   - Located in `test/services/cache/test_postgres_query_filters.rb`
 
+- **End-to-End MCP Tests for PostgreSQL** - 24 tests verifying complete MCP flow
+  - Tests JSON-RPC → Server → Cache → PostgreSQL → Response
+  - Covers all filter operators with real data insertion
+  - Tests sorting, pagination, and compound filters
+  - Located in `test/integration/postgres/test_mcp_e2e.rb`
+
+- **Schema Evolution Tests** - 8 tests ensuring cache integrity on schema changes
+  - Verifies old records are cleared when `structure_changed: true`
+  - Tests new field storage, removed field cleanup
+  - Tests filter functionality after schema changes
+  - Tests TTL expiry and table isolation
+  - Located in `test/integration/postgres/test_schema_evolution.rb`
+
+- **PostgreSQL Filter Test Script** - Interactive script for testing with real SmartSuite data
+  - Fetches real data from SmartSuite API
+  - Caches in PostgreSQL and runs filter tests
+  - Tests all operator types against production data
+  - Located in `bin/test_postgres_filters`
+
 - **SQLite Removal TODO** - Documentation for future SQLite cache removal
   - Plan to simplify codebase by keeping only PostgreSQL cache
   - Migration steps and affected files documented in `docs/TODO-sqlite-removal.md`
@@ -72,6 +91,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New migration: `EnablePgTrgmExtension`
 
 ### Fixed
+
+- **PostgresLayer `cache_table_records` bug** - Fixed type error when caching records
+  - Was incorrectly calling `cache_single_table(structure, ...)` passing Array instead of Hash
+  - Removed buggy call; table list caching is handled separately via `cache_table_list()`
+
+- **Missing filter operators in `build_single_jsonb_condition`** - Added operators that were only in PostgresQuery
+  - Added: `is_any_of`, `is_none_of`, `has_all_of`, `has_none_of`, `file_name_contains`, `file_type_is`
+  - These operators now work in both direct cache queries and via PostgresQuery builder
 
 - **PostgresQuery missing `build_condition_sql` method** - Fixes SMARTSUITE-MCP-N
   - OR filter groups in PostgreSQL cache were failing with NoMethodError

@@ -52,3 +52,4 @@
 /config/*.key
 
 firebase-debug.log
+.mcp.json
