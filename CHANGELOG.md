@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **PostgreSQL Cache Feature Parity** - PostgreSQL cache now matches SQLite capabilities
+  - Views caching: `cache_views`, `get_cached_views`, `views_cache_valid?`, `invalidate_views_cache`
+  - Metadata storage: `metadata_get`, `metadata_set` for arbitrary key-value storage with optional TTL
+  - Overdue flags: `update_overdue_flags` for marking due date records as overdue
+  - Updated `refresh_cache` and `get_cache_status` to include views support
+  - File field operators: `file_name_contains`, `file_type_is` using PostgreSQL JSONB subqueries
+
+- **Comprehensive PostgresQuery Filter Tests** - 105 tests covering all filter operators
+  - Tests SQL generation for all 10 field type categories
+  - Tests `build_pg_condition`, `build_condition_sql`, `operator_to_comparison` methods
+  - Uses stub pattern for testing without PostgreSQL connection
+  - Located in `test/services/cache/test_postgres_query_filters.rb`
+
+- **SQLite Removal TODO** - Documentation for future SQLite cache removal
+  - Plan to simplify codebase by keeping only PostgreSQL cache
+  - Migration steps and affected files documented in `docs/TODO-sqlite-removal.md`
+
 - **list_views MCP Tool** - List all views (reports) in the workspace
   - Cache-first strategy with aggressive SQLite caching (4-hour TTL)
   - Filter views by `table_id` or `solution_id`
@@ -55,6 +72,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New migration: `EnablePgTrgmExtension`
 
 ### Fixed
+
+- **PostgresQuery missing `build_condition_sql` method** - Fixes SMARTSUITE-MCP-N
+  - OR filter groups in PostgreSQL cache were failing with NoMethodError
+  - Added `build_condition_sql`, `where_raw`, `get_field_type`, `get_field_params` methods
+  - Added supporting private methods: `operator_to_comparison`, `build_pg_condition`, `date_field_accessor`
+
+- **Malformed filter input causing crash** - Fixes SMARTSUITE-MCP-H
+  - Nested filter entries that were JSON strings instead of hashes caused NoMethodError on `to_sym`
+  - Added `valid_field_filter?` helper method to validate filter entries
+  - Added validation in `apply_to_query` and `build_filter_group_sql` to skip malformed entries
+
+- **`refresh_cache` called without resource parameter** - Fixes SMARTSUITE-MCP-K
+  - MCP tool was not validating required `resource` parameter
+  - Added validation in `mcp_handler.rb` to return helpful error message
+  - Valid resources: solutions, tables, records, members, teams
 
 - **`is_not` for Date Fields** - Now correctly handles date-only values
   - Date-only values (e.g., "2025-01-15") are converted to NOT IN range with timezone awareness
