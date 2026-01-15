@@ -1,0 +1,469 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Test script for PostgreSQL cache filter operations with REAL SmartSuite data
+#
+# Usage:
+#   bin/test_postgres_filters [TABLE_ID]
+#
+# This script:
+# 1. Uses Rails development environment (PostgreSQL via database.yml)
+# 2. Fetches real data from SmartSuite API
+# 3. Caches it in PostgreSQL
+# 4. Tests filter operators against real data
+#
+# Requirements:
+# - SMARTSUITE_API_KEY and SMARTSUITE_ACCOUNT_ID in environment
+# - PostgreSQL development database set up (rails db:migrate)
+
+ENV["RAILS_ENV"] ||= "development"
+require_relative "../config/environment"
+
+puts "\n🔧 PostgreSQL Filter Test Script (Real Data)"
+puts "=" * 60
+puts "Environment: #{Rails.env}"
+puts "Database: #{ActiveRecord::Base.connection.current_database}"
+
+# Check SmartSuite credentials
+api_key = ENV["SMARTSUITE_API_KEY"]
+account_id = ENV["SMARTSUITE_ACCOUNT_ID"]
+
+if api_key.nil? || api_key.empty? || api_key == "your_smartsuite_api_key"
+  puts "\n❌ Error: SMARTSUITE_API_KEY not set in environment"
+  puts "   Set it with: export SMARTSUITE_API_KEY=your_key"
+  exit 1
+end
+
+if account_id.nil? || account_id.empty? || account_id == "your_smartsuite_account_id"
+  puts "\n❌ Error: SMARTSUITE_ACCOUNT_ID not set in environment"
+  puts "   Set it with: export SMARTSUITE_ACCOUNT_ID=your_id"
+  exit 1
+end
+
+puts "API Key: #{api_key[0..7]}..."
+puts "Account: #{account_id}"
+
+# Initialize cache layer
+cache = Cache::PostgresLayer.new
+
+# Get table ID from argument or prompt
+table_id = ARGV[0]
+
+unless table_id
+  puts "\n📋 Fetching available solutions..."
+
+  begin
+    # Create a SmartSuite client for API calls
+    require_relative "../lib/smart_suite_client"
+    client = SmartSuiteClient.new(api_key, account_id)
+
+    result = client.list_solutions(fields: %w[id name], format: :json)
+    solutions = result.is_a?(Hash) ? result["solutions"] || result : result
+    puts "\nAvailable solutions:"
+    solutions.first(20).each_with_index do |sol, i|
+      puts "  #{i + 1}. #{sol['name']} (#{sol['id']})"
+    end
+    puts "  ... (#{solutions.size} total)" if solutions.size > 20
+
+    print "\nSelect a solution number (or enter solution ID): "
+    input = $stdin.gets.chomp
+
+    solution_id = if input.match?(/^\d+$/) && input.to_i <= solutions.size
+                    solutions[input.to_i - 1]["id"]
+                  else
+                    input
+                  end
+
+    puts "\n📋 Fetching tables in solution..."
+    result = client.list_tables(solution_id: solution_id, fields: %w[id name], format: :json)
+    tables = result.is_a?(Hash) ? result["tables"] || result.values.first : result
+    tables = [tables] unless tables.is_a?(Array)
+    puts "\nAvailable tables:"
+    tables.each_with_index do |tbl, i|
+      puts "  #{i + 1}. #{tbl['name']} (#{tbl['id']})"
+    end
+
+    print "\nSelect a table number (or enter table ID): "
+    input = $stdin.gets.chomp
+
+    table_id = if input.match?(/^\d+$/) && input.to_i <= tables.size
+                 tables[input.to_i - 1]["id"]
+               else
+                 input
+               end
+  rescue => e
+    puts "❌ Error fetching solutions/tables: #{e.message}"
+    puts "\nYou can also run with a table ID directly:"
+    puts "  bin/test_postgres_filters TABLE_ID"
+    exit 1
+  end
+end
+
+puts "\n📦 Fetching and caching data for table: #{table_id}"
+puts "-" * 60
+
+begin
+  # Create client for fetching
+  require_relative "../lib/smart_suite_client"
+  client = SmartSuiteClient.new(api_key, account_id)
+
+  # Fetch table structure
+  puts "Fetching table structure..."
+  table_info = client.get_table(table_id, format: :json)
+  structure = table_info["structure"] || []
+
+  puts "  Fields: #{structure.size}"
+  field_types = structure.map { |f| "#{f['slug']}:#{f['field_type']}" }
+  puts "  Types: #{field_types.first(5).join(', ')}#{field_types.size > 5 ? '...' : ''}"
+
+  # Cache table schema
+  conn = ActiveRecord::Base.connection.raw_connection
+  now = Time.current
+  expires_at = now + 4.hours
+
+  conn.exec_params("DELETE FROM cache_table_schemas WHERE table_id = $1", [table_id])
+  conn.exec_params(
+    "INSERT INTO cache_table_schemas (table_id, structure, cached_at, expires_at) VALUES ($1, $2, $3, $4)",
+    [table_id, structure.to_json, now, expires_at]
+  )
+
+  # Fetch records (first 100)
+  puts "Fetching records (limit 100)..."
+  field_slugs = structure.map { |f| f["slug"] }
+  result = client.list_records(table_id, 100, 0, fields: field_slugs, hydrated: false, format: :json)
+
+  # Extract records array from response
+  records = if result.is_a?(Hash)
+              result["items"] || []
+            elsif result.is_a?(Array)
+              result
+            else
+              puts "  ⚠️ Unexpected response type: #{result.class}"
+              []
+            end
+
+  # Ensure we have an array
+  records = [records] unless records.is_a?(Array)
+
+  if records.empty?
+    puts "❌ No records found in this table"
+    exit 1
+  end
+
+  puts "  Records fetched: #{records.size}"
+
+  # Clear and cache records
+  conn.exec_params("DELETE FROM cache_records WHERE table_id = $1", [table_id])
+
+  records.each do |record|
+    conn.exec_params(
+      "INSERT INTO cache_records (table_id, record_id, data, cached_at, expires_at) VALUES ($1, $2, $3, $4, $5)",
+      [table_id, record["id"], record.to_json, now, expires_at]
+    )
+  end
+
+  puts "✅ Cached #{records.size} records in PostgreSQL"
+rescue => e
+  puts "❌ Error fetching data: #{e.message}"
+  puts e.backtrace.first(5).join("\n")
+  exit 1
+end
+
+# Analyze field types for testing
+puts "\n🔍 Analyzing fields for filter testing..."
+puts "-" * 60
+
+testable_fields = {}
+structure.each do |field|
+  slug = field["slug"]
+  type = field["field_type"]
+
+  case type
+  when "textfield", "textareafield", "emailfield"
+    testable_fields[:text] ||= []
+    testable_fields[:text] << slug
+  when "numberfield", "currencyfield"
+    testable_fields[:numeric] ||= []
+    testable_fields[:numeric] << slug
+  when "statusfield", "singleselectfield"
+    testable_fields[:single_select] ||= []
+    testable_fields[:single_select] << slug
+  when "multipleselectfield", "tagsfield"
+    testable_fields[:multi_select] ||= []
+    testable_fields[:multi_select] << slug
+  when "userfield", "assignedtofield"
+    testable_fields[:user] ||= []
+    testable_fields[:user] << slug
+  when "yesnofield"
+    testable_fields[:yesno] ||= []
+    testable_fields[:yesno] << slug
+  when "datefield", "duedatefield"
+    testable_fields[:date] ||= []
+    testable_fields[:date] << slug
+  when "linkedrecordfield"
+    testable_fields[:linked] ||= []
+    testable_fields[:linked] << slug
+  when "filefield"
+    testable_fields[:file] ||= []
+    testable_fields[:file] << slug
+  end
+end
+
+testable_fields.each do |type, fields|
+  puts "  #{type}: #{fields.first(3).join(', ')}#{fields.size > 3 ? '...' : ''}"
+end
+
+# Helper to run filter tests
+def test_filter(cache, table_id, name, filter)
+  print "  #{name}... "
+
+  begin
+    result = cache.get_cached_records(table_id, filter: filter)
+    count = result&.size || 0
+    puts "✅ #{count} records"
+    { passed: true, count: count }
+  rescue => e
+    puts "❌ #{e.message}"
+    { passed: false, error: e.message }
+  end
+end
+
+def build_filter(field:, comparison:, value: nil)
+  {
+    "operator" => "and",
+    "fields" => [{ "field" => field, "comparison" => comparison, "value" => value }]
+  }
+end
+
+# Run filter tests
+puts "\n🧪 Running Filter Tests"
+puts "=" * 60
+
+results = { passed: 0, failed: 0 }
+
+# Get a sample value for testing from actual data
+def get_sample_value(records, field_slug)
+  records.each do |r|
+    val = r[field_slug]
+    return val if val && val != "" && val != []
+  end
+  nil
+end
+
+def get_sample_status_value(records, field_slug)
+  records.each do |r|
+    val = r[field_slug]
+    if val.is_a?(Hash) && val["value"]
+      return val["value"]
+    elsif val.is_a?(String) && !val.empty?
+      return val
+    end
+  end
+  nil
+end
+
+def get_sample_array_value(records, field_slug)
+  records.each do |r|
+    val = r[field_slug]
+    return val.first if val.is_a?(Array) && val.any?
+  end
+  nil
+end
+
+# Text field tests
+if testable_fields[:text]&.any?
+  field = testable_fields[:text].first
+  sample = get_sample_value(records, field)
+
+  puts "\n📝 Text Field Tests (#{field})"
+  puts "-" * 40
+
+  if sample
+    r = test_filter(cache, table_id, "contains '#{sample[0..20]}...'",
+      build_filter(field: field, comparison: "contains", value: sample[0..10]))
+    results[r[:passed] ? :passed : :failed] += 1
+  end
+
+  r = test_filter(cache, table_id, "is_not_empty",
+    build_filter(field: field, comparison: "is_not_empty"))
+  results[r[:passed] ? :passed : :failed] += 1
+
+  r = test_filter(cache, table_id, "is_empty",
+    build_filter(field: field, comparison: "is_empty"))
+  results[r[:passed] ? :passed : :failed] += 1
+end
+
+# Numeric field tests
+if testable_fields[:numeric]&.any?
+  field = testable_fields[:numeric].first
+
+  puts "\n🔢 Numeric Field Tests (#{field})"
+  puts "-" * 40
+
+  r = test_filter(cache, table_id, "is_greater_than 0",
+    build_filter(field: field, comparison: "is_greater_than", value: 0))
+  results[r[:passed] ? :passed : :failed] += 1
+
+  r = test_filter(cache, table_id, "is_not_empty",
+    build_filter(field: field, comparison: "is_not_empty"))
+  results[r[:passed] ? :passed : :failed] += 1
+end
+
+# Status/Single Select tests
+if testable_fields[:single_select]&.any?
+  field = testable_fields[:single_select].first
+  sample = get_sample_status_value(records, field)
+
+  puts "\n🎯 Status/Single Select Tests (#{field})"
+  puts "-" * 40
+
+  if sample
+    r = test_filter(cache, table_id, "is '#{sample}'",
+      build_filter(field: field, comparison: "is", value: sample))
+    results[r[:passed] ? :passed : :failed] += 1
+
+    r = test_filter(cache, table_id, "is_not '#{sample}'",
+      build_filter(field: field, comparison: "is_not", value: sample))
+    results[r[:passed] ? :passed : :failed] += 1
+
+    r = test_filter(cache, table_id, "is_any_of ['#{sample}']",
+      build_filter(field: field, comparison: "is_any_of", value: [sample]))
+    results[r[:passed] ? :passed : :failed] += 1
+  end
+end
+
+# Multi-select tests
+if testable_fields[:multi_select]&.any?
+  field = testable_fields[:multi_select].first
+  sample = get_sample_array_value(records, field)
+
+  puts "\n🏷️  Multi-Select/Tags Tests (#{field})"
+  puts "-" * 40
+
+  if sample
+    r = test_filter(cache, table_id, "has_any_of ['#{sample}']",
+      build_filter(field: field, comparison: "has_any_of", value: [sample]))
+    results[r[:passed] ? :passed : :failed] += 1
+
+    r = test_filter(cache, table_id, "has_none_of ['#{sample}']",
+      build_filter(field: field, comparison: "has_none_of", value: [sample]))
+    results[r[:passed] ? :passed : :failed] += 1
+  end
+
+  r = test_filter(cache, table_id, "is_empty",
+    build_filter(field: field, comparison: "is_empty"))
+  results[r[:passed] ? :passed : :failed] += 1
+end
+
+# User field tests
+if testable_fields[:user]&.any?
+  field = testable_fields[:user].first
+  sample = get_sample_array_value(records, field)
+
+  puts "\n👤 User Field Tests (#{field})"
+  puts "-" * 40
+
+  if sample
+    r = test_filter(cache, table_id, "has_any_of ['#{sample[0..15]}...']",
+      build_filter(field: field, comparison: "has_any_of", value: [sample]))
+    results[r[:passed] ? :passed : :failed] += 1
+  end
+
+  r = test_filter(cache, table_id, "is_empty",
+    build_filter(field: field, comparison: "is_empty"))
+  results[r[:passed] ? :passed : :failed] += 1
+end
+
+# Yes/No tests
+if testable_fields[:yesno]&.any?
+  field = testable_fields[:yesno].first
+
+  puts "\n✅ Yes/No Field Tests (#{field})"
+  puts "-" * 40
+
+  r = test_filter(cache, table_id, "is true",
+    build_filter(field: field, comparison: "is", value: true))
+  results[r[:passed] ? :passed : :failed] += 1
+
+  r = test_filter(cache, table_id, "is false",
+    build_filter(field: field, comparison: "is", value: false))
+  results[r[:passed] ? :passed : :failed] += 1
+end
+
+# Date field tests
+if testable_fields[:date]&.any?
+  field = testable_fields[:date].first
+
+  puts "\n📅 Date Field Tests (#{field})"
+  puts "-" * 40
+
+  r = test_filter(cache, table_id, "is_on_or_after 2020-01-01",
+    build_filter(field: field, comparison: "is_on_or_after",
+      value: { "date_mode" => "exact_date", "date_mode_value" => "2020-01-01" }))
+  results[r[:passed] ? :passed : :failed] += 1
+
+  r = test_filter(cache, table_id, "is_before 2030-01-01",
+    build_filter(field: field, comparison: "is_before",
+      value: { "date_mode" => "exact_date", "date_mode_value" => "2030-01-01" }))
+  results[r[:passed] ? :passed : :failed] += 1
+
+  r = test_filter(cache, table_id, "is_not_empty",
+    build_filter(field: field, comparison: "is_not_empty"))
+  results[r[:passed] ? :passed : :failed] += 1
+end
+
+# File field tests
+if testable_fields[:file]&.any?
+  field = testable_fields[:file].first
+
+  puts "\n📎 File Field Tests (#{field})"
+  puts "-" * 40
+
+  r = test_filter(cache, table_id, "file_type_is pdf",
+    build_filter(field: field, comparison: "file_type_is", value: "pdf"))
+  results[r[:passed] ? :passed : :failed] += 1
+
+  r = test_filter(cache, table_id, "is_not_empty",
+    build_filter(field: field, comparison: "is_not_empty"))
+  results[r[:passed] ? :passed : :failed] += 1
+
+  r = test_filter(cache, table_id, "is_empty",
+    build_filter(field: field, comparison: "is_empty"))
+  results[r[:passed] ? :passed : :failed] += 1
+end
+
+# OR filter test
+if testable_fields[:single_select]&.any? && testable_fields[:text]&.any?
+  status_field = testable_fields[:single_select].first
+  text_field = testable_fields[:text].first
+  status_sample = get_sample_status_value(records, status_field)
+
+  if status_sample
+    puts "\n🔀 OR Filter Tests"
+    puts "-" * 40
+
+    or_filter = {
+      "operator" => "or",
+      "fields" => [
+        { "field" => status_field, "comparison" => "is", "value" => status_sample },
+        { "field" => text_field, "comparison" => "is_empty" }
+      ]
+    }
+
+    r = test_filter(cache, table_id, "OR (status=#{status_sample} OR text=empty)", or_filter)
+    results[r[:passed] ? :passed : :failed] += 1
+  end
+end
+
+# Summary
+puts "\n" + "=" * 60
+puts "📊 Results: #{results[:passed]} passed, #{results[:failed]} failed"
+puts "=" * 60
+
+if results[:failed] > 0
+  puts "\n⚠️  Some tests failed. Check the output above for details."
+  exit 1
+else
+  puts "\n✅ All filter tests passed!"
+  exit 0
+end

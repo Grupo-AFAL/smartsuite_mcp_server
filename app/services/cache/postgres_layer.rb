@@ -57,8 +57,9 @@ module Cache
       # Cache the table structure
       cache_table_schema(table_id, structure, ttl: METADATA_TTL)
 
-      # Also cache in cache_tables for solution_id lookup
-      cache_single_table(structure, ttl: METADATA_TTL) if structure
+      # Note: cache_single_table requires a table object (with id, solution_id, name)
+      # which we don't have here. Table list caching is handled separately via
+      # cache_table_list() when fetching tables from the API.
 
       # Delete existing records for this table
       execute_sql("DELETE FROM cache_records WHERE table_id = $1", [ table_id ])
@@ -903,6 +904,52 @@ module Cache
           # Empty array means "has any of nothing" = always false = no matches
           [ "FALSE", [] ]
         end
+      when "has_all_of"
+        if value.is_a?(Array) && value.any?
+          # For JSON arrays, check if ALL values are present
+          and_conditions = value.map.with_index do |v, i|
+            "data->'#{sanitize_field_name(field)}' @> $#{param_num + i}::jsonb"
+          end
+          [ "(#{and_conditions.join(' AND ')})", value.map { |v| "[\"#{v}\"]" } ]
+        else
+          [ "TRUE", [] ]
+        end
+      when "has_none_of"
+        if value.is_a?(Array) && value.any?
+          # For JSON arrays, check if NONE of the values are present
+          and_conditions = value.map.with_index do |v, i|
+            "NOT (data->'#{sanitize_field_name(field)}' @> $#{param_num + i}::jsonb)"
+          end
+          [ "(#{and_conditions.join(' AND ')})", value.map { |v| "[\"#{v}\"]" } ]
+        else
+          [ "TRUE", [] ]
+        end
+      when "is_any_of"
+        # For single select fields, use IN()
+        if value.is_a?(Array) && value.any?
+          placeholders = value.map.with_index { |_, i| "$#{param_num + i}" }.join(", ")
+          [ "#{select_field_accessor} IN (#{placeholders})", value.map(&:to_s) ]
+        else
+          [ "FALSE", [] ]
+        end
+      when "is_none_of"
+        # For single select fields, use NOT IN()
+        if value.is_a?(Array) && value.any?
+          placeholders = value.map.with_index { |_, i| "$#{param_num + i}" }.join(", ")
+          [ "#{select_field_accessor} NOT IN (#{placeholders})", value.map(&:to_s) ]
+        else
+          [ "TRUE", [] ]
+        end
+      when "file_name_contains"
+        # For file fields (JSONB array), search filename
+        sanitized = sanitize_field_name(field)
+        [ "EXISTS (SELECT 1 FROM jsonb_array_elements(data->'#{sanitized}') AS elem " \
+          "WHERE elem->>'name' ILIKE $#{param_num})", [ "%#{value}%" ] ]
+      when "file_type_is"
+        # For file fields (JSONB array), match type
+        sanitized = sanitize_field_name(field)
+        [ "EXISTS (SELECT 1 FROM jsonb_array_elements(data->'#{sanitized}') AS elem " \
+          "WHERE elem->>'type' = $#{param_num})", [ value.to_s ] ]
       when "is_before"
         date_value = extract_date_value(value)
         date_accessor = date_field_accessor(field)

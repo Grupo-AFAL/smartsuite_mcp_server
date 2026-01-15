@@ -40,12 +40,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_12_08_235528) do
     t.index ["user_id"], name: "index_api_keys_on_user_id"
   end
 
-  create_table "cache_deleted_records", primary_key: "solution_id", id: :string, force: :cascade do |t|
-    t.datetime "cached_at", precision: nil, null: false
-    t.jsonb "data", null: false
-    t.datetime "expires_at", precision: nil, null: false
-  end
-
   create_table "cache_members", primary_key: "member_id", id: :string, force: :cascade do |t|
     t.datetime "cached_at", null: false
     t.jsonb "data", default: {}, null: false
