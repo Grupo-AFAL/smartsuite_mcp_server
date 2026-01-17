@@ -301,6 +301,52 @@ git commit -m "Your changes"
 kamal deploy
 ```
 
+### SSH Connection Timeout (Net::SSH::ConnectionTimeout)
+
+```
+ERROR (Net::SSH::ConnectionTimeout): Exception while executing on host 18.x.x.x: Net::SSH::ConnectionTimeout
+```
+
+**Cause:** Your current IP address is not in the EC2 security group's SSH allowlist. This commonly happens when:
+- Your home/office IP changed (dynamic IP from ISP)
+- You're deploying from a different location (home vs office)
+- VPN changed your public IP
+
+**Diagnosis:**
+
+1. Check your current public IP:
+   ```bash
+   curl -s ifconfig.me
+   ```
+
+2. Check the security group rules:
+   ```bash
+   # Get security group ID from instance
+   aws ec2 describe-instances --instance-ids <instance_id> --region us-east-2 \
+     --query 'Reservations[0].Instances[0].SecurityGroups'
+
+   # Check SSH rules
+   aws ec2 describe-security-groups --group-ids <sg_id> --region us-east-2 \
+     --query 'SecurityGroups[0].IpPermissions[?FromPort==`22`].IpRanges'
+   ```
+
+3. Compare your IP against the allowed CIDRs
+
+**Fix:** Add your current IP to the security group:
+```bash
+aws ec2 authorize-security-group-ingress \
+  --group-id <sg_id> \
+  --protocol tcp \
+  --port 22 \
+  --cidr <your_ip>/32 \
+  --region us-east-2
+```
+
+**Prevention:** If your IP changes frequently, consider:
+- Using an Elastic IP for your machine (if deploying from AWS)
+- Setting up a VPN with static IP
+- Using AWS Systems Manager Session Manager instead of SSH
+
 ### SSL Certificate Issues
 
 If using a custom domain, ensure DNS is properly configured. For testing, use nip.io:

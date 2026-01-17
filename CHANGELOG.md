@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **SSH Connection Timeout troubleshooting** - Added diagnosis and fix steps for `Net::SSH::ConnectionTimeout` errors caused by IP not in security group allowlist
+
 ### Added
 
 - **PostgreSQL Cache Feature Parity** - PostgreSQL cache now matches SQLite capabilities
@@ -91,6 +95,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New migration: `EnablePgTrgmExtension`
 
 ### Fixed
+
+- **Kamal post-deploy hook SSH authentication** - Hook now explicitly specifies SSH key path since it runs outside Kamal's SSH wrapper
 
 - **PostgresLayer `cache_table_records` bug** - Fixed type error when caching records
   - Was incorrectly calling `cache_single_table(structure, ...)` passing Array instead of Hash

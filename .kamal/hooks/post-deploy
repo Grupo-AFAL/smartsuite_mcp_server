@@ -16,8 +16,9 @@ if [ -z "$SERVER_IP" ]; then
   exit 0
 fi
 
-# SSH command prefix (uses Kamal's SSH config)
-SSH_CMD="ssh -o StrictHostKeyChecking=no"
+# SSH command prefix - must specify key since we're outside Kamal's SSH wrapper
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/smartsuite-mcp-key.pem}"
+SSH_CMD="ssh -o StrictHostKeyChecking=no -i $SSH_KEY"
 
 for HOST in $SERVER_IP; do
   echo "Configuring cron on $HOST..."
