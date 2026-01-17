@@ -263,9 +263,11 @@ Implements token optimization and format conversion:
 - **ToonFormatter** (`toon_formatter.rb`): TOON (Token-Oriented Object Notation) encoding for maximum token savings (~50-60% vs JSON)
 - **MarkdownToSmartdoc** (`markdown_to_smartdoc.rb`): Converts Markdown text to SmartSuite's SmartDoc format (rich text fields)
 
-### 5. Cache Layer (`lib/smart_suite/cache/`)
+### 5. Cache Layer
 
-SQLite-based persistent caching for SmartSuite data (v1.7+: modular architecture):
+The server has two cache implementations with full feature parity:
+
+**SQLite Cache** (`lib/smart_suite/cache/`) - Used in standalone CLI mode:
 
 - **Cache::Layer** (`cache/layer.rb`): Core caching interface, dynamic table creation
 - **Cache::Metadata** (`cache/metadata.rb`): Table registry, schema management, TTL config
@@ -273,6 +275,14 @@ SQLite-based persistent caching for SmartSuite data (v1.7+: modular architecture
 - **Cache::Migrations** (`cache/migrations.rb`): Schema migrations, data migration helpers
 - **Cache::Query** (`cache/query.rb`): Chainable query builder for flexible multi-criteria queries
 - **Database**: `~/.smartsuite_mcp_cache.db` (single file, includes both cache and API stats)
+
+**PostgreSQL Cache** (`app/services/cache/`) - Used in hosted Rails deployment:
+
+- **Cache::PostgresLayer** (`postgres_layer.rb`): Full-featured cache using PostgreSQL JSONB
+- **Cache::PostgresQuery**: Chainable query builder compatible with SQLite's Cache::Query
+- **Cache::JsonbConditions** (`jsonb_conditions.rb`): Shared JSONB condition builders
+- **Features**: Records, solutions, tables, members, teams, views, metadata storage, overdue flags
+- **Storage**: Uses Rails ActiveRecord connection with JSONB columns for flexible schema
 
 ### 6. Supporting Components
 
@@ -310,16 +320,19 @@ SQLite-based persistent caching for SmartSuite data (v1.7+: modular architecture
 
 ## Key Design Patterns
 
-### SQLite Caching Strategy
+### Caching Strategy
 
-The server uses aggressive caching to minimize API calls and enable efficient local queries:
+The server uses aggressive caching to minimize API calls and enable efficient local queries. Both SQLite (CLI mode) and PostgreSQL (hosted mode) implementations share the same strategy:
 
 1. **Aggressive Fetch**: When cache misses, fetch ALL records from table (paginated with limit=1000)
-2. **Dynamic Tables**: One SQL table per SmartSuite table with proper column types
-3. **Table-based TTL**: All records in a table expire together (default: 4 hours)
+2. **Dynamic Schema**:
+   - SQLite: One SQL table per SmartSuite table with proper column types
+   - PostgreSQL: Single `cache_records` table with JSONB `data` column
+3. **Table-based TTL**: All records in a table expire together (default: 4 hours for records, 12 hours for PostgreSQL)
 4. **No Mutation Invalidation**: Cache expires naturally by TTL, not invalidated on create/update/delete
 5. **Local Querying**: Query cached data with flexible filters (SmartSuite API filters only used when cache disabled)
 6. **Session Tracking**: Every client session tracked for usage analysis
+7. **Feature Parity**: Both implementations support all filter operators including `is_exactly`, file field operators, and date comparisons
 
 ### Token Optimization Strategy
 
@@ -336,6 +349,7 @@ This server is heavily optimized to minimize Claude's token usage:
 
 ### Data Flow Pattern
 
+**CLI Mode (SQLite cache):**
 ```
 User Request (stdin)
     ↓
@@ -350,14 +364,33 @@ SmartSuiteClient (includes modules):
       ├─ Cache HIT → Cache::Query SQLite → Return results
       └─ Cache MISS → Fetch ALL records → Cache → Query → Return
   - HttpClient.api_request()  ←  ApiStatsTracker.track_api_call()
-  - WorkspaceOperations/TableOperations/RecordOperations/FieldOperations/MemberOperations/CommentOperations/ViewOperations
+  - WorkspaceOperations/TableOperations/RecordOperations/...
   - ResponseFormatter.filter_*()
     ↓                                          ↓
 SmartSuite API                           Save to ~/.smartsuite_mcp_cache.db
-    ↓                                    (both cache + API stats)
-Response Filtering (plain text, no truncation)
     ↓
 JSON-RPC Response (stdout)
+```
+
+**Hosted Mode (PostgreSQL cache):**
+```
+HTTP Request → Rails Controller
+    ↓
+MCPHandler.process()
+    ↓
+MCPHandler.execute_tool()
+    ↓
+SmartSuiteClient (includes modules):
+  - Cache::PostgresLayer (check cache validity)
+      ├─ Cache HIT → Cache::PostgresQuery → Return results
+      └─ Cache MISS → Fetch ALL records → Cache → Query → Return
+  - HttpClient.api_request()
+  - WorkspaceOperations/TableOperations/RecordOperations/...
+  - ResponseFormatter.filter_*()
+    ↓                                          ↓
+SmartSuite API                           Save to PostgreSQL (cache_* tables)
+    ↓
+JSON Response to client
 ```
 
 ### Error Handling Layers
