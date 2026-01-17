@@ -2,6 +2,7 @@
 
 require_relative "../../../lib/smart_suite/logger"
 require_relative "../../../lib/smart_suite/date_mode_resolver"
+require_relative "jsonb_conditions"
 
 module Cache
   # PostgreSQL-based cache layer for the hosted SmartSuite MCP server.
@@ -15,6 +16,7 @@ module Cache
   # - Simpler schema - stores entire records as JSONB
   # - Shared across all users (multi-tenant cache)
   class PostgresLayer
+    include Cache::JsonbConditions
     # Default TTL values in seconds
     DEFAULT_TTL = 12 * 3600 # 12 hours for records
     METADATA_TTL = 7 * 24 * 3600 # 7 days for solutions, tables, members
@@ -746,20 +748,18 @@ module Cache
       return 0 if overdue_ids.nil? || overdue_ids.empty?
 
       # Update the JSONB data to set is_overdue flag on records
-      # This modifies the cached record data to include the overdue status
-      updated_count = 0
+      # Uses single UPDATE with ANY() for efficiency instead of N individual queries
+      sanitized_field = field_slug.to_s.gsub(/[^a-zA-Z0-9_]/, "")
+      jsonb_path = "{#{sanitized_field},is_overdue}"
 
-      overdue_ids.each do |record_id|
-        # Update the record's data to include is_overdue: true for the due date field
-        result = execute_sql(
-          "UPDATE cache_records SET data = jsonb_set(data, $1, 'true'::jsonb)
-           WHERE table_id = $2 AND record_id = $3 AND expires_at > $4",
-          [ "{#{field_slug},is_overdue}", table_id, record_id, Time.current ]
-        )
-        updated_count += 1 if result
-      end
+      result = execute_sql(
+        "UPDATE cache_records SET data = jsonb_set(data, $1, 'true'::jsonb)
+         WHERE table_id = $2 AND record_id = ANY($3) AND expires_at > $4
+         RETURNING record_id",
+        [ jsonb_path, table_id, overdue_ids, Time.current ]
+      )
 
-      updated_count
+      result.count
     end
 
     # ========== Cache Status & Management ==========
@@ -821,9 +821,7 @@ module Cache
       result.to_a
     end
 
-    def sanitize_field_name(name)
-      name.to_s.gsub(/[^a-zA-Z0-9_]/, "")
-    end
+    # sanitize_field_name is provided by Cache::JsonbConditions
 
     def ensure_metadata_table_exists
       execute_sql(<<~SQL)
@@ -870,15 +868,16 @@ module Cache
     end
 
     def build_single_jsonb_condition(field, comparison, value, param_num)
-      field_accessor = "data->>'#{sanitize_field_name(field)}'"
+      sanitized = sanitize_field_name(field)
+      field_accessor = "data->>'#{sanitized}'"
       # For status/single select fields that store value in nested object
-      select_field_accessor = select_field_value_accessor(field)
+      status_accessor = select_field_accessor(sanitized, sanitized: true)
 
       case comparison
       when "is"
-        [ "#{select_field_accessor} = $#{param_num}", [ value.to_s ] ]
+        [ "#{status_accessor} = $#{param_num}", [ value.to_s ] ]
       when "is_not"
-        [ "#{select_field_accessor} != $#{param_num}", [ value.to_s ] ]
+        [ "#{status_accessor} != $#{param_num}", [ value.to_s ] ]
       when "contains"
         [ "#{field_accessor} ILIKE $#{param_num}", [ "%#{value}%" ] ]
       when "is_greater_than"
@@ -896,8 +895,8 @@ module Cache
       when "has_any_of"
         if value.is_a?(Array) && value.any?
           # For JSON arrays, check if any value is present
-          or_conditions = value.map.with_index do |v, i|
-            "data->'#{sanitize_field_name(field)}' @> $#{param_num + i}::jsonb"
+          or_conditions = value.map.with_index do |_v, i|
+            "data->'#{sanitized}' @> $#{param_num + i}::jsonb"
           end
           [ "(#{or_conditions.join(' OR ')})", value.map { |v| "[\"#{v}\"]" } ]
         else
@@ -907,8 +906,8 @@ module Cache
       when "has_all_of"
         if value.is_a?(Array) && value.any?
           # For JSON arrays, check if ALL values are present
-          and_conditions = value.map.with_index do |v, i|
-            "data->'#{sanitize_field_name(field)}' @> $#{param_num + i}::jsonb"
+          and_conditions = value.map.with_index do |_v, i|
+            "data->'#{sanitized}' @> $#{param_num + i}::jsonb"
           end
           [ "(#{and_conditions.join(' AND ')})", value.map { |v| "[\"#{v}\"]" } ]
         else
@@ -917,8 +916,8 @@ module Cache
       when "has_none_of"
         if value.is_a?(Array) && value.any?
           # For JSON arrays, check if NONE of the values are present
-          and_conditions = value.map.with_index do |v, i|
-            "NOT (data->'#{sanitize_field_name(field)}' @> $#{param_num + i}::jsonb)"
+          and_conditions = value.map.with_index do |_v, i|
+            "NOT (data->'#{sanitized}' @> $#{param_num + i}::jsonb)"
           end
           [ "(#{and_conditions.join(' AND ')})", value.map { |v| "[\"#{v}\"]" } ]
         else
@@ -928,7 +927,7 @@ module Cache
         # For single select fields, use IN()
         if value.is_a?(Array) && value.any?
           placeholders = value.map.with_index { |_, i| "$#{param_num + i}" }.join(", ")
-          [ "#{select_field_accessor} IN (#{placeholders})", value.map(&:to_s) ]
+          [ "#{status_accessor} IN (#{placeholders})", value.map(&:to_s) ]
         else
           [ "FALSE", [] ]
         end
@@ -936,18 +935,16 @@ module Cache
         # For single select fields, use NOT IN()
         if value.is_a?(Array) && value.any?
           placeholders = value.map.with_index { |_, i| "$#{param_num + i}" }.join(", ")
-          [ "#{select_field_accessor} NOT IN (#{placeholders})", value.map(&:to_s) ]
+          [ "#{status_accessor} NOT IN (#{placeholders})", value.map(&:to_s) ]
         else
           [ "TRUE", [] ]
         end
       when "file_name_contains"
         # For file fields (JSONB array), search filename
-        sanitized = sanitize_field_name(field)
         [ "EXISTS (SELECT 1 FROM jsonb_array_elements(data->'#{sanitized}') AS elem " \
           "WHERE elem->>'name' ILIKE $#{param_num})", [ "%#{value}%" ] ]
       when "file_type_is"
         # For file fields (JSONB array), match type
-        sanitized = sanitize_field_name(field)
         [ "EXISTS (SELECT 1 FROM jsonb_array_elements(data->'#{sanitized}') AS elem " \
           "WHERE elem->>'type' = $#{param_num})", [ value.to_s ] ]
       when "is_before"
@@ -976,52 +973,7 @@ module Cache
       SmartSuite::DateModeResolver.extract_date_value(value)
     end
 
-    # Creates a PostgreSQL accessor for status/single select fields that handles both:
-    # - Simple values: "in_progress" (stored as string)
-    # - Object values: {"value": "in_progress", "updated_on": "..."} (statusfield format)
-    #
-    # Uses COALESCE to try the nested object format first, then falls back to simple string.
-    def select_field_value_accessor(field)
-      sanitized = sanitize_field_name(field)
-      <<~SQL.squish
-        COALESCE(
-          data->'#{sanitized}'->>'value',
-          data->>'#{sanitized}'
-        )
-      SQL
-    end
-
-    # Creates a PostgreSQL accessor for date fields that handles both:
-    # - Simple date fields: "2024-06-24" (stored as string)
-    # - Date Range fields: {"to_date": {"date": "2024-06-24T00:00:00Z", ...}, ...}
-    # - Due Date fields: {"to_date": "2024-06-24", ...} (date as string, not nested object)
-    #
-    # For Date Range/Due Date fields, we extract the date from to_date and normalize
-    # it to YYYY-MM-DD format for comparison.
-    # Returns NULL when no valid date is present to avoid incorrect string comparisons.
-    def date_field_accessor(field)
-      sanitized = sanitize_field_name(field)
-      # COALESCE tries multiple formats:
-      # 1. Date Range format: to_date.date (nested object with date key)
-      # 2. Due Date format: to_date (string date directly)
-      # 3. Simple date format: field value is a date string
-      # Only returns value if it matches YYYY-MM-DD pattern to avoid JSON string comparison bugs
-      <<~SQL.squish
-        COALESCE(
-          SUBSTRING(data->'#{sanitized}'->'to_date'->>'date' FROM 1 FOR 10),
-          CASE
-            WHEN data->'#{sanitized}'->>'to_date' ~ '^\\d{4}-\\d{2}-\\d{2}'
-            THEN SUBSTRING(data->'#{sanitized}'->>'to_date' FROM 1 FOR 10)
-            ELSE NULL
-          END,
-          CASE
-            WHEN data->>'#{sanitized}' ~ '^\\d{4}-\\d{2}-\\d{2}'
-            THEN SUBSTRING(data->>'#{sanitized}' FROM 1 FOR 10)
-            ELSE NULL
-          END
-        )
-      SQL
-    end
+    # select_field_accessor and date_field_accessor are provided by Cache::JsonbConditions
 
     def get_cache_count_status(table_name, now)
       result = execute_sql(
@@ -1138,6 +1090,8 @@ module Cache
   # Supports both simple AND filters via where() and complex OR filters via
   # build_condition_sql() and where_raw().
   class PostgresQuery
+    include Cache::JsonbConditions
+
     def initialize(cache, table_id)
       @cache = cache
       @table_id = table_id
@@ -1324,9 +1278,9 @@ module Cache
     # @param value [Object] Value to compare
     # @return [Array<String, Array>] [sql_clause, params]
     def build_pg_condition(field, comparison, value)
-      sanitized = field.gsub(/[^a-zA-Z0-9_]/, "")
+      sanitized = sanitize_field_name(field)
       field_accessor = "data->>'#{sanitized}'"
-      select_accessor = "COALESCE(data->'#{sanitized}'->>'value', data->>'#{sanitized}')"
+      select_accessor = select_field_accessor(sanitized, sanitized: true)
 
       case comparison
       when "is"
@@ -1390,13 +1344,13 @@ module Cache
           [ "TRUE", [] ]
         end
       when "is_before"
-        [ "#{date_field_accessor(sanitized)} < ?", [ value.to_s ] ]
+        [ "#{date_field_accessor(sanitized, sanitized: true)} < ?", [ value.to_s ] ]
       when "is_after"
-        [ "#{date_field_accessor(sanitized)} > ?", [ value.to_s ] ]
+        [ "#{date_field_accessor(sanitized, sanitized: true)} > ?", [ value.to_s ] ]
       when "is_on_or_before"
-        [ "#{date_field_accessor(sanitized)} <= ?", [ value.to_s ] ]
+        [ "#{date_field_accessor(sanitized, sanitized: true)} <= ?", [ value.to_s ] ]
       when "is_on_or_after"
-        [ "#{date_field_accessor(sanitized)} >= ?", [ value.to_s ] ]
+        [ "#{date_field_accessor(sanitized, sanitized: true)} >= ?", [ value.to_s ] ]
       when "between"
         [ "#{field_accessor} BETWEEN ? AND ?", [ value[:min], value[:max] ] ]
       when "not_between"
@@ -1417,24 +1371,7 @@ module Cache
       end
     end
 
-    # PostgreSQL accessor for date fields (handles nested SmartSuite date formats)
-    def date_field_accessor(field)
-      <<~SQL.squish
-        COALESCE(
-          SUBSTRING(data->'#{field}'->'to_date'->>'date' FROM 1 FOR 10),
-          CASE
-            WHEN data->'#{field}'->>'to_date' ~ '^\\d{4}-\\d{2}-\\d{2}'
-            THEN SUBSTRING(data->'#{field}'->>'to_date' FROM 1 FOR 10)
-            ELSE NULL
-          END,
-          CASE
-            WHEN data->>'#{field}' ~ '^\\d{4}-\\d{2}-\\d{2}'
-            THEN SUBSTRING(data->>'#{field}' FROM 1 FOR 10)
-            ELSE NULL
-          END
-        )
-      SQL
-    end
+    # date_field_accessor and select_field_accessor are provided by Cache::JsonbConditions
 
     # Execute query with raw WHERE clauses (used for OR filters)
     def execute_with_raw_sql
