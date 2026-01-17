@@ -324,7 +324,7 @@ class MCPHandler
       if @client.cache_enabled?
         resource = arguments["resource"]
         unless resource && !resource.to_s.empty?
-          return { "error" => "resource parameter is required. Valid values: solutions, tables, records, members, teams" }
+          return { "error" => "resource parameter is required. Valid values: solutions, tables, records, members, teams, views" }
         end
         @client.cache.refresh_cache(
           resource,
