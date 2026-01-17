@@ -56,6 +56,7 @@ end
 
 group :test do
   gem "minitest"
+  gem "minitest-mock"
   gem "rake"
   gem "simplecov", require: false
   gem "webmock", require: false
