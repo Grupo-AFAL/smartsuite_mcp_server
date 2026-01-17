@@ -8,7 +8,7 @@ ruby ">= 3.1.0"
 gem "rails", "~> 8.1.1"
 
 # PostgreSQL for database (replaces SQLite for hosted version)
-gem "pg", "~> 1.1"
+gem "pg", "~> 1.6"
 
 # Keep SQLite for local/stdio mode compatibility
 gem "sqlite3"
