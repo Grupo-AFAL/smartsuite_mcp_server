@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **PostgreSQL Cache Feature Parity** - PostgreSQL cache now matches SQLite capabilities
+  - Views caching: `cache_views`, `get_cached_views`, `views_cache_valid?`, `invalidate_views_cache`
+  - Metadata storage: `metadata_get`, `metadata_set` for arbitrary key-value storage with optional TTL
+  - Overdue flags: `update_overdue_flags` for marking due date records as overdue
+  - Updated `refresh_cache` and `get_cache_status` to include views support
+  - File field operators: `file_name_contains`, `file_type_is` using PostgreSQL JSONB subqueries
+
+- **Comprehensive PostgresQuery Filter Tests** - 105 tests covering all filter operators
+  - Tests SQL generation for all 10 field type categories
+  - Tests `build_pg_condition`, `build_condition_sql`, `operator_to_comparison` methods
+  - Uses stub pattern for testing without PostgreSQL connection
+  - Located in `test/services/cache/test_postgres_query_filters.rb`
+
+- **End-to-End MCP Tests for PostgreSQL** - 24 tests verifying complete MCP flow
+  - Tests JSON-RPC → Server → Cache → PostgreSQL → Response
+  - Covers all filter operators with real data insertion
+  - Tests sorting, pagination, and compound filters
+  - Located in `test/integration/postgres/test_mcp_e2e.rb`
+
+- **Schema Evolution Tests** - 8 tests ensuring cache integrity on schema changes
+  - Verifies old records are cleared when `structure_changed: true`
+  - Tests new field storage, removed field cleanup
+  - Tests filter functionality after schema changes
+  - Tests TTL expiry and table isolation
+  - Located in `test/integration/postgres/test_schema_evolution.rb`
+
+- **PostgreSQL Filter Test Script** - Interactive script for testing with real SmartSuite data
+  - Fetches real data from SmartSuite API
+  - Caches in PostgreSQL and runs filter tests
+  - Tests all operator types against production data
+  - Located in `bin/test_postgres_filters`
+
+- **SQLite Removal TODO** - Documentation for future SQLite cache removal
+  - Plan to simplify codebase by keeping only PostgreSQL cache
+  - Migration steps and affected files documented in `docs/TODO-sqlite-removal.md`
+
 - **list_views MCP Tool** - List all views (reports) in the workspace
   - Cache-first strategy with aggressive SQLite caching (4-hour TTL)
   - Filter views by `table_id` or `solution_id`
@@ -55,6 +91,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New migration: `EnablePgTrgmExtension`
 
 ### Fixed
+
+- **PostgresLayer `cache_table_records` bug** - Fixed type error when caching records
+  - Was incorrectly calling `cache_single_table(structure, ...)` passing Array instead of Hash
+  - Removed buggy call; table list caching is handled separately via `cache_table_list()`
+
+- **Missing filter operators in `build_single_jsonb_condition`** - Added operators that were only in PostgresQuery
+  - Added: `is_any_of`, `is_none_of`, `has_all_of`, `has_none_of`, `file_name_contains`, `file_type_is`
+  - These operators now work in both direct cache queries and via PostgresQuery builder
+
+- **PostgresQuery missing `build_condition_sql` method** - Fixes SMARTSUITE-MCP-N
+  - OR filter groups in PostgreSQL cache were failing with NoMethodError
+  - Added `build_condition_sql`, `where_raw`, `get_field_type`, `get_field_params` methods
+  - Added supporting private methods: `operator_to_comparison`, `build_pg_condition`, `date_field_accessor`
+
+- **Malformed filter input causing crash** - Fixes SMARTSUITE-MCP-H
+  - Nested filter entries that were JSON strings instead of hashes caused NoMethodError on `to_sym`
+  - Added `valid_field_filter?` helper method to validate filter entries
+  - Added validation in `apply_to_query` and `build_filter_group_sql` to skip malformed entries
+
+- **`refresh_cache` called without resource parameter** - Fixes SMARTSUITE-MCP-K
+  - MCP tool was not validating required `resource` parameter
+  - Added validation in `mcp_handler.rb` to return helpful error message
+  - Valid resources: solutions, tables, records, members, teams
 
 - **`is_not` for Date Fields** - Now correctly handles date-only values
   - Date-only values (e.g., "2025-01-15") are converted to NOT IN range with timezone awareness

@@ -72,6 +72,9 @@ module SmartSuite
       else
         # Simple flat AND filter - use efficient where() chaining
         filter["fields"].each do |field_filter|
+          # Skip malformed filter entries (must be hash with required keys)
+          next unless valid_field_filter?(field_filter)
+
           field_slug = field_filter["field"]
           comparison = field_filter["comparison"]
           value = field_filter["value"]
@@ -106,6 +109,9 @@ module SmartSuite
       all_params = []
 
       filter["fields"].each do |field_filter|
+        # Skip non-hash entries (malformed filters may contain strings)
+        next unless field_filter.is_a?(Hash)
+
         if field_filter["operator"] && field_filter["fields"]
           # Nested group - recurse
           nested_clause, nested_params = build_filter_group_sql(query, field_filter)
@@ -114,7 +120,9 @@ module SmartSuite
             all_params.concat(nested_params)
           end
         else
-          # Leaf condition
+          # Leaf condition - skip if missing required fields
+          next unless valid_field_filter?(field_filter)
+
           field_slug = field_filter["field"]
           comparison = field_filter["comparison"]
           value = field_filter["value"]
@@ -452,6 +460,21 @@ module SmartSuite
       return false if params.nil?
 
       params["include_time"] == true
+    end
+
+    # Validate that a field filter entry has all required fields.
+    #
+    # Field filters must be hashes with "field" and "comparison" keys.
+    # Malformed filters (e.g., JSON strings instead of parsed hashes) are rejected.
+    #
+    # @param field_filter [Object] Filter entry to validate
+    # @return [Boolean] true if valid, false otherwise
+    def self.valid_field_filter?(field_filter)
+      return false unless field_filter.is_a?(Hash)
+      return false if field_filter["field"].nil?
+      return false if field_filter["comparison"].nil?
+
+      true
     end
 
     # Get the local timezone offset string for the configured timezone.
