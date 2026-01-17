@@ -15,6 +15,11 @@
 # Requirements:
 # - SMARTSUITE_API_KEY and SMARTSUITE_ACCOUNT_ID in environment
 # - PostgreSQL development database set up (rails db:migrate)
+#
+# IMPORTANT: This script uses YOUR SmartSuite workspace data.
+# You will be prompted to select a solution and table from your account.
+# No hardcoded IDs are used - all IDs come from your environment or selection.
+# If providing TABLE_ID directly, use an ID from your own SmartSuite workspace.
 
 ENV["RAILS_ENV"] ||= "development"
 require_relative "../config/environment"
