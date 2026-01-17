@@ -2,6 +2,7 @@
 
 require_relative "../../../lib/smart_suite/logger"
 require_relative "../../../lib/smart_suite/date_mode_resolver"
+require_relative "jsonb_conditions"
 
 module Cache
   # PostgreSQL-based cache layer for the hosted SmartSuite MCP server.
@@ -15,6 +16,7 @@ module Cache
   # - Simpler schema - stores entire records as JSONB
   # - Shared across all users (multi-tenant cache)
   class PostgresLayer
+    include Cache::JsonbConditions
     # Default TTL values in seconds
     DEFAULT_TTL = 12 * 3600 # 12 hours for records
     METADATA_TTL = 7 * 24 * 3600 # 7 days for solutions, tables, members
@@ -57,8 +59,9 @@ module Cache
       # Cache the table structure
       cache_table_schema(table_id, structure, ttl: METADATA_TTL)
 
-      # Also cache in cache_tables for solution_id lookup
-      cache_single_table(structure, ttl: METADATA_TTL) if structure
+      # Note: cache_single_table requires a table object (with id, solution_id, name)
+      # which we don't have here. Table list caching is handled separately via
+      # cache_table_list() when fetching tables from the API.
 
       # Delete existing records for this table
       execute_sql("DELETE FROM cache_records WHERE table_id = $1", [ table_id ])
@@ -537,6 +540,96 @@ module Cache
       execute_sql("DELETE FROM cache_teams")
     end
 
+    # ========== Views (Reports) Caching ==========
+
+    def cache_views(views, ttl: DEFAULT_TTL)
+      now = Time.current
+      expires_at = now + ttl
+
+      # Create table if not exists
+      execute_sql(<<~SQL)
+        CREATE TABLE IF NOT EXISTS cache_views (
+          id VARCHAR PRIMARY KEY,
+          solution_id VARCHAR,
+          application_id VARCHAR,
+          data JSONB NOT NULL,
+          cached_at TIMESTAMP NOT NULL,
+          expires_at TIMESTAMP NOT NULL
+        )
+      SQL
+
+      # Create indexes if they don't exist
+      execute_sql("CREATE INDEX IF NOT EXISTS idx_cache_views_application ON cache_views(application_id)")
+      execute_sql("CREATE INDEX IF NOT EXISTS idx_cache_views_solution ON cache_views(solution_id)")
+      execute_sql("CREATE INDEX IF NOT EXISTS idx_cache_views_expires ON cache_views(expires_at)")
+
+      # Clear existing cache
+      execute_sql("DELETE FROM cache_views")
+
+      # Insert all views
+      views.each do |view|
+        execute_sql(
+          'INSERT INTO cache_views (id, solution_id, application_id, data, cached_at, expires_at)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (id) DO UPDATE SET solution_id = $2, application_id = $3, data = $4, cached_at = $5, expires_at = $6',
+          [ view["id"], view["solution"], view["application"], view.to_json, now, expires_at ]
+        )
+      end
+
+      SmartSuite::Logger.cache("CACHED", "views", count: views.size)
+      views.size
+    end
+
+    def get_cached_views(table_id: nil, solution_id: nil)
+      unless views_cache_valid?
+        SmartSuite::Logger.cache("MISS", "views")
+        self.class.record_miss!
+        return nil
+      end
+
+      sql = "SELECT data FROM cache_views WHERE expires_at > $1"
+      params = [ Time.current ]
+
+      if table_id
+        sql += " AND application_id = $2"
+        params << table_id
+      elsif solution_id
+        sql += " AND solution_id = $2"
+        params << solution_id
+      end
+
+      results = execute_sql(sql, params)
+      if results.empty?
+        SmartSuite::Logger.cache("MISS", "views", count: 0)
+        self.class.record_miss!
+        return nil
+      end
+
+      SmartSuite::Logger.cache("HIT", "views", count: results.size)
+      self.class.record_hit!
+      results.map { |row| JSON.parse(row["data"]) }
+    end
+
+    def views_cache_valid?
+      # Check if table exists first
+      table_exists = execute_sql(
+        "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'cache_views')"
+      ).first&.fetch("exists", false)
+
+      return false unless table_exists
+
+      result = execute_sql(
+        "SELECT COUNT(*) as count FROM cache_views WHERE expires_at > $1",
+        [ Time.current ]
+      ).first
+
+      result && result["count"].to_i.positive?
+    end
+
+    def invalidate_views_cache
+      execute_sql("DELETE FROM cache_views") if views_cache_valid?
+    end
+
     # ========== Deleted Records Caching ==========
 
     def cache_deleted_records(solution_id, records, ttl: DEFAULT_TTL)
@@ -620,6 +713,55 @@ module Cache
       JSON.parse(result["structure"])
     end
 
+    # ========== Metadata Storage ==========
+
+    def metadata_get(key)
+      # Create table if not exists
+      ensure_metadata_table_exists
+
+      result = execute_sql(
+        "SELECT value FROM cache_metadata WHERE key = $1 AND (expires_at IS NULL OR expires_at > $2)",
+        [ key, Time.current ]
+      ).first
+
+      return nil unless result
+
+      result["value"]
+    end
+
+    def metadata_set(key, value, ttl: nil)
+      ensure_metadata_table_exists
+
+      now = Time.current
+      expires_at = ttl ? now + ttl : nil
+
+      execute_sql(
+        'INSERT INTO cache_metadata (key, value, cached_at, expires_at) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (key) DO UPDATE SET value = $2, cached_at = $3, expires_at = $4',
+        [ key, value.to_s, now, expires_at ]
+      )
+    end
+
+    # ========== Overdue Flags Support ==========
+
+    def update_overdue_flags(table_id, field_slug, overdue_ids)
+      return 0 if overdue_ids.nil? || overdue_ids.empty?
+
+      # Update the JSONB data to set is_overdue flag on records
+      # Uses single UPDATE with ANY() for efficiency instead of N individual queries
+      sanitized_field = field_slug.to_s.gsub(/[^a-zA-Z0-9_]/, "")
+      jsonb_path = "{#{sanitized_field},is_overdue}"
+
+      result = execute_sql(
+        "UPDATE cache_records SET data = jsonb_set(data, $1, 'true'::jsonb)
+         WHERE table_id = $2 AND record_id = ANY($3) AND expires_at > $4
+         RETURNING record_id",
+        [ jsonb_path, table_id, overdue_ids, Time.current ]
+      )
+
+      result.count
+    end
+
     # ========== Cache Status & Management ==========
 
     def get_cache_status(table_id: nil)
@@ -631,6 +773,7 @@ module Cache
         "tables" => get_cache_count_status("cache_tables", now),
         "members" => get_cache_count_status("cache_members", now),
         "teams" => get_cache_count_status("cache_teams", now),
+        "views" => get_cache_count_status("cache_views", now),
         "records" => get_records_cache_status(now, table_id: table_id)
       }
 
@@ -656,6 +799,9 @@ module Cache
       when "teams"
         invalidate_teams_cache
         { success: true, message: "Teams cache invalidated" }
+      when "views"
+        invalidate_views_cache
+        { success: true, message: "Views cache invalidated" }
       else
         raise ArgumentError, "Unknown resource: #{resource}"
       end
@@ -675,8 +821,28 @@ module Cache
       result.to_a
     end
 
-    def sanitize_field_name(name)
-      name.to_s.gsub(/[^a-zA-Z0-9_]/, "")
+    # sanitize_field_name is provided by Cache::JsonbConditions
+
+    # Ensures the cache_metadata table exists for key-value storage.
+    #
+    # Uses "IF NOT EXISTS" making this operation idempotent and safe to call
+    # multiple times. The table stores arbitrary metadata with optional TTL.
+    #
+    # @note Errors (connection issues, permission problems) are not caught here
+    #   and will bubble up to the caller (metadata_get/metadata_set). This is
+    #   intentional - cache failures should not be silently ignored as they may
+    #   indicate infrastructure problems requiring attention.
+    #
+    # @raise [PG::Error] If database connection fails or permissions are insufficient
+    def ensure_metadata_table_exists
+      execute_sql(<<~SQL)
+        CREATE TABLE IF NOT EXISTS cache_metadata (
+          key VARCHAR PRIMARY KEY,
+          value TEXT,
+          cached_at TIMESTAMP NOT NULL,
+          expires_at TIMESTAMP
+        )
+      SQL
     end
 
     def build_jsonb_filter(filter, param_offset)
@@ -713,15 +879,16 @@ module Cache
     end
 
     def build_single_jsonb_condition(field, comparison, value, param_num)
-      field_accessor = "data->>'#{sanitize_field_name(field)}'"
+      sanitized = sanitize_field_name(field)
+      field_accessor = "data->>'#{sanitized}'"
       # For status/single select fields that store value in nested object
-      select_field_accessor = select_field_value_accessor(field)
+      status_accessor = select_field_accessor(sanitized, sanitized: true)
 
       case comparison
       when "is"
-        [ "#{select_field_accessor} = $#{param_num}", [ value.to_s ] ]
+        [ "#{status_accessor} = $#{param_num}", [ value.to_s ] ]
       when "is_not"
-        [ "#{select_field_accessor} != $#{param_num}", [ value.to_s ] ]
+        [ "#{status_accessor} != $#{param_num}", [ value.to_s ] ]
       when "contains"
         [ "#{field_accessor} ILIKE $#{param_num}", [ "%#{value}%" ] ]
       when "is_greater_than"
@@ -739,14 +906,71 @@ module Cache
       when "has_any_of"
         if value.is_a?(Array) && value.any?
           # For JSON arrays, check if any value is present
-          or_conditions = value.map.with_index do |v, i|
-            "data->'#{sanitize_field_name(field)}' @> $#{param_num + i}::jsonb"
+          or_conditions = value.map.with_index do |_v, i|
+            "data->'#{sanitized}' @> $#{param_num + i}::jsonb"
           end
           [ "(#{or_conditions.join(' OR ')})", value.map { |v| "[\"#{v}\"]" } ]
         else
           # Empty array means "has any of nothing" = always false = no matches
           [ "FALSE", [] ]
         end
+      when "has_all_of"
+        if value.is_a?(Array) && value.any?
+          # For JSON arrays, check if ALL values are present
+          and_conditions = value.map.with_index do |_v, i|
+            "data->'#{sanitized}' @> $#{param_num + i}::jsonb"
+          end
+          [ "(#{and_conditions.join(' AND ')})", value.map { |v| "[\"#{v}\"]" } ]
+        else
+          [ "TRUE", [] ]
+        end
+      when "has_none_of"
+        if value.is_a?(Array) && value.any?
+          # For JSON arrays, check if NONE of the values are present
+          and_conditions = value.map.with_index do |_v, i|
+            "NOT (data->'#{sanitized}' @> $#{param_num + i}::jsonb)"
+          end
+          [ "(#{and_conditions.join(' AND ')})", value.map { |v| "[\"#{v}\"]" } ]
+        else
+          [ "TRUE", [] ]
+        end
+      when "is_any_of"
+        # For single select fields, use IN()
+        if value.is_a?(Array) && value.any?
+          placeholders = value.map.with_index { |_, i| "$#{param_num + i}" }.join(", ")
+          [ "#{status_accessor} IN (#{placeholders})", value.map(&:to_s) ]
+        else
+          [ "FALSE", [] ]
+        end
+      when "is_none_of"
+        # For single select fields, use NOT IN()
+        if value.is_a?(Array) && value.any?
+          placeholders = value.map.with_index { |_, i| "$#{param_num + i}" }.join(", ")
+          [ "#{status_accessor} NOT IN (#{placeholders})", value.map(&:to_s) ]
+        else
+          [ "TRUE", [] ]
+        end
+      when "is_exactly"
+        # Array must contain exactly these values (no more, no less)
+        # Check: (1) length matches AND (2) all values present
+        if value.is_a?(Array) && value.any?
+          length_check = "jsonb_array_length(data->'#{sanitized}') = $#{param_num}"
+          value_checks = value.map.with_index { |_v, i| "data->'#{sanitized}' @> $#{param_num + 1 + i}::jsonb" }
+          all_conditions = [ length_check ] + value_checks
+          params = [ value.length ] + value.map { |v| "[\"#{v}\"]" }
+          [ "(#{all_conditions.join(' AND ')})", params ]
+        else
+          # Empty array: field must be empty array
+          [ "jsonb_array_length(data->'#{sanitized}') = 0", [] ]
+        end
+      when "file_name_contains"
+        # For file fields (JSONB array), search filename
+        [ "EXISTS (SELECT 1 FROM jsonb_array_elements(data->'#{sanitized}') AS elem " \
+          "WHERE elem->>'name' ILIKE $#{param_num})", [ "%#{value}%" ] ]
+      when "file_type_is"
+        # For file fields (JSONB array), match type
+        [ "EXISTS (SELECT 1 FROM jsonb_array_elements(data->'#{sanitized}') AS elem " \
+          "WHERE elem->>'type' = $#{param_num})", [ value.to_s ] ]
       when "is_before"
         date_value = extract_date_value(value)
         date_accessor = date_field_accessor(field)
@@ -773,52 +997,7 @@ module Cache
       SmartSuite::DateModeResolver.extract_date_value(value)
     end
 
-    # Creates a PostgreSQL accessor for status/single select fields that handles both:
-    # - Simple values: "in_progress" (stored as string)
-    # - Object values: {"value": "in_progress", "updated_on": "..."} (statusfield format)
-    #
-    # Uses COALESCE to try the nested object format first, then falls back to simple string.
-    def select_field_value_accessor(field)
-      sanitized = sanitize_field_name(field)
-      <<~SQL.squish
-        COALESCE(
-          data->'#{sanitized}'->>'value',
-          data->>'#{sanitized}'
-        )
-      SQL
-    end
-
-    # Creates a PostgreSQL accessor for date fields that handles both:
-    # - Simple date fields: "2024-06-24" (stored as string)
-    # - Date Range fields: {"to_date": {"date": "2024-06-24T00:00:00Z", ...}, ...}
-    # - Due Date fields: {"to_date": "2024-06-24", ...} (date as string, not nested object)
-    #
-    # For Date Range/Due Date fields, we extract the date from to_date and normalize
-    # it to YYYY-MM-DD format for comparison.
-    # Returns NULL when no valid date is present to avoid incorrect string comparisons.
-    def date_field_accessor(field)
-      sanitized = sanitize_field_name(field)
-      # COALESCE tries multiple formats:
-      # 1. Date Range format: to_date.date (nested object with date key)
-      # 2. Due Date format: to_date (string date directly)
-      # 3. Simple date format: field value is a date string
-      # Only returns value if it matches YYYY-MM-DD pattern to avoid JSON string comparison bugs
-      <<~SQL.squish
-        COALESCE(
-          SUBSTRING(data->'#{sanitized}'->'to_date'->>'date' FROM 1 FOR 10),
-          CASE
-            WHEN data->'#{sanitized}'->>'to_date' ~ '^\\d{4}-\\d{2}-\\d{2}'
-            THEN SUBSTRING(data->'#{sanitized}'->>'to_date' FROM 1 FOR 10)
-            ELSE NULL
-          END,
-          CASE
-            WHEN data->>'#{sanitized}' ~ '^\\d{4}-\\d{2}-\\d{2}'
-            THEN SUBSTRING(data->>'#{sanitized}' FROM 1 FOR 10)
-            ELSE NULL
-          END
-        )
-      SQL
-    end
+    # select_field_accessor and date_field_accessor are provided by Cache::JsonbConditions
 
     def get_cache_count_status(table_name, now)
       result = execute_sql(
@@ -884,53 +1063,32 @@ module Cache
       info
     end
 
-    # Build is_empty condition that handles all SmartSuite field types:
-    # - NULL/empty/null JSON for simple fields
-    # - Date Range fields: {"from_date": null, "to_date": null} should be empty
-    # - Status fields: {"value": null} should be empty
-    # - Arrays and objects
-    def build_is_empty_condition(field, field_accessor)
+    # Build is_empty condition that handles all SmartSuite field types.
+    # Uses Cache::JsonbConditions.empty_condition_sql with comprehensive mode
+    # to handle Date Range and Status field special cases.
+    def build_is_empty_condition(field, _field_accessor)
       sanitized = sanitize_field_name(field)
-      date_accessor = date_field_accessor(field)
-
-      # A field is empty if:
-      # 1. Basic empty checks: NULL, '', [], {}, JSON null
-      # 2. Date Range format with null to_date: {"from_date": ..., "to_date": null}
-      # 3. Date Range format with to_date object that has null date: {"to_date": {"date": null}}
-      # 4. Status/select format with null value: {"value": null}
-      [
-        "(#{field_accessor} IS NULL OR #{field_accessor} = '' OR " \
-        "data->'#{sanitized}' = '[]'::jsonb OR data->'#{sanitized}' = '{}'::jsonb OR " \
-        "data->'#{sanitized}' = 'null'::jsonb OR " \
-        "(jsonb_typeof(data->'#{sanitized}') = 'array' AND jsonb_array_length(data->'#{sanitized}') = 0) OR " \
-        "(jsonb_typeof(data->'#{sanitized}') = 'object' AND #{date_accessor} IS NULL AND data->'#{sanitized}'->'value' IS NULL))",
-        []
-      ]
+      field_acc = "data->>'#{sanitized}'"
+      [ empty_condition_sql(sanitized, field_acc, comprehensive: true), [] ]
     end
 
-    # Build is_not_empty condition - inverse of is_empty
-    def build_is_not_empty_condition(field, field_accessor)
+    # Build is_not_empty condition - inverse of is_empty.
+    # Uses Cache::JsonbConditions.not_empty_condition_sql with comprehensive mode.
+    def build_is_not_empty_condition(field, _field_accessor)
       sanitized = sanitize_field_name(field)
-      date_accessor = date_field_accessor(field)
-
-      # A field is NOT empty if it has actual usable content:
-      # - Not NULL/empty string
-      # - Not empty array/object
-      # - For Date Range: has a valid to_date with actual date value
-      # - For Status: has a valid value
-      [
-        "(#{field_accessor} IS NOT NULL AND #{field_accessor} != '' AND " \
-        "data->'#{sanitized}' != '[]'::jsonb AND data->'#{sanitized}' != '{}'::jsonb AND " \
-        "data->'#{sanitized}' != 'null'::jsonb AND " \
-        "NOT (jsonb_typeof(data->'#{sanitized}') = 'array' AND jsonb_array_length(data->'#{sanitized}') = 0) AND " \
-        "(jsonb_typeof(data->'#{sanitized}') != 'object' OR #{date_accessor} IS NOT NULL OR data->'#{sanitized}'->'value' IS NOT NULL))",
-        []
-      ]
+      field_acc = "data->>'#{sanitized}'"
+      [ not_empty_condition_sql(sanitized, field_acc, comprehensive: true), [] ]
     end
   end
 
   # Simple query builder for PostgreSQL cache
+  #
+  # Provides a chainable interface compatible with SmartSuite::Cache::Query.
+  # Supports both simple AND filters via where() and complex OR filters via
+  # build_condition_sql() and where_raw().
   class PostgresQuery
+    include Cache::JsonbConditions
+
     def initialize(cache, table_id)
       @cache = cache
       @table_id = table_id
@@ -938,6 +1096,71 @@ module Cache
       @sort = []
       @limit_val = nil
       @offset_val = nil
+      @raw_where_clauses = []
+      @raw_where_params = []
+    end
+
+    # Build SQL clause for a single condition (for FilterBuilder compatibility)
+    #
+    # Returns SQL with ? placeholders (converted to $N during execution)
+    # to allow multiple conditions to be combined without param numbering conflicts.
+    #
+    # @param field_slug [Symbol, String] Field name
+    # @param condition [Object] Value or {operator => value} hash
+    # @return [Array<String, Array>] [sql_clause, params]
+    def build_condition_sql(field_slug, condition)
+      field = field_slug.to_s
+
+      if condition.is_a?(Hash)
+        operator, value = condition.first
+        comparison = operator_to_comparison(operator)
+      else
+        comparison = "is"
+        value = condition
+      end
+
+      build_pg_condition(field, comparison, value)
+    end
+
+    # Add a raw SQL WHERE clause (for FilterBuilder compatibility)
+    #
+    # @param clause [String] SQL clause with ? placeholders
+    # @param params [Array] Parameters to bind
+    # @return [PostgresQuery] self for chaining
+    def where_raw(clause, params = [])
+      return self unless clause && !clause.empty?
+
+      @raw_where_clauses << clause
+      @raw_where_params.concat(params)
+      self
+    end
+
+    # Get field type from cached schema (for FilterBuilder validation)
+    #
+    # @param field_slug [String, Symbol] Field slug
+    # @return [String, nil] Field type or nil if not found
+    def get_field_type(field_slug)
+      schema = @cache.get_cached_table_schema(@table_id)
+      return nil unless schema
+
+      # get_cached_table_schema returns the structure array directly, not a hash
+      fields = schema.is_a?(Array) ? schema : (schema["structure"] || [])
+      field_info = fields.find { |f| f["slug"] == field_slug.to_s }
+      field_info&.dig("field_type")&.downcase
+    end
+
+    # Get field params from cached schema (for FilterBuilder date handling)
+    #
+    # @param field_slug [String, Symbol] Field slug
+    # @return [Hash, nil] Field params or nil if not found
+    def get_field_params(field_slug)
+      schema = @cache.get_cached_table_schema(@table_id)
+      return nil unless schema
+
+      # get_cached_table_schema returns the structure array directly, not a hash
+      fields = schema.is_a?(Array) ? schema : (schema["structure"] || [])
+      field_info = fields.find { |f| f["slug"] == field_slug.to_s }
+      field_info&.dig("params")
     end
 
     def where(conditions)
@@ -993,17 +1216,237 @@ module Cache
     end
 
     def execute
-      @cache.get_cached_records(
-        @table_id,
-        filter: @filter,
-        sort: @sort.any? ? @sort : nil,
-        limit: @limit_val,
-        offset: @offset_val
-      ) || []
+      if @raw_where_clauses.any?
+        execute_with_raw_sql
+      else
+        @cache.get_cached_records(
+          @table_id,
+          filter: @filter,
+          sort: @sort.any? ? @sort : nil,
+          limit: @limit_val,
+          offset: @offset_val
+        ) || []
+      end
     end
 
     def count
-      @cache.get_cached_record_count(@table_id, filter: @filter)
+      if @raw_where_clauses.any?
+        count_with_raw_sql
+      else
+        @cache.get_cached_record_count(@table_id, filter: @filter)
+      end
+    end
+
+    private
+
+    # Convert FilterBuilder operator symbols to comparison strings
+    def operator_to_comparison(operator)
+      case operator.to_sym
+      when :eq then "is"
+      when :ne then "is_not"
+      when :gt then "is_greater_than"
+      when :gte then "is_equal_or_greater_than"
+      when :lt then "is_less_than"
+      when :lte then "is_equal_or_less_than"
+      when :contains then "contains"
+      when :not_contains then "not_contains"
+      when :has_any_of then "has_any_of"
+      when :has_all_of then "has_all_of"
+      when :has_none_of then "has_none_of"
+      when :is_exactly then "is_exactly"
+      when :is_any_of then "is_any_of"
+      when :is_none_of then "is_none_of"
+      when :is_empty then "is_empty"
+      when :is_not_empty then "is_not_empty"
+      when :is_before then "is_before"
+      when :is_after then "is_after"
+      when :is_on_or_before then "is_on_or_before"
+      when :is_on_or_after then "is_on_or_after"
+      when :between then "between"
+      when :not_between then "not_between"
+      when :file_name_contains then "file_name_contains"
+      when :file_type_is then "file_type_is"
+      else "is"
+      end
+    end
+
+    # Build PostgreSQL JSONB condition with ? placeholders
+    #
+    # @param field [String] Field name
+    # @param comparison [String] Comparison operator
+    # @param value [Object] Value to compare
+    # @return [Array<String, Array>] [sql_clause, params]
+    def build_pg_condition(field, comparison, value)
+      sanitized = sanitize_field_name(field)
+      field_accessor = "data->>'#{sanitized}'"
+      select_accessor = select_field_accessor(sanitized, sanitized: true)
+
+      case comparison
+      when "is"
+        [ "#{select_accessor} = ?", [ value.to_s ] ]
+      when "is_not"
+        [ "#{select_accessor} != ?", [ value.to_s ] ]
+      when "contains"
+        [ "#{field_accessor} ILIKE ?", [ "%#{value}%" ] ]
+      when "not_contains"
+        [ "#{field_accessor} NOT ILIKE ?", [ "%#{value}%" ] ]
+      when "is_greater_than"
+        [ "(#{field_accessor})::numeric > ?", [ value.to_f ] ]
+      when "is_less_than"
+        [ "(#{field_accessor})::numeric < ?", [ value.to_f ] ]
+      when "is_equal_or_greater_than"
+        [ "(#{field_accessor})::numeric >= ?", [ value.to_f ] ]
+      when "is_equal_or_less_than"
+        [ "(#{field_accessor})::numeric <= ?", [ value.to_f ] ]
+      when "is_empty"
+        # Use shared empty condition logic with comprehensive mode for Date Range/Status fields
+        [ empty_condition_sql(sanitized, field_accessor, comprehensive: true), [] ]
+      when "is_not_empty"
+        # Use shared not_empty condition logic with comprehensive mode
+        [ not_empty_condition_sql(sanitized, field_accessor, comprehensive: true), [] ]
+      when "has_any_of"
+        if value.is_a?(Array) && value.any?
+          conditions = value.map { "data->'#{sanitized}' @> ?::jsonb" }
+          params = value.map { |v| "[\"#{v}\"]" }
+          [ "(#{conditions.join(' OR ')})", params ]
+        else
+          [ "FALSE", [] ]
+        end
+      when "has_all_of"
+        if value.is_a?(Array) && value.any?
+          conditions = value.map { "data->'#{sanitized}' @> ?::jsonb" }
+          params = value.map { |v| "[\"#{v}\"]" }
+          [ "(#{conditions.join(' AND ')})", params ]
+        else
+          [ "TRUE", [] ]
+        end
+      when "has_none_of"
+        if value.is_a?(Array) && value.any?
+          conditions = value.map { "NOT (data->'#{sanitized}' @> ?::jsonb)" }
+          params = value.map { |v| "[\"#{v}\"]" }
+          [ "(#{conditions.join(' AND ')})", params ]
+        else
+          [ "TRUE", [] ]
+        end
+      when "is_any_of"
+        if value.is_a?(Array) && value.any?
+          placeholders = value.map { "?" }.join(", ")
+          [ "#{select_accessor} IN (#{placeholders})", value.map(&:to_s) ]
+        else
+          [ "FALSE", [] ]
+        end
+      when "is_none_of"
+        if value.is_a?(Array) && value.any?
+          placeholders = value.map { "?" }.join(", ")
+          [ "#{select_accessor} NOT IN (#{placeholders})", value.map(&:to_s) ]
+        else
+          [ "TRUE", [] ]
+        end
+      when "is_exactly"
+        # Array must contain exactly these values (no more, no less)
+        # Check: (1) length matches AND (2) all values present
+        if value.is_a?(Array) && value.any?
+          length_check = "jsonb_array_length(data->'#{sanitized}') = ?"
+          value_checks = value.map { "data->'#{sanitized}' @> ?::jsonb" }
+          all_conditions = [ length_check ] + value_checks
+          params = [ value.length ] + value.map { |v| "[\"#{v}\"]" }
+          [ "(#{all_conditions.join(' AND ')})", params ]
+        else
+          # Empty array: field must be empty array
+          [ "jsonb_array_length(data->'#{sanitized}') = 0", [] ]
+        end
+      when "is_before"
+        [ "#{date_field_accessor(sanitized, sanitized: true)} < ?", [ value.to_s ] ]
+      when "is_after"
+        [ "#{date_field_accessor(sanitized, sanitized: true)} > ?", [ value.to_s ] ]
+      when "is_on_or_before"
+        [ "#{date_field_accessor(sanitized, sanitized: true)} <= ?", [ value.to_s ] ]
+      when "is_on_or_after"
+        [ "#{date_field_accessor(sanitized, sanitized: true)} >= ?", [ value.to_s ] ]
+      when "between"
+        [ "#{field_accessor} BETWEEN ? AND ?", [ value[:min], value[:max] ] ]
+      when "not_between"
+        [ "(#{field_accessor} < ? OR #{field_accessor} > ?)", [ value[:min], value[:max] ] ]
+      # File field operators (filefield only)
+      # Files are stored as JSONB array: [{"name": "file.pdf", "type": "pdf", ...}, ...]
+      when "file_name_contains"
+        # Search for filename in JSONB array using JSONB path query
+        [ "EXISTS (SELECT 1 FROM jsonb_array_elements(data->'#{sanitized}') AS elem " \
+          "WHERE elem->>'name' ILIKE ?)", [ "%#{value}%" ] ]
+      when "file_type_is"
+        # Search for file type in JSONB array
+        # Valid types: archive, image, music, pdf, powerpoint, spreadsheet, video, word, other
+        [ "EXISTS (SELECT 1 FROM jsonb_array_elements(data->'#{sanitized}') AS elem " \
+          "WHERE elem->>'type' = ?)", [ value.to_s ] ]
+      else
+        [ "#{field_accessor} = ?", [ value.to_s ] ]
+      end
+    end
+
+    # date_field_accessor and select_field_accessor are provided by Cache::JsonbConditions
+
+    # Execute query with raw WHERE clauses (used for OR filters)
+    def execute_with_raw_sql
+      sql = "SELECT data FROM cache_records WHERE table_id = ? AND expires_at > ?"
+      params = [ @table_id, Time.current ]
+
+      # Add raw WHERE clauses
+      @raw_where_clauses.each do |clause|
+        sql += " AND (#{clause})"
+      end
+      params.concat(@raw_where_params)
+
+      # Add sorting
+      if @sort.any?
+        sort_clauses = @sort.map do |s|
+          field = s["field"] || s[:field]
+          direction = (s["direction"] || s[:direction] || "asc").upcase
+          direction = "ASC" unless %w[ASC DESC].include?(direction)
+          "data->>'#{field.to_s.gsub(/[^a-zA-Z0-9_]/, '')}' #{direction}"
+        end
+        sql += " ORDER BY #{sort_clauses.join(', ')}"
+      end
+
+      # Add limit and offset
+      if @limit_val
+        sql += " LIMIT ?"
+        params << @limit_val
+      end
+      if @offset_val
+        sql += " OFFSET ?"
+        params << @offset_val
+      end
+
+      # Convert ? placeholders to $N
+      param_counter = 0
+      sql = sql.gsub("?") { param_counter += 1; "$#{param_counter}" }
+
+      results = execute_sql(sql, params)
+      results.map { |row| JSON.parse(row["data"]) }
+    end
+
+    # Count records with raw WHERE clauses
+    def count_with_raw_sql
+      sql = "SELECT COUNT(*) as count FROM cache_records WHERE table_id = ? AND expires_at > ?"
+      params = [ @table_id, Time.current ]
+
+      @raw_where_clauses.each do |clause|
+        sql += " AND (#{clause})"
+      end
+      params.concat(@raw_where_params)
+
+      # Convert ? placeholders to $N
+      param_counter = 0
+      sql = sql.gsub("?") { param_counter += 1; "$#{param_counter}" }
+
+      result = execute_sql(sql, params).first
+      result ? result["count"].to_i : 0
+    end
+
+    def execute_sql(sql, params = [])
+      conn = ActiveRecord::Base.connection.raw_connection
+      result = conn.exec_params(sql, params)
+      result.to_a
     end
   end
 end
