@@ -382,15 +382,18 @@ MCPHandler.execute_tool()
     ↓
 SmartSuiteClient (includes modules):
   - Cache::PostgresLayer (check cache validity)
-      ├─ Cache HIT → Cache::PostgresQuery → Return results
-      └─ Cache MISS → Fetch ALL records → Cache → Query → Return
+      ├─ Cache HIT:
+      │    ├─ Simple filters → PostgresLayer.get_cached_records() → JSONB queries
+      │    └─ Complex filters → Cache::PostgresQuery (chainable builder)
+      │         └─ Uses Cache::JsonbConditions for SQL generation
+      └─ Cache MISS → HttpClient → Fetch ALL records → Cache → Query → Return
   - HttpClient.api_request()
   - WorkspaceOperations/TableOperations/RecordOperations/...
   - ResponseFormatter.filter_*()
     ↓                                          ↓
-SmartSuite API                           Save to PostgreSQL (cache_* tables)
-    ↓
-JSON Response to client
+SmartSuite API                           Save to PostgreSQL:
+    ↓                                      - cache_records (JSONB data)
+JSON Response to client                    - cache_solutions, cache_tables, etc.
 ```
 
 ### Error Handling Layers

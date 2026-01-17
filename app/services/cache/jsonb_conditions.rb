@@ -69,24 +69,56 @@ module Cache
     end
 
     # Build the SQL expression for checking if a JSONB field is empty.
-    # Handles NULL, empty string, empty array [], and JSON null.
+    # Handles NULL, empty string, empty array [], empty object {}, and JSON null.
+    #
+    # When comprehensive is true, also handles SmartSuite-specific formats:
+    # - Date Range fields: {"from_date": null, "to_date": null} is empty
+    # - Status fields: {"value": null} is empty
     #
     # @param field [String] Sanitized field name
     # @param field_accessor [String] SQL expression to access field as text
+    # @param comprehensive [Boolean] Include Date Range and Status field checks
     # @return [String] SQL condition (no placeholders)
-    def empty_condition_sql(field, field_accessor)
-      "(#{field_accessor} IS NULL OR #{field_accessor} = '' OR " \
-        "data->'#{field}' = '[]'::jsonb OR data->'#{field}' = 'null'::jsonb)"
+    def empty_condition_sql(field, field_accessor, comprehensive: false)
+      basic_checks = "(#{field_accessor} IS NULL OR #{field_accessor} = '' OR " \
+        "data->'#{field}' = '[]'::jsonb OR data->'#{field}' = '{}'::jsonb OR " \
+        "data->'#{field}' = 'null'::jsonb OR " \
+        "(jsonb_typeof(data->'#{field}') = 'array' AND jsonb_array_length(data->'#{field}') = 0)"
+
+      if comprehensive
+        date_accessor = date_field_accessor(field, sanitized: true)
+        # For object types: empty if Date Range has no valid date AND Status has no value
+        "#{basic_checks} OR " \
+          "(jsonb_typeof(data->'#{field}') = 'object' AND #{date_accessor} IS NULL AND data->'#{field}'->'value' IS NULL))"
+      else
+        "#{basic_checks})"
+      end
     end
 
     # Build the SQL expression for checking if a JSONB field is not empty.
     #
+    # When comprehensive is true, also handles SmartSuite-specific formats:
+    # - Date Range fields: must have valid to_date
+    # - Status fields: must have valid value
+    #
     # @param field [String] Sanitized field name
     # @param field_accessor [String] SQL expression to access field as text
+    # @param comprehensive [Boolean] Include Date Range and Status field checks
     # @return [String] SQL condition (no placeholders)
-    def not_empty_condition_sql(field, field_accessor)
-      "(#{field_accessor} IS NOT NULL AND #{field_accessor} != '' AND " \
-        "data->'#{field}' != '[]'::jsonb AND data->'#{field}' != 'null'::jsonb)"
+    def not_empty_condition_sql(field, field_accessor, comprehensive: false)
+      basic_checks = "(#{field_accessor} IS NOT NULL AND #{field_accessor} != '' AND " \
+        "data->'#{field}' != '[]'::jsonb AND data->'#{field}' != '{}'::jsonb AND " \
+        "data->'#{field}' != 'null'::jsonb AND " \
+        "NOT (jsonb_typeof(data->'#{field}') = 'array' AND jsonb_array_length(data->'#{field}') = 0)"
+
+      if comprehensive
+        date_accessor = date_field_accessor(field, sanitized: true)
+        # For object types: not empty if Date Range has valid date OR Status has value
+        "#{basic_checks} AND " \
+          "(jsonb_typeof(data->'#{field}') != 'object' OR #{date_accessor} IS NOT NULL OR data->'#{field}'->'value' IS NOT NULL))"
+      else
+        "#{basic_checks})"
+      end
     end
 
     # Build SQL condition for file_name_contains operator.

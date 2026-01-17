@@ -823,6 +823,17 @@ module Cache
 
     # sanitize_field_name is provided by Cache::JsonbConditions
 
+    # Ensures the cache_metadata table exists for key-value storage.
+    #
+    # Uses "IF NOT EXISTS" making this operation idempotent and safe to call
+    # multiple times. The table stores arbitrary metadata with optional TTL.
+    #
+    # @note Errors (connection issues, permission problems) are not caught here
+    #   and will bubble up to the caller (metadata_get/metadata_set). This is
+    #   intentional - cache failures should not be silently ignored as they may
+    #   indicate infrastructure problems requiring attention.
+    #
+    # @raise [PG::Error] If database connection fails or permissions are insufficient
     def ensure_metadata_table_exists
       execute_sql(<<~SQL)
         CREATE TABLE IF NOT EXISTS cache_metadata (
@@ -1052,48 +1063,21 @@ module Cache
       info
     end
 
-    # Build is_empty condition that handles all SmartSuite field types:
-    # - NULL/empty/null JSON for simple fields
-    # - Date Range fields: {"from_date": null, "to_date": null} should be empty
-    # - Status fields: {"value": null} should be empty
-    # - Arrays and objects
-    def build_is_empty_condition(field, field_accessor)
+    # Build is_empty condition that handles all SmartSuite field types.
+    # Uses Cache::JsonbConditions.empty_condition_sql with comprehensive mode
+    # to handle Date Range and Status field special cases.
+    def build_is_empty_condition(field, _field_accessor)
       sanitized = sanitize_field_name(field)
-      date_accessor = date_field_accessor(field)
-
-      # A field is empty if:
-      # 1. Basic empty checks: NULL, '', [], {}, JSON null
-      # 2. Date Range format with null to_date: {"from_date": ..., "to_date": null}
-      # 3. Date Range format with to_date object that has null date: {"to_date": {"date": null}}
-      # 4. Status/select format with null value: {"value": null}
-      [
-        "(#{field_accessor} IS NULL OR #{field_accessor} = '' OR " \
-        "data->'#{sanitized}' = '[]'::jsonb OR data->'#{sanitized}' = '{}'::jsonb OR " \
-        "data->'#{sanitized}' = 'null'::jsonb OR " \
-        "(jsonb_typeof(data->'#{sanitized}') = 'array' AND jsonb_array_length(data->'#{sanitized}') = 0) OR " \
-        "(jsonb_typeof(data->'#{sanitized}') = 'object' AND #{date_accessor} IS NULL AND data->'#{sanitized}'->'value' IS NULL))",
-        []
-      ]
+      field_acc = "data->>'#{sanitized}'"
+      [ empty_condition_sql(sanitized, field_acc, comprehensive: true), [] ]
     end
 
-    # Build is_not_empty condition - inverse of is_empty
-    def build_is_not_empty_condition(field, field_accessor)
+    # Build is_not_empty condition - inverse of is_empty.
+    # Uses Cache::JsonbConditions.not_empty_condition_sql with comprehensive mode.
+    def build_is_not_empty_condition(field, _field_accessor)
       sanitized = sanitize_field_name(field)
-      date_accessor = date_field_accessor(field)
-
-      # A field is NOT empty if it has actual usable content:
-      # - Not NULL/empty string
-      # - Not empty array/object
-      # - For Date Range: has a valid to_date with actual date value
-      # - For Status: has a valid value
-      [
-        "(#{field_accessor} IS NOT NULL AND #{field_accessor} != '' AND " \
-        "data->'#{sanitized}' != '[]'::jsonb AND data->'#{sanitized}' != '{}'::jsonb AND " \
-        "data->'#{sanitized}' != 'null'::jsonb AND " \
-        "NOT (jsonb_typeof(data->'#{sanitized}') = 'array' AND jsonb_array_length(data->'#{sanitized}') = 0) AND " \
-        "(jsonb_typeof(data->'#{sanitized}') != 'object' OR #{date_accessor} IS NOT NULL OR data->'#{sanitized}'->'value' IS NOT NULL))",
-        []
-      ]
+      field_acc = "data->>'#{sanitized}'"
+      [ not_empty_condition_sql(sanitized, field_acc, comprehensive: true), [] ]
     end
   end
 
@@ -1315,11 +1299,11 @@ module Cache
       when "is_equal_or_less_than"
         [ "(#{field_accessor})::numeric <= ?", [ value.to_f ] ]
       when "is_empty"
-        [ "(#{field_accessor} IS NULL OR #{field_accessor} = '' OR " \
-          "data->'#{sanitized}' = '[]'::jsonb OR data->'#{sanitized}' = 'null'::jsonb)", [] ]
+        # Use shared empty condition logic with comprehensive mode for Date Range/Status fields
+        [ empty_condition_sql(sanitized, field_accessor, comprehensive: true), [] ]
       when "is_not_empty"
-        [ "(#{field_accessor} IS NOT NULL AND #{field_accessor} != '' AND " \
-          "data->'#{sanitized}' != '[]'::jsonb AND data->'#{sanitized}' != 'null'::jsonb)", [] ]
+        # Use shared not_empty condition logic with comprehensive mode
+        [ not_empty_condition_sql(sanitized, field_accessor, comprehensive: true), [] ]
       when "has_any_of"
         if value.is_a?(Array) && value.any?
           conditions = value.map { "data->'#{sanitized}' @> ?::jsonb" }
