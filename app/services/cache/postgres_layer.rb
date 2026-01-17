@@ -939,6 +939,19 @@ module Cache
         else
           [ "TRUE", [] ]
         end
+      when "is_exactly"
+        # Array must contain exactly these values (no more, no less)
+        # Check: (1) length matches AND (2) all values present
+        if value.is_a?(Array) && value.any?
+          length_check = "jsonb_array_length(data->'#{sanitized}') = $#{param_num}"
+          value_checks = value.map.with_index { |_v, i| "data->'#{sanitized}' @> $#{param_num + 1 + i}::jsonb" }
+          all_conditions = [ length_check ] + value_checks
+          params = [ value.length ] + value.map { |v| "[\"#{v}\"]" }
+          [ "(#{all_conditions.join(' AND ')})", params ]
+        else
+          # Empty array: field must be empty array
+          [ "jsonb_array_length(data->'#{sanitized}') = 0", [] ]
+        end
       when "file_name_contains"
         # For file fields (JSONB array), search filename
         [ "EXISTS (SELECT 1 FROM jsonb_array_elements(data->'#{sanitized}') AS elem " \
@@ -1146,7 +1159,8 @@ module Cache
       schema = @cache.get_cached_table_schema(@table_id)
       return nil unless schema
 
-      fields = schema["structure"] || []
+      # get_cached_table_schema returns the structure array directly, not a hash
+      fields = schema.is_a?(Array) ? schema : (schema["structure"] || [])
       field_info = fields.find { |f| f["slug"] == field_slug.to_s }
       field_info&.dig("field_type")&.downcase
     end
@@ -1159,7 +1173,8 @@ module Cache
       schema = @cache.get_cached_table_schema(@table_id)
       return nil unless schema
 
-      fields = schema["structure"] || []
+      # get_cached_table_schema returns the structure array directly, not a hash
+      fields = schema.is_a?(Array) ? schema : (schema["structure"] || [])
       field_info = fields.find { |f| f["slug"] == field_slug.to_s }
       field_info&.dig("params")
     end
@@ -1342,6 +1357,19 @@ module Cache
           [ "#{select_accessor} NOT IN (#{placeholders})", value.map(&:to_s) ]
         else
           [ "TRUE", [] ]
+        end
+      when "is_exactly"
+        # Array must contain exactly these values (no more, no less)
+        # Check: (1) length matches AND (2) all values present
+        if value.is_a?(Array) && value.any?
+          length_check = "jsonb_array_length(data->'#{sanitized}') = ?"
+          value_checks = value.map { "data->'#{sanitized}' @> ?::jsonb" }
+          all_conditions = [ length_check ] + value_checks
+          params = [ value.length ] + value.map { |v| "[\"#{v}\"]" }
+          [ "(#{all_conditions.join(' AND ')})", params ]
+        else
+          # Empty array: field must be empty array
+          [ "jsonb_array_length(data->'#{sanitized}') = 0", [] ]
         end
       when "is_before"
         [ "#{date_field_accessor(sanitized, sanitized: true)} < ?", [ value.to_s ] ]
