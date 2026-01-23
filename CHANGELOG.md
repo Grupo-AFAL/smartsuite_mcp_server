@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Documentation
-
-- **SSH Connection Timeout troubleshooting** - Added diagnosis and fix steps for `Net::SSH::ConnectionTimeout` errors caused by IP not in security group allowlist
-
 ### Added
+
+- **HtmlToSmartdoc Converter** - New formatter to convert HTML to SmartSuite's SmartDoc format
+  - Converts `<h1>`-`<h6>` to heading nodes
+  - Converts `<ul>/<li>` and `<ol>/<li>` to bullet_list and ordered_list
+  - Converts `<table>/<tr>/<th>/<td>` to SmartDoc table structure
+  - Handles inline formatting: `<strong>`, `<em>`, `<u>`, `<s>`, `<a>`
+  - Decodes HTML entities (`&lt;`, `&gt;`, `&amp;`, etc.)
+  - Strips wrapper divs and normalizes content
+  - 27 tests with full coverage
+  - Located in `lib/smart_suite/formatters/html_to_smartdoc.rb`
 
 - **PostgreSQL Cache Feature Parity** - PostgreSQL cache now matches SQLite capabilities
   - Views caching: `cache_views`, `get_cached_views`, `views_cache_valid?`, `invalidate_views_cache`
@@ -93,6 +99,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Uses `similarity()` function for matching (threshold 0.3)
   - Combined with ILIKE for partial match fallback
   - New migration: `EnablePgTrgmExtension`
+
+### Documentation
+
+- **SSH Connection Timeout troubleshooting** - Added diagnosis and fix steps for `Net::SSH::ConnectionTimeout` errors caused by IP not in security group allowlist
 
 ### Fixed
 
