@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Dependency Field Documentation** - Added comprehensive documentation for the `dependencyfield` type
+  - Documents the field structure for reading (predecessor/successor arrays)
+  - Documents how to write dependencies when creating/updating records
+  - Explains all four dependency types: FS (Finish-to-Start), SS (Start-to-Start), FF (Finish-to-Finish), SF (Start-to-Finish)
+  - Documents lag values for adding delays or lead time between tasks
+  - Includes examples for single and multiple predecessors, and clearing dependencies
+  - Updated MCP tool schemas for `create_record` and `update_record` with dependency field format
+  - AI consumers of this MCP server now have full documentation in tool descriptions
+
 - **HtmlToSmartdoc Converter** - New formatter to convert HTML to SmartSuite's SmartDoc format
   - Converts `<h1>`-`<h6>` to heading nodes
   - Converts `<ul>/<li>` and `<ol>/<li>` to bullet_list and ordered_list

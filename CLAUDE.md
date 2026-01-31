@@ -731,6 +731,103 @@ Each prompt generates a complete example with the correct filter structure, oper
 - Operators: `is` (only)
 - Value: Boolean (true/false)
 
+**Dependency fields** (`dependencyfield`):
+
+Dependency fields are used for project management to define task relationships. They track which tasks must be completed before others can start.
+
+- Operators: `is_empty`, `is_not_empty` (for filtering only)
+- **Filtering is limited** - use linked record approaches for complex queries
+
+**Structure (when reading):**
+
+```json
+{
+  "predecessor": [
+    {
+      "type": "fs",
+      "lag": 0,
+      "application": "table_id",
+      "record": "record_id"
+    }
+  ],
+  "successor": [
+    {
+      "type": "fs",
+      "lag": 0,
+      "application": "table_id",
+      "record": "record_id"
+    }
+  ]
+}
+```
+
+**Structure (when writing via create_record/update_record):**
+
+Only set the `predecessor` array - SmartSuite automatically creates the reverse `successor` relationships:
+
+```ruby
+# Set dependencies when creating/updating a record
+{
+  "dependency" => {
+    "predecessor" => [
+      {
+        "type" => "fs",
+        "lag" => 0,
+        "application" => "697d2c6ff917d0e2b5cd6271",  # table ID (required)
+        "record" => "697d2d01d98fce40ddc7d636"        # record ID (required)
+      }
+    ]
+  }
+}
+
+# Multiple predecessors
+{
+  "dependency" => {
+    "predecessor" => [
+      {"type" => "fs", "lag" => 0, "application" => "table_id", "record" => "record_id_1"},
+      {"type" => "ss", "lag" => 2, "application" => "table_id", "record" => "record_id_2"}
+    ]
+  }
+}
+
+# Clear all dependencies
+{
+  "dependency" => {
+    "predecessor" => []
+  }
+}
+```
+
+**Dependency Types:**
+
+| Type | Name             | Description                                      |
+| ---- | ---------------- | ------------------------------------------------ |
+| `fs` | Finish-to-Start  | Task B starts only after Task A finishes (most common) |
+| `ss` | Start-to-Start   | Task B starts when Task A starts                 |
+| `ff` | Finish-to-Finish | Task B finishes only when Task A finishes        |
+| `sf` | Start-to-Finish  | Task A cannot finish until Task B starts (rare)  |
+
+**Lag Values:**
+
+- `lag`: Number of days delay between tasks
+- Positive values: Add buffer time (e.g., `lag: 3` = 3-day delay after predecessor)
+- Negative values: Allow overlap/lead time (e.g., `lag: -2` = start 2 days before predecessor finishes)
+- Default: `0` (no delay)
+
+**Field Properties (required):**
+
+- `type`: Dependency type code (`fs`, `ss`, `ff`, `sf`)
+- `lag`: Days of delay (integer, can be negative)
+- `application`: Table ID where the related record exists (usually same table)
+- `record`: Record ID of the predecessor task
+
+**Important Notes:**
+
+- Dependency fields work best with tables that also have a Due Date field for Gantt view scheduling
+- When setting predecessors, SmartSuite automatically updates the successor relationships on the target records
+- Cross-table dependencies are possible by specifying a different `application` (table ID)
+- The Gantt view uses dependency arrows to visualize these relationships
+
 **Important notes:**
 
 - Filter operators are case-sensitive
