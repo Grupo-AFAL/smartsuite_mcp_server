@@ -381,7 +381,13 @@ For rich text fields (richtextareafield), use SmartDoc format (TipTap/ProseMirro
 - **CRITICAL:** Use snake_case: `bullet_list`, `list_item`, `table_row`, `table_cell`, `table_header`, `ordered_list`, `check_list`, `code_block`, `hard_break`
 - Bold: `{"type": "strong"}` mark
 - Italic: `{"type": "em"}` mark
-- Structure: `{"data": {"type": "doc", "content": [...]}}`',
+- Structure: `{"data": {"type": "doc", "content": [...]}}`
+
+**Dependency Fields (dependencyfield):**
+Set predecessors only - SmartSuite auto-creates successors. Types: `fs` (finish-to-start, default), `ss`, `ff`, `sf`. Lag: days delay (0=none, negative=overlap).
+```json
+{"dependency": {"predecessor": [{"type": "fs", "lag": 0, "application": "TABLE_ID", "record": "RECORD_ID"}]}}
+```',
           "inputSchema" => {
             "type" => "object",
             "properties" => {
@@ -422,7 +428,13 @@ For rich text fields (richtextareafield), use SmartDoc format (TipTap/ProseMirro
 - **CRITICAL:** Use snake_case: `bullet_list`, `list_item`, `table_row`, `table_cell`, `table_header`, `ordered_list`, `check_list`, `code_block`, `hard_break`
 - Bold: `{"type": "strong"}` mark
 - Italic: `{"type": "em"}` mark
-- Structure: `{"data": {"type": "doc", "content": [...]}}`',
+- Structure: `{"data": {"type": "doc", "content": [...]}}`
+
+**Dependency Fields (dependencyfield):**
+Set predecessors only - SmartSuite auto-creates successors. Types: `fs` (finish-to-start, default), `ss`, `ff`, `sf`. Lag: days delay (0=none, negative=overlap).
+```json
+{"dependency": {"predecessor": [{"type": "fs", "lag": 0, "application": "TABLE_ID", "record": "RECORD_ID"}]}}
+```',
           "inputSchema" => {
             "type" => "object",
             "properties" => {
