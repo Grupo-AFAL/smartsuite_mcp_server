@@ -115,6 +115,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **PostgresQuery missing operator mappings** - `where` method was missing 6 operators (`has_all_of`, `has_none_of`, `is_exactly`, `is_any_of`, `is_none_of`, `not_contains`), causing them to silently fall through to equality comparison and return incorrect filter results
+- **PG::UndefinedTable error in cache status** - `get_cache_count_status` now checks `information_schema.tables` before querying, preventing crashes when `cache_views` or `cache_deleted_records` tables don't exist yet
+- **Missing migration for cache_views and cache_deleted_records** - Added proper Rails migration to formalize tables that were previously created on-demand
+
 - **Kamal post-deploy hook SSH authentication** - Hook now explicitly specifies SSH key path since it runs outside Kamal's SSH wrapper
 
 - **PostgresLayer `cache_table_records` bug** - Fixed type error when caching records
