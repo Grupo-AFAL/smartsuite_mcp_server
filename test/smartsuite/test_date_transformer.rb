@@ -180,8 +180,8 @@ class TestDateTransformer < Minitest::Test
 
     expected = {
       "due_date" => {
-        "from_date" => { "date" => "2025-06-20T00:00:00Z", "include_time" => false },
-        "to_date" => { "date" => "2025-06-25T17:00:00Z", "include_time" => true }
+        "from_date" => "2025-06-20T00:00:00Z",
+        "to_date" => "2025-06-25T17:00:00Z"
       }
     }
     assert_equal expected, result
@@ -198,8 +198,8 @@ class TestDateTransformer < Minitest::Test
 
     expected = {
       "due_date" => {
-        "from_date" => { "date" => "2025-06-21T00:00:00Z", "include_time" => true },
-        "to_date" => { "date" => "2025-06-25T00:00:00Z", "include_time" => false }
+        "from_date" => "2025-06-21T00:00:00Z",
+        "to_date" => "2025-06-25T00:00:00Z"
       }
     }
     assert_equal expected, result
@@ -215,11 +215,11 @@ class TestDateTransformer < Minitest::Test
 
     assert_equal "Test Record", result["title"]
     assert_equal "active", result["status"]
-    assert_equal({ "date" => "2025-06-20T00:00:00Z", "include_time" => false }, result["due_date"]["from_date"])
+    assert_equal "2025-06-20T00:00:00Z", result["due_date"]["from_date"]
   end
 
   def test_transform_dates_already_formatted
-    # Already in SmartSuite format - should pass through
+    # Already in SmartSuite format - should extract date string for from_date/to_date
     data = {
       "due_date" => {
         "from_date" => { "date" => "2025-06-20T00:00:00Z", "include_time" => false }
@@ -229,7 +229,7 @@ class TestDateTransformer < Minitest::Test
 
     expected = {
       "due_date" => {
-        "from_date" => { "date" => "2025-06-20T00:00:00Z", "include_time" => false }
+        "from_date" => "2025-06-20T00:00:00Z"
       }
     }
     assert_equal expected, result
@@ -249,11 +249,13 @@ class TestDateTransformer < Minitest::Test
     }
     result = SmartSuite::DateTransformer.transform_dates(data)
 
+    # Top-level date fields get {date, include_time} wrapper
     assert_equal false, result["fecha"]["include_time"]
-    assert_equal true, result["due_date"]["from_date"]["include_time"]
-    assert_equal false, result["due_date"]["to_date"]["include_time"]
-    assert_equal true, result["s31437fa81"]["from_date"]["include_time"]
-    assert_equal false, result["s31437fa81"]["to_date"]["include_time"]
+    # Date range sub-fields (from_date, to_date) are plain strings
+    assert_equal "2025-08-15T09:00:00Z", result["due_date"]["from_date"]
+    assert_equal "2025-08-20T00:00:00Z", result["due_date"]["to_date"]
+    assert_equal "2025-10-01T08:30:00Z", result["s31437fa81"]["from_date"]
+    assert_equal "2025-10-15T00:00:00Z", result["s31437fa81"]["to_date"]
   end
 
   # ===================

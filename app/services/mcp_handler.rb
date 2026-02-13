@@ -128,7 +128,23 @@ class MCPHandler
         ]
       }
     }
+  rescue RuntimeError => e
+    # RuntimeError from API requests (400, 403, 404, 422) are expected user/input errors
+    # Log at warn level but do NOT report to Sentry
+    if e.message.match?(/API request failed \((400|403|404|422)\)/)
+      Rails.logger.warn("Tool API error: #{e.message}")
+      error_response(request["id"], -32_603, "Tool execution failed: #{e.message}")
+    else
+      Rails.logger.error("Tool execution failed: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
+      Sentry.capture_exception(e, extra: { tool_name: tool_name, arguments: arguments, user_id: @user&.id })
+      error_response(request["id"], -32_603, "Tool execution failed: #{e.message}")
+    end
+  rescue ArgumentError => e
+    # ArgumentError from input validation (missing params, unknown resource) - expected
+    Rails.logger.warn("Tool argument error: #{e.message}")
+    error_response(request["id"], -32_602, "Invalid arguments: #{e.message}")
   rescue StandardError => e
+    # Unexpected errors - report to Sentry
     Rails.logger.error("Tool execution failed: #{e.message}\n#{e.backtrace.first(5).join("\n")}")
     Sentry.capture_exception(e, extra: { tool_name: tool_name, arguments: arguments, user_id: @user&.id })
     error_response(request["id"], -32_603, "Tool execution failed: #{e.message}")
