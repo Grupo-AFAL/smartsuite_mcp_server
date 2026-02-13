@@ -115,6 +115,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **JSON String Parameter Parsing** - Fixed `NoMethodError: undefined method 'any?' for String` when MCP clients serialize `fields`, `filter`, or `sort` parameters as JSON strings instead of native types
+  - Added defensive JSON parsing in `RecordOperations#list_records` with `parse_json_string_param` helper
+  - Added defense-in-depth parsing in `ResponseFormatter#filter_items`
+  - Resolves Sentry issues SMARTSUITE-MCP-T, SMARTSUITE-MCP-S
+
+- **Date Range Field Transformation** - Fixed `from_date`/`to_date` fields being incorrectly wrapped in `{date, include_time}` objects that the SmartSuite API rejects
+  - `DateTransformer` now returns plain ISO 8601 strings for date range sub-fields while maintaining correct wrapping for top-level date fields
+  - Added `normalize_date_for_api` method for date normalization without metadata wrapping
+  - Resolves Sentry issues SMARTSUITE-MCP-Q, SMARTSUITE-MCP-6
+
+- **Sentry Error Noise Reduction** - Expected API errors (400, 403, 404, 422) no longer reported to Sentry
+  - Split `handle_tool_call` rescue into three clauses: `RuntimeError` (API errors), `ArgumentError` (input validation), `StandardError` (unexpected)
+  - Only unexpected errors are captured by Sentry; expected errors log at warn level
+  - Resolves Sentry issues SMARTSUITE-MCP-8, 7, J, C, R, M, D, P
+
 - **PostgresQuery missing operator mappings** - `where` method was missing 6 operators (`has_all_of`, `has_none_of`, `is_exactly`, `is_any_of`, `is_none_of`, `not_contains`), causing them to silently fall through to equality comparison and return incorrect filter results
 - **PG::UndefinedTable error in cache status** - `get_cache_count_status` now checks `information_schema.tables` before querying, preventing crashes when `cache_views` or `cache_deleted_records` tables don't exist yet
 - **Missing migration for cache_views and cache_deleted_records** - Added proper Rails migration to formalize tables that were previously created on-demand

@@ -122,8 +122,10 @@ module SmartSuite
 
       # Filter items based on requested fields
       def filter_items(items, fields)
+        # Ensure fields is an array (may arrive as JSON string from some MCP clients)
+        fields = JSON.parse(fields) if fields.is_a?(String) rescue fields
         items.map do |record|
-          requested_fields = fields&.any? ? (fields + %w[id title]).uniq : %w[id title]
+          requested_fields = fields.is_a?(Array) && fields.any? ? (fields + %w[id title]).uniq : %w[id title]
           filter_record_fields(record, requested_fields)
         end
       end
