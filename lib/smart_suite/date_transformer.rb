@@ -24,17 +24,16 @@ module SmartSuite
   #
   # The AI can simply provide date strings and the server handles the rest:
   #
-  # @example Date-only
+  # @example Date range fields (from_date, to_date)
   #   {"due_date": {"from_date": "2025-06-20", "to_date": "2025-06-25"}}
   #   # Transformed to:
-  #   {"due_date": {"from_date": {"date": "2025-06-20T00:00:00Z", "include_time": false},
-  #                "to_date": {"date": "2025-06-25T00:00:00Z", "include_time": false}}}
+  #   {"due_date": {"from_date": "2025-06-20T00:00:00Z", "to_date": "2025-06-25T00:00:00Z"}}
   #
-  # @example With time
-  #   {"due_date": {"from_date": "2025-06-20T14:30:00Z", "to_date": "2025-06-25 17:00"}}
+  # @example Top-level date fields
+  #   {"fecha": "2025-06-20", "meeting_time": "2025-06-20T14:30:00Z"}
   #   # Transformed to:
-  #   {"due_date": {"from_date": {"date": "2025-06-20T14:30:00Z", "include_time": true},
-  #                "to_date": {"date": "2025-06-25T17:00:00Z", "include_time": true}}}
+  #   {"fecha": {"date": "2025-06-20T00:00:00Z", "include_time": false},
+  #    "meeting_time": {"date": "2025-06-20T14:30:00Z", "include_time": true}}
   #
   module DateTransformer
     # Date-only pattern: YYYY-MM-DD (no time component)
@@ -198,7 +197,8 @@ module SmartSuite
       hash.each do |key, value|
         key_str = key.to_s
 
-        if DATE_SUBFIELDS.include?(key_str)
+        if key_str == "date"
+          # Top-level 'date' key: wrap in {date, include_time} format
           result[key_str] = if value.is_a?(String)
                               transform_date_string(value)
           elsif value.is_a?(Hash) && value.key?("date")
@@ -207,8 +207,19 @@ module SmartSuite
           else
                               value
           end
+        elsif %w[from_date to_date].include?(key_str)
+          # Date range sub-fields: normalize to ISO string only, do NOT wrap
+          # SmartSuite API expects plain date strings for from_date/to_date
+          result[key_str] = if value.is_a?(String)
+                              normalize_date_for_api(value)
+          elsif value.is_a?(Hash) && value.key?("date")
+                              # Already has {date: ...} structure - extract just the date string
+                              value["date"]
+          else
+                              value
+          end
         elsif key_str == "include_time"
-          # Skip - will be set by transform_date_string
+          # Skip - will be set by transform_date_string for top-level dates
           next
         else
           # Pass through other keys (is_overdue, status_is_completed, etc.)
@@ -217,6 +228,27 @@ module SmartSuite
       end
 
       result
+    end
+
+    # Normalize a date string to ISO format for API submission.
+    #
+    # Unlike transform_date_string, this does NOT wrap in {date, include_time}.
+    # Used for date range sub-fields (from_date, to_date) which expect plain strings.
+    #
+    # @param str [String] Date string
+    # @return [String] Normalized ISO date string
+    def normalize_date_for_api(str)
+      return str unless str.is_a?(String)
+
+      if date_only?(str)
+        date = parse_date_only(str)
+        return str unless date
+        "#{date}T00:00:00Z"
+      elsif datetime?(str)
+        normalize_datetime(str) || str
+      else
+        str
+      end
     end
 
     # Ensure a date hash has include_time set correctly.

@@ -54,6 +54,11 @@ module SmartSuite
         limit = 10 if limit.nil?
         offset ||= 0
 
+        # Parse JSON string parameters (some MCP clients serialize complex types as strings)
+        fields = parse_json_string_param(fields)
+        filter = parse_json_string_param(filter)
+        sort = parse_json_string_param(sort)
+
         # VALIDATION: Require fields parameter to prevent excessive context usage
         if !fields || fields.empty?
           error_msg = "ERROR: You must specify 'fields' parameter to control token usage.\n\n" \
@@ -999,6 +1004,21 @@ module SmartSuite
         }
 
         api_request(:patch, "/applications/#{table_id}/records/#{record_id}/", body)
+      end
+
+      # Parse a JSON string parameter if it's a String.
+      # Some MCP clients serialize arrays/hashes as JSON strings.
+      #
+      # @param value [Object] Parameter value that might be a JSON string
+      # @return [Object] Parsed value or original if not a JSON string
+      def parse_json_string_param(value)
+        return value unless value.is_a?(String)
+
+        parsed = JSON.parse(value)
+        # Only accept arrays and hashes from parsing
+        parsed.is_a?(Array) || parsed.is_a?(Hash) ? parsed : value
+      rescue JSON::ParserError
+        value
       end
 
       # Builds a minimal response hash for mutation operations.
