@@ -1000,6 +1000,14 @@ module Cache
     # select_field_accessor and date_field_accessor are provided by Cache::JsonbConditions
 
     def get_cache_count_status(table_name, now)
+      # Check table exists before querying to avoid PG::UndefinedTable errors
+      table_exists = execute_sql(
+        "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1)",
+        [ table_name ]
+      ).first&.fetch("exists", false)
+
+      return nil unless table_exists
+
       result = execute_sql(
         "SELECT COUNT(*) as count, MIN(expires_at) as min_expires FROM #{table_name} WHERE expires_at > $1",
         [ now ]
@@ -1180,6 +1188,12 @@ module Cache
             when :lte then "is_equal_or_less_than"
             when :contains then "contains"
             when :has_any_of then "has_any_of"
+            when :has_all_of then "has_all_of"
+            when :has_none_of then "has_none_of"
+            when :is_exactly then "is_exactly"
+            when :is_any_of then "is_any_of"
+            when :is_none_of then "is_none_of"
+            when :not_contains then "not_contains"
             # Null check operators
             when :is_empty then "is_empty"
             when :is_not_empty then "is_not_empty"
